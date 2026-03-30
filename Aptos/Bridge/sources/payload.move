@@ -9,7 +9,7 @@ module dev::QiaraPayloadV1{
     use aptos_std::bcs_stream::{Self};
     use dev::QiaraChainTypesV3::{Self as ChainTypes};
     use dev::QiaraTokenTypesV3::{Self as TokenTypes};
-    
+    use event::QiaraEventV1::{Self as Event};
 
     const ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES: u64 = 0;
     const ERROR_PAYLOAD_MISS_CHAIN: u64 = 1;
