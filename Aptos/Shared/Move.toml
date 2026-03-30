@@ -5,7 +5,7 @@
 
     [addresses]
     dev = "0x806dc4c24130e8be9a09ec67ecc53b39074ba0666e4cb2173926b6284490522a"
-    event = "0xd92a67fc8e2aff7c3116896868d90ac0538f2e2d0f760c21d03a8225eab5e95e"
+    event = "0xe97f40d139c4e86c610236ab5eb8801222755c13b70d78c74ec91d89b3b80023"
     std = "0x1"
     aptos_std = "0x1"
     Extensions = "0x1"

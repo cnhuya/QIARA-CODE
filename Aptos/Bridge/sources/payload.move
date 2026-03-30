@@ -6,7 +6,7 @@ module dev::QiaraPayloadV1{
     use aptos_std::from_bcs;
     use std::hash;
     use std::bcs;
-
+    use aptos_std::bcs_stream::{Self};
     use dev::QiaraChainTypesV3::{Self as ChainTypes};
     use dev::QiaraTokenTypesV3::{Self as TokenTypes};
     
@@ -40,15 +40,14 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
     let (_, chain_bytes) = find_payload_value(string::utf8(b"chain"), type_names, payload);
     
-    // FIX: Use string::utf8() instead of from_bcs::to_string()
-    let chain_name = string::utf8(chain_bytes);
+
+    let chain_name = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_bytes));
     ChainTypes::ensure_valid_chain_name(chain_name);
 
     if (vector::contains(&type_names, &string::utf8(b"token"))) {
         let (_, token_bytes) = find_payload_value(string::utf8(b"token"), type_names, payload);
         
-        // FIX: Use string::utf8() here too
-        let token_name = string::utf8(token_bytes);
+        let token_name = bcs_stream::deserialize_string(&mut bcs_stream::new(token_bytes));
         TokenTypes::ensure_valid_token_nick_name(token_name);
     }
 }
@@ -65,16 +64,11 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8> {
         let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
 
-        // To match Solidity's abi.encodePacked(uint256, uint256, uint256):
-        // Ensure each of these vectors is exactly 32 bytes (Big Endian).
-        let vect = vector::empty<u8>();
-        vector::append(&mut vect, addr);           // Should be 32 bytes
-        vector::append(&mut vect, nonce);          // Should be 32 bytes
-        
-        // 1. Use SHA2_256 to match Solidity/Sui
-        // 2. Return the raw vector<u8> (32 bytes) without BCS length-prefixing
-        hash::sha2_256(vect)
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Event::create_identifier(addr, consensus, nonce);
+
     }
 
     public fun find_payload_value(value: String, vect: vector<String>, from: vector<vector<u8>>): (String, vector<u8>){
@@ -117,37 +111,40 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
         return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_string(pub_key_x), from_bcs::to_string(pub_key_y), from_bcs::to_bytes(pub_key))
     }
-    public fun prepare_finalize_bridge(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String,String,String,String,String,String, String, u64,u256, u256){
-        //tttta(99);
-        let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
-        let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);
-        let (_, validator_root) = find_payload_value(utf8(b"validator_root"), type_names, payload);
-        let (_, old_root) = find_payload_value(utf8(b"old_root"), type_names, payload);
-        let (_, new_root) = find_payload_value(utf8(b"new_root"), type_names, payload);
-        let (_, symbol) = find_payload_value(utf8(b"symbol"), type_names, payload);
-        let (_, chain) = find_payload_value(utf8(b"chain"), type_names, payload);
-        let (_, provider) = find_payload_value(utf8(b"provider"), type_names, payload);
-        let (_, total_outflow) = find_payload_value(utf8(b"total_outflow"), type_names, payload);
-        let (_, amount) = find_payload_value(utf8(b"amount"), type_names, payload);
-        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
-       //tttta(1);
-       let y = addr;
-       let k = from_bcs::to_string(shared);
-       let x = from_bcs::to_string(validator_root);
-       let a = from_bcs::to_string(old_root);
-      // tttta(4);
-       let b = from_bcs::to_string(new_root);
-       let c = from_bcs::to_string(symbol);
-    //   tttta(4);
-       let d = from_bcs::to_string(chain);
-       let h = from_bcs::to_string(provider);
-            // tttta(0);
-       let e = from_bcs::to_u64(amount);
-       let n = from_bcs::to_u256(total_outflow);
-       //tttta(5);
-       let f = from_bcs::to_u256(nonce);
-         //           tttta(2);
-        return (y, k, x, a,b,c,d,h, e, n, f)
-    }
+public fun prepare_finalize_bridge(
+    type_names: vector<String>, 
+    payload: vector<vector<u8>>
+): (vector<u8>, String, String, String, String, String, String, String, u64, u256, u256) {
+    
+    // 1. Extract raw byte chunks using your existing finder
+    let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
+    let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+    let (_, val_root_raw) = find_payload_value(utf8(b"validator_root"), type_names, payload);
+    let (_, old_root_raw) = find_payload_value(utf8(b"old_root"), type_names, payload);
+    let (_, new_root_raw) = find_payload_value(utf8(b"new_root"), type_names, payload);
+    let (_, symbol_raw) = find_payload_value(utf8(b"symbol"), type_names, payload);
+    let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
+    let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
+    let (_, total_outflow_raw) = find_payload_value(utf8(b"total_outflow"), type_names, payload);
+    let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
+    let (_, nonce_raw) = find_payload_value(utf8(b"nonce"), type_names, payload);
+
+    // 2. Decode each chunk into Move types using BCS streams
+    let y = bcs::to_bytes(&bcs_stream::deserialize_address(&mut bcs_stream::new(addr))); // Keep as vector<u8>
+    let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+    let x = bcs_stream::deserialize_string(&mut bcs_stream::new(val_root_raw));
+    let a = bcs_stream::deserialize_string(&mut bcs_stream::new(old_root_raw));
+    let b = bcs_stream::deserialize_string(&mut bcs_stream::new(new_root_raw));
+   //     tttta(1000);
+    let c = bcs_stream::deserialize_string(&mut bcs_stream::new(symbol_raw));
+    let d = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+    let h = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+    // Numbers
+    let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
+    let n = bcs_stream::deserialize_u256(&mut bcs_stream::new(total_outflow_raw));
+    let f = bcs_stream::deserialize_u256(&mut bcs_stream::new(nonce_raw));
+      //          tttta(0);
+    return (y, k, x, a, b, c, d, h, e, n, f)
+}
 
 }

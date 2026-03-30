@@ -1,7 +1,7 @@
 module dev::QiaraBridgeV1{
     use std::signer;
     use aptos_framework::account::{Self as address};
-    use std::string::{Self as String, String, utf8};
+    use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::type_info;
     use std::table:: {Self as table, Table};
@@ -10,6 +10,7 @@ module dev::QiaraBridgeV1{
     use std::hash;
     use std::debug::print;
     use aptos_std::from_bcs;
+    use aptos_std::bcs_stream::{Self};
     use aptos_std::ed25519::{Self as Crypto, Signature, UnvalidatedPublicKey};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset};
@@ -202,80 +203,75 @@ module dev::QiaraBridgeV1{
 //0x1a00000000000000000000000000000000000000000000000000000000000000
 
     public entry fun register_event(signer: &signer, validator: String, type_names: vector<String>, payload: vector<vector<u8>>) acquires Pending, Validated, Permissions {
-        Payload::ensure_valid_payload(type_names, payload);
 
-        //assert!(Validators::is_valid_signer(validator), ERROR_INVALID_SIGNER);
+    Payload::ensure_valid_payload(type_names, payload);
 
-        //tttta(97);
-        let identifier = Payload::create_identifier(type_names, payload);
-        //let (_, identifier) = Payload::find_payload_value(utf8(b"identifier"), type_names, payload);
-        let (_, type) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
-        //        tttta(0);
-        let (_, event_type) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
-        let (pub_key_x, pub_key_y, pubkey, _, _) = Validators::return_validator_raw(validator);
+    let identifier = Payload::create_identifier(type_names, payload);
+    
+    // 1. Strings MUST use bcs_stream
+    let (_, type_raw) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
+    let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
+    let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
+    let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
+    let (pub_key_x, pub_key_y, pubkey, _, _) = Validators::return_validator_raw(validator);
 
-
-        let pending = borrow_global_mut<Pending>(STORAGE);
-        let validated = borrow_global_mut<Validated>(STORAGE);
-        Validators::take_snapshot(signer, validator);
+    let pending = borrow_global_mut<Pending>(STORAGE);
+    let validated = borrow_global_mut<Validated>(STORAGE);
+    Validators::take_snapshot(signer, validator);
+    
+    // 2. Logic based on the Clean String
+    if (consensus_type == utf8(b"native")) {
+        let (_, message) = Payload::find_payload_value(utf8(b"message"), type_names, payload);
+        let (_, _sig_bytes) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
         
-        // Store event in both pending and chain storage
-        if(from_bcs::to_string(type) == utf8(b"native")){
-            let (_, message) = Payload::find_payload_value(utf8(b"message"), type_names, payload);
-            let (_, _signature) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
-            let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(pubkey);
-            let signature = Crypto::new_signature_from_bytes(_signature);
-            let verified = Crypto::signature_verify_strict(&signature, &pubkey_struct, message);
-            assert!(verified, ERROR_INVALID_SIGNATURE);
-
-            handle_main_event(
-                signer,
-                validator,
-                &mut pending.main,
-                &mut validated.main,
-                identifier,
-                type_names,
-                payload,
-                _signature,
-                from_bcs::to_string(event_type)
-            );
-        } else if (from_bcs::to_string(type) == utf8(b"zk")){
-
-            handle_zk_event(
-                signer,
-                validator,
-                &mut pending.zk,
-                &mut validated.zk,
-                identifier,
-                type_names,
-                payload,
-                build_zkVote_from_payload(pub_key_x, pub_key_y, type_names, payload),
-                from_bcs::to_string(event_type)
-
-            );
-
+        // NOTE: message and signature are usually raw bytes, NOT BCS strings.
+        // We do NOT use bcs_stream for them if they were passed as raw bytes.
+        let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(pubkey);
+        let signature = Crypto::new_signature_from_bytes(_sig_bytes);
         
-            
-        } else if (from_bcs::to_string(type) == utf8(b"none")){
-            return
-        } else {
-            abort(ERROR_INVALID_TYPE);
-        };
+        let verified = Crypto::signature_verify_strict(&signature, &pubkey_struct, message);
+        assert!(verified, ERROR_INVALID_SIGNATURE);
 
-
-    }
-
+        handle_main_event(
+            signer,
+            validator,
+            &mut pending.main,
+            &mut validated.main,
+            identifier,
+            type_names,
+            payload,
+            _sig_bytes,
+            event_type // Use the string we decoded earlier
+        );
+    } else if (consensus_type == utf8(b"zk")) {
+        handle_zk_event(
+            signer,
+            validator,
+            &mut pending.zk,
+            &mut validated.zk,
+            identifier,
+            type_names,
+            payload,
+            build_zkVote_from_payload(pub_key_x, pub_key_y, type_names, payload),
+            event_type // Use the string we decoded earlier
+        );
+    } else if (consensus_type == utf8(b"none")) {
+        return
+    } else {
+        abort(ERROR_INVALID_TYPE);
+    };
+}
     fun build_zkVote_from_payload(pubkwey_x: String, pubkey_y: String, type_names: vector<String>, payload: vector<vector<u8>>): ZkVote {
         let (_, s_r8x) = Payload::find_payload_value(utf8(b"s_r8x"), type_names, payload);
         let (_, s_r8y) = Payload::find_payload_value(utf8(b"s_r8y"), type_names, payload);
         let (_, s) = Payload::find_payload_value(utf8(b"s"), type_names, payload);
         //let (_, index) = Payload::find_payload_value(utf8(b"index"), type_names, payload);
-
+        //tttta(0);
         return ZkVote {
             weight: 0,
-            s_r8x: from_bcs::to_string(s_r8x), //s_r8x,
-            s_r8y: from_bcs::to_string(s_r8y), //s_r8y,
-            s:  from_bcs::to_string(s), //s_r8y,
+            s_r8x: bcs_stream::deserialize_string(&mut bcs_stream::new(s_r8x)), //s_r8x,
+            s_r8y: bcs_stream::deserialize_string(&mut bcs_stream::new(s_r8y)), //s_r8y,
+            s:  bcs_stream::deserialize_string(&mut bcs_stream::new(s)), //s_r8y,
             pub_key_x: pubkwey_x,
             pub_key_y: pubkey_y,
             //index:  from_bcs::to_u16(s), //s_r8y,
@@ -533,7 +529,7 @@ module dev::QiaraBridgeV1{
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
         let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
-
+        //tttta(100);
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
@@ -541,7 +537,6 @@ module dev::QiaraBridgeV1{
         // Calculate voting power (Weight)
         let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
         let vote_weight = (vote_weight_u256 as u128);
-
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
@@ -620,7 +615,9 @@ module dev::QiaraBridgeV1{
                 let (validator, shared, pub_key_x, pub_key_y, pub_key) = Payload::prepare_register_validator(type_names, payload);
                 Validators::c_register_validator(signer, shared, validator, pub_key_x, pub_key_y, pub_key, Validators::give_permission(&borrow_global<Permissions>(@dev).validators));
             } else if (event_type == utf8(b"Request Bridge")) {
+                  //             tttta(100);
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(type_names, payload);
+                //tttta(45454);
                 TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 let data = vector[
@@ -643,6 +640,7 @@ module dev::QiaraBridgeV1{
             } else {
                 abort(ERROR_INVALID_MESSAGE);
             };
+
 
             // Emit Validated Event
             let data = vector[
