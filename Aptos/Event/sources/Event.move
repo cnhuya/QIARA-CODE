@@ -18,7 +18,7 @@ module event::QiaraEventV1 {
     struct Permission has copy, key, drop {}
 
     public fun give_access(s: &signer): Access {
-        assert!(signer::address_of(s) == @dev, ERROR_NOT_ADMIN);
+        assert!(signer::address_of(s) == @event, ERROR_NOT_ADMIN);
         Access {}
     }
 
@@ -110,7 +110,7 @@ module event::QiaraEventV1 {
 
 // === INIT === //
     fun init_module(admin: &signer) {
-        assert!(signer::address_of(admin) == @dev, 1);
+        assert!(signer::address_of(admin) == @event, 1);
     }
 
   public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {
@@ -129,6 +129,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, user_bytes);
         vector::append(&mut vect, bcs::to_bytes(&type));
         vector::append(&mut vect, nonce_bytes);
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000001");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
