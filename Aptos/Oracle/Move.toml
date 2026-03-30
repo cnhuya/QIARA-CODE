@@ -11,7 +11,7 @@
     pyth         = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387"
     deployer     = "0xb31e712b26fd295357355f6845e77c888298636609e93bc9b05f0f604049f434"
     wormhole     = "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-    event = "0xd92a67fc8e2aff7c3116896868d90ac0538f2e2d0f760c21d03a8225eab5e95e"
+    event = "0xe97f40d139c4e86c610236ab5eb8801222755c13b70d78c74ec91d89b3b80023"
     [dev-addresses]
 
     [dependencies.AptosFramework]
