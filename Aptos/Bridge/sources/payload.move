@@ -67,7 +67,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
 
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
-        Event::create_identifier(addr, consensus, nonce);
+        Event::create_identifier(addr, consensus, nonce)
 
     }
 
