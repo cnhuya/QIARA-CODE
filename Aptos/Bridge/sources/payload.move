@@ -40,10 +40,10 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
     let (_, chain_bytes) = find_payload_value(string::utf8(b"chain"), type_names, payload);
     
-
+    // tttta(100) ; 
     let chain_name = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_bytes));
     ChainTypes::ensure_valid_chain_name(chain_name);
-
+   //  tttta(10000) ; 
     if (vector::contains(&type_names, &string::utf8(b"token"))) {
         let (_, token_bytes) = find_payload_value(string::utf8(b"token"), type_names, payload);
         
@@ -77,31 +77,38 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (value, *vector::borrow(&from, index))
     }
 
-    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String,  String, String, String, u64, String,){
-        let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
-        let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);
-        let (_, symbol) = find_payload_value(utf8(b"symbol"), type_names, payload);
-        let (_, chain) = find_payload_value(utf8(b"chain"), type_names, payload);
-        let (_, provider) = find_payload_value(utf8(b"provider"), type_names, payload);
-        //tttta(0);
-        let (_, amount) = find_payload_value(utf8(b"amount"), type_names, payload);
-        //tttta(5);
-        let (_, hash) = find_payload_value(utf8(b"hash"), type_names, payload);
+public fun prepare_bridge_deposit(
+    type_names: vector<String>, 
+    payload: vector<vector<u8>>
+): (vector<u8>, vector<u8>, String, String, String, String, u64, String) {
+    
+    // 1. Extract raw byte chunks
+    let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+    let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+    let (_, token_raw) = find_payload_value(utf8(b"token"), type_names, payload);
+    let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
+    let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
+    let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
+    let (_, hash_raw) = find_payload_value(utf8(b"hash"), type_names, payload);
 
-        let k = from_bcs::to_string(shared);
-        let a = addr;
-        let x = addr;
-        let b = from_bcs::to_string(symbol);
-        let c = from_bcs::to_string(chain);
-        let d = from_bcs::to_string(provider);
-        //tttta(1);
-        let e = from_bcs::to_u64(amount);
-        //tttta(3);
-        let f = from_bcs::to_string(hash);
-         //       tttta(2);
-        return (a,x,k, b ,c ,d, e, f)
-    }
+    // 2. Decode using bcs_stream
+    // Extract the address and convert to raw bytes (32 bytes)
+    let addr_obj = bcs_stream::deserialize_address(&mut bcs_stream::new(addr_raw));
+    let a = bcs::to_bytes(&addr_obj);
+    let x = a; // Copying for the second return value as per your original code
 
+    // Extract Strings
+    let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+    let b = bcs_stream::deserialize_string(&mut bcs_stream::new(token_raw));
+    let c = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+    let d = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+    let f = bcs_stream::deserialize_string(&mut bcs_stream::new(hash_raw));
+
+    // Extract U64
+    let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
+
+    return (a, x, k, b, c, d, e, f)
+}
     public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String,String, String, vector<u8>){
         let (_, validator) = find_payload_value(utf8(b"validator"), type_names, payload);
         let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);

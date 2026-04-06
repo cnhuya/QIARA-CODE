@@ -29,6 +29,8 @@ module dev::QiaraBridgeV1{
 
     use dev::QiaraPayloadV1::{Self as Payload};
     use dev::QiaraValidatorsV1::{Self as Validators, Access as ValidatorsAccess};
+
+    use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
     const STORAGE: address = @dev;
 
@@ -205,25 +207,21 @@ module dev::QiaraBridgeV1{
     public entry fun register_event(signer: &signer, validator: String, type_names: vector<String>, payload: vector<vector<u8>>) acquires Pending, Validated, Permissions {
 
     Payload::ensure_valid_payload(type_names, payload);
-
     let identifier = Payload::create_identifier(type_names, payload);
-    
     // 1. Strings MUST use bcs_stream
     let (_, type_raw) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
     let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
     let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
     let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
     let (pub_key_x, pub_key_y, pubkey, _, _) = Validators::return_validator_raw(validator);
-
     let pending = borrow_global_mut<Pending>(STORAGE);
     let validated = borrow_global_mut<Validated>(STORAGE);
     Validators::take_snapshot(signer, validator);
-    
     // 2. Logic based on the Clean String
     if (consensus_type == utf8(b"native")) {
         let (_, message) = Payload::find_payload_value(utf8(b"message"), type_names, payload);
         let (_, _sig_bytes) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
-        
+     //                   tttta(0);
         // NOTE: message and signature are usually raw bytes, NOT BCS strings.
         // We do NOT use bcs_stream for them if they were passed as raw bytes.
         let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(pubkey);
@@ -409,7 +407,6 @@ module dev::QiaraBridgeV1{
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
         let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
-
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
@@ -476,7 +473,6 @@ module dev::QiaraBridgeV1{
             ];
             Event::emit_consensus_register_event(data);
         };
-
         // 4. Consensus Check & Promotion
         let ready_to_finalize = {
             let votes_ref = table::borrow(pending_table, identifier);
@@ -499,7 +495,7 @@ module dev::QiaraBridgeV1{
                 let (receiver, x, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_deposit(type_names, payload);
                 //tttta(0);
                 TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, amount, TokensCore::give_permission(&cap.tokens_core));
-
+                TokensOmnichain::increment_UserInflow(utf8(b"native"), TokensOmnichain::give_permission(&cap.tokens_omnichain));
                 if(provider != utf8(b"none")) {
                     Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
                 }

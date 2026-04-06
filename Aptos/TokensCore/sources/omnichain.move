@@ -263,6 +263,9 @@ module dev::QiaraTokensOmnichainV2{
         };
     }
 
+    public fun increment_UserInflow(address: vector<u8>, _perm: Permission){
+        Nonce::increment_nonce(address, utf8(b"native"), Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+    }
 
 // === VIEW FUNCTIONS === //
     

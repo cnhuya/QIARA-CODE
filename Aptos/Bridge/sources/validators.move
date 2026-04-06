@@ -134,8 +134,18 @@ module dev::QiaraValidatorsV1 {
         ];
         Event::emit_consensus_event(utf8(b"Change Validator Poseidon Pubkeys"), data);
     }
-    public entry fun change_validator_pubkey(signer: &signer,  shared: String,  pub_key: vector<u8>) {
+    public entry fun change_validator_pubkey(signer: &signer,  shared: String,  pub_key: vector<u8>) acquires Validators {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+
+        let validators = borrow_global_mut<Validators>(@dev); 
+        
+        if(!map::contains_key(&mut validators.map, &shared)) {
+            abort ERROR_VALIDATOR_DOESNT_EXISTS
+        };
+
+        let validator = map::borrow_mut(&mut validators.map, &shared);
+        validator.pub_key = pub_key;
+
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"user"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
@@ -151,8 +161,11 @@ module dev::QiaraValidatorsV1 {
         let pending_validators = borrow_global_mut<PendingValidators>(@dev);
 
         take_validator_snapshot(shared, &mut validators.map, &mut pending_validators.list, active_validators);
-    } 
 
+
+    } 
+//0x36316438323437666330346330393961383431336433616430623535383537363739373465383834383161666534353239323236613362623066646639356632
+//0x36316438323437666330346330393961383431336433616430623535383537363739373465383834383161666534353239323236613362623066646639356632
     // Interface for consensus
     public fun c_register_validator(signer: &signer, shared: String, validator: vector<u8>, pub_key_x: String, pub_key_y: String, pub_key: vector<u8>, perm: Permission) acquires PendingValidators, ActiveValidators, Validators {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));    

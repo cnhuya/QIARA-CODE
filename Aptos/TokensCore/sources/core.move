@@ -557,6 +557,7 @@ module dev::QiaraTokensCoreV2{
             TokensOmnichain::change_TokenSupply(symbol, chain, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
         };
 
+        TokensOmnichain::increment_UserInflow(bcs::to_bytes(&user), TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
     
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),
