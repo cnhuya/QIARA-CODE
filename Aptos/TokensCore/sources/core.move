@@ -397,6 +397,7 @@ module dev::QiaraTokensCoreV2{
 
     public entry fun request_bridge(user: &signer, shared: String, symbol: String, chain: String, provider: String, amount: u64, tokenTo: String, receiver: vector<u8>) acquires Permissions, ManagedFungibleAsset{
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(user)));
+        tttta(10);
         ensure_safety(symbol, chain);
         ProviderTypes::ensure_valid_provider(provider, chain);
         let managed = authorized_borrow_refs(symbol);
@@ -546,6 +547,7 @@ module dev::QiaraTokensCoreV2{
         Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
     
+
 
         if(vector::length(&user) == 33){
              if(account::exists_at(from_bcs::to_address(user))){
