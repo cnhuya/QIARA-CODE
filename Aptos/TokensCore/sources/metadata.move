@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV3{
     use dev::QiaraStorageV1::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensRatesV2::{Self as rates};
-    use dev::QiaraTokensTiersV2::{Self as tier};
+    use dev::QiaraTokensRatesV3::{Self as rates};
+    use dev::QiaraTokensTiersV3::{Self as tier};
 
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraOracleV5::{Self as oracle, Access as OracleAccess};

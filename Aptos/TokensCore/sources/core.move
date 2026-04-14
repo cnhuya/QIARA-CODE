@@ -18,21 +18,21 @@ module dev::QiaraTokensCoreV3{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV2::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV2::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV2::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV2::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV3::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV3::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV3::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV3::{Self as TokensQiara,  Access as TokensQiaraAccess};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV1::{Self as Shared};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV3::{Self as Storages};
+    use dev::QiaraStoragesV4::{Self as Storages};
 
-    use dev::QiaraChainTypesV3::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV3::{Self as TokensType};
-    use dev::QiaraProviderTypesV3::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV4::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV4::{Self as TokensType};
+    use dev::QiaraProviderTypesV4::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
