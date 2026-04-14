@@ -18,7 +18,12 @@ interface IQiaraVault {
 }
 
 interface IVariables {
-   function getVariable(string calldata header, string calldata name) external view returns (bytes memory);
+    function addPendingVariable(string calldata header, string calldata name, bytes calldata data) external;
+    function getActiveVariable(string calldata header, string calldata name) external view returns (bytes memory);
+}
+interface IValidators{
+    function addPendingAddress(address _user) external;
+    function getActiveAddresses() external view returns (address[] memory);
 }
 
 contract QiaraZKDelegator is Ownable {
@@ -26,18 +31,20 @@ contract QiaraZKDelegator is Ownable {
     IVariableVerifier public immutable variable_verifier;
     IValidatorVerifier public immutable validator_verifier;
     IVariables public immutable variablesRegistry;
+    IValidators public immutable validatorsRegistry;
     
     // Mapping to prevent replay attacks
     mapping(uint256 => bool) public usedNullifiers;
 
-    constructor(address _balance_verifier,address _variable_verifier,address _validator_verifier, address _variablesRegistry) Ownable(msg.sender) {
+    constructor(address _balance_verifier,address _variable_verifier,address _validator_verifier, address _variablesRegistry, address _validatorsRegistry) Ownable(msg.sender) {
         balance_verifier = IBalanceVerifier(_balance_verifier);
         variable_verifier = IVariableVerifier(_variable_verifier);
         validator_verifier = IValidatorVerifier(_validator_verifier);
         variablesRegistry = IVariables(_variablesRegistry);
+        validatorsRegistry = IValidators(_validatorsRegistry);
     }
 
-    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external {
+    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         require(balance_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
@@ -45,7 +52,6 @@ contract QiaraZKDelegator is Ownable {
         uint256 packed = _pubSignals[7];
         uint256 chainID = packed & 0xFFFFFFFF;
         uint256 amount = (packed >> 32) & 0xFFFFFFFFFFFFFFFF;
-        uint256 nonce = (packed >> 96);
 
         require(chainID == block.chainid, "Wrong destination chain");
 
@@ -55,7 +61,7 @@ contract QiaraZKDelegator is Ownable {
 
         // 4. Dynamic Registry Lookup
         string memory vaultKey = string(abi.encodePacked(providerName, "_vault"));
-        bytes memory vaultBytes = variablesRegistry.getVariable("QiaraBaseAssets", vaultKey);
+        bytes memory vaultBytes = variablesRegistry.getActiveVariable("QiaraBaseAssets", vaultKey);
         require(vaultBytes.length > 0, "Vault not authorized in registry");
         
         address vaultAddr = abi.decode(vaultBytes, (address));
@@ -64,7 +70,7 @@ contract QiaraZKDelegator is Ownable {
         uint256 userL = _pubSignals[3];
         uint256 userH = _pubSignals[4];
         uint256 nullifier = _calculateNullifier8(_pubSignals);
-        
+        _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
 
@@ -74,8 +80,6 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
     }
-
-
     function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external {
         // 1. Verify ZK Proof
         require(variable_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
@@ -96,10 +100,8 @@ contract QiaraZKDelegator is Ownable {
         usedNullifiers[nullifier] = true;
 
         // 7. Final Call
-        //IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+        variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
     }
-
-
     function processZkValidator(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external {
         // 1. Verify ZK Proof
         require(validator_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
@@ -115,7 +117,7 @@ contract QiaraZKDelegator is Ownable {
         usedNullifiers[nullifier] = true;
 
         // 7. Final Call
-        //IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+        validatorsRegistry.addPendingAddress(variableHeader, variableName, variableValue);
     }
 
 
@@ -150,6 +152,29 @@ contract QiaraZKDelegator is Ownable {
         return uint256(hash);
     }
 
+    function _verifyAllSignatures(bytes32 _messageHash,address[] calldata validators,bytes calldata _signatures) internal view {
+        bytes32 ethHash = getEthSignedMessageHash(_messageHash);
+        
+        // 1. Fetch once to save gas and stack space
+        address[] memory active_validators = validatorsRegistry.getActiveAddresses();
+
+        for (uint256 i = 0; i < validators.length; i++) {
+            bytes calldata signature = _signatures[i * 65 : (i + 1) * 65];
+            address signer = recoverSigner(ethHash, signature);
+            require(signer != address(0), "Invalid signature");
+
+            // 2. Check if signer is in the active list
+            bool isAuthorized = false;
+            for (uint256 j = 0; j < active_validators.length; j++) {
+                if (active_validators[j] == signer) {
+                    isAuthorized = true;
+                    break;
+                }
+            }
+            require(isAuthorized, "Signer not an active validator");
+        }
+    }
+
     function fieldToString(uint256 _field) public pure returns (string memory) {
         if (_field == 0) return "";
 
@@ -177,5 +202,25 @@ contract QiaraZKDelegator is Ownable {
         }
 
         return string(result);
+    }
+    function getEthSignedMessageHash(bytes32 _messageHash) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash));
+    }
+    function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature)public pure returns (address){
+        require(_signature.length == 65, "Invalid signature length");
+
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+
+        // 3. Split the signature using assembly
+        assembly {
+            r := mload(add(_signature, 32))
+            s := mload(add(_signature, 64))
+            v := byte(0, mload(add(_signature, 96)))
+        }
+
+        // 4. Use the ecrecover precompile
+        return ecrecover(_ethSignedMessageHash, v, r, s);
     }
 }
