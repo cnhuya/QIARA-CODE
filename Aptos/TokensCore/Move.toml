@@ -52,7 +52,7 @@
     rev = 'main'
     subdir = 'Aptos/Shared'
 
-    [dependencies.QiaraUtilV1]
+    [dependencies.QiaraUtilV2]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Util'

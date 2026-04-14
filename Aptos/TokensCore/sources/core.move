@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV2{
+module dev::QiaraTokensCoreV3{
     use std::signer;
     use std::option;
     use std::vector;
@@ -17,13 +17,13 @@ module dev::QiaraTokensCoreV2{
 
     use aptos_std::string_utils ::{Self as string_utils};
 
-    use dev::QiaraMathV1::{Self as Math};
+    use dev::QiaraMathV2::{Self as Math};
     use dev::QiaraTokensMetadataV2::{Self as TokensMetadata};
     use dev::QiaraTokensOmnichainV2::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensTiersV2::{Self as TokensTiers};
     use dev::QiaraTokensQiaraV2::{Self as TokensQiara,  Access as TokensQiaraAccess};
 
-    use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV1::{Self as Shared};
 

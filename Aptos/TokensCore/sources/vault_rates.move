@@ -5,7 +5,7 @@ module dev::QiaraTokensRatesV2 {
     use std::table::{Self as table, Table};
     use std::timestamp;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraMathV1::{Self as Math};
+    use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraChainTypesV3::{Self as ChainTypes};
     use dev::QiaraTokenTypesV3::{Self as TokensType};

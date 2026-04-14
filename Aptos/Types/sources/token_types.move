@@ -1,4 +1,4 @@
-module dev::QiaraTokenTypesV3 {
+module dev::QiaraTokenTypesV4 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -7,7 +7,7 @@ module dev::QiaraTokenTypesV3 {
 
     use dev::QiaraChainTypesV3::{Self as ChainTypes};
 
-    const TOKEN_PREFIX: vector<u8> = b"Qiara79 ";
+    const TOKEN_PREFIX: vector<u8> = b"Qiara80 ";
     const SYMBOL_PREFIX: vector<u8> = b"Q";
 
 // === ERRORS === //
