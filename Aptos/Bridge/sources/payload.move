@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV4{
+module dev::QiaraPayloadV5{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -7,11 +7,11 @@ module dev::QiaraPayloadV4{
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV3::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV3::{Self as TokenTypes};
+    use dev::QiaraChainTypesV4::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV4::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     //use dev::QiaraIdentifierV1::{Self as identifier};
 
     const ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES: u64 = 0;
