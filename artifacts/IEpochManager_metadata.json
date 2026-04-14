@@ -1,0 +1,59 @@
+{
+	"compiler": {
+		"version": "0.8.31+commit.fd3a2265"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"name": "getCurrentEpoch",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"Evm/core/variables.sol": "IEpochManager"
+		},
+		"evmVersion": "osaka",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"Evm/core/variables.sol": {
+			"keccak256": "0x841d136dfe6fadf45170f5b3788910023cfa6d1bdd02a6a8eb1630e3c21fa242",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://4fd4c393ede202e20c9316cc2e3c35c8563f2f412e86d35d223ef937ce65436d",
+				"dweb:/ipfs/QmZwMC5mWtKEgk5pnxKQRQcPBbPU88cicf2fvubE95cYB4"
+			]
+		}
+	},
+	"version": 1
+}

@@ -1,90 +1,96 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface IVerifier {
-    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external view returns (bool);
+interface IEpochManager {
+    function getCurrentEpoch() external view returns (uint256);
 }
 
-//0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000058307832613330373833303434333533333332333234313636333433313334363436323333363236343338333533353633343333343334333433323334343633383335333333323338333533393334333633393339333533370000000000000000
-
 contract QiaraVariables {
-    error RegistryLocked();
-    error NotAuthorized();
-    error InvalidProof();
-    error RootAlreadyExists();
-    error InputMismatch();
-    error AdminBypassRevoked(); // New Error
+    struct VariableEntry {
+        string header;
+        string name;
+        bytes data;
+    }
 
-    address public admin;
-    bool public isLocked;
-    bool public adminBypassEnabled = true; // New State variable
-    IVerifier public verifier;
-    uint256 public currentRoot;
+    // --- State Variables ---
+    uint256 public activeRoot;
+    uint256 public pendingRoot;
 
-    mapping(string => mapping(string => bytes)) private _data;
+    // --- Epoch Tracking ---
+    IEpochManager public epochManager;
+    uint256 public lastProcessedEpoch; 
 
-    event VariableAdded(string indexed header, string indexed name, address by, uint256 newRoot);
-    event AdminBypassPermanentlyDisabled(); // New Event
+    address public authorizedContract;
+    address public owner;
 
-    modifier onlyAdmin() {
-        if (msg.sender != admin) revert NotAuthorized();
+    // --- List Logic (Similar to Validators) ---
+    // These store the actual data intended for the next state update
+    VariableEntry[] public pendingVariables;
+    mapping(string => mapping(string => bytes)) private _activeData;
+
+    // --- Events ---
+    event AuthorizedContractUpdated(address indexed newAddress);
+    event EpochManagerUpdated(address indexed newManager);
+    event VariableQueued(string indexed header, string indexed name, uint256 epoch);
+    event VariablesFinalized(uint256 indexed epoch, uint256 countMoved, uint256 newRoot);
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    // --- Configuration ---
+
+    function setEpochManager(address _epochManager) external {
+        require(msg.sender == owner, "Only owner");
+        epochManager = IEpochManager(_epochManager);
+        emit EpochManagerUpdated(_epochManager);
+    }
+
+    function setAuthorizedContract(address _authAddress) external {
+        require(msg.sender == owner, "Only owner");
+        authorizedContract = _authAddress;
+        emit AuthorizedContractUpdated(_authAddress);
+    }
+
+    modifier onlyAuthorized() {
+        require(msg.sender == authorizedContract, "Not authorized");
         _;
     }
 
-    constructor(address _verifier) {
-        admin = msg.sender;
-        verifier = IVerifier(_verifier);
+    // --- Epoch & List Logic ---
+    function addPendingVariable(string calldata header, string calldata name, bytes calldata data) external onlyAuthorized {
+        
+        // Check if we've entered a new epoch. 
+        // If so, we clear pending (or you could move them to a history log)
+        _checkAndHandleEpochRollover();
+
+        pendingVariables.push(VariableEntry(header, name, data));
+        emit VariableQueued(header, name, lastProcessedEpoch);
     }
 
-    /**
-     * @dev PERMANENTLY revokes the admin's ability to skip ZK proofs.
-     * This action cannot be undone.
-     */
-    function revokeAdminBypass() external onlyAdmin {
-        adminBypassEnabled = false;
-        emit AdminBypassPermanentlyDisabled();
+    function _checkAndHandleEpochRollover() internal {
+        uint256 currentEpoch = epochManager.getCurrentEpoch();
+        
+        if (currentEpoch > lastProcessedEpoch) {
+            // Clear the pending queue from the previous epoch
+            // Users must now prove the state including those variables
+            for (uint i = 0; i < pendingVariables.length; i++) {
+                VariableEntry memory entry = pendingVariables[i];
+                _activeData[entry.header][entry.name] = entry.data;
+            }
+            
+            uint256 count = pendingVariables.length;
+            delete pendingVariables;
+            emit VariablesFinalized(lastProcessedEpoch, count, activeRoot);
+            lastProcessedEpoch = currentEpoch;
+        }
     }
 
-    /**
-     * @dev ADMIN ONLY: Adds variable without ZK proof IF bypass is still enabled.
-     */
-    function adminAddVariable(string calldata header, string calldata name, bytes calldata data) external onlyAdmin {
-        if (!adminBypassEnabled) revert AdminBypassRevoked();
-        if (isLocked) revert RegistryLocked();
-
-        _save(header, name, data);
+    // --- Views ---
+    function getActiveVariable(string calldata header, string calldata name) external view returns (bytes memory) {
+        return _activeData[header][name];
     }
-    function adminSetRoot(uint256 newRoot) external onlyAdmin {
-        if (!adminBypassEnabled) revert AdminBypassRevoked();
-        if (isLocked) revert RegistryLocked();
-        if (newRoot == currentRoot) revert RootAlreadyExists();
-        currentRoot = newRoot;
-    }
-
-    /**
-     * @dev PUBLIC: Add variable WITH a ZK proof. 
-     * This remains the only way to add data once admin bypass is revoked.
-     */
-    function AddVariable(string calldata header, string calldata name, bytes calldata data,uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external {
-        if (isLocked) revert RegistryLocked();
-
-        // Safecheck Root (pubSignals[1])
-        uint256 newRoot = _pubSignals[1];
-        if (newRoot == currentRoot) revert RootAlreadyExists();
-
-        // Verify ZK Proof
-        if(!verifier.verifyProof(_pA, _pB, _pC, _pubSignals)) revert InvalidProof();
-
-        currentRoot = newRoot;
-        _save(header, name, data);
-    }
-
-    function _save(string calldata header, string calldata name, bytes calldata data) internal {
-        _data[header][name] = data;
-        emit VariableAdded(header, name, msg.sender, currentRoot);
-    }
-
-    function getVariable(string calldata header, string calldata name) external view returns (bytes memory) {
-        return _data[header][name];
+    function getPendingCount() external view returns (uint256) {
+        return pendingVariables.length;
     }
 }

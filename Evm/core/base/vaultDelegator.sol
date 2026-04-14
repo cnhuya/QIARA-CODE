@@ -3,8 +3,14 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface IVerifier {
+interface IBalanceVerifier {
     function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external view returns (bool);
+}
+interface IVariableVerifier {
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external view returns (bool);
+}
+interface IValidatorVerifier {
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external view returns (bool);
 }
 
 interface IQiaraVault {
@@ -16,25 +22,24 @@ interface IVariables {
 }
 
 contract QiaraZKDelegator is Ownable {
-    IVerifier public immutable verifier;
+    IBalanceVerifier public immutable balance_verifier;
+    IVariableVerifier public immutable variable_verifier;
+    IValidatorVerifier public immutable validator_verifier;
     IVariables public immutable variablesRegistry;
     
     // Mapping to prevent replay attacks
     mapping(uint256 => bool) public usedNullifiers;
 
-    constructor(address _verifier, address _variablesRegistry) Ownable(msg.sender) {
-        verifier = IVerifier(_verifier);
+    constructor(address _balance_verifier,address _variable_verifier,address _validator_verifier, address _variablesRegistry) Ownable(msg.sender) {
+        balance_verifier = IBalanceVerifier(_balance_verifier);
+        variable_verifier = IVariableVerifier(_variable_verifier);
+        validator_verifier = IValidatorVerifier(_validator_verifier);
         variablesRegistry = IVariables(_variablesRegistry);
     }
 
-    function processZkWithdraw(
-        uint[2] calldata _pA, 
-        uint[2][2] calldata _pB, 
-        uint[2] calldata _pC, 
-        uint[8] calldata _pubSignals
-    ) external {
+    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external {
         // 1. Verify ZK Proof
-        require(verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
+        require(balance_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
         // 2. Unpacked Slot 8 (packedTxData)
         uint256 packed = _pubSignals[7];
@@ -58,7 +63,7 @@ contract QiaraZKDelegator is Ownable {
         // 5. Replay Protection (Using SHA256)
         uint256 userL = _pubSignals[3];
         uint256 userH = _pubSignals[4];
-        uint256 nullifier = _calculateSHA256Nullifier(userL, userH, nonce);
+        uint256 nullifier = _calculateNullifier8(_pubSignals);
         
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
@@ -70,17 +75,79 @@ contract QiaraZKDelegator is Ownable {
         IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
     }
 
-    /**
-     * @dev Replaces Poseidon with SHA256. 
-     * We pack the three uint256 values and hash them.
-     */
-    function _calculateSHA256Nullifier(uint256 userL, uint256 userH, uint256 nonce) internal pure returns (uint256) {
-        // Reconstruct full 32-byte address padding (12 bytes 0 + 20 bytes address)
-        // or simply pack the raw field elements as they come from the circuit:
-        bytes32 userBytes = bytes32((userH << 128) | userL);
+
+    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external {
+        // 1. Verify ZK Proof
+        require(variable_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
+
+        uint256 chainID = _pubSignals[5];
+
+        require(chainID == block.chainid, "Wrong destination chain");
+
+        // 3. Convert Field Values to Strings
+        string memory variableName = fieldToString(_pubSignals[3]);
+        string memory variableHeader = fieldToString(_pubSignals[2]);
+        uint256 variableValue = _pubSignals[4];
+
+        // 4. Replay Protection (Using SHA256)
+        uint256 nullifier = _calculateNullifier8(_pubSignals);
         
-        // Hash: [32 bytes address] + [32 bytes nonce] = 64 bytes input
-        return uint256(sha256(abi.encodePacked(userBytes, nonce)));
+        require(!usedNullifiers[nullifier], "Replay attack detected");
+        usedNullifiers[nullifier] = true;
+
+        // 7. Final Call
+        //IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+    }
+
+
+    function processZkValidator(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external {
+        // 1. Verify ZK Proof
+        require(validator_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
+
+        uint256 chainID = _pubSignals[4];
+
+        require(chainID == block.chainid, "Wrong destination chain");
+
+        // 4. Replay Protection (Using SHA256)
+        uint256 nullifier = _calculateNullifier6(_pubSignals);
+        
+        require(!usedNullifiers[nullifier], "Replay attack detected");
+        usedNullifiers[nullifier] = true;
+
+        // 7. Final Call
+        //IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+    }
+
+
+    function _calculateNullifier8(uint256[8] calldata _pubSignals) internal pure returns (uint256) {
+        // abi.encodePacked concatenates all values into a raw byte stream.
+        // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
+        bytes32 hash = keccak256(abi.encodePacked(
+            _pubSignals[0],
+            _pubSignals[1],
+            _pubSignals[2],
+            _pubSignals[3],
+            _pubSignals[4],
+            _pubSignals[5],
+            _pubSignals[6],
+            _pubSignals[7]
+        ));
+
+        return uint256(hash);
+    }
+    function _calculateNullifier6(uint256[6] calldata _pubSignals) internal pure returns (uint256) {
+        // abi.encodePacked concatenates all values into a raw byte stream.
+        // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
+        bytes32 hash = keccak256(abi.encodePacked(
+            _pubSignals[0],
+            _pubSignals[1],
+            _pubSignals[2],
+            _pubSignals[3],
+            _pubSignals[4],
+            _pubSignals[5]
+        ));
+
+        return uint256(hash);
     }
 
     function fieldToString(uint256 _field) public pure returns (string memory) {

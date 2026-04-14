@@ -1,0 +1,79 @@
+{
+	"deploy": {
+		"VM:-": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"main:1": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"sepolia:11155111": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"Custom": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		}
+	},
+	"data": {
+		"bytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"deployedBytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"immutableReferences": {},
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"gasEstimates": null,
+		"methodIdentifiers": {
+			"verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[6])": "f398789b"
+		}
+	},
+	"abi": [
+		{
+			"inputs": [
+				{
+					"internalType": "uint256[2]",
+					"name": "_pA",
+					"type": "uint256[2]"
+				},
+				{
+					"internalType": "uint256[2][2]",
+					"name": "_pB",
+					"type": "uint256[2][2]"
+				},
+				{
+					"internalType": "uint256[2]",
+					"name": "_pC",
+					"type": "uint256[2]"
+				},
+				{
+					"internalType": "uint256[6]",
+					"name": "_pubSignals",
+					"type": "uint256[6]"
+				}
+			],
+			"name": "verifyProof",
+			"outputs": [
+				{
+					"internalType": "bool",
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"stateMutability": "view",
+			"type": "function"
+		}
+	]
+}
