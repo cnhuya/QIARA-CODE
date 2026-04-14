@@ -1,4 +1,4 @@
-module dev::QiaraGenesisV1 {
+module dev::QiaraGenesisV2 {
     use std::vector;
     use std::signer;
     use aptos_framework::timestamp;

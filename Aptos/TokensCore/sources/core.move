@@ -397,7 +397,7 @@ module dev::QiaraTokensCoreV2{
 
     public entry fun request_bridge(user: &signer, shared: String, symbol: String, chain: String, provider: String, amount: u64, tokenTo: String, receiver: vector<u8>) acquires Permissions, ManagedFungibleAsset{
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(user)));
-        tttta(10);
+       // tttta(10);
         ensure_safety(symbol, chain);
         ProviderTypes::ensure_valid_provider(provider, chain);
         let managed = authorized_borrow_refs(symbol);
@@ -559,7 +559,7 @@ module dev::QiaraTokensCoreV2{
             TokensOmnichain::change_TokenSupply(symbol, chain, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
         };
 
-        TokensOmnichain::increment_UserInflow(bcs::to_bytes(&user), TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
+        //TokensOmnichain::increment_UserInflow(bcs::to_bytes(&user), TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
     
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),

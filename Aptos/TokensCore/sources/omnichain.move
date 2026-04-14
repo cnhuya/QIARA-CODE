@@ -210,7 +210,7 @@ module dev::QiaraTokensOmnichainV2{
         };
     }
 
-    public fun increment_UserOutflow(token: String, chain: String, shared: String, address: vector<u8>, amount: u64, isMint: bool, _perm: Permission) acquires Permissions, AddressCounter, AddressDatabase, UserCrosschainBook {
+    public fun increment_UserOutflow(token: String, chain: String, shared: String, address: vector<u8>, amount: u64, isMint: bool, _perm: Permission) acquires AddressCounter, AddressDatabase, UserCrosschainBook {
        // Shared::assert_is_sub_owner(shared, address);
         let book = borrow_global_mut<UserCrosschainBook>(@dev);
         let addressCounter_ref = borrow_global_mut<AddressCounter>(@dev);
@@ -253,7 +253,7 @@ module dev::QiaraTokensOmnichainV2{
             };
         };
 
-        Nonce::increment_nonce(address, utf8(b"zk"), Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        //Nonce::increment_nonce(address, utf8(b"zk"), Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
         // --- EMIT EVENTS AT THE VERY END ---
         if (isMint) {

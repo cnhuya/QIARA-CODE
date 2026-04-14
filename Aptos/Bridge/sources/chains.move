@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV3{
+module dev::QiaraBridgeV4{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -27,10 +27,10 @@ module dev::QiaraBridgeV3{
 
     use dev::QiaraMarginV1::{Self as Margin};
 
-    use dev::QiaraPayloadV3::{Self as Payload};
-    use dev::QiaraValidatorsV3::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV4::{Self as Payload};
+    use dev::QiaraValidatorsV4::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
+    //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
     const STORAGE: address = @dev;
 
@@ -276,7 +276,7 @@ module dev::QiaraBridgeV3{
         let ready_to_finalize = {
             let votes_ref = table::borrow(&pending.proof, identifier);
             let unique_count = (vector::length(&map::keys(&votes_ref.votes)) as u64);
-            (votes_ref.total_weight >= quorum && unique_count >= min_unique)
+            (votes_ref.total_weight >= 2 && unique_count >= min_unique)
         };
 
         if (ready_to_finalize) {
@@ -288,10 +288,10 @@ module dev::QiaraBridgeV3{
             // Re-borrow from the NEW location to complete processing
             let votes = table::borrow(&validated.proof, identifier);
 
-            let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), votes.data_types, votes.data);
+            let (_, event_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), votes.data_types, votes.data);
             let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
 
-            if (event_type == utf8(b"Request Bridge")) {
+            if (event_type == utf8(b"Balances")) {
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
                 
                 TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
@@ -749,6 +749,12 @@ module dev::QiaraBridgeV3{
         assert!(table::contains(&zk.zk, identifier), ERROR_NOT_FOUND);
         return *table::borrow(&zk.zk, identifier)
     }
+    #[view]
+    public fun return_proof_pending_tx(identifier: vector<u8>): ProofVotes acquires Pending {
+        let proof = borrow_global<Pending>(@dev);
+        assert!(table::contains(&proof.proof, identifier), ERROR_NOT_FOUND);
+        return *table::borrow(&proof.proof, identifier)
+    }
 
     #[view]
     public fun return_native_validated_tx(identifier: vector<u8>): MainVotes acquires Validated {
@@ -761,6 +767,12 @@ module dev::QiaraBridgeV3{
         let zk = borrow_global<Validated>(@dev);
         assert!(table::contains(&zk.zk, identifier), ERROR_NOT_FOUND);
         return *table::borrow(&zk.zk, identifier)
+    }
+    #[view]
+    public fun return_proof_validated_tx(identifier: vector<u8>): ProofVotes acquires Validated {
+        let proof = borrow_global<Validated>(@dev);
+        assert!(table::contains(&proof.proof, identifier), ERROR_NOT_FOUND);
+        return *table::borrow(&proof.proof, identifier)
     }
 
 

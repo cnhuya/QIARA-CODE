@@ -1,9 +1,10 @@
-module dev::QiaraNonceV1{
+module dev::QiaraNonceV2{
     use std::signer;
     use std::table::{Self, Table};
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::bcs;
+    use aptos_framework::event;
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN:u64 = 0;
@@ -34,6 +35,13 @@ module dev::QiaraNonceV1{
         table: Table<vector<u8>, UserNonce>,
     }
 
+// === EVENTS === //
+    #[event]
+    struct NonceAdd has copy, drop, store {
+        addr: vector<u8>,
+        type: String,
+    }
+
     // ----------------------------------------------------------------
     // Module init
     // ----------------------------------------------------------------
@@ -62,6 +70,10 @@ module dev::QiaraNonceV1{
         } else if(type == utf8(b"native")) {
             nonce_ref.main_nonce = nonce_ref.main_nonce + 1;
         };
+         event::emit(NonceAdd {
+            addr: user,
+            type: type,
+        });
 
     }
 
