@@ -8,24 +8,45 @@
 			{
 				"inputs": [
 					{
-						"internalType": "address",
-						"name": "_user",
-						"type": "address"
+						"internalType": "string",
+						"name": "header",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "data",
+						"type": "bytes"
 					}
 				],
-				"name": "addPendingAddress",
+				"name": "addPendingVariable",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
-				"inputs": [],
-				"name": "getActiveAddresses",
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "header",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					}
+				],
+				"name": "getActiveVariable",
 				"outputs": [
 					{
-						"internalType": "address[]",
+						"internalType": "bytes",
 						"name": "",
-						"type": "address[]"
+						"type": "bytes"
 					}
 				],
 				"stateMutability": "view",
@@ -45,7 +66,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/core/monad/vaultDelegator.sol": "IValidators"
+			"Evm/core/monad/vaultDelegator.sol": "IVariables"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},

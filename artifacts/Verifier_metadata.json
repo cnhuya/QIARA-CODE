@@ -42,9 +42,9 @@
 						"type": "uint256[4]"
 					},
 					{
-						"internalType": "uint256[3]",
+						"internalType": "uint256[6]",
 						"name": "input",
-						"type": "uint256[3]"
+						"type": "uint256[6]"
 					}
 				],
 				"name": "verifyCompressedProof",
@@ -60,9 +60,9 @@
 						"type": "uint256[8]"
 					},
 					{
-						"internalType": "uint256[3]",
+						"internalType": "uint256[6]",
 						"name": "input",
-						"type": "uint256[3]"
+						"type": "uint256[6]"
 					}
 				],
 				"name": "verifyProof",
@@ -95,13 +95,13 @@
 						"compressed": "The compressed proof. Elements are in the same order as for verifyCompressedProof. I.e. points (A, B, C) in compressed format."
 					}
 				},
-				"verifyCompressedProof(uint256[4],uint256[3])": {
+				"verifyCompressedProof(uint256[4],uint256[6])": {
 					"params": {
 						"compressedProof": "the points (A, B, C) in compressed format matching the output of compressProof.",
 						"input": "the public input field elements in the scalar field Fr. Elements must be reduced."
 					}
 				},
-				"verifyProof(uint256[8],uint256[3])": {
+				"verifyProof(uint256[8],uint256[6])": {
 					"params": {
 						"input": "the public input field elements in the scalar field Fr. Elements must be reduced.",
 						"proof": "the points (A, B, C) in EIP-197 format matching the output of compressProof."
@@ -129,10 +129,10 @@
 				"compressProof(uint256[8])": {
 					"notice": "Compress a proof.Will revert with InvalidProof if the curve points are invalid, but does not verify the proof itself."
 				},
-				"verifyCompressedProof(uint256[4],uint256[3])": {
+				"verifyCompressedProof(uint256[4],uint256[6])": {
 					"notice": "Verify a Groth16 proof with compressed points.Reverts with InvalidProof if the proof is invalid or with PublicInputNotInField the public input is not reduced.There is no return value. If the function does not revert, the proof was successfully verified."
 				},
-				"verifyProof(uint256[8],uint256[3])": {
+				"verifyProof(uint256[8],uint256[6])": {
 					"notice": "Verify an uncompressed Groth16 proof.Reverts with InvalidProof if the proof is invalid or with PublicInputNotInField the public input is not reduced.There is no return value. If the function does not revert, the proof was successfully verified."
 				}
 			},
@@ -142,7 +142,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/zk/validators_verifier.sol": "Verifier"
+			"Evm/zk/variable_verifier.sol": "Verifier"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -156,12 +156,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"Evm/zk/validators_verifier.sol": {
-			"keccak256": "0xdfe510cfa5e66d2b3f584f688ab288d4f9a03933e203e35c36d832e0ec8cfb1a",
+		"Evm/zk/variable_verifier.sol": {
+			"keccak256": "0x6ef1e64f9897af8898f28f0447cb197f8af6cfd65bffa027f44d56da0cfc3abc",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://f08728ab4d099ef50f6fcafe2928e4bf5c8f8bc8e8b1bceeaf9cbb21452c8deb",
-				"dweb:/ipfs/QmPecRTUno2S9hCxaCiQuwCZ4bCvKmxfX1MM86sxpmakWK"
+				"bzz-raw://1f6a70d00c9a64637e7e11e06f860e9ef769b67f637b11f94b2d8e768edb3a47",
+				"dweb:/ipfs/QmNobBG8639ZMYwqJZ36U7cPndBwn7dakLcBRwo4Knktaa"
 			]
 		}
 	},

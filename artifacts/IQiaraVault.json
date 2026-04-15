@@ -37,8 +37,7 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"addPendingAddress(address)": "1722e147",
-			"getActiveAddresses()": "1442e4c9"
+			"grantWithdrawalPermission(address,string,uint256,uint256)": "6afbf5d6"
 		}
 	},
 	"abi": [
@@ -46,26 +45,28 @@
 			"inputs": [
 				{
 					"internalType": "address",
-					"name": "_user",
+					"name": "user",
 					"type": "address"
+				},
+				{
+					"internalType": "string",
+					"name": "assetName",
+					"type": "string"
+				},
+				{
+					"internalType": "uint256",
+					"name": "amount",
+					"type": "uint256"
+				},
+				{
+					"internalType": "uint256",
+					"name": "nullifier",
+					"type": "uint256"
 				}
 			],
-			"name": "addPendingAddress",
+			"name": "grantWithdrawalPermission",
 			"outputs": [],
 			"stateMutability": "nonpayable",
-			"type": "function"
-		},
-		{
-			"inputs": [],
-			"name": "getActiveAddresses",
-			"outputs": [
-				{
-					"internalType": "address[]",
-					"name": "",
-					"type": "address[]"
-				}
-			],
-			"stateMutability": "view",
 			"type": "function"
 		}
 	]

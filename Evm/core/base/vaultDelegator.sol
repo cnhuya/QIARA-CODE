@@ -48,23 +48,7 @@ contract QiaraZKDelegator is Ownable {
         // 1. Verify ZK Proof
         require(balance_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
-        // 2. Unpacked Slot 8 (packedTxData)
-        uint256 packed = _pubSignals[7];
-        uint256 chainID = packed & 0xFFFFFFFF;
-        uint256 amount = (packed >> 32) & 0xFFFFFFFFFFFFFFFF;
-
-        require(chainID == block.chainid, "Wrong destination chain");
-
-        // 3. Convert Field Values to Strings
-        string memory storageName = fieldToString(_pubSignals[5]);
-        string memory providerName = fieldToString(_pubSignals[6]);
-
-        // 4. Dynamic Registry Lookup
-        string memory vaultKey = string(abi.encodePacked(providerName, "_vault"));
-        bytes memory vaultBytes = variablesRegistry.getActiveVariable("QiaraBaseAssets", vaultKey);
-        require(vaultBytes.length > 0, "Vault not authorized in registry");
-        
-        address vaultAddr = abi.decode(vaultBytes, (address));
+        (uint256 amount, address vaultAddr, string memory storageName) =_prepareWithdrawal(_pubSignals);
 
         // 5. Replay Protection (Using SHA256)
         uint256 userL = _pubSignals[3];
@@ -80,47 +64,50 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
     }
-    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external {
+    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         require(variable_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
-        uint256 chainID = _pubSignals[5];
 
+
+
+        uint256 chainID = _pubSignals[5];
         require(chainID == block.chainid, "Wrong destination chain");
 
         // 3. Convert Field Values to Strings
         string memory variableName = fieldToString(_pubSignals[3]);
         string memory variableHeader = fieldToString(_pubSignals[2]);
-        uint256 variableValue = _pubSignals[4];
+        bytes memory variableValue = fieldToBytes(_pubSignals[4]);
 
         // 4. Replay Protection (Using SHA256)
         uint256 nullifier = _calculateNullifier8(_pubSignals);
-        
+        _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
 
         // 7. Final Call
         variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
     }
-    function processZkValidator(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external {
+    function processZkValidator(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         require(validator_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
         uint256 chainID = _pubSignals[4];
-
         require(chainID == block.chainid, "Wrong destination chain");
 
         // 4. Replay Protection (Using SHA256)
         uint256 nullifier = _calculateNullifier6(_pubSignals);
-        
+        _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
 
+        address validator = fieldToAddress(_pubSignals[5]);
+
         // 7. Final Call
-        validatorsRegistry.addPendingAddress(variableHeader, variableName, variableValue);
+        validatorsRegistry.addPendingAddress(validator);
     }
 
-
+    // Dont hash the last pub signal, that contains the pubkey of the validator, which would result in all nulifiers being unique, leading to never reaching needed quarum
     function _calculateNullifier8(uint256[8] calldata _pubSignals) internal pure returns (uint256) {
         // abi.encodePacked concatenates all values into a raw byte stream.
         // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
@@ -131,12 +118,13 @@ contract QiaraZKDelegator is Ownable {
             _pubSignals[3],
             _pubSignals[4],
             _pubSignals[5],
-            _pubSignals[6],
-            _pubSignals[7]
+            _pubSignals[6]
+           //_pubSignals[7],
         ));
 
         return uint256(hash);
     }
+    // Dont hash the last pub signal, that contains the pubkey of the validator, which would result in all nulifiers being unique, leading to never reaching needed quarum
     function _calculateNullifier6(uint256[6] calldata _pubSignals) internal pure returns (uint256) {
         // abi.encodePacked concatenates all values into a raw byte stream.
         // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
@@ -145,11 +133,29 @@ contract QiaraZKDelegator is Ownable {
             _pubSignals[1],
             _pubSignals[2],
             _pubSignals[3],
-            _pubSignals[4],
-            _pubSignals[5]
+            _pubSignals[4]
+            //_pubSignals[5],
         ));
 
         return uint256(hash);
+    }
+
+    function _prepareWithdrawal(uint[8] calldata _pubSignals) internal view returns (uint256 amount, address vaultAddr, string memory storageName){
+        uint256 packed = _pubSignals[7];
+        uint256 chainID = packed & 0xFFFFFFFF;
+        amount = (packed >> 32) & 0xFFFFFFFFFFFFFFFF;
+
+        require(chainID == block.chainid, "Wrong destination chain");
+
+        storageName = fieldToString(_pubSignals[5]);
+        string memory providerName = fieldToString(_pubSignals[6]);
+
+        string memory vaultKey = string(abi.encodePacked(providerName, "_vault"));
+        bytes memory vaultBytes = variablesRegistry.getActiveVariable("QiaraBaseAssets", vaultKey);
+
+        require(vaultBytes.length > 0, "Vault not authorized");
+
+        vaultAddr = abi.decode(vaultBytes, (address));
     }
 
     function _verifyAllSignatures(bytes32 _messageHash,address[] calldata validators,bytes calldata _signatures) internal view {
@@ -203,6 +209,14 @@ contract QiaraZKDelegator is Ownable {
 
         return string(result);
     }
+    function fieldToAddress(uint256 _field) public pure returns (address) {
+        return address(uint160(_field));
+    }
+    function fieldToBytes(uint256 _field) public pure returns (bytes memory) {
+        return abi.encodePacked(_field);
+    }
+
+
     function getEthSignedMessageHash(bytes32 _messageHash) public pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash));
     }

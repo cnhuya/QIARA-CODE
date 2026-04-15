@@ -37,32 +37,53 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"addPendingAddress(address)": "1722e147",
-			"getActiveAddresses()": "1442e4c9"
+			"addPendingVariable(string,string,bytes)": "2e057b9b",
+			"getActiveVariable(string,string)": "16f1adc1"
 		}
 	},
 	"abi": [
 		{
 			"inputs": [
 				{
-					"internalType": "address",
-					"name": "_user",
-					"type": "address"
+					"internalType": "string",
+					"name": "header",
+					"type": "string"
+				},
+				{
+					"internalType": "string",
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"internalType": "bytes",
+					"name": "data",
+					"type": "bytes"
 				}
 			],
-			"name": "addPendingAddress",
+			"name": "addPendingVariable",
 			"outputs": [],
 			"stateMutability": "nonpayable",
 			"type": "function"
 		},
 		{
-			"inputs": [],
-			"name": "getActiveAddresses",
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "header",
+					"type": "string"
+				},
+				{
+					"internalType": "string",
+					"name": "name",
+					"type": "string"
+				}
+			],
+			"name": "getActiveVariable",
 			"outputs": [
 				{
-					"internalType": "address[]",
+					"internalType": "bytes",
 					"name": "",
-					"type": "address[]"
+					"type": "bytes"
 				}
 			],
 			"stateMutability": "view",
