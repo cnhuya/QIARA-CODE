@@ -52,6 +52,10 @@ contract QiaraVariables {
         emit AuthorizedContractUpdated(_authAddress);
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
     modifier onlyAuthorized() {
         require(msg.sender == authorizedContract, "Not authorized");
         _;
@@ -84,6 +88,11 @@ contract QiaraVariables {
             emit VariablesFinalized(lastProcessedEpoch, count, activeRoot);
             lastProcessedEpoch = currentEpoch;
         }
+    }
+
+    // --- ADMIN FUNCTION ---
+    function setActiveVariableDirect(string calldata header,string calldata name,bytes calldata data) external onlyOwner {
+        _activeData[header][name] = data;
     }
 
     // --- Views ---

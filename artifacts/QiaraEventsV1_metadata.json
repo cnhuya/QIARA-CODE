@@ -1,0 +1,163 @@
+{
+	"compiler": {
+		"version": "0.8.31+commit.fd3a2265"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"components": [
+							{
+								"internalType": "string",
+								"name": "name",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "typeName",
+								"type": "string"
+							},
+							{
+								"internalType": "bytes",
+								"name": "value",
+								"type": "bytes"
+							}
+						],
+						"indexed": false,
+						"internalType": "struct QiaraEventsV1.Data[]",
+						"name": "aux",
+						"type": "tuple[]"
+					}
+				],
+				"name": "Vault",
+				"type": "event"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_name",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_typeName",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "_value",
+						"type": "bytes"
+					}
+				],
+				"name": "createDataStruct",
+				"outputs": [
+					{
+						"components": [
+							{
+								"internalType": "string",
+								"name": "name",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "typeName",
+								"type": "string"
+							},
+							{
+								"internalType": "bytes",
+								"name": "value",
+								"type": "bytes"
+							}
+						],
+						"internalType": "struct QiaraEventsV1.Data",
+						"name": "",
+						"type": "tuple"
+					}
+				],
+				"stateMutability": "pure",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_name",
+						"type": "string"
+					},
+					{
+						"components": [
+							{
+								"internalType": "string",
+								"name": "name",
+								"type": "string"
+							},
+							{
+								"internalType": "string",
+								"name": "typeName",
+								"type": "string"
+							},
+							{
+								"internalType": "bytes",
+								"name": "value",
+								"type": "bytes"
+							}
+						],
+						"internalType": "struct QiaraEventsV1.Data[]",
+						"name": "_data",
+						"type": "tuple[]"
+					}
+				],
+				"name": "emitVaultEvent",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"Evm/core/events.sol": "QiaraEventsV1"
+		},
+		"evmVersion": "osaka",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"Evm/core/events.sol": {
+			"keccak256": "0x3663698a64ae63fd0aedaa26430560da2af3e14102a3f04eebbe7fdf675da9e1",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://7398f307151bd4c9812992c9868fd4cc8f6dcb841d0a8d0dcc11e64c49a70a19",
+				"dweb:/ipfs/QmVUaaEvHjr5CMEERYLHDvvTXPzLV21qnpReW6V98Cj5uV"
+			]
+		}
+	},
+	"version": 1
+}

@@ -22,19 +22,6 @@
 				"type": "constructor"
 			},
 			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "uint256",
-						"name": "epoch",
-						"type": "uint256"
-					}
-				],
-				"name": "EpochFinalized",
-				"type": "event"
-			},
-			{
 				"inputs": [],
 				"name": "EPOCH_DURATION",
 				"outputs": [
@@ -62,7 +49,7 @@
 			},
 			{
 				"inputs": [],
-				"name": "currentEpoch",
+				"name": "getCurrentEpoch",
 				"outputs": [
 					{
 						"internalType": "uint256",
@@ -77,49 +64,59 @@
 				"inputs": [
 					{
 						"internalType": "uint256",
-						"name": "",
+						"name": "epoch",
 						"type": "uint256"
 					}
 				],
-				"name": "epochHistory",
+				"name": "getEpochEndTime",
 				"outputs": [
 					{
 						"internalType": "uint256",
-						"name": "timestamp",
+						"name": "",
 						"type": "uint256"
-					},
-					{
-						"internalType": "bool",
-						"name": "finalized",
-						"type": "bool"
 					}
 				],
 				"stateMutability": "view",
 				"type": "function"
 			},
 			{
-				"inputs": [],
-				"name": "finalizeEpoch",
-				"outputs": [],
-				"stateMutability": "nonpayable",
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "epoch",
+						"type": "uint256"
+					}
+				],
+				"name": "isEpochOver",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			}
 		],
 		"devdoc": {
 			"kind": "dev",
-			"methods": {
-				"constructor": {
-					"params": {
-						"_epochDuration": "How long an epoch lasts in seconds (e.g., 86400 for 1 day)",
-						"_genesisTimestamp": "The exact Unix timestamp when Epoch 0 begins (e.g., 1712841600)"
-					}
-				}
-			},
+			"methods": {},
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
-			"methods": {},
+			"methods": {
+				"getCurrentEpoch()": {
+					"notice": "Calculates the current epoch based on the current block timestamp."
+				},
+				"getEpochEndTime(uint256)": {
+					"notice": "Returns the exact second an epoch ends."
+				},
+				"isEpochOver(uint256)": {
+					"notice": "Checks if a specific epoch has technically \"finished\"."
+				}
+			},
 			"version": 1
 		}
 	},
@@ -140,11 +137,11 @@
 	},
 	"sources": {
 		"Evm/core/epoch.sol": {
-			"keccak256": "0xd256ce181be93db5d4de09dc321e7b01ab1691d3772e65b6b48752751f1ba7a8",
+			"keccak256": "0x4875d0e0cdcc8b416bf8a23d61cd25f214388273b28d387d5c1ebbd984e9ce5d",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://f0d08dff5bd750b41445eb6ba394ae4faef5c1eeb64010bc2c64d732517de056",
-				"dweb:/ipfs/QmQBpKEUWuei34HHmvmcADLaxPYKNpQ6jFCSAeZQmELwHB"
+				"bzz-raw://5cdfef046f7ab75ff13e56019ae2192156db5f43d07aab06a21274e764f5603c",
+				"dweb:/ipfs/QmajfbcSEoA3uE3tvd1NhmWo41wTEZN4rRZQZExkCzzWzL"
 			]
 		}
 	},

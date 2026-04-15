@@ -32,7 +32,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/core/variables.sol": "IEpochManager"
+			"Evm/core/validators.sol": "IEpochManager"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -46,12 +46,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"Evm/core/variables.sol": {
-			"keccak256": "0x841d136dfe6fadf45170f5b3788910023cfa6d1bdd02a6a8eb1630e3c21fa242",
+		"Evm/core/validators.sol": {
+			"keccak256": "0x842fb9486a927bc9c3546afb09fc1d2dcbe56025120b0b7312f24fb1f82ab127",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://4fd4c393ede202e20c9316cc2e3c35c8563f2f412e86d35d223ef937ce65436d",
-				"dweb:/ipfs/QmZwMC5mWtKEgk5pnxKQRQcPBbPU88cicf2fvubE95cYB4"
+				"bzz-raw://faedbadb6a37b0068f5d335ac6ffc5061fdac761199124265d73ec6dc556801e",
+				"dweb:/ipfs/QmdDvSNnMmNDvuBFCMmJ1VB67UBZRA4tYNKSjSHckmDZYj"
 			]
 		}
 	},

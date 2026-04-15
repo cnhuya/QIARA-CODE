@@ -256,6 +256,29 @@
 			{
 				"inputs": [
 					{
+						"internalType": "string",
+						"name": "header",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "data",
+						"type": "bytes"
+					}
+				],
+				"name": "setActiveVariableDirect",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
 						"internalType": "address",
 						"name": "_authAddress",
 						"type": "address"
@@ -308,11 +331,11 @@
 	},
 	"sources": {
 		"Evm/core/variables.sol": {
-			"keccak256": "0x841d136dfe6fadf45170f5b3788910023cfa6d1bdd02a6a8eb1630e3c21fa242",
+			"keccak256": "0x57e15c451f485423c7a9d0f6ad5bc57542796631a4a5ea1a319d970aca9df8f1",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://4fd4c393ede202e20c9316cc2e3c35c8563f2f412e86d35d223ef937ce65436d",
-				"dweb:/ipfs/QmZwMC5mWtKEgk5pnxKQRQcPBbPU88cicf2fvubE95cYB4"
+				"bzz-raw://a2a896e44a7bb09fe9493df4c353a21fe05fea49ad17a4055080f84523933f35",
+				"dweb:/ipfs/QmXeDp58qSUAYycdpvttY4U5HEeQeYiKU2U3cW4cGjAix6"
 			]
 		}
 	},

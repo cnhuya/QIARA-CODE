@@ -43,6 +43,10 @@ contract IValidators {
         emit AuthorizedContractUpdated(_authAddress);
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
     modifier onlyAuthorized() {
         require(msg.sender == authorizedContract, "Not authorized");
         _;
@@ -76,8 +80,13 @@ contract IValidators {
         }
     }
 
-    // --- Helpers / Views ---
 
+    // --- ADMIN FUNCTION ---
+    function addActiveAddressDirect(address _user) external onlyOwner {
+        activeAddresses.push(_user);
+    }
+
+    // --- Helpers / Views ---
     function getActiveAddresses() external view returns (address[] memory) {
         return activeAddresses;
     }
