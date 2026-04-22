@@ -182,23 +182,13 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256[2]",
-						"name": "_pA",
-						"type": "uint256[2]"
-					},
-					{
-						"internalType": "uint256[2][2]",
-						"name": "_pB",
-						"type": "uint256[2][2]"
-					},
-					{
-						"internalType": "uint256[2]",
-						"name": "_pC",
-						"type": "uint256[2]"
+						"internalType": "uint256[8]",
+						"name": "proof",
+						"type": "uint256[8]"
 					},
 					{
 						"internalType": "uint256[6]",
-						"name": "_pubSignals",
+						"name": "input",
 						"type": "uint256[6]"
 					},
 					{
@@ -220,24 +210,14 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256[2]",
-						"name": "_pA",
-						"type": "uint256[2]"
-					},
-					{
-						"internalType": "uint256[2][2]",
-						"name": "_pB",
-						"type": "uint256[2][2]"
-					},
-					{
-						"internalType": "uint256[2]",
-						"name": "_pC",
-						"type": "uint256[2]"
-					},
-					{
 						"internalType": "uint256[8]",
-						"name": "_pubSignals",
+						"name": "proof",
 						"type": "uint256[8]"
+					},
+					{
+						"internalType": "uint256[6]",
+						"name": "input",
+						"type": "uint256[6]"
 					},
 					{
 						"internalType": "address[]",
@@ -258,24 +238,14 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256[2]",
-						"name": "_pA",
-						"type": "uint256[2]"
-					},
-					{
-						"internalType": "uint256[2][2]",
-						"name": "_pB",
-						"type": "uint256[2][2]"
-					},
-					{
-						"internalType": "uint256[2]",
-						"name": "_pC",
-						"type": "uint256[2]"
-					},
-					{
 						"internalType": "uint256[8]",
-						"name": "_pubSignals",
+						"name": "proof",
 						"type": "uint256[8]"
+					},
+					{
+						"internalType": "uint256[6]",
+						"name": "input",
+						"type": "uint256[6]"
 					},
 					{
 						"internalType": "address[]",
@@ -444,7 +414,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/core/monad/vaultDelegator.sol": "QiaraZKDelegator"
+			"Evm/core/base/vaultDelegator.sol": "QiaraZKDelegator"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -474,12 +444,12 @@
 				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
 			]
 		},
-		"Evm/core/monad/vaultDelegator.sol": {
-			"keccak256": "0x1ae6df770833dc5d73f3833190a1dc00596c14d122ce5e74490f0be59f1af146",
+		"Evm/core/base/vaultDelegator.sol": {
+			"keccak256": "0xe8f6a0d2780715d80621c7e84a71e208c3a55e136652462fd9a49e1385d31c7b",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://9fca3f2aa36dbb2518efe0a8e1bc7ab463018fe6983f64accefd2ebea611c73b",
-				"dweb:/ipfs/QmUDTjcvk68anksQHXqLKtpTUTFgBc3uvr7AGEafjLk3v1"
+				"bzz-raw://16e871df95b1d949f90bcc885798d07a9a415e90726c67c3bf36ac042453e11f",
+				"dweb:/ipfs/QmYUHxuFvYTfR8CFdQ25N2cw55wFndSjxsrQZzy4F47MjR"
 			]
 		}
 	},

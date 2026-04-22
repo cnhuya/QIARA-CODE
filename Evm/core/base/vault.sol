@@ -43,7 +43,7 @@ contract QiaraMultiAssetVault is Ownable {
      */
     function resolveAsset(string memory assetName) public view returns (address) {
         string memory tokenKey = string(abi.encodePacked(assetName, "_", providerName));
-        bytes memory tokenBytes = variablesRegistry.getVariable("QiaraBaseAssets", tokenKey);
+        bytes memory tokenBytes = variablesRegistry.getVariable("QiaraMonadAssets", tokenKey);
         require(tokenBytes.length > 0, "Vault: Asset not found in registry");
         return abi.decode(tokenBytes, (address));
     }

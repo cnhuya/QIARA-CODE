@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IBalanceVerifier {
-    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external view returns (bool);
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external view returns (bool);
 }
 interface IVariableVerifier {
-    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals) external view returns (bool);
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external view returns (bool);
 }
 interface IValidatorVerifier {
     function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals) external view returns (bool);
@@ -44,7 +44,7 @@ contract QiaraZKDelegator is Ownable {
         validatorsRegistry = IValidators(_validatorsRegistry);
     }
 
-    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
+    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         require(balance_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
@@ -64,7 +64,7 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
     }
-    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[8] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
+    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         require(variable_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
 
@@ -108,7 +108,7 @@ contract QiaraZKDelegator is Ownable {
     }
 
     // Dont hash the last pub signal, that contains the pubkey of the validator, which would result in all nulifiers being unique, leading to never reaching needed quarum
-    function _calculateNullifier8(uint256[8] calldata _pubSignals) internal pure returns (uint256) {
+    function _calculateNullifier8(uint256[6] calldata _pubSignals) internal pure returns (uint256) {
         // abi.encodePacked concatenates all values into a raw byte stream.
         // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
         bytes32 hash = keccak256(abi.encodePacked(
@@ -117,8 +117,8 @@ contract QiaraZKDelegator is Ownable {
             _pubSignals[2],
             _pubSignals[3],
             _pubSignals[4],
-            _pubSignals[5],
-            _pubSignals[6]
+            _pubSignals[5]
+           // _pubSignals[6]
            //_pubSignals[7],
         ));
 
@@ -140,8 +140,8 @@ contract QiaraZKDelegator is Ownable {
         return uint256(hash);
     }
 
-    function _prepareWithdrawal(uint[8] calldata _pubSignals) internal view returns (uint256 amount, address vaultAddr, string memory storageName){
-        uint256 packed = _pubSignals[7];
+    function _prepareWithdrawal(uint[6] calldata _pubSignals) internal view returns (uint256 amount, address vaultAddr, string memory storageName){
+        uint256 packed = _pubSignals[5];
         uint256 chainID = packed & 0xFFFFFFFF;
         amount = (packed >> 32) & 0xFFFFFFFFFFFFFFFF;
 

@@ -37,35 +37,43 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"addPendingAddress(address)": "1722e147",
-			"getActiveAddresses()": "1442e4c9"
+			"emitVaultEvent(string,(string,string,bytes)[])": "7d64fa9b"
 		}
 	},
 	"abi": [
 		{
 			"inputs": [
 				{
-					"internalType": "address",
-					"name": "_user",
-					"type": "address"
+					"internalType": "string",
+					"name": "action",
+					"type": "string"
+				},
+				{
+					"components": [
+						{
+							"internalType": "string",
+							"name": "name",
+							"type": "string"
+						},
+						{
+							"internalType": "string",
+							"name": "typeName",
+							"type": "string"
+						},
+						{
+							"internalType": "bytes",
+							"name": "value",
+							"type": "bytes"
+						}
+					],
+					"internalType": "struct IEvents.Data[]",
+					"name": "data",
+					"type": "tuple[]"
 				}
 			],
-			"name": "addPendingAddress",
+			"name": "emitVaultEvent",
 			"outputs": [],
 			"stateMutability": "nonpayable",
-			"type": "function"
-		},
-		{
-			"inputs": [],
-			"name": "getActiveAddresses",
-			"outputs": [
-				{
-					"internalType": "address[]",
-					"name": "",
-					"type": "address[]"
-				}
-			],
-			"stateMutability": "view",
 			"type": "function"
 		}
 	]
