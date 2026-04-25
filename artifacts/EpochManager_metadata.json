@@ -1,0 +1,149 @@
+{
+	"compiler": {
+		"version": "0.8.31+commit.fd3a2265"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_genesisTimestamp",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_epochDuration",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "EPOCH_DURATION",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "GENESIS_TIMESTAMP",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getCurrentEpoch",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "epoch",
+						"type": "uint256"
+					}
+				],
+				"name": "getEpochEndTime",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "epoch",
+						"type": "uint256"
+					}
+				],
+				"name": "isEpochOver",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {
+				"getCurrentEpoch()": {
+					"notice": "Calculates the current epoch based on the current block timestamp."
+				},
+				"getEpochEndTime(uint256)": {
+					"notice": "Returns the exact second an epoch ends."
+				},
+				"isEpochOver(uint256)": {
+					"notice": "Checks if a specific epoch has technically \"finished\"."
+				}
+			},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"Evm/core/epoch.sol": "EpochManager"
+		},
+		"evmVersion": "osaka",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"Evm/core/epoch.sol": {
+			"keccak256": "0x4875d0e0cdcc8b416bf8a23d61cd25f214388273b28d387d5c1ebbd984e9ce5d",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://5cdfef046f7ab75ff13e56019ae2192156db5f43d07aab06a21274e764f5603c",
+				"dweb:/ipfs/QmajfbcSEoA3uE3tvd1NhmWo41wTEZN4rRZQZExkCzzWzL"
+			]
+		}
+	},
+	"version": 1
+}

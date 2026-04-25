@@ -1,45 +1,99 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IGroth16Verifier {
-    function verifyProof(
-        uint[2] calldata _pA,
-        uint[2][2] calldata _pB,
-        uint[2] calldata _pC,
-        uint[4] calldata _pubSignals
-    ) external view returns (bool);
+interface IEpochManager {
+    function getCurrentEpoch() external view returns (uint256);
 }
 
-contract PrivateDataStorage {
-    IGroth16Verifier public immutable verifier;
-    
+contract IValidators {
     uint256 public activeRoot;
-    // Track nullifiers or epochs to prevent replay attacks
-    mapping(uint256 => bool) public usedNullifiers; 
-        
-    event StateUpdated(address indexed sender, uint256 newRoot, uint256 epoch);
+    uint256 public pendingRoot;
 
-    constructor(address _verifierAddress) {
-        require(_verifierAddress != address(0), "Invalid verifier address");
-        verifier = IGroth16Verifier(_verifierAddress);
+    // --- Address Lists ---
+    address[] public activeAddresses;
+    address[] public pendingAddresses;
+
+    // --- Epoch Tracking ---
+    IEpochManager public epochManager;
+    uint256 public lastProcessedEpoch; 
+
+    address public authorizedContract;
+    address public owner;
+
+    event AuthorizedContractUpdated(address indexed newAddress);
+    event EpochManagerUpdated(address indexed newManager);
+    event AddressAddedToPending(address indexed user, uint256 epoch);
+    event ListsRolledOver(uint256 newEpoch, uint256 countMoved);
+
+    constructor() {
+        owner = msg.sender;
     }
 
-    function updateDataWithProof(uint[2] calldata _pA,uint[2][2] calldata _pB,uint[2] calldata _pC,uint[4] calldata _pubSignals) public {
-        // 1. Verify the ZK Proof
-        require(verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
-        
-        uint256 root = _pubSignals[1];
-        uint256 epoch = _pubSignals[3];
+    // --- Configuration ---
 
-        // 2. Prevent Replay Attacks, using epoch as nullifier in this case is enough
-        // - Validators are being exchanged only at the start of each epoch.
-        require(!usedNullifiers[epoch], "Proof already submitted (nullifier used)");
-        require(activeRoot != root, "This root is already active");
+    function setEpochManager(address _epochManager) external {
+        require(msg.sender == owner, "Only owner");
+        epochManager = IEpochManager(_epochManager);
+        emit EpochManagerUpdated(_epochManager);
+    }
 
-        // 3. State Update
-        activeRoot = root;
-        usedNullifiers[epoch] = true;
-        
-        emit StateUpdated(msg.sender, root, epoch);
+    function setAuthorizedContract(address _authAddress) external {
+        require(msg.sender == owner, "Only owner");
+        authorizedContract = _authAddress;
+        emit AuthorizedContractUpdated(_authAddress);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
+    modifier onlyAuthorized() {
+        require(msg.sender == authorizedContract, "Not authorized");
+        _;
+    }
+
+    // --- Logic ---
+    function addPendingAddress(address _user) external onlyAuthorized {
+        _checkAndHandleEpochRollover();
+
+        pendingAddresses.push(_user);
+        emit AddressAddedToPending(_user, lastProcessedEpoch);
+    }
+
+    function _checkAndHandleEpochRollover() internal {
+        uint256 currentEpoch = epochManager.getCurrentEpoch();
+
+        // If time has moved into a new epoch compared to what we last saw
+        if (currentEpoch > lastProcessedEpoch) {
+            
+            // 1. Move pending to active
+            // Note: In production, consider gas limits if pendingAddresses is huge.
+            activeAddresses = pendingAddresses;
+
+            // 2. Clear pending for the new epoch
+            delete pendingAddresses;
+
+            // 3. Update the marker
+            lastProcessedEpoch = currentEpoch;
+
+            emit ListsRolledOver(currentEpoch, activeAddresses.length);
+        }
+    }
+
+
+    // --- ADMIN FUNCTION ---
+    function addActiveAddressDirect(address _user) external onlyOwner {
+        activeAddresses.push(_user);
+    }
+
+    // --- Helpers / Views ---
+    function getActiveAddresses() external view returns (address[] memory) {
+        return activeAddresses;
+    }
+    function getPendingAddresses() external view returns (address[] memory) {
+        return pendingAddresses;
+    }
+    function checkSystemEpoch() public view returns (uint256) {
+        return epochManager.getCurrentEpoch();
     }
 }

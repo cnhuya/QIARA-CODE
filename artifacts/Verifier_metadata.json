@@ -1,0 +1,169 @@
+{
+	"compiler": {
+		"version": "0.8.31+commit.fd3a2265"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"name": "ProofInvalid",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "PublicInputNotInField",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256[8]",
+						"name": "proof",
+						"type": "uint256[8]"
+					}
+				],
+				"name": "compressProof",
+				"outputs": [
+					{
+						"internalType": "uint256[4]",
+						"name": "compressed",
+						"type": "uint256[4]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256[4]",
+						"name": "compressedProof",
+						"type": "uint256[4]"
+					},
+					{
+						"internalType": "uint256[6]",
+						"name": "input",
+						"type": "uint256[6]"
+					}
+				],
+				"name": "verifyCompressedProof",
+				"outputs": [],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256[8]",
+						"name": "proof",
+						"type": "uint256[8]"
+					},
+					{
+						"internalType": "uint256[6]",
+						"name": "input",
+						"type": "uint256[6]"
+					}
+				],
+				"name": "verifyProof",
+				"outputs": [],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"author": "Remco Bloemen",
+			"errors": {
+				"ProofInvalid()": [
+					{
+						"details": "This can mean that provided Groth16 proof points are not on their curves, that pairing equation fails, or that the proof is not for the provided public input."
+					}
+				],
+				"PublicInputNotInField()": [
+					{
+						"details": "Public input elements are not automatically reduced, as this is can be a dangerous source of bugs."
+					}
+				]
+			},
+			"kind": "dev",
+			"methods": {
+				"compressProof(uint256[8])": {
+					"params": {
+						"proof": "The uncompressed Groth16 proof. Elements are in the same order as for verifyProof. I.e. Groth16 points (A, B, C) encoded as in EIP-197."
+					},
+					"returns": {
+						"compressed": "The compressed proof. Elements are in the same order as for verifyCompressedProof. I.e. points (A, B, C) in compressed format."
+					}
+				},
+				"verifyCompressedProof(uint256[4],uint256[6])": {
+					"params": {
+						"compressedProof": "the points (A, B, C) in compressed format matching the output of compressProof.",
+						"input": "the public input field elements in the scalar field Fr. Elements must be reduced."
+					}
+				},
+				"verifyProof(uint256[8],uint256[6])": {
+					"params": {
+						"input": "the public input field elements in the scalar field Fr. Elements must be reduced.",
+						"proof": "the points (A, B, C) in EIP-197 format matching the output of compressProof."
+					}
+				}
+			},
+			"title": "Groth16 verifier template.",
+			"version": 1
+		},
+		"userdoc": {
+			"errors": {
+				"ProofInvalid()": [
+					{
+						"notice": "The proof is invalid."
+					}
+				],
+				"PublicInputNotInField()": [
+					{
+						"notice": "Some of the provided public input values are larger than the field modulus."
+					}
+				]
+			},
+			"kind": "user",
+			"methods": {
+				"compressProof(uint256[8])": {
+					"notice": "Compress a proof.Will revert with InvalidProof if the curve points are invalid, but does not verify the proof itself."
+				},
+				"verifyCompressedProof(uint256[4],uint256[6])": {
+					"notice": "Verify a Groth16 proof with compressed points.Reverts with InvalidProof if the proof is invalid or with PublicInputNotInField the public input is not reduced.There is no return value. If the function does not revert, the proof was successfully verified."
+				},
+				"verifyProof(uint256[8],uint256[6])": {
+					"notice": "Verify an uncompressed Groth16 proof.Reverts with InvalidProof if the proof is invalid or with PublicInputNotInField the public input is not reduced.There is no return value. If the function does not revert, the proof was successfully verified."
+				}
+			},
+			"notice": "Supports verifying Groth16 proofs. Proofs can be in uncompressed (256 bytes) and compressed (128 bytes) format. A view function is provided to compress proofs.See <https://2π.com/23/bn254-compression> for further explanation.",
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"Evm/zk/variable_verifier.sol": "Verifier"
+		},
+		"evmVersion": "osaka",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"Evm/zk/variable_verifier.sol": {
+			"keccak256": "0x054d99bdfeb1c22b2750a785e07129dfa6c86d09dafc7b19dc056d7da09ab031",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://58e5ed5663a32e4004d9827380974068be6bbff03d9d11fa0bfc1985e388f8cb",
+				"dweb:/ipfs/QmZcC2RTVKbcXVEBUSjwZvUwWPMA32uHbCj6ZhtZLqoTPa"
+			]
+		}
+	},
+	"version": 1
+}

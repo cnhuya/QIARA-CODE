@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IVariables {
-   function getVariable(string calldata header, string calldata name) external view returns (bytes memory);
+   function getActiveVariable(string calldata header, string calldata name) external view returns (bytes memory);
 }
 interface IEvents {
     struct Data { string name; string typeName; bytes value; }
@@ -41,21 +41,34 @@ contract QiaraMultiAssetVault is Ownable {
     /**
      * @dev Internal helper to resolve "USDC" -> 0xA0b... using registry
      */
-    function resolveAsset(string memory assetName) public view returns (address) {
-        string memory tokenKey = string(abi.encodePacked(assetName, "_", providerName));
-        bytes memory tokenBytes = variablesRegistry.getVariable("QiaraBaseAssets", tokenKey);
-        require(tokenBytes.length > 0, "Vault: Asset not found in registry");
-        return abi.decode(tokenBytes, (address));
+function resolveAsset(string memory assetName) public view returns (address) {
+    string memory tokenKey = string(abi.encodePacked(assetName, "_", providerName));
+    
+    require(bytes(providerName).length > 0, "Provider name not set");
+    
+    bytes memory tokenBytes = variablesRegistry.getActiveVariable("QiaraMonadAssets", tokenKey);
+    
+    require(tokenBytes.length > 0, "No data from registry");
+    require(tokenBytes.length >= 20, "Data too short");
+    
+    // Convert bytes to address directly
+    address assetAddress;
+    assembly {
+        assetAddress := mload(add(tokenBytes, 20))
     }
+    return assetAddress;
+}
 
     function listNewToken(string calldata assetName) external {
         address tokenAddr = resolveAsset(assetName);
         isSupportedToken[tokenAddr] = true;
+        //revert("DEBUG_1103") ;
         emit TokenListed(tokenAddr, providerName);
     }
 
 
-    function grantWithdrawalPermission(address user, string calldata assetName, uint256 amount, uint256 nullifier) external onlyOwner {
+    function grantWithdrawalPermission(address user, string calldata assetName, uint256 amount, uint256 nullifier) external  {
+        //revert("DEBUG_110993") ;
         address token = resolveAsset(assetName);
         require(isSupportedToken[token], "Vault: Token not supported");
         

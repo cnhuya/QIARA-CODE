@@ -1,0 +1,80 @@
+{
+	"deploy": {
+		"VM:-": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"main:1": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"sepolia:11155111": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"Custom": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		}
+	},
+	"data": {
+		"bytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"deployedBytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"immutableReferences": {},
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"gasEstimates": null,
+		"methodIdentifiers": {
+			"emitVaultEvent(string,(string,string,bytes)[])": "7d64fa9b"
+		}
+	},
+	"abi": [
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "action",
+					"type": "string"
+				},
+				{
+					"components": [
+						{
+							"internalType": "string",
+							"name": "name",
+							"type": "string"
+						},
+						{
+							"internalType": "string",
+							"name": "typeName",
+							"type": "string"
+						},
+						{
+							"internalType": "bytes",
+							"name": "value",
+							"type": "bytes"
+						}
+					],
+					"internalType": "struct IEvents.Data[]",
+					"name": "data",
+					"type": "tuple[]"
+				}
+			],
+			"name": "emitVaultEvent",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		}
+	]
+}
