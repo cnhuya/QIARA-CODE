@@ -445,11 +445,11 @@
 			]
 		},
 		"Evm/core/base/vaultDelegator.sol": {
-			"keccak256": "0xe8f6a0d2780715d80621c7e84a71e208c3a55e136652462fd9a49e1385d31c7b",
+			"keccak256": "0x6d36439af19b0c8c181db5b1af33c1565b06fb0f648806e419a9f7d61c132c03",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://16e871df95b1d949f90bcc885798d07a9a415e90726c67c3bf36ac042453e11f",
-				"dweb:/ipfs/QmYUHxuFvYTfR8CFdQ25N2cw55wFndSjxsrQZzy4F47MjR"
+				"bzz-raw://88b0da6ed9aebbccc8e1d8143ec1499598c65466ce3ba54823d16fe27982de25",
+				"dweb:/ipfs/QmQhGZ46oUi6om8WsvJdcv7S3FFF8p9RzjH6ZZmR4wi2aE"
 			]
 		}
 	},

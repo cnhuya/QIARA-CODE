@@ -14,7 +14,7 @@ interface IValidatorVerifier {
 }
 
 interface IQiaraVault {
-    function grantWithdrawalPermission(address user, string memory assetName, uint256 amount, uint256 nullifier) external;
+    function grantWithdrawalPermission(address user, string calldata assetName, uint256 amount, uint256 nullifier) external;
 }
 
 interface IVariables {
@@ -46,21 +46,27 @@ contract QiaraZKDelegator is Ownable {
 
     function processZkWithdraw(uint[8] calldata proof, uint[6] calldata input, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
-        balance_verifier.verifyProof(proof,input);
+        balance_verifier.verifyProof(proof, input);
 
-        (uint256 amount, address vaultAddr, string memory storageName) =_prepareWithdrawal(input);
-
-        // 5. Replay Protection (Using SHA256)
+        (uint256 amount, address vaultAddr, string memory storageName) = _prepareWithdrawal(input);
+        // 5. Replay Protection
         uint256 userL = input[2];
         uint256 userH = input[3];
+        //revert("DEBUG_10000");
         uint256 nullifier = _calculateNullifier8(input);
+
+        // --- DEBUG ABORT START ---
+        // This will stop the transaction and show "DEBUG_100" in your stack trace
+        //revert("DEBUG_100"); 
+        // --- DEBUG ABORT END ---
+
         _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
-
+        //revert("DEBUG_10510");
         // 6. User Address Reconstruction
         address user = address(uint160((userH << 128) | userL));
-
+   // revert("DEBUG_1051075");
         // 7. Final Call
         IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
     }
@@ -149,7 +155,7 @@ contract QiaraZKDelegator is Ownable {
         // ChainID: bits 64-95
         uint256 chainID = uint256(uint32(packed >> 64));
         require(chainID == block.chainid, "Wrong destination chain");
-
+//revert("DEBUG_100") ;
         // StorageID: bits 128+ (Unpack first, then convert to string)
         uint256 storageID = packed >> 128;
         storageName = fieldToString(storageID);
@@ -158,11 +164,15 @@ contract QiaraZKDelegator is Ownable {
         string memory providerName = fieldToString(input[4]);
 
         // 3. Registry Lookup Logic (As requested)
+        //revert("DEBUG_123") ;
         string memory vaultKey = string(abi.encodePacked(providerName, "_vault"));
+        //revert("DEBUG_111") ;
         bytes memory vaultBytes = variablesRegistry.getActiveVariable("QiaraBaseAssets", vaultKey);
-
+        //revert("DEBUG_199") ;
         require(vaultBytes.length > 0, "Vault not authorized");
-        vaultAddr = abi.decode(vaultBytes, (address));
+        //revert("DEBUG_1003") ;
+        vaultAddr = address(uint160(bytes20(vaultBytes)));
+       // revert("DEBUG_1004") ;
     }
 
     function _verifyAllSignatures(bytes32 _messageHash,address[] calldata validators,bytes calldata _signatures) internal view {
@@ -170,12 +180,12 @@ contract QiaraZKDelegator is Ownable {
         
         // 1. Fetch once to save gas and stack space
         address[] memory active_validators = validatorsRegistry.getActiveAddresses();
-
         for (uint256 i = 0; i < validators.length; i++) {
             bytes calldata signature = _signatures[i * 65 : (i + 1) * 65];
+            //revert("DEBUG_110010");
             address signer = recoverSigner(ethHash, signature);
             require(signer != address(0), "Invalid signature");
-
+            
             // 2. Check if signer is in the active list
             bool isAuthorized = false;
             for (uint256 j = 0; j < active_validators.length; j++) {
@@ -185,6 +195,7 @@ contract QiaraZKDelegator is Ownable {
                 }
             }
             require(isAuthorized, "Signer not an active validator");
+            //revert("DEBUG_1010");
         }
     }
 
