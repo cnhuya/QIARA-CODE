@@ -1,4 +1,4 @@
-module Qiara::QiaraEventsV1 {
+module 0x0::QiaraEventsV1 {
     use std::vector;
     use sui::address;
     use std::string::{Self, String};

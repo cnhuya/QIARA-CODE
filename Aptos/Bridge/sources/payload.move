@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV5{
+module dev::QiaraPayloadV8{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -114,14 +114,13 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (a, x, k, b, c, d, e, f)
     }
 
-    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String,String, String, vector<u8>){
+    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>, vector<u8>){
         let (_, validator) = find_payload_value(utf8(b"validator"), type_names, payload);
         let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);
-        let (_, pub_key_x) = find_payload_value(utf8(b"pub_key_x"), type_names, payload);
-        let (_, pub_key_y) = find_payload_value(utf8(b"pub_key_y"), type_names, payload);
-        let (_, pub_key) = find_payload_value(utf8(b"pub_key"), type_names, payload);
+        let (_, secp256k1_address) = find_payload_value(utf8(b"secp256k1_address"), type_names, payload);
+        let (_, secp256k1_pub_key) = find_payload_value(utf8(b"secp256k1_pub_key"), type_names, payload);
 
-        return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_string(pub_key_x), from_bcs::to_string(pub_key_y), from_bcs::to_bytes(pub_key))
+        return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_address), from_bcs::to_bytes(secp256k1_pub_key))
     }
 public fun prepare_finalize_bridge(
     type_names: vector<String>, 
@@ -142,7 +141,9 @@ public fun prepare_finalize_bridge(
     let (_, nonce_raw) = find_payload_value(utf8(b"nonce"), type_names, payload);
 
     // 2. Decode each chunk into Move types using BCS streams
-    let y = bcs::to_bytes(&bcs_stream::deserialize_address(&mut bcs_stream::new(addr))); // Keep as vector<u8>
+        let addr_stream = &mut bcs_stream::new(addr);
+        let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
+        let y = addr_bytes;
     let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
     let x = utf8(b"");
     let a = bcs_stream::deserialize_string(&mut bcs_stream::new(old_root_raw));

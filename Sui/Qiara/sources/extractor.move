@@ -1,4 +1,4 @@
-module Qiara::QiaraExtractorV1 {
+module 0x0::QiaraExtractorV1 {
     use std::vector;
     use std::string::{Self, String};
     use std::hash; // Added for sha2_256
@@ -10,11 +10,12 @@ module Qiara::QiaraExtractorV1 {
     const E_INVALID_INPUT_LENGTH: u64 = 400;
     const E_VALUE_OVERFLOW: u64 = 401;
 
-    /// Unpacked Slot 8: chainID(32) + amount(64) + index(64) + nonce(64)
+
     public struct UnpackedTx has drop {
         chain_id: u64,
         amount: u64,
-        nonce: u64
+        nonce: u64,
+        storage_id: u64
     }
 
     // --- Public Extraction API ---
@@ -76,9 +77,10 @@ module Qiara::QiaraExtractorV1 {
 
     fun unpack_slot_8(packed_data: u256): UnpackedTx {
         UnpackedTx {
-            chain_id: ((packed_data) & 0xFFFFFFFF) as u64,
-            amount:   ((packed_data >> 32) & 0xFFFFFFFFFFFFFFFF) as u64,
-            nonce:    ((packed_data >> 96) & 0xFFFFFFFFFFFFFFFF) as u64,
+            amount:     ((packed_data) & 0xFFFFFFFFFFFFFFFF) as u64,           // Bits 0-63
+            chain_id:   ((packed_data >> 64) & 0xFFFFFFFF) as u64,             // Bits 64-95 (only 32 bits used)
+            nonce:      ((packed_data >> 96) & 0xFFFFFFFFFFFFFFFF) as u64,     // Bits 96-127
+            storage_id: ((packed_data >> 128) & 0xFFFFFFFFFFFFFFFF) as u64,    // Bits 128-191
         }
     }
 

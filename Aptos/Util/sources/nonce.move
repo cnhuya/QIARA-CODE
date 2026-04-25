@@ -69,6 +69,8 @@ module dev::QiaraNonceV2{
             nonce_ref.zk_nonce = nonce_ref.zk_nonce + 1;
         } else if(type == utf8(b"native")) {
             nonce_ref.main_nonce = nonce_ref.main_nonce + 1;
+        } else if(type == utf8(b"proof")) {
+            nonce_ref.main_nonce = nonce_ref.main_nonce + 1;
         };
          event::emit(NonceAdd {
             addr: user,
