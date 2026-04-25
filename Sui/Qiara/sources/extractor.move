@@ -1,4 +1,4 @@
-module 0x0::QiaraExtractorV1 {
+module Qiara::QiaraExtractorV1 {
     use std::vector;
     use std::string::{Self, String};
     use std::hash; // Added for sha2_256

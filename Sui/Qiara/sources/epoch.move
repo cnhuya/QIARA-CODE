@@ -1,4 +1,4 @@
-module 0x0::QiaraEpochManagerV1 {
+module Qiara::QiaraEpochManagerV1 {
     use sui::clock::{Self, Clock};
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};

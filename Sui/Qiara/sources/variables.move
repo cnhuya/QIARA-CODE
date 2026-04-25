@@ -1,4 +1,4 @@
-module 0x0::QiaraVariablesV1 {
+module Qiara::QiaraVariablesV1 {
     use std::string::{Self, String};
     use sui::vec_map::{Self, VecMap};
     use sui::tx_context::{Self, TxContext};
@@ -8,9 +8,9 @@ module 0x0::QiaraVariablesV1 {
     use sui::transfer;
     use sui::event;
 
-    use 0x0::QiaraEpochManagerV1 as epoch_manager;
-    use 0x0::QiaraEpochManagerV1::Config;
-    use 0x0::QiaraVerifierV1 as zk;
+    use Qiara::QiaraEpochManagerV1 as epoch_manager;
+    use Qiara::QiaraEpochManagerV1::Config;
+    use Qiara::QiaraVerifierV1 as zk;
 
     // --- Errors ---
     const ERegistryLocked: u64 = 0;

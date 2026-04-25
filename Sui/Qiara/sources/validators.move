@@ -1,14 +1,14 @@
-module 0x0::ValidatorsV1 {
+module Qiara::ValidatorsV1 {
     use std::vector;
     use sui::event;
     use sui::tx_context::{Self, TxContext};
     use sui::object::{Self, UID, ID};
     use sui::clock::{Self, Clock};
 
-    use 0x0::QiaraDelegatorV1::{Self as delegator, AdminCap, Vault, SupportedTokenKey, Nullifiers, ProviderManager};
-    use 0x0::QiaraEventsV1::{Self as Event};
-    use 0x0::QiaraEpochManagerV1::{Self as epoch_manager, Config};
-    use 0x0::QiaraVerifierV1::{Self as zk};
+    use Qiara::QiaraDelegatorV1::{Self as delegator, AdminCap, Vault, SupportedTokenKey, Nullifiers, ProviderManager};
+    use Qiara::QiaraEventsV1::{Self as Event};
+    use Qiara::QiaraEpochManagerV1::{Self as epoch_manager, Config};
+    use Qiara::QiaraVerifierV1::{Self as zk};
 
     // ==================== ERRORS ====================
     const E_NOT_AUTHORIZED: u64 = 0;

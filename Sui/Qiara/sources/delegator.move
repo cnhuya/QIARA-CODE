@@ -1,4 +1,4 @@
-module 0x0::QiaraDelegatorV1 {
+module Qiara::QiaraDelegatorV1 {
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     use sui::object::{Self, UID, ID};
@@ -13,8 +13,8 @@ module 0x0::QiaraDelegatorV1 {
     use std::vector;
     use sui::dynamic_field as df;
 
-    use 0x0::QiaraVariablesV1::{Self as vars}; 
-    use 0x0::QiaraVerifierV1::{Self as zk};
+    use Qiara::QiaraVariablesV1::{Self as vars}; 
+    use Qiara::QiaraVerifierV1::{Self as zk};
 
     // Your VK here (keep as is for now)
     const FULL_VK: vector<u8> = x"93f766ffa82322942a5ba6b3b8e4979151f7943676e334a50e837a534a3ccaee710a8ad8d0e6a1b740f93081bfe236e65087312d72f697d71a8b16b1591faec343fd24c21401258d87d5883e5091956969071fbb6bebfa3bc3a774b65cbad1e1e0ff6751870ba514743846add81d7e112c4c07f6494b0e10aa1cbbcfea8501157a8f603b16ccd17d32acbe190f047430060583d34383ada38ae795836a2efcce8678fdacf0bb38deb344a7d2bb0e1fc97018e1777696cce1087b56901f10f9031dcdb7da6d4b3accb397d8c05b4664f6976cdc2db40e39a391d3050695a3e2e277004b3232006b45036682b50d336aba87317b5cdff96d3797d1cb3ca11858a0d4bc2ae17943768c77c43770adf4f673fd44905fae6ab936af136757f80e48043b6e5820287e0615dd5c38a9e8a94b8bb7f29737122211f8e33ad5aa07000000239abf9084b6714794e511f006d945bf914007e8450cbdb05e4bfd3e6d5efa1dcabbea3c1e0615a465324b49a840c01792fb846292905556a42490f53489110a6a0e283297c355a1ff8c5a2c161f298a83517b754d7a71a4917ec297696b7c09b3dededd0b1a5cf499141f3bee200a58b62af23f654ecf534890caec9d5a34cb63f2703a72bca22cc2f4380ad71487f5d3b98687905c9199d020f825244ac01f58a0790bf0364b33488a1acb9e037b4e66f0ed1fbbb750a417d9d154724e6430";
