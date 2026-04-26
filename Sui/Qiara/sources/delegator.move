@@ -182,20 +182,23 @@ module Qiara::QiaraDelegatorV1 {
         balance::split(reserve, amount)
     }
 
-    public fun grant_permission<T>(config: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256) {
+    public fun grant_permission<T>(config: &ProviderManager, state: &ValidatorState, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256) {
         // 1. Verify the proof and extract values
         let (user, amount, vault_provider, nullifier) = zk::verify_balance(public_inputs, proof_points);
 
-        // 2. Check if nullifier has been used before to prevent double-withdrawals
+        // 2. Verify signatures from validators and ensure they are valid and from active validators
+        verify_signatures(state, signatures, public_inputs);
+
+        // 3. Check if nullifier has been used before to prevent double-withdrawals
         if(table::contains(&nullifiers.table, nullifier)) {
             abort ENullifierUsed;
         };  
         table::add(&mut nullifiers.table, nullifier, true);
 
-        // 3. Safety check, if provider is supported
+        // 4. Safety check, if provider is supported
         assert!(table::contains(&config.vaults, vault_provider), EWrongProviderProvided);
 
-        // 4. Return values 
+        // 5. Return values 
         return (user, amount, nullifier)
     }
 
@@ -211,15 +214,18 @@ module Qiara::QiaraDelegatorV1 {
         df::exists_(&vault.id, SupportedTokenKey { token_type })
     }
 
-    fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>) {
+    fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>,inputs: vector<u8>) {
         let mut n = vector::length(&signatures);
-        let msg = b"Authorize withdrawal"; // This should be the same message that was signed off-chain
-        let validator_pubkeys = validators::get_active_pubkeys(state); // You need to implement this to return the list of validator pubkeys
+        
+        // This must match what Go signs - the public inputs
+        // No longer a static string, but the actual inputs data
+        let msg = inputs;
+        
+        let validator_pubkeys = validators::get_active_pubkeys(state);
+        
         while (n > 0) {
             let i = n - 1;
-            //let pubkey = vector::borrow(&pubkeys, i);
-            //let signature = vector::borrow(&signatures, i);
-            let recovered_key = ecdsa_k1::secp256k1_ecrecover((&signatures[i]), &msg, 0); 
+            let recovered_key = ecdsa_k1::secp256k1_ecrecover(&signatures[i], &msg, 0);
             assert!(vector::contains(&validator_pubkeys, &recovered_key), ENotValidator);
             n = i;
         }
