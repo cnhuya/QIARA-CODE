@@ -44,8 +44,8 @@ module 0x0::QiaraBluefinInterfaceV1 {
 // --- Permissionless Asset Listing ---
     // --- Administrative Functions ---
     /// Only the Delegator (holding AdminCap) can grant specific withdrawal rights
-    public entry fun grant_withdrawal_permission<T>(vault: &mut Vault, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>) {
-        let (user, amount, nullifier) = delegator::grant_permission<T>(manager,nullifiers, public_inputs, proof_points);
+    public entry fun grant_withdrawal_permission<T>(vault: &mut Vault, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, pubkeys: vector<vector<u8>>, signatures: vector<vector<u8>>) {
+        let (user, amount, nullifier) = delegator::grant_permission<T>(manager,nullifiers, public_inputs, proof_points, pubkeys, signatures);
         let vault_uid = delegator::borrow_id(vault); // For read-only (exists_)
         assert!(object::uid_to_inner(vault_uid) == object::id(vault), ENotAuthorized);
         internal_grant<T>(vault, user, amount);

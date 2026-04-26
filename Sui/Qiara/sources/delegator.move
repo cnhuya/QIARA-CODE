@@ -9,11 +9,13 @@ module Qiara::QiaraDelegatorV1 {
     use sui::table::{Self, Table};
     use sui::event;
     use sui::bcs;
+    use sui::ecdsa_k1;
     use std::string::{Self, String};
     use std::vector;
     use sui::dynamic_field as df;
 
-    use Qiara::QiaraVariablesV1::{Self as vars}; 
+    use Qiara::QiaraVariablesV1::{Self as vars};
+    use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState}; 
     use Qiara::QiaraVerifierV1::{Self as zk};
 
     // Your VK here (keep as is for now)
@@ -35,6 +37,8 @@ module Qiara::QiaraDelegatorV1 {
     const EInsufficientPermission: u64 = 7;
     const ENotSupported: u64 = 8;
     const EWrongChainId: u64 = 9;
+    const EInvalidSignature: u64 = 10;
+    const ENotValidator: u64 = 11;
 
     // Events
     public struct TokenListed has copy, drop {
@@ -178,7 +182,7 @@ module Qiara::QiaraDelegatorV1 {
         balance::split(reserve, amount)
     }
 
-    public fun grant_permission<T>(config: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>): (address, u64, u256) {
+    public fun grant_permission<T>(config: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256) {
         // 1. Verify the proof and extract values
         let (user, amount, vault_provider, nullifier) = zk::verify_balance(public_inputs, proof_points);
 
@@ -207,6 +211,19 @@ module Qiara::QiaraDelegatorV1 {
         df::exists_(&vault.id, SupportedTokenKey { token_type })
     }
 
+    fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>) {
+        let mut n = vector::length(&signatures);
+        let msg = b"Authorize withdrawal"; // This should be the same message that was signed off-chain
+        let validator_pubkeys = validators::get_active_pubkeys(state); // You need to implement this to return the list of validator pubkeys
+        while (n > 0) {
+            let i = n - 1;
+            //let pubkey = vector::borrow(&pubkeys, i);
+            //let signature = vector::borrow(&signatures, i);
+            let recovered_key = ecdsa_k1::secp256k1_ecrecover((&signatures[i]), &msg, 0); 
+            assert!(vector::contains(&validator_pubkeys, &recovered_key), ENotValidator);
+            n = i;
+        }
+    }
 
     public fun is_nullifier_used(nullifiers: &Nullifiers, nullifier: u256): bool {
         table::contains(&nullifiers.table, nullifier)

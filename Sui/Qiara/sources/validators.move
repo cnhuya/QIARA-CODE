@@ -1,4 +1,4 @@
-module Qiara::ValidatorsV1 {
+module Qiara::QiaraValidatorsV1 {
     use std::vector;
     use sui::event;
     use sui::tx_context::{Self, TxContext};
