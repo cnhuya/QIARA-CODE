@@ -226,12 +226,15 @@ module Qiara::QiaraDelegatorV1 {
             // Ensure signature is valid length before calling native function to avoid aborts
             assert!(vector::length(sig) == 65, EInvalidSignatureLength);
 
-            // Use hash_type 1 for Keccak256
-            let recovered_key = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 0);
-            
+            // 1. Recover compressed key from signature
+            let recovered_compressed = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 0);
+
+            // 2. Decompress to get uncompressed (65 bytes, starts with 0x04)
+            let recovered_uncompressed = ecdsa_k1::decompress_pubkey(&recovered_compressed);
+
             // Note: recovered_key is the 65-byte uncompressed public key.
             // Ensure your validators::get_active_pubkeys returns the same format.
-            assert!(vector::contains(&validator_pubkeys, &recovered_key), ENotValidator);
+            assert!(vector::contains(&validator_pubkeys, &recovered_uncompressed), ENotValidator);
             
             n = i;
         }
