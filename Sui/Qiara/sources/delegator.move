@@ -39,6 +39,7 @@ module Qiara::QiaraDelegatorV1 {
     const EWrongChainId: u64 = 9;
     const EInvalidSignature: u64 = 10;
     const ENotValidator: u64 = 11;
+    const EInvalidSignatureLength: u64 = 12;
 
     // Events
     public struct TokenListed has copy, drop {
@@ -214,19 +215,24 @@ module Qiara::QiaraDelegatorV1 {
         df::exists_(&vault.id, SupportedTokenKey { token_type })
     }
 
-    fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>,inputs: vector<u8>) {
+    public fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>, inputs: vector<u8>) {
         let mut n = vector::length(&signatures);
-        
-        // This must match what Go signs - the public inputs
-        // No longer a static string, but the actual inputs data
-        let msg = inputs;
-        
         let validator_pubkeys = validators::get_active_pubkeys(state);
         
         while (n > 0) {
             let i = n - 1;
-            let recovered_key = ecdsa_k1::secp256k1_ecrecover(&signatures[i], &msg, 1);
+            let sig = &signatures[i];
+            
+            // Ensure signature is valid length before calling native function to avoid aborts
+            assert!(vector::length(sig) == 65, EInvalidSignatureLength);
+
+            // Use hash_type 1 for Keccak256
+            let recovered_key = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 1);
+            
+            // Note: recovered_key is the 65-byte uncompressed public key.
+            // Ensure your validators::get_active_pubkeys returns the same format.
             assert!(vector::contains(&validator_pubkeys, &recovered_key), ENotValidator);
+            
             n = i;
         }
     }
