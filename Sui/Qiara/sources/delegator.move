@@ -225,7 +225,7 @@ module Qiara::QiaraDelegatorV1 {
         
         while (n > 0) {
             let i = n - 1;
-            let recovered_key = ecdsa_k1::secp256k1_ecrecover(&signatures[i], &msg, 0);
+            let recovered_key = ecdsa_k1::secp256k1_ecrecover(&signatures[i], &msg, 1);
             assert!(vector::contains(&validator_pubkeys, &recovered_key), ENotValidator);
             n = i;
         }
