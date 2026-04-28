@@ -227,7 +227,7 @@ module Qiara::QiaraDelegatorV1 {
             assert!(vector::length(sig) == 65, EInvalidSignatureLength);
 
             // Use hash_type 1 for Keccak256
-            let recovered_key = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 1);
+            let recovered_key = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 0);
             
             // Note: recovered_key is the 65-byte uncompressed public key.
             // Ensure your validators::get_active_pubkeys returns the same format.
