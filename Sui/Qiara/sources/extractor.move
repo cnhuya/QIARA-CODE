@@ -1,15 +1,19 @@
 module Qiara::QiaraExtractorV1 {
     use std::vector;
     use std::string::{Self, String};
-    use std::hash; // Added for sha2_256
+    use sui::hash;
     use sui::address;
-    use sui::bcs;
 
     // --- Constants ---
-    const E_INVALID_CHAIN_ID: u64 = 0;
     const E_INVALID_INPUT_LENGTH: u64 = 400;
-    const E_VALUE_OVERFLOW: u64 = 401;
 
+    // Indices based on Go Circuit Public Inputs
+    const INDEX_OLD_ROOT: u64 = 0;
+    const INDEX_NEW_ROOT: u64 = 1;
+    const INDEX_USER_L: u64   = 2;
+    const INDEX_USER_H: u64   = 3;
+    const INDEX_VAULT: u64    = 4;
+    const INDEX_PACKED_TX: u64 = 5;
 
     public struct UnpackedTx has drop {
         chain_id: u64,
@@ -18,74 +22,98 @@ module Qiara::QiaraExtractorV1 {
         storage_id: u64
     }
 
+// --- Getters for UnpackedTx ---
+
+    public fun tx_amount(self: &UnpackedTx): u64 {
+        self.amount
+    }
+
+    public fun tx_chain_id(self: &UnpackedTx): u64 {
+        self.chain_id
+    }
+
+    public fun tx_nonce(self: &UnpackedTx): u64 {
+        self.nonce
+    }
+
+    public fun tx_storage_id(self: &UnpackedTx): u64 {
+        self.storage_id
+    }
+
     // --- Public Extraction API ---
 
-    public fun extract_chain_id(inputs: &vector<u8>): u64 {
-        let packed_bytes = extract_chunk(inputs, 7);
-        unpack_slot_8(bytes_to_u256(packed_bytes)).chain_id
-    }
 
-    public fun extract_amount(inputs: &vector<u8>): u64 {
-        let packed_bytes = extract_chunk(inputs, 7);
-        unpack_slot_8(bytes_to_u256(packed_bytes)).amount
-    }
-
-    public fun extract_nonce(inputs: &vector<u8>): u64 {
-        let packed_bytes = extract_chunk(inputs, 7);
-        unpack_slot_8(bytes_to_u256(packed_bytes)).nonce
+    public fun extract_all_tx_data(inputs: &vector<u8>): UnpackedTx {
+        let packed_bytes = extract_chunk(inputs, INDEX_PACKED_TX);
+        unpack_slot(bytes_to_u256(packed_bytes))
     }
 
     public fun extract_user_address(inputs: &vector<u8>): address {
-        let low_u256 = bytes_to_u256(extract_chunk(inputs, 3));
-        let high_u256 = bytes_to_u256(extract_chunk(inputs, 4));
+        let low_u256 = bytes_to_u256(extract_chunk(inputs, INDEX_USER_L));
+        let high_u256 = bytes_to_u256(extract_chunk(inputs, INDEX_USER_H));
         reconstruct_address(high_u256, low_u256)
     }
 
-    public fun extract_token(inputs: &vector<u8>): String {
-        u256_to_string(bytes_to_u256(extract_chunk(inputs, 5)))
-    }
-
+    /// Extract VaultAddress (index 4) - often used as a token/contract ID
     public fun extract_provider(inputs: &vector<u8>): String {
-        u256_to_string(bytes_to_u256(extract_chunk(inputs, 6)))
+        u256_to_string(bytes_to_u256(extract_chunk(inputs, INDEX_VAULT)))
     }
 
-    /// Builds a Nullifier using SHA256(user_low, user_high, nonce)
-    /// This matches Solidity's abi.encodePacked(a, b, c) -> sha256
-    public fun build_nullifier(inputs: &vector<u8>, type_name: String): u256 {
-        let user_l = bytes_to_u256(extract_chunk(inputs, 3));
-        let user_h = bytes_to_u256(extract_chunk(inputs, 4));
-        let nonce = (extract_nonce(inputs) as u256);
+    public fun extract_old_root(inputs: &vector<u8>): u256 {
+        bytes_to_u256(extract_chunk(inputs, INDEX_OLD_ROOT))
+    }
 
-        // 1. Replicate Solidity bitwise logic: (userH << 128) | userL
-        // This creates the single 32-byte "userBytes" word
-        let user_bytes_combined = (user_h << 128) | user_l;
+    public fun extract_new_root(inputs: &vector<u8>): u256 {
+        bytes_to_u256(extract_chunk(inputs, INDEX_NEW_ROOT))
+    }
 
+    /// Matches Solidity: keccak256(abi.encodePacked(input[0...5]))
+    /// This takes the first 6 public signals, converts them to Big Endian (Solidity format),
+    /// concatenates them, and hashes them using Keccak256.
+    public fun build_nullifier(inputs: &vector<u8>): u256 {
         let mut data = vector::empty<u8>();
         
-        // 2. Append only TWO 32-byte words (64 bytes total)
-        vector::append(&mut data, u256_to_bytes_be(user_bytes_combined));
-        vector::append(&mut data, bcs::to_bytes(&type_name));
-        vector::append(&mut data, u256_to_bytes_be(nonce));
+        let mut i = 0;
+        // We iterate from index 0 to 5 (the first 6 signals)
+        // This excludes index 6 (validator pubkey) to allow for quorum reaching
+        while (i < 6) {
+            // 1. Extract the 32-byte signal from the proof (Little Endian)
+            let signal_le = extract_chunk(inputs, i);
+            
+            // 2. Convert to u256 then to Big Endian bytes 
+            // (This replicates Solidity's uint256 memory layout)
+            let val = bytes_to_u256(signal_le);
+            let signal_be = u256_to_bytes_be(val);
+            
+            // 3. Append to the buffer (abi.encodePacked concatenation)
+            vector::append(&mut data, signal_be);
+            
+            i = i + 1;
+        };
 
-        // 3. Compute SHA256
-        let hash_bytes = hash::sha2_256(data);
+        // 4. Compute Keccak256 (Standard Ethereum/Solidity hash)
+        let hash_bytes = hash::keccak256(&data);
 
-        // 4. Convert back to u256
+        // 5. Convert the 32-byte hash result back to a u256
         bytes_to_u256_be(hash_bytes)
     }
+
+
     // --- Internal Bit Shifting & Unpacking ---
 
-    fun unpack_slot_8(packed_data: u256): UnpackedTx {
+    /// Matches Go: Amount(64) | ChainID(32) | Nonce(32) | StorageID(64+)
+    fun unpack_slot(packed_data: u256): UnpackedTx {
         UnpackedTx {
-            amount:     ((packed_data) & 0xFFFFFFFFFFFFFFFF) as u64,           // Bits 0-63
-            chain_id:   ((packed_data >> 64) & 0xFFFFFFFF) as u64,             // Bits 64-95 (only 32 bits used)
-            nonce:      ((packed_data >> 96) & 0xFFFFFFFFFFFFFFFF) as u64,     // Bits 96-127
-            storage_id: ((packed_data >> 128) & 0xFFFFFFFFFFFFFFFF) as u64,    // Bits 128-191
+            amount:     ((packed_data) & 0xFFFFFFFFFFFFFFFF) as u64,                // Bits 0-63
+            chain_id:   ((packed_data >> 64) & 0xFFFFFFFF) as u64,                  // Bits 64-95
+            nonce:      ((packed_data >> 96) & 0xFFFFFFFF) as u64,                  // Bits 96-127
+            storage_id: ((packed_data >> 128) & 0xFFFFFFFFFFFFFFFF) as u64,         // Bits 128-191
         }
     }
 
     fun reconstruct_address(high: u256, low: u256): address {
         let mut addr_bytes = vector::empty<u8>();
+        // high is bits 128-255, low is 0-127
         vector::append(&mut addr_bytes, u256_to_bytes_be_part(high, 16));
         vector::append(&mut addr_bytes, u256_to_bytes_be_part(low, 16));
         address::from_bytes(addr_bytes)
@@ -93,10 +121,9 @@ module Qiara::QiaraExtractorV1 {
 
     // --- Core Conversion Utilities ---
 
+    /// Extracts a 32-byte chunk from the flattened inputs vector
     fun extract_chunk(inputs: &vector<u8>, index: u64): vector<u8> {
         let start = index * 32;
-        assert!(vector::length(inputs) >= start + 32, E_INVALID_INPUT_LENGTH);
-        
         let mut chunk = vector::empty<u8>();
         let mut i = 0;
         while (i < 32) {
@@ -106,7 +133,8 @@ module Qiara::QiaraExtractorV1 {
         chunk
     }
 
-    /// Used for reading public signals (usually Little Endian from Circom)
+
+    /// Converts Little Endian bytes (from Proof) to u256
     public fun bytes_to_u256(bytes: vector<u8>): u256 {
         let mut res: u256 = 0;
         let mut i = 32;
@@ -117,7 +145,7 @@ module Qiara::QiaraExtractorV1 {
         res
     }
 
-    /// Converts u256 to Big Endian bytes to match Solidity's abi.encode encoding
+    /// Converts u256 to Big Endian bytes (for Solidity Compatibility)
     fun u256_to_bytes_be(value: u256): vector<u8> {
         let mut bytes = vector::empty<u8>();
         let mut i = 0;
@@ -129,7 +157,7 @@ module Qiara::QiaraExtractorV1 {
         bytes
     }
 
-    /// Converts Big Endian hash result back to u256
+    /// Converts Big Endian bytes (from Hash) back to u256
     fun bytes_to_u256_be(bytes: vector<u8>): u256 {
         let mut res: u256 = 0;
         let mut i = 0;
@@ -139,8 +167,6 @@ module Qiara::QiaraExtractorV1 {
         };
         res
     }
-
-    /// Helper for address reconstruction
     fun u256_to_bytes_be_part(value: u256, len: u64): vector<u8> {
         let mut bytes = vector::empty<u8>();
         let mut i = 0;
@@ -155,15 +181,14 @@ module Qiara::QiaraExtractorV1 {
     public fun u256_to_string(value: u256): String {
         let mut bytes = vector::empty<u8>();
         let mut temp = value;
-        let mut i = 0;
-        while (i < 32) {
-            let byte = ((temp >> 248) & 0xFF) as u8;
+        while (temp > 0) {
+            let byte = (temp & 0xFF) as u8;
             if (byte != 0) { 
                 vector::push_back(&mut bytes, byte); 
             };
-            temp = temp << 8;
-            i = i + 1;
+            temp = temp >> 8;
         };
+        vector::reverse(&mut bytes);
         string::utf8(bytes)
     }
 }
