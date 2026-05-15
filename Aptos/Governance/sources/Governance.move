@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV1 {
+module dev::QiaraGovernanceV2 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use std::vector;
@@ -9,7 +9,7 @@ module dev::QiaraGovernanceV1 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV1::{Self as Margin};
+    use dev::QiaraMarginV2::{Self as Margin};
 
     use dev::QiaraStorageV1::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV1::{Self as capabilities, Access as CapabilitiesAccess};
@@ -34,7 +34,7 @@ module dev::QiaraGovernanceV1 {
         function_access: FunctionAccess
     }
 
-    struct Proposal has store, drop {
+    struct Proposal has copy, store, drop {
         id: u64,
         type: vector<String>,
         proposer: address,
@@ -331,5 +331,11 @@ module dev::QiaraGovernanceV1 {
             assert!(*type == utf8(b"Constant") || *type == utf8(b"Capability") || *type == utf8(b"Function"), ERROR_INVALID_PROPOSAL_TYPE);
             i = i + 1;
         }
+    }
+
+    #[view]
+    public fun view_pending_proposals(): vector<Proposal> acquires PendingProposals{
+        let db = borrow_global<PendingProposals>(OWNER);
+        return db.proposals
     }
 }
