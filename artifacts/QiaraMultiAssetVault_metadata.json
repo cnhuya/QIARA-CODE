@@ -19,7 +19,7 @@
 					},
 					{
 						"internalType": "address",
-						"name": "delegator",
+						"name": "_delegator",
 						"type": "address"
 					},
 					{
@@ -101,6 +101,37 @@
 					{
 						"indexed": true,
 						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "provider",
+						"type": "string"
+					}
+				],
+				"name": "DirectWithdraw",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
 						"name": "previousOwner",
 						"type": "address"
 					},
@@ -136,30 +167,6 @@
 			{
 				"inputs": [
 					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					},
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"name": "claimableBalances",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
 						"internalType": "string",
 						"name": "assetName",
 						"type": "string"
@@ -173,19 +180,6 @@
 				"name": "deposit",
 				"outputs": [],
 				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "events",
-				"outputs": [
-					{
-						"internalType": "contract IEvents",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -211,9 +205,22 @@
 						"type": "uint256"
 					}
 				],
-				"name": "grantWithdrawalPermission",
+				"name": "directWithdraw",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "events",
+				"outputs": [
+					{
+						"internalType": "contract IEvents",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -244,6 +251,29 @@
 					}
 				],
 				"name": "listNewToken",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					},
+					{
+						"internalType": "string",
+						"name": "assetName",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					}
+				],
+				"name": "m_withdraw",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -325,29 +355,6 @@
 				],
 				"stateMutability": "view",
 				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "string",
-						"name": "assetName",
-						"type": "string"
-					},
-					{
-						"internalType": "uint256",
-						"name": "amount",
-						"type": "uint256"
-					},
-					{
-						"internalType": "address",
-						"name": "receiver",
-						"type": "address"
-					}
-				],
-				"name": "withdraw",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
 			}
 		],
 		"devdoc": {
@@ -370,14 +377,17 @@
 			},
 			"kind": "dev",
 			"methods": {
+				"directWithdraw(address,string,uint256,uint256)": {
+					"details": "This function is called directly by the Delegator contract  after it has verified the ZK Proof and Signatures."
+				},
+				"m_withdraw(address,string,uint256)": {
+					"details": "This function can be called by the user, consensus then processes this,  and if everything goes right, it then calls directWdirectWithdraw"
+				},
 				"owner()": {
 					"details": "Returns the address of the current owner."
 				},
 				"renounceOwnership()": {
 					"details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner."
-				},
-				"resolveAsset(string)": {
-					"details": "Internal helper to resolve \"USDC\" -> 0xA0b... using registry"
 				},
 				"transferOwnership(address)": {
 					"details": "Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner."
@@ -472,11 +482,11 @@
 			]
 		},
 		"Evm/core/base/vault.sol": {
-			"keccak256": "0x1559f5afb8921fbc8dd1db4b0172b607a397e6d3a7f8f8608b8bcf632808012d",
+			"keccak256": "0xce2e315c6a24c1bcaa5eb5da6c3dad320209e47fe0818f67b223187dceec4e41",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://f4e8517f8cdd24338b25a46b0317afbbc6f8d1c846fd5ab9f0f7ff74109435be",
-				"dweb:/ipfs/QmbsBG14R8F5aYppFiqD4oiJgydZf8dN3SA2BgRBZ5ssCD"
+				"bzz-raw://2d0454eb46758ff602ba2b5afc812fb5b95f4f098a22e954b638bd536b9c955e",
+				"dweb:/ipfs/QmenCG4PoN2JrxQzn28X2qyVqAkPasGCTi2XigCkGNdDUg"
 			]
 		}
 	},

@@ -14,7 +14,7 @@ interface IValidatorVerifier {
 }
 
 interface IQiaraVault {
-    function grantWithdrawalPermission(address user, string calldata assetName, uint256 amount, uint256 nullifier) external;
+    function directWithdraw(address user, string calldata assetName, uint256 amount, uint256 nullifier) external;
 }
 
 interface IVariables {
@@ -68,7 +68,7 @@ contract QiaraZKDelegator is Ownable {
         address user = address(uint160((userH << 128) | userL));
    // revert("DEBUG_1051075");
         // 7. Final Call
-        IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+        IQiaraVault(vaultAddr).directWithdraw(user, storageName, amount, nullifier);
     }
     function processZkVariable(uint[8] calldata proof, uint[6] calldata input, address[] calldata validators, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
