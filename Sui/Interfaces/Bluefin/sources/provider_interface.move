@@ -44,12 +44,12 @@ module 0x0::QiaraBluefinInterfaceV1 {
 // --- Permissionless Asset Listing ---
     // --- Administrative Functions ---
     /// Only the Delegator (holding AdminCap) can grant specific withdrawal rights
-    public entry fun grant_withdrawal_permission<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>) {
+/*    public entry fun grant_withdrawal_permission<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>) {
         let (user, amount, nullifier) = delegator::grant_permission<T>(manager,state, nullifiers, public_inputs, proof_points, signatures);
         let vault_uid = delegator::borrow_id(vault); // For read-only (exists_)
         assert!(object::uid_to_inner(vault_uid) == object::id(vault), ENotAuthorized);
         internal_grant<T>(vault, user, amount);
-
+        assert!(vault.provider_name == vault_provider, EWrongProviderProvided);
         let data = vector[
             // Items from the event top-level fields
             Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&user)),
@@ -59,7 +59,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
         ];
 
         Event::emit_withdraw_grant_event(std::string::utf8(b"Grant Withdraw Permission"), data);
-    }
+    }*/
     // --- User Functions ---
     public entry fun deposit<T>(vault: &mut Vault, mut coin: Coin<T>, addr: String, shared: String, amount: u64, ctx: &mut TxContext) {
         let sender = tx_context::sender(ctx);
@@ -96,38 +96,47 @@ module 0x0::QiaraBluefinInterfaceV1 {
         Event::emit_deposit_event(std::string::utf8(b"Deposit"), data);
     }
 
-    public entry fun withdraw<T>(vault: &mut Vault, amount: u64, receiver: address, ctx: &mut TxContext) {
-        let sender = tx_context::sender(ctx);
-        let token_type = type_name::get<T>();
-        let key = AllowanceKey { user: sender, token_type };
+        public entry fun direct_withdraw<T>(
+            vault: &mut Vault, 
+            state: &ValidatorState, 
+            manager: &ProviderManager, 
+            nullifiers: &mut Nullifiers, 
+            public_inputs: vector<u8>,
+            proof_points: vector<u8>, 
+            signatures: vector<vector<u8>>,
+            ctx: &mut TxContext
+        ) {
+            // 1. Call the delegator to verify ZK proof, signatures, and mark the nullifier as used
+            // This returns the verified data directly from the ZK circuit public inputs
+            let (user_address, amount, _nullifier) = delegator::grant_permission<T>(
+                manager, 
+                state, 
+                nullifiers, 
+                public_inputs, 
+                proof_points, 
+                signatures
+            );
 
-        // 1. Check native allowance (this works because AllowanceKey is defined here)
-        let vault_uid = delegator::borrow_id(vault); // For read-only (exists_)
-        assert!(df::exists_(vault_uid, key), EInsufficientPermission);
-        let vault_uid_mut = delegator::borrow_id_mut(vault);
-        let allowance = df::borrow_mut<AllowanceKey, u64>(vault_uid_mut, key);
-        assert!(*allowance >= amount, EInsufficientPermission);
-        
-        // 2. Update allowance
-        *allowance = *allowance - amount;
+            // 2. Safety Check: Ensure the token is actually listed/supported in this vault
+            assert!(delegator::is_token_supported<T>(vault), ENotSupported);
 
-        // 3. Call delegator to get the actual funds
-        let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
-        
-        // 4. Send to user
-        transfer::public_transfer(coin::from_balance(withdrawn_balance, ctx), receiver);
+            // 3. Withdraw the balance directly from the Vault's reserves
+            // This uses the 'decrease_reserve' logic you already have in the Delegator
+            let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
+            
+            // 4. Transform balance to coin and transfer DIRECTLY to the verified user address
+            // Crucially: We use 'user_address' (from the ZK proof), NOT 'tx_context::sender'
+            transfer::public_transfer(coin::from_balance(withdrawn_balance, ctx), user_address);
 
-        let data = vector[
-            // Items from the event top-level fields
-            Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&sender)),
-            Event::create_data_struct(std::string::utf8(b"receiver"), std::string::utf8(b"address"), bcs::to_bytes(&receiver)),
-            Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
-            Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&std::string::utf8(PROVIDER_NAME))),
-            Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
-        ];
-
-        Event::emit_withdraw_event(std::string::utf8(b"Withdraw"), data);
-    }
+            // 5. Emit the event
+            let data = vector[
+                Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&user_address)),
+                Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
+                Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&std::string::utf8(PROVIDER_NAME))),
+                Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            ];
+            Event::emit_withdraw_event(std::string::utf8(b"DirectWithdraw"), data);
+        }
 
 // --- Internal Helpers ---
     fun internal_grant<T>(vault: &mut Vault, user: address, amount: u64) {

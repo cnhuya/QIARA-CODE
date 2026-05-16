@@ -40,7 +40,7 @@ module Qiara::QiaraDelegatorV1 {
     const EInvalidSignature: u64 = 10;
     const ENotValidator: u64 = 11;
     const EInvalidSignatureLength: u64 = 12;
-
+    const EProviderMissmatch: u64 = 13;
     // Events
     public struct TokenListed has copy, drop {
         vault_id: ID,
@@ -183,7 +183,7 @@ module Qiara::QiaraDelegatorV1 {
         balance::split(reserve, amount)
     }
 
-    public fun grant_permission<T>(config: &ProviderManager, state: &ValidatorState, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256) {
+    public fun grant_permission<T>(config: &ProviderManager, state: &ValidatorState, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256, String) {
         // 1. Verify the proof and extract values
         let (user, amount, vault_provider, nullifier) = zk::verify_balance(public_inputs, proof_points);
 
@@ -197,10 +197,10 @@ module Qiara::QiaraDelegatorV1 {
         table::add(&mut nullifiers.table, nullifier, true);
 
         // 4. Safety check, if provider is supported
-        assert!(table::contains(&config.vaults, vault_provider), EWrongProviderProvided);
+        assert!(table::contains(&config.vaults, vault_provider), EProviderMissmatch);
 
         // 5. Return values 
-        return (user, amount, nullifier)
+        return (user, amount, nullifier, vault_provider)
     }
 
 
