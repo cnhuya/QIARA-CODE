@@ -239,6 +239,10 @@ module Qiara::QiaraDelegatorV1 {
             n = i;
         }
     }
+    
+    public fun provider_name(vault: &Vault): String {
+        vault.provider_name
+    }
 
     public fun is_nullifier_used(nullifiers: &Nullifiers, nullifier: u256): bool {
         table::contains(&nullifiers.table, nullifier)
