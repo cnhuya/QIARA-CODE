@@ -37,7 +37,7 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"grantWithdrawalPermission(address,string,uint256,uint256)": "6afbf5d6"
+			"directWithdraw(address,string,uint256,uint256)": "7a9eceb4"
 		}
 	},
 	"abi": [
@@ -64,7 +64,7 @@
 					"type": "uint256"
 				}
 			],
-			"name": "grantWithdrawalPermission",
+			"name": "directWithdraw",
 			"outputs": [],
 			"stateMutability": "nonpayable",
 			"type": "function"
