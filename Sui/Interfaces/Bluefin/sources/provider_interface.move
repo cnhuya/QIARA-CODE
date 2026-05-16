@@ -96,52 +96,58 @@ module 0x0::QiaraBluefinInterfaceV1 {
         Event::emit_deposit_event(std::string::utf8(b"Deposit"), data);
     }
 
-    public entry fun direct_withdraw<T>(
-    vault: &mut Vault, 
-    state: &ValidatorState, 
-    manager: &ProviderManager, 
-    nullifiers: &mut Nullifiers, 
-    public_inputs: vector<u8>,
-    proof_points: vector<u8>, 
-    signatures: vector<vector<u8>>,
-    ctx: &mut TxContext
-) {
-    // 1. Call delegator. 
-    // Note: It now returns 4 values: (address, u64, u256, String)
-    let (user_address, amount, _nullifier, proof_provider_name) = delegator::grant_permission<T>(
-        manager, 
-        state, 
-        nullifiers, 
-        public_inputs, 
-        proof_points, 
-        signatures
-    );
+    public entry fun m_withdraw(vault: &Vault, user: address, asset_name: String, amount: u64) {
 
-    // 2. Safety Check: Use the getter function delegator::provider_name(vault)
-    // This ensures the Vault object passed in matches the one authorized in the ZK proof
-    assert!(delegator::provider_name(vault) == proof_provider_name, EWrongProviderProvided);
+        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+       
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(string::utf8(b"chain"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"sui"))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&asset_name)),
+        ];
 
-    // 3. Safety Check: Ensure token is listed
-    assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+        Event::emit_withdraw_event(string::utf8(b"Modular Withdraw"), data);
+    }
 
-    // 4. Withdraw balance directly from reserves
-    let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
-    
-    // 5. Transfer directly to the verified address
-    transfer::public_transfer(
-        coin::from_balance(withdrawn_balance, ctx), 
-        user_address
-    );
+        public entry fun direct_withdraw<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>,ctx: &mut TxContext) {
+        // 1. Call delegator. 
+        // Note: It now returns 4 values: (address, u64, u256, String)
+        let (user_address, amount, _nullifier, proof_provider_name) = delegator::grant_permission<T>(
+            manager, 
+            state, 
+            nullifiers, 
+            public_inputs, 
+            proof_points, 
+            signatures
+        );
 
-    // 6. Emit Event
-    let data = vector[
-        Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&user_address)),
-        Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
-        Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
-        Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
-    ];
-    Event::emit_withdraw_event(std::string::utf8(b"DirectWithdraw"), data);
-}
+        // 2. Safety Check: Use the getter function delegator::provider_name(vault)
+        // This ensures the Vault object passed in matches the one authorized in the ZK proof
+        assert!(delegator::provider_name(vault) == proof_provider_name, EWrongProviderProvided);
+
+        // 3. Safety Check: Ensure token is listed
+        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+
+        // 4. Withdraw balance directly from reserves
+        let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
+        
+        // 5. Transfer directly to the verified address
+        transfer::public_transfer(
+            coin::from_balance(withdrawn_balance, ctx), 
+            user_address
+        );
+
+        // 6. Emit Event
+        let data = vector[
+            Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&user_address)),
+            Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
+            Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
+            Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
+        ];
+        Event::emit_withdraw_event(std::string::utf8(b"DirectWithdraw"), data);
+    }
 
 // --- Internal Helpers ---
     fun internal_grant<T>(vault: &mut Vault, user: address, amount: u64) {
