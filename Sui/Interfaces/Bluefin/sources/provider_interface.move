@@ -96,12 +96,13 @@ module 0x0::QiaraBluefinInterfaceV1 {
         Event::emit_deposit_event(std::string::utf8(b"Deposit"), data);
     }
 
-    public entry fun m_withdraw(vault: &Vault, user: address, asset_name: String, amount: u64) {
+    public entry fun m_withdraw<T>(vault: &Vault, user: address, shared: String, asset_name: String, amount: u64) {
 
         assert!(delegator::is_token_supported<T>(vault), ENotSupported);
        
         let data = vector[
             Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
             Event::create_data_struct(string::utf8(b"chain"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"sui"))),
             Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
