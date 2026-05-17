@@ -19,6 +19,8 @@ module dev::QiaraBridgeV8{
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStorageV1::{Self as storage};
 
+    use dev::QiaraSharedV1::{Self as Shared};
+
     use dev::QiaraTokensCoreV3::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV3::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensValidatorsV3::{Self as TokensValidators};
@@ -602,8 +604,15 @@ module dev::QiaraBridgeV8{
 
             } else if (event_type == utf8(b"Request Unlock")) {
                 // Handle Request Unlock here
-            } else if (event_type == utf8(b"Unlock")) {
-                // Handle Unlock here
+            } else if (event_type == utf8(b"Modular Storage Creation")) {
+                let (name, user) = Payload::prepare_modular_storage_creation(type_names, payload);
+                Shared::p_create_shared_storage(signer, user, name)
+            } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
+                let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
+                Shared::p_allow_sub_owner(signer, user, name, sub_owner)
+            } else if (event_type == utf8(b"Modular Storage Sub Owner Removed")) {
+                let (name, user, sub_owner) = Payload::prepare_p_remove_sub_owner(type_names, payload);
+                Shared::p_remove_sub_owner(signer, user, name, sub_owner)
             } else {
                 abort(ERROR_INVALID_MESSAGE);
             };

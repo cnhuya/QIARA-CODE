@@ -122,6 +122,31 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
         return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_address), from_bcs::to_bytes(secp256k1_pub_key))
     }
+
+
+    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>){
+        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
+        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
+
+        return (from_bcs::to_string(name), from_bcs::to_bytes(user))
+    }
+
+    public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>){
+        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
+        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, sub_owner) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
+
+        return (from_bcs::to_string(name), from_bcs::to_bytes(user), from_bcs::to_bytes(sub_owner))
+    }
+
+    public fun prepare_p_remove_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8> ){
+        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
+        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, sub_owner) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
+
+        return (from_bcs::to_string(name), from_bcs::to_bytes(user), from_bcs::to_bytes(sub_owner))
+    }
+
 public fun prepare_finalize_bridge(
     type_names: vector<String>, 
     payload: vector<vector<u8>>
