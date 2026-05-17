@@ -62,22 +62,23 @@ contract QiaraMultiAssetVault is Ownable {
      * @dev This function can be called by the user, consensus then processes this, 
      *and if everything goes right, it then calls directWdirectWithdraw
      */
-function m_withdraw(address user, string calldata assetName, uint256 amount) external { 
+function m_withdraw(address user, string calldata shared, string calldata assetName, uint256 amount) external { 
     // If you have the 'onlyOwner' modifier here, ensure the CALLER is the Delegator address
     
     address token = resolveAsset(assetName);
     require(isSupportedToken[token], "Vault: Token not supported");
 
     // FIX 1: Change array size from 6 to 5
-    IEvents.Data[] memory eventData = new IEvents.Data[](5);
+    IEvents.Data[] memory eventData = new IEvents.Data[](6);
     
     eventData[0] = IEvents.Data("user", "address", abi.encode(user));
-    eventData[1] = IEvents.Data("amount", "uint256", abi.encode(amount));
-    eventData[2] = IEvents.Data("chain", "string", abi.encode("base"));
-    eventData[3] = IEvents.Data("provider", "string", abi.encode(providerName));
+    eventData[1] = IEvents.Data("shared", "address", abi.encode(shared));
+    eventData[2] = IEvents.Data("amount", "uint256", abi.encode(amount));
+    eventData[3] = IEvents.Data("chain", "string", abi.encode("base"));
+    eventData[4] = IEvents.Data("provider", "string", abi.encode(providerName));
     
     // FIX 2: Correct type label to "string" because assetName is a string
-    eventData[4] = IEvents.Data("token", "string", abi.encode(assetName));
+    eventData[5] = IEvents.Data("token", "string", abi.encode(assetName));
     
     // Slot [5] is removed, so no more null-pointer revert.
     
