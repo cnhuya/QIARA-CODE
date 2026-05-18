@@ -347,10 +347,8 @@ module dev::QiaraBridgeV8{
 
 
     public entry fun register_event(signer: &signer, validator: String, type_names: vector<String>, payload: vector<vector<u8>>) acquires Pending, Validated, Permissions {
-
         Payload::ensure_valid_payload(type_names, payload);
         let identifier = Payload::create_identifier(type_names, payload);
-
         let (_, type_raw) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
@@ -363,7 +361,6 @@ module dev::QiaraBridgeV8{
         if (consensus_type == utf8(b"native")) {
             let (_, message) = Payload::find_payload_value(utf8(b"message"), type_names, payload);
             let (_, _sig_bytes) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
-        //                   tttta(0);
             // NOTE: message and signature are usually raw bytes, NOT BCS strings.
             // We do NOT use bcs_stream for them if they were passed as raw bytes.
             //let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(pubkey);
@@ -371,7 +368,7 @@ module dev::QiaraBridgeV8{
             
             //let verified = Crypto::signature_verify_strict(&signature, &pubkey_struct, message);
             //assert!(verified, ERROR_INVALID_SIGNATURE);
-
+            
             handle_main_event(
                 signer,
                 validator,

@@ -1,11 +1,13 @@
 module Qiara::QiaraEventsV1 {
     use std::vector;
-    use sui::address;
     use std::string::{Self, String};
     use sui::event;
-// --- Events ---
+    use sui::clock::{Self, Clock}; // Added Clock
+    use sui::bcs;                  // Added for byte conversion
 
-    public struct Data has copy, drop, store{
+    // --- Events ---
+
+    public struct Data has copy, drop, store {
         name: String,
         type_name: String,
         value: vector<u8>,
@@ -17,16 +19,20 @@ module Qiara::QiaraEventsV1 {
     }
 
     public fun create_data_struct(name: String, type_name: String, value: vector<u8>): Data {
-        Data {name: name,type_name: type_name,value: value}
+        Data { name, type_name, value }
     }
 
-    public fun emit_deposit_event(name: String, data: vector<Data>) {
-         event::emit(VaultEvent {name: name,aux: data,});
+    /// Internal helper to create the timestamp Data struct
+    fun create_timestamp_data(clock: &Clock): Data {
+        let ts_ms = clock::timestamp_ms(clock);
+        Data {name: string::utf8(b"timestamp"),type_name: string::utf8(b"u64"),value: bcs::to_bytes(&ts_ms)
+        }
     }
-    public fun emit_withdraw_event(name: String, data: vector<Data>) {
-         event::emit(VaultEvent {name: name,aux: data,});
+
+    public fun emit_event(clock: &Clock, name: String, mut data: vector<Data>) {
+        vector::insert(&mut data, create_timestamp_data(clock), 0);
+        event::emit(VaultEvent { name, aux: data });
     }
-    public fun emit_withdraw_grant_event(name: String, data: vector<Data>) {
-         event::emit(VaultEvent {name: name,aux: data,});
-    }
+
+
 }

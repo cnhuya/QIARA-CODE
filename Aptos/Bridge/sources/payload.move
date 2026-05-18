@@ -123,28 +123,48 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_address), from_bcs::to_bytes(secp256k1_pub_key))
     }
 
-
     public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>){
-        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
-        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
 
-        return (from_bcs::to_string(name), from_bcs::to_bytes(user))
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+
+        return (name, user_bytes)
     }
 
     public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>){
-        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
-        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
-        let (_, sub_owner) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, sub_owner_raw) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
 
-        return (from_bcs::to_string(name), from_bcs::to_bytes(user), from_bcs::to_bytes(sub_owner))
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let sub_owner_stream = &mut bcs_stream::new(sub_owner_raw);
+        let sub_owner_bytes = bcs_stream::deserialize_vector(sub_owner_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+
+        return (name, user_bytes, sub_owner_bytes)
     }
 
     public fun prepare_p_remove_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8> ){
-        let (_, name) = find_payload_value(utf8(b"name"), type_names, payload);
-        let (_, user) = find_payload_value(utf8(b"user"), type_names, payload);
-        let (_, sub_owner) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, sub_owner_raw) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
 
-        return (from_bcs::to_string(name), from_bcs::to_bytes(user), from_bcs::to_bytes(sub_owner))
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let sub_owner_stream = &mut bcs_stream::new(sub_owner_raw);
+        let sub_owner_bytes = bcs_stream::deserialize_vector(sub_owner_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+
+        return (name, user_bytes, sub_owner_bytes)
     }
 
 public fun prepare_finalize_bridge(
