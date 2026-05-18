@@ -54,7 +54,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "IEvents"
+			"Evm/core/base/vault.sol": "IEvents"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -132,12 +132,12 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
-			"keccak256": "0xd34ac3610a78caadc5eb3281bf675f736deed81ab7d46a1951db569099dafbdb",
+		"Evm/core/base/vault.sol": {
+			"keccak256": "0x7e024e78609b2c6df30448f16fcd9e8a7671172a1bce87e5b7fb00466af823c1",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://b1d1165abcbc9f21b93c7009c601495498f3c040b9c8d419e9e7348771e807bf",
-				"dweb:/ipfs/QmdjQoGqGN4t8Z8yU6TAwFcxMqV579cQFyq3cz1eYuRNSq"
+				"bzz-raw://441046080e4d321759020aac4e3f75412ea90e892a5d3bcf63e4656b51e0dd16",
+				"dweb:/ipfs/QmRtmjCKhUqeBytWgUTBiKHWAkdBBV5H1TWKiGj6ZHQNDS"
 			]
 		}
 	},
