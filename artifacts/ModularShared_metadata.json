@@ -50,9 +50,9 @@
 						"type": "string"
 					},
 					{
-						"internalType": "address",
+						"internalType": "bytes",
 						"name": "sub_owner",
-						"type": "address"
+						"type": "bytes"
 					}
 				],
 				"name": "p_allow_sub_owner",
@@ -68,9 +68,9 @@
 						"type": "string"
 					},
 					{
-						"internalType": "address",
+						"internalType": "bytes",
 						"name": "sub_owner",
-						"type": "address"
+						"type": "bytes"
 					}
 				],
 				"name": "p_remove_sub_owner",
@@ -171,11 +171,11 @@
 			]
 		},
 		"Evm/interfaces/shared.sol": {
-			"keccak256": "0x3956c82531fba53b9090545b95ec2ba56fd5e4c54897c467dd9eadeadde6abd9",
+			"keccak256": "0xf7b13b9b89c7e52769126e0d48bfaffb748a0f6aaa6c6e30e88f147087736f90",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://bdcd6b6b5d2e1349721bd250bb8ff9405eeebbf9a6b320b3465c5e3ca5b08cb9",
-				"dweb:/ipfs/QmPRz6pxcxF82XTHKmk2KWq211pX63M4gNPNqJUf57kTLK"
+				"bzz-raw://21565d751340d78e4d5bb20bb57b49d833253fc9e2a3fa089b3555555e36a2a7",
+				"dweb:/ipfs/QmWqpygsYF1KsNiDvxa16hQzVTaPsrVmf6SjxXk6Lgiv3t"
 			]
 		}
 	},

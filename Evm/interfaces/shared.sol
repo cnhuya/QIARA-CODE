@@ -30,24 +30,29 @@ contract ModularShared  {
         events.emitVaultEvent("Modular Storage Creation", eventData);
     }
 
-    function p_allow_sub_owner(string calldata name, address sub_owner) external { 
+    // The sub_owner is intentionally bytes type, because if it is address, only EVM addresses are allowed,
+    // which would result in this modular interface to not work on Aptos/Sui wallets or other different standarts.
+    function p_allow_sub_owner(string calldata name, bytes calldata sub_owner) external { 
 
         IEvents.Data[] memory eventData = new IEvents.Data[](3);
         
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
-        eventData[2] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
-        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
+        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Added", eventData);
     }
 
-    function p_remove_sub_owner(string calldata name, address sub_owner) external { 
+
+    // The sub_owner is intentionally bytes type, because if it is address, only EVM addresses are allowed,
+    // which would result in this modular interface to not work on Aptos/Sui wallets or other different standarts.
+    function p_remove_sub_owner(string calldata name, bytes calldata sub_owner) external { 
 
         IEvents.Data[] memory eventData = new IEvents.Data[](3);
         
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
-        eventData[2] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
-        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
+        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Removed", eventData);
     }
