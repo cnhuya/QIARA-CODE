@@ -17,8 +17,20 @@ contract QiaraEventsV1 {
         return Data({name: _name,typeName: _typeName,value: _value});
     }
 
-    function emitVaultEvent(string memory _name, Data[] memory _data) public {
-        emit Vault(_name, _data);
+   function emitVaultEvent(string memory _eventName, Data[] memory _userProvidedData) public {
+        // 1. Create a new array that is 1 slot larger than the one provided
+        Data[] memory extendedData = new Data[](_userProvidedData.length + 1);
+
+        // 2. Insert Timestamp at Slot 0
+        extendedData[0] = Data("timestamp", "uint256", abi.encode(block.timestamp));
+
+        // 4. Copy the original user data into the remaining slots
+        for (uint i = 0; i < _userProvidedData.length; i++) {
+            extendedData[i + 1] = _userProvidedData[i];
+        }
+
+        // 5. Emit the final expanded array
+        emit Vault(_eventName, extendedData);
     }
 
 }

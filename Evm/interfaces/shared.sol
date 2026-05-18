@@ -35,8 +35,8 @@ contract ModularShared  {
         IEvents.Data[] memory eventData = new IEvents.Data[](3);
         
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
-        eventData[2] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
-        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
+        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Added", eventData);
     }
@@ -46,8 +46,8 @@ contract ModularShared  {
         IEvents.Data[] memory eventData = new IEvents.Data[](3);
         
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
-        eventData[2] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
-        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("sub_owner", "address", abi.encode(sub_owner));
+        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Removed", eventData);
     }

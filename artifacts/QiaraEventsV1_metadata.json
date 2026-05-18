@@ -91,7 +91,7 @@
 				"inputs": [
 					{
 						"internalType": "string",
-						"name": "_name",
+						"name": "_eventName",
 						"type": "string"
 					},
 					{
@@ -113,7 +113,7 @@
 							}
 						],
 						"internalType": "struct QiaraEventsV1.Data[]",
-						"name": "_data",
+						"name": "_userProvidedData",
 						"type": "tuple[]"
 					}
 				],
@@ -151,11 +151,11 @@
 	},
 	"sources": {
 		"Evm/core/events.sol": {
-			"keccak256": "0x3663698a64ae63fd0aedaa26430560da2af3e14102a3f04eebbe7fdf675da9e1",
+			"keccak256": "0x1fb1874bb7a141955c1d4b0d40887972c01cf0b180b2d600fc645bf103e6cc26",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://7398f307151bd4c9812992c9868fd4cc8f6dcb841d0a8d0dcc11e64c49a70a19",
-				"dweb:/ipfs/QmVUaaEvHjr5CMEERYLHDvvTXPzLV21qnpReW6V98Cj5uV"
+				"bzz-raw://017f3400be796996a5c6d8852fbe9e89ac85478b582bbbfe4f8d77b2fdf6d801",
+				"dweb:/ipfs/QmWA5TqWNmxQZv2ysbhVUs3k8SAVckyDaKjJfYTuMwTd4e"
 			]
 		}
 	},
