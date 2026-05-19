@@ -10,6 +10,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
     use sui::table::{Self, Table};
     use sui::event;
     use sui::bcs;
+    use sui::clock::{Self, Clock}; // Added Clock
     
     use Qiara::QiaraDelegatorV1::{Self as delegator, AdminCap, Vault, SupportedTokenKey, Nullifiers, ProviderManager};
     use Qiara::QiaraEventsV1::{Self as Event};
@@ -61,7 +62,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
         Event::emit_withdraw_grant_event(std::string::utf8(b"Grant Withdraw Permission"), data);
     }*/
     // --- User Functions ---
-    public entry fun deposit<T>(vault: &mut Vault, mut coin: Coin<T>, addr: String, shared: String, amount: u64, ctx: &mut TxContext) {
+    public entry fun deposit<T>(vault: &mut Vault, mut coin: Coin<T>, addr: String, shared: String, amount: u64, clock: &sui::clock::Clock,ctx: &mut TxContext) {
         let sender = tx_context::sender(ctx);
         
         // 1. Safety Check: Ensure the coin has enough balance
@@ -93,10 +94,10 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
         ];
 
-        Event::emit_deposit_event(std::string::utf8(b"Deposit"), data);
+        Event::emit_event(clock, std::string::utf8(b"Deposit"), data);
     }
 
-    public entry fun m_withdraw<T>(vault: &Vault, user: address, shared: String, asset_name: String, amount: u64) {
+    public entry fun m_withdraw<T>(vault: &Vault, user: address, shared: String, asset_name: String, amount: u64, clock: &sui::clock::Clock) {
 
         assert!(delegator::is_token_supported<T>(vault), ENotSupported);
        
@@ -109,10 +110,10 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&asset_name)),
         ];
 
-        Event::emit_withdraw_event(string::utf8(b"Modular Withdraw"), data);
+        Event::emit_event(clock,string::utf8(b"Modular Withdraw"), data);
     }
 
-        public entry fun direct_withdraw<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>,ctx: &mut TxContext) {
+        public entry fun direct_withdraw<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>,clock: &sui::clock::Clock,ctx: &mut TxContext) {
         // 1. Call delegator. 
         // Note: It now returns 4 values: (address, u64, u256, String)
         let (user_address, amount, _nullifier, proof_provider_name) = delegator::grant_permission<T>(
@@ -147,7 +148,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
             Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
         ];
-        Event::emit_withdraw_event(std::string::utf8(b"DirectWithdraw"), data);
+        Event::emit_event(clock,std::string::utf8(b"DirectWithdraw"), data);
     }
 
 // --- Internal Helpers ---
