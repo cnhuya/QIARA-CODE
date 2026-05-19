@@ -132,28 +132,44 @@ module dev::QiaraSharedV1{
 
     public entry fun allow_sub_owner(signer: &signer, name: String, sub_owner: vector<u8>) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
+        let sender_addr = signer::address_of(signer);
 
+        // 1. Initialize storage if it doesn't exist
         if (!table::contains(&shared.storage, name)) {
-            table::add(&mut shared.storage, name, Ownership { owner: bcs::to_bytes(&signer::address_of(signer)), sub_owners: vector::empty<vector<u8>>() });
+            // Use the raw address bytes to avoid BCS length-prefix issues in comparison
+            table::add(&mut shared.storage, name, Ownership { 
+                owner: bcs::to_bytes(&sender_addr), 
+                sub_owners: vector::empty<vector<u8>>() 
+            });
         };
 
         let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        assert!(ownership_record.owner == bcs::to_bytes(&signer::address_of(signer)), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
-        vector::push_back(&mut ownership_record.sub_owners, sub_owner);
+        
+        // 2. Safety Check: Verify owner
+        assert!(ownership_record.owner == bcs::to_bytes(&sender_addr), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
 
+        // 3. FIX: Prevent duplicate sub_owners in the list
+        if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
+            vector::push_back(&mut ownership_record.sub_owners, sub_owner);
+        };
+
+        // 4. Update the Registry for the sub_owner
         if (!table::contains(&shared.storage_registry, sub_owner)) {
             table::add(&mut shared.storage_registry, sub_owner, vector::empty<String>());
         };
 
-        let registry = table::borrow_mut(&mut shared.storage_registry, bcs::to_bytes(&sub_owner));
+        // FIX: Remove bcs::to_bytes here. sub_owner is already a vector<u8>.
+        let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
 
+        // 5. Prevent duplicate storage names in the registry
         if (!vector::contains(registry, &name)) {
             vector::push_back(registry, name);
         };
 
+        // 6. Emit Event
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&sender_addr)),
             Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"sub_owner"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
         ];
