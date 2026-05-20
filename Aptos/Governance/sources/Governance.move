@@ -122,20 +122,6 @@ module dev::QiaraGovernanceV2 {
         };
     }
 
-    public entry fun propose(proposer: &signer, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
-        let addr = signer::address_of(proposer);
-        assert_allowed_type(type);
-        assert!(!capabilities::assert_wallet_capability(signer::address_of(proposer), utf8(b"QiaraGovernance"), utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
-        let registry = borrow_global_mut<PendingProposals>(OWNER);
-        let count_ref = borrow_global_mut<ProposalCount>(OWNER);
-        let proposal_id = count_ref.count;
-
-        let proposal = make_proposal(proposal_id, type, addr, duration, header, constant_name, isChange, editable, new_value, value_type);
-        vector::push_back(&mut registry.proposals, proposal);
-
-        count_ref.count = count_ref.count + 1;
-    }
-
     // finalize_proposal: remove proposal, destructure into locals, then operate on locals
     public entry fun finalize_proposal(user: &signer, proposal_id: u64) acquires PendingProposals, Access {
         let addr = signer::address_of(user);
@@ -273,62 +259,108 @@ module dev::QiaraGovernanceV2 {
             };
         }
     }
-    // --- vote: ensure voter_addr defined, check table, then add ---
-    // vote: make len mutable and use voter_addr local
+
+    public entry fun propose(sub_owner: vector<u8>, shared_storage_name: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
+        propose_internal(
+            b"0x0",
+            sub_owner, 
+            shared_storage_name,  
+            type, 
+            isChange, 
+            header, 
+            constant_name, 
+            new_value, 
+            value_type, 
+            duration, 
+            editable
+        );
+    }
+
     public entry fun vote(user: &signer, shared_storage_name: String, proposal_id: u64, isYes: bool) acquires PendingProposals {
-        TokensShared::assert_is_owner(bcs::to_bytes(&signer::address_of(user)), shared_storage_name);
-        let registry = borrow_global_mut<PendingProposals>(OWNER);
-        let len = vector::length(&registry.proposals);
-        let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
+        let sender_bytes = bcs::to_bytes(&signer::address_of(user));
+        TokensShared::assert_is_owner(sender_bytes, shared_storage_name);
 
-        while (len > 0) {
-            len = len - 1;
-            let proposal = vector::borrow_mut(&mut registry.proposals, len);
-            if (proposal.id == proposal_id) {
-                let has_voted = vector::contains(&proposal.voters, &shared_storage_name);
-                assert!(!has_voted, ERROR_ALREADY_VOTED);
+        // Call state helper
+        let vote_value = vote_internal(shared_storage_name, proposal_id, isYes);
 
-                if (isYes) {
-                    proposal.yes = proposal.yes + vote_value;
-                } else {
-                    proposal.no = proposal.no + vote_value;
-                };
-
-                vector::push_back(&mut proposal.voters, shared_storage_name);
-            };
-        };
-
-            let data = vector[
-                // Items from the event top-level fields
-                Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(user))),
-                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
-                Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
-                Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
-                Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
-            ];
-
-            Event::emit_governance_event(utf8(b"Vote"), data)
-
+        // Emit event
+        let data = vector[
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sender_bytes),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
+            Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
+        ];
+        Event::emit_governance_event(utf8(b"Vote"), data)
     }
 
 // Modular Interface
 
-    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
-        TokensShared::assert_is_owner(sub_owner, shared_storage_name);
-        assert_allowed_type(type);
-        assert!(!capabilities::assert_wallet_capability(signer::address_of(proposer), utf8(b"QiaraGovernance"), utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
-        let registry = borrow_global_mut<PendingProposals>(OWNER);
-        let count_ref = borrow_global_mut<ProposalCount>(OWNER);
-        let proposal_id = count_ref.count;
+    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
 
-        let proposal = make_proposal(proposal_id, type, sub_owner, duration, header, constant_name, isChange, editable, new_value, value_type);
-        vector::push_back(&mut registry.proposals, proposal);
-
-        count_ref.count = count_ref.count + 1;
+        propose_internal(
+            signer::address_of(validator),
+            sub_owner, 
+            shared_storage_name, 
+            type, 
+            isChange, 
+            header, 
+            constant_name, 
+            new_value, 
+            value_type, 
+            duration, 
+            editable
+        );
     }
 
     public entry fun m_vote(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, proposal_id: u64, isYes: bool) acquires PendingProposals {
         TokensShared::assert_is_owner(sub_owner, shared_storage_name);
+
+        // Call state helper
+        let vote_value = vote_internal(shared_storage_name, proposal_id, isYes);
+
+        // Emit event
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sub_owner),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
+            Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
+        ];
+        Event::emit_governance_event(utf8(b"Vote"), data)
+    }
+
+
+// Internal helpers
+
+    fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String,creator_bytes: vector<u8>,type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
+        TokensShared::assert_is_owner(user, shared);
+        assert!(!capabilities::assert_wallet_capability(shared, std::string::utf8(b"QiaraGovernance"), std::string::utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
+        assert_allowed_type(type);
+
+        let registry = borrow_global_mut<PendingProposals>(OWNER);
+        let count_ref = borrow_global_mut<ProposalCount>(OWNER);
+        let proposal_id = count_ref.count;
+
+        let proposal = make_proposal(
+            proposal_id, 
+            type, 
+            creator_bytes, 
+            duration, 
+            header, 
+            constant_name, 
+            isChange, 
+            editable, 
+            new_value, 
+            value_type
+        );
+        std::vector::push_back(&mut registry.proposals, proposal);
+
+        count_ref.count = count_ref.count + 1;
+    }
+
+    fun vote_internal(shared_storage_name: String, proposal_id: u64, isYes: bool): u64 acquires PendingProposals {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
         let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
@@ -350,18 +382,7 @@ module dev::QiaraGovernanceV2 {
             };
         };
 
-            let data = vector[
-                // Items from the event top-level fields
-                Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
-                Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
-                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
-                Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
-                Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
-                Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
-            ];
-
-            Event::emit_governance_event(utf8(b"Vote"), data)
-
+        vote_value
     }
 
 
