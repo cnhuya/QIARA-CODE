@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV4 {
+module dev::QiaraTokensQiaraV5 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -14,10 +14,10 @@ module dev::QiaraTokensQiaraV4 {
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
 
-    use dev::QiaraTokensCoreV4::{Self as TokensCore};
+    use dev::QiaraTokensCoreV5::{Self as TokensCore};
 
-    use dev::QiaraCapabilitiesV2::{Self as capabilities};
-    use dev::QiaraStorageV2::{Self as storage};
+    use dev::QiaraCapabilitiesV3::{Self as capabilities};
+    use dev::QiaraStorageV3::{Self as storage};
     const ADMIN: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;

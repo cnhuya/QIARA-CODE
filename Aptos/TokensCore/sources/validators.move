@@ -1,4 +1,4 @@
-module dev::QiaraTokensValidatorsV4{
+module dev::QiaraTokensValidatorsV5{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -7,8 +7,8 @@ module dev::QiaraTokensValidatorsV4{
     use std::timestamp;
     use std::bcs;
 
-    use dev::QiaraTokensCoreV4::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV4::{Self as TokensOmnichain};
+    use dev::QiaraTokensCoreV5::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV5::{Self as TokensOmnichain};
 
     use dev::QiaraSharedV1::{Self as Shared};
     // === ERRORS === //
