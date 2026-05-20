@@ -47,7 +47,7 @@ module dev::QiaraGovernanceV2 {
         editable: vector<bool>,
         yes: u256,
         no: u256,
-        voters: vector<address>,
+        voters: vector<String>,
         result: u8,
     }
 
@@ -279,14 +279,13 @@ module dev::QiaraGovernanceV2 {
         TokensShared::assert_is_owner(bcs::to_bytes(&signer::address_of(user)), shared_storage_name);
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
-        let voter_addr = signer::address_of(user);
         let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
 
         while (len > 0) {
             len = len - 1;
             let proposal = vector::borrow_mut(&mut registry.proposals, len);
             if (proposal.id == proposal_id) {
-                let has_voted = vector::contains(&proposal.voters, &voter_addr);
+                let has_voted = vector::contains(&proposal.voters, &shared_storage_name);
                 assert!(!has_voted, ERROR_ALREADY_VOTED);
 
                 if (isYes) {
@@ -295,13 +294,67 @@ module dev::QiaraGovernanceV2 {
                     proposal.no = proposal.no + vote_value;
                 };
 
-                vector::push_back(&mut proposal.voters, voter_addr);
+                vector::push_back(&mut proposal.voters, shared_storage_name);
             };
         };
 
             let data = vector[
                 // Items from the event top-level fields
                 Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(user))),
+                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
+                Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+                Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
+                Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
+            ];
+
+            Event::emit_governance_event(utf8(b"Vote"), data)
+
+    }
+
+// Modular Interface
+
+    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
+        TokensShared::assert_is_owner(sub_owner, shared_storage_name);
+        assert_allowed_type(type);
+        assert!(!capabilities::assert_wallet_capability(signer::address_of(proposer), utf8(b"QiaraGovernance"), utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
+        let registry = borrow_global_mut<PendingProposals>(OWNER);
+        let count_ref = borrow_global_mut<ProposalCount>(OWNER);
+        let proposal_id = count_ref.count;
+
+        let proposal = make_proposal(proposal_id, type, sub_owner, duration, header, constant_name, isChange, editable, new_value, value_type);
+        vector::push_back(&mut registry.proposals, proposal);
+
+        count_ref.count = count_ref.count + 1;
+    }
+
+    public entry fun m_vote(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, proposal_id: u64, isYes: bool) acquires PendingProposals {
+        TokensShared::assert_is_owner(sub_owner, shared_storage_name);
+        let registry = borrow_global_mut<PendingProposals>(OWNER);
+        let len = vector::length(&registry.proposals);
+        let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
+
+        while (len > 0) {
+            len = len - 1;
+            let proposal = vector::borrow_mut(&mut registry.proposals, len);
+            if (proposal.id == proposal_id) {
+                let has_voted = vector::contains(&proposal.voters, &shared_storage_name);
+                assert!(!has_voted, ERROR_ALREADY_VOTED);
+
+                if (isYes) {
+                    proposal.yes = proposal.yes + vote_value;
+                } else {
+                    proposal.no = proposal.no + vote_value;
+                };
+
+                vector::push_back(&mut proposal.voters, shared_storage_name);
+            };
+        };
+
+            let data = vector[
+                // Items from the event top-level fields
+                Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+                Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
+                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
                 Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
                 Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
                 Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),

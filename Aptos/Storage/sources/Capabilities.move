@@ -1,4 +1,4 @@
-module dev::QiaraCapabilitiesV1 {
+module dev::QiaraCapabilitiesV2 {
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
@@ -7,6 +7,7 @@ module dev::QiaraCapabilitiesV1 {
     use aptos_std::type_info;
     use aptos_std::from_bcs;
     use std::bcs::{Self as bc};
+    use dev::QiaraSharedV1::{Self as Shared};
 
     struct Access has key, store, drop { }
     struct Permission has key, drop { }
@@ -30,12 +31,12 @@ module dev::QiaraCapabilitiesV1 {
     }
 
     struct Capabilities has key, store {
-        table: Table<address, Table<String, vector<Capability>>>
+        table: Table<String, Table<String, vector<Capability>>>
     }
 
     #[event]
     struct CapabilityCreated has drop, store {
-        address: address,
+        shared: String,
         capability: Capability,
     }
 
@@ -53,7 +54,7 @@ module dev::QiaraCapabilitiesV1 {
     // ----------------------------------------------------------------
     // Module init
     // ----------------------------------------------------------------
-    fun init_module(admin: &signer) acquires Capabilities, KeyRegistry{
+    fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 
         if (!exists<KeyRegistry>(OWNER)) {
@@ -63,124 +64,110 @@ module dev::QiaraCapabilitiesV1 {
         if (!exists<Capabilities>(OWNER)) {
             move_to(
                 admin,
-                Capabilities { table: table::new<address, Table<String, vector<Capability>>>() }
+                Capabilities { table: table::new<String, Table<String, vector<Capability>>>() }
             );
         };
 
         
-        create_capability(admin, signer::address_of(admin), utf8(b"QiaraToken"), utf8(b"TOKEN_CLAIM_CAPABILITY"), true, &give_permission(&give_access(admin)));
-        create_capability(admin, @0x281d0fce12a353b1f6e8bb6d1ae040a6deba248484cf8e9173a5b428a6fb74e7, utf8(b"QiaraGovernance"), utf8(b"BLACKLIST"), true, &give_permission(&give_access(admin)));
-        create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraAuto"), utf8(b"EXECUTE_AUTO_DELETIONS"), true, &give_permission(&give_access(admin)));
-        create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraVerifiedTokens"), utf8(b"AUTHORIZED_MODULE_OWNER"), true, &give_permission(&give_access(admin)));
+        //create_capability(admin, signer::address_of(admin), utf8(b"QiaraToken"), utf8(b"TOKEN_CLAIM_CAPABILITY"), true, &give_permission(&give_access(admin)));
+        //create_capability(admin, @0x281d0fce12a353b1f6e8bb6d1ae040a6deba248484cf8e9173a5b428a6fb74e7, utf8(b"QiaraGovernance"), utf8(b"BLACKLIST"), true, &give_permission(&give_access(admin)));
+        //create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraAuto"), utf8(b"EXECUTE_AUTO_DELETIONS"), true, &give_permission(&give_access(admin)));
+        //create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraVerifiedTokens"), utf8(b"AUTHORIZED_MODULE_OWNER"), true, &give_permission(&give_access(admin)));
 
     }
 
 
 
-    public fun create_capability_multi(addr: &signer,  address: vector<address>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{
+    public fun create_capability_multi(user:vector<vector<u8>>, shared: vector<String>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{
         let len = vector::length(&header);
         while(len>0){
-            create_capability(addr, *vector::borrow(&address, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), *vector::borrow(&removable, len-1), permission);
+            create_capability(*vector::borrow(&user, len-1), *vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), *vector::borrow(&removable, len-1), permission);
             len=len-1;
         };
     }
 
-public fun create_capability(
-    address: &signer,
-    addr: address,
-    header: String,
-    name: String,
-    removable: bool,
-    cap: &Permission
-) acquires Capabilities, KeyRegistry {
-    assert!(signer::address_of(address) == OWNER, ERROR_NOT_ADMIN);
+    public fun create_capability(user: vector<u8>,shared: String,header: String,name: String,removable: bool,cap: &Permission) acquires Capabilities, KeyRegistry {
+        Shared::assert_is_sub_owner(shared, user);
 
-    let db = borrow_global_mut<Capabilities>(OWNER);
-    let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
-    let new_cap = make_capability(name, removable);
+        let db = borrow_global_mut<Capabilities>(OWNER);
+        let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
+        let new_cap = make_capability(name, removable);
 
-    // ensure header is tracked in KeyRegistry
-    if (!vector::contains(&key_registry.keys, &header)) {
-        vector::push_back(&mut key_registry.keys, header);
-    };
-
-    // fetch or initialize inner table for this addr
-    let inner_table = if (table::contains(&db.table, addr)) {
-        table::borrow_mut(&mut db.table, addr)
-    } else {
-        let new_table = table::new<String, vector<Capability>>();
-        table::add(&mut db.table, addr, new_table);
-        table::borrow_mut(&mut db.table, addr)
-    };
-
-    // now work with the inner table using header
-    if (table::contains(inner_table, header)) {
-        let constants = table::borrow_mut(inner_table, header);
-        let len = vector::length(constants);
-        let i = 0;
-        while (i < len) {
-            let c_ref = vector::borrow(constants, i);
-            if (c_ref.name == name) {
-                abort ERROR_CAPABILITY_ALREADY_EXISTS
-            };
-            i = i + 1;
+        // ensure header is tracked in KeyRegistry
+        if (!vector::contains(&key_registry.keys, &header)) {
+            vector::push_back(&mut key_registry.keys, header);
         };
-        vector::push_back(constants, new_cap);
-    } else {
-        let vec = vector::empty<Capability>();
-        vector::push_back(&mut vec, new_cap);
-        table::add(inner_table, header, vec);
-    };
-}
+
+        // fetch or initialize inner table for this addr
+        let inner_table = if (table::contains(&db.table, shared)) {
+            table::borrow_mut(&mut db.table, shared)
+        } else {
+            let new_table = table::new<String, vector<Capability>>();
+            table::add(&mut db.table, shared, new_table);
+            table::borrow_mut(&mut db.table, shared)
+        };
+
+        // now work with the inner table using header
+        if (table::contains(inner_table, header)) {
+            let constants = table::borrow_mut(inner_table, header);
+            let len = vector::length(constants);
+            let i = 0;
+            while (i < len) {
+                let c_ref = vector::borrow(constants, i);
+                if (c_ref.name == name) {
+                    abort ERROR_CAPABILITY_ALREADY_EXISTS
+                };
+                i = i + 1;
+            };
+            vector::push_back(constants, new_cap);
+        } else {
+            let vec = vector::empty<Capability>();
+            vector::push_back(&mut vec, new_cap);
+            table::add(inner_table, header, vec);
+        };
+    }
 
 
-    public fun remove_capability_multi(addr: &signer,  address: vector<address>, header: vector<String>, constant_name: vector<String>, permission: &Permission) acquires Capabilities, KeyRegistry{
+    public fun remove_capability_multi(user:vector<vector<u8>>, shared: vector<String>, header: vector<String>, constant_name: vector<String>, permission: &Permission) acquires Capabilities, KeyRegistry{
         let len = vector::length(&header);
         while(len>0){
-            remove_capability(addr, *vector::borrow(&address, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), permission);
+            remove_capability(*vector::borrow(&user, len-1), *vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), permission);
             len=len-1;
         };
     }
 
-public fun remove_capability(
-    address: &signer,
-    addr: address,
-    header: String,
-    name: String,
-    cap: &Permission
-) acquires Capabilities, KeyRegistry {
-    assert!(signer::address_of(address) == OWNER, ERROR_NOT_ADMIN);
+    public fun remove_capability(user: vector<u8>,shared: String,header: String,name: String,cap: &Permission) acquires Capabilities, KeyRegistry {
+        Shared::assert_is_sub_owner(shared, user);
+        let db = borrow_global_mut<Capabilities>(OWNER);
+        let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
 
-    let db = borrow_global_mut<Capabilities>(OWNER);
-    let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
-
-    if (!vector::contains(&key_registry.keys, &header)) {
-        abort ERROR_HEADER_DOESNT_EXISTS
-    };
-
-    if (!table::contains(&db.table, addr)) {
-        abort ERROR_CAPABILITY_DOESNT_EXISTS
-    };
-
-    let inner_table = table::borrow_mut(&mut db.table, addr);
-
-    if (table::contains(inner_table, header)) {
-        let constants = table::borrow_mut(inner_table, header);
-        let len = vector::length(constants);
-        let  i = 0;
-        while (i < len) {
-            let c_ref = vector::borrow(constants, i);
-            if (c_ref.name == name && c_ref.removable) {
-                vector::remove(constants, i);
-                return
-            };
-            i = i + 1;
+        if (!vector::contains(&key_registry.keys, &header)) {
+            abort ERROR_HEADER_DOESNT_EXISTS
         };
-        abort ERROR_CAPABILITY_DOESNT_EXISTS
-    } else {
-        abort ERROR_CAPABILITY_DOESNT_EXISTS
-    };
-}
+
+        if (!table::contains(&db.table, shared)) {
+            abort ERROR_CAPABILITY_DOESNT_EXISTS
+        };
+
+        let inner_table = table::borrow_mut(&mut db.table, shared);
+
+        if (table::contains(inner_table, header)) {
+            let constants = table::borrow_mut(inner_table, header);
+            let len = vector::length(constants);
+            let  i = 0;
+            while (i < len) {
+                let c_ref = vector::borrow(constants, i);
+                if (c_ref.name == name && c_ref.removable) {
+                    vector::remove(constants, i);
+                    return
+                };
+                i = i + 1;
+            };
+            abort ERROR_CAPABILITY_DOESNT_EXISTS
+        } else {
+            abort ERROR_CAPABILITY_DOESNT_EXISTS
+        };
+    }
 
 
 
@@ -191,17 +178,14 @@ public fun remove_capability(
     }
 
     #[view]
-    public fun viewCapabilities(
-        addr: address,
-        header: String
-    ): vector<Capability> acquires Capabilities {
+    public fun viewCapabilities(shared: String,header: String): vector<Capability> acquires Capabilities {
         let db = borrow_global<Capabilities>(OWNER);
 
-        if (!table::contains(&db.table, addr)) {
+        if (!table::contains(&db.table, shared)) {
             abort ERROR_CAPABILITY_DOESNT_EXISTS;
         };
 
-        let inner_table = table::borrow(&db.table, addr);
+        let inner_table = table::borrow(&db.table, shared);
 
         if (!table::contains(inner_table, header)) {
             abort ERROR_CAPABILITY_DOESNT_EXISTS;
@@ -213,18 +197,14 @@ public fun remove_capability(
 
 
     #[view]
-    public fun viewCapability(
-        addr: address,
-        header: String,
-        constant_name: String
-    ): Capability acquires Capabilities {
+    public fun viewCapability(shared: String,header: String,constant_name: String): Capability acquires Capabilities {
         let db = borrow_global<Capabilities>(OWNER);
 
-        if (!table::contains(&db.table, addr)) {
+        if (!table::contains(&db.table, shared)) {
             abort ERROR_HEADER_DOESNT_EXISTS;
         };
 
-        let inner_table = table::borrow(&db.table, addr);
+        let inner_table = table::borrow(&db.table, shared);
 
         if (!table::contains(inner_table, header)) {
             abort ERROR_HEADER_DOESNT_EXISTS;
@@ -248,18 +228,14 @@ public fun remove_capability(
     }
 
     #[view]
-    public fun assert_wallet_capability(
-        addr: address,
-        header: String,
-        constant_name: String
-    ): bool acquires Capabilities {
+    public fun assert_wallet_capability(shared: String,header: String,constant_name: String): bool acquires Capabilities {
         let db = borrow_global<Capabilities>(OWNER);
 
-        if (!table::contains(&db.table, addr)) {
+        if (!table::contains(&db.table, shared)) {
             return false; // address not found capability can't exist
         };
 
-        let inner_table = table::borrow(&db.table, addr);
+        let inner_table = table::borrow(&db.table, shared);
 
         if (!table::contains(inner_table, header)) {
             return false; // header not found  capability can't exist

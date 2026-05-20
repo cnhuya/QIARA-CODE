@@ -48,7 +48,6 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     let len = vector::length(&type_names);
     let payload_len = vector::length(&payload);
     assert!(len == payload_len, ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES);
-
     assert!(vector::contains(&type_names, &string::utf8(b"time")), ERROR_PAYLOAD_MISS_TIME);
     assert!(vector::contains(&type_names, &string::utf8(b"consensus_type")), ERROR_PAYLOAD_MISS_CONSENSUS_TYPE);
 
@@ -64,14 +63,14 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     }
 }
 
-    public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8> acquires Permissions {
+    public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
         let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let addr_stream = &mut bcs_stream::new(addr);
         let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
-        Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
         Event::create_identifier(addr, consensus, nonce)
 
@@ -83,7 +82,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (value, *vector::borrow(&from, index))
     }
 
-    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, String) {
+    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, String)  acquires Permissions  {
         
         // 1. Extract raw byte chunks
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
@@ -95,6 +94,8 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, hash_raw) = find_payload_value(utf8(b"hash"), type_names, payload);
 
         // 2. Decode using bcs_stream
+
+        let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let addr_stream = &mut bcs_stream::new(addr_raw);
         let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
         
@@ -110,20 +111,29 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
         // Extract U64
         let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
-
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
         return (a, x, k, b, c, d, e, f)
     }
 
-    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>, vector<u8>){
+    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>, vector<u8>)  acquires Permissions {
         let (_, validator) = find_payload_value(utf8(b"validator"), type_names, payload);
         let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, secp256k1_address) = find_payload_value(utf8(b"secp256k1_address"), type_names, payload);
         let (_, secp256k1_pub_key) = find_payload_value(utf8(b"secp256k1_pub_key"), type_names, payload);
+        
+        let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let addr_stream = &mut bcs_stream::new(addr_raw);
+        let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
         return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_address), from_bcs::to_bytes(secp256k1_pub_key))
     }
 
-    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>){
+    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
 
@@ -131,11 +141,13 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
 
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
-
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
         return (name, user_bytes)
     }
 
-    public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>){
+    public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, sub_owner_raw) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
@@ -146,31 +158,56 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let sub_owner_stream = &mut bcs_stream::new(sub_owner_raw);
         let sub_owner_bytes = bcs_stream::deserialize_vector(sub_owner_stream, |s| bcs_stream::deserialize_u8(s));
 
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        return (name, user_bytes, sub_owner_bytes)
+    }
+
+    public fun prepare_p_remove_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8> )  acquires Permissions {
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload); 
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, sub_owner_raw) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let sub_owner_stream = &mut bcs_stream::new(sub_owner_raw);
+        let sub_owner_bytes = bcs_stream::deserialize_vector(sub_owner_stream, |s| bcs_stream::deserialize_u8(s));
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
 
         return (name, user_bytes, sub_owner_bytes)
     }
-
-    public fun prepare_p_remove_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8> ){
+    public fun prepare_modular_withdraw(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,  String, String, String, u64, vector<u8>)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
-        let (_, sub_owner_raw) = find_payload_value(utf8(b"sub_owner"), type_names, payload);
-
+        let (_, symbol_raw) = find_payload_value(utf8(b"token"), type_names, payload);
+        let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
+        let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
+        let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
         let user_stream = &mut bcs_stream::new(user_raw);
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
 
-        let sub_owner_stream = &mut bcs_stream::new(sub_owner_raw);
-        let sub_owner_bytes = bcs_stream::deserialize_vector(sub_owner_stream, |s| bcs_stream::deserialize_u8(s));
-
+        let symbol = bcs_stream::deserialize_string(&mut bcs_stream::new(symbol_raw));
+        let chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+        let provider = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+        //assert!(provider == utf8(b"Bluefin"), 100);
+        let amount = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
-
-        return (name, user_bytes, sub_owner_bytes)
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        return (name, user_bytes, symbol, chain, provider, amount, user_bytes)
     }
 
 public fun prepare_finalize_bridge(
     type_names: vector<String>, 
     payload: vector<vector<u8>>
-): (vector<u8>, String, String, String, String, String, String, String, u64, u256, u256) {
+): (vector<u8>, String, String, String, String, String, String, String, u64, u256, u256)  acquires Permissions  {
     
     // 1. Extract raw byte chunks using your existing finder
     let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
@@ -203,6 +240,9 @@ public fun prepare_finalize_bridge(
      //          tttta(0);
     let f = bcs_stream::deserialize_u256(&mut bcs_stream::new(nonce_raw));
       //          tttta(0);
+              let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
     return (y, k, x, a, b, c, d, h, e, n, f)
 }
 

@@ -452,21 +452,22 @@ module dev::QiaraTokensCoreV3{
     public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) acquires Permissions{
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&user));
         ensure_safety(symbol, chain);
-        ProviderTypes::ensure_valid_provider(symbol, chain);
+        //assert!(provider == utf8(b"Bluefin"), 100);
+        ProviderTypes::ensure_valid_provider(provider, chain);
         //let legit_amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
         //assert!(legit_amount >= amount, ERROR_SUFFICIENT_BALANCE);
-        let total_outflow = (TokensOmnichain::return_specified_outflow_path(user, chain, symbol) as u64);
+        let total_outflow = (TokensOmnichain::return_specified_outflow_path(receiver, chain, symbol) as u64);
        
-        let nonce = Nonce::return_user_nonce(bcs::to_bytes(&receiver));
+        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-        TokensOmnichain::increment_UserOutflow(symbol, chain, shared, bcs::to_bytes(&receiver), amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
+        //TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
         let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), bcs::to_bytes(&receiver)),
+            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
             Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
@@ -474,6 +475,7 @@ module dev::QiaraTokensCoreV3{
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
             Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
             Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+            
         ];
         Event::emit_consensus_event(utf8(b"Request Bridge"), data);
 

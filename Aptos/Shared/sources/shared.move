@@ -149,17 +149,17 @@ module dev::QiaraSharedV1{
         assert!(ownership_record.owner == bcs::to_bytes(&sender_addr), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
 
         // 3. FIX: Prevent duplicate sub_owners in the list
-        if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
-            vector::push_back(&mut ownership_record.sub_owners, sub_owner);
+        if (!vector::contains(&ownership_record.sub_owners, &bcs::to_bytes(&sub_owner))) {
+            vector::push_back(&mut ownership_record.sub_owners, bcs::to_bytes(&sub_owner));
         };
 
         // 4. Update the Registry for the sub_owner
-        if (!table::contains(&shared.storage_registry, sub_owner)) {
-            table::add(&mut shared.storage_registry, sub_owner, vector::empty<String>());
+        if (!table::contains(&shared.storage_registry, bcs::to_bytes(&sub_owner))) {
+            table::add(&mut shared.storage_registry, bcs::to_bytes(&sub_owner), vector::empty<String>());
         };
 
         // FIX: Remove bcs::to_bytes here. sub_owner is already a vector<u8>.
-        let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
+        let registry = table::borrow_mut(&mut shared.storage_registry, bcs::to_bytes(&sub_owner));
 
         // 5. Prevent duplicate storage names in the registry
         if (!vector::contains(registry, &name)) {
@@ -181,10 +181,10 @@ module dev::QiaraSharedV1{
 
         let ownership_record = table::borrow_mut(&mut shared.storage, name);
         assert!(ownership_record.owner == bcs::to_bytes(&signer::address_of(signer)), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
-        assert!(vector::contains(&ownership_record.sub_owners, &sub_owner), ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE);
+        assert!(vector::contains(&ownership_record.sub_owners, &bcs::to_bytes(&sub_owner)), ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE);
 
-        vector::remove_value(&mut ownership_record.sub_owners, &sub_owner);
-        let registry = table::borrow_mut(&mut shared.storage_registry,sub_owner);
+        vector::remove_value(&mut ownership_record.sub_owners, &bcs::to_bytes(&sub_owner));
+        let registry = table::borrow_mut(&mut shared.storage_registry,bcs::to_bytes(&sub_owner));
         vector::remove_value(registry, &name);
 
         let data = vector[
@@ -248,13 +248,13 @@ module dev::QiaraSharedV1{
 
         let ownership_record = table::borrow_mut(&mut shared.storage, name);
         assert!(ownership_record.owner == user, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
-        vector::push_back(&mut ownership_record.sub_owners, sub_owner);
+        vector::push_back(&mut ownership_record.sub_owners, bcs::to_bytes(&sub_owner));
 
-        if (!table::contains(&shared.storage_registry, sub_owner)) {
-            table::add(&mut shared.storage_registry, sub_owner, vector::empty<String>());
+        if (!table::contains(&shared.storage_registry, bcs::to_bytes(&sub_owner))) {
+            table::add(&mut shared.storage_registry, bcs::to_bytes(&sub_owner), vector::empty<String>());
         };
 
-        let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
+        let registry = table::borrow_mut(&mut shared.storage_registry, bcs::to_bytes(&sub_owner));
 
         if (!vector::contains(registry, &name)) {
             vector::push_back(registry, name);

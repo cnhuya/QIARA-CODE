@@ -599,8 +599,9 @@ module dev::QiaraBridgeV8{
                     Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
                 }
 
-            } else if (event_type == utf8(b"Request Unlock")) {
-                // Handle Request Unlock here
+            } else if (event_type == utf8(b"Modular Withdraw")) {
+                let (shared, user, synbol, chain, provider, amount, receiver) = Payload::prepare_modular_withdraw(type_names, payload);
+                TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name)
