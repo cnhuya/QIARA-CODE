@@ -353,6 +353,7 @@ module dev::QiaraGovernanceV5 {
             Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
             Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&duration)),
             Event::create_data_struct(utf8(b"created"), utf8(b"u64"), bcs::to_bytes(&timestamp::now_seconds())),
+            Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&0)),
         ];
         Event::emit_governance_event(utf8(b"Create Proposal"), data);
 
