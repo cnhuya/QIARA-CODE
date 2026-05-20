@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV2 {
+module dev::QiaraGovernanceV3 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use std::vector;
@@ -9,11 +9,11 @@ module dev::QiaraGovernanceV2 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV2::{Self as Margin};
+    use dev::QiaraMarginV3::{Self as Margin};
 
-    use dev::QiaraStorageV1::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV1::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV1::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraStorageV2::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV2::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV2::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV1::{Self as TokensShared};
     const OWNER: address = @dev;
 
@@ -98,7 +98,7 @@ module dev::QiaraGovernanceV2 {
     }
 
     fun make_proposal(id: u64, type: vector<String>, proposer: address, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
-        Proposal {id, type, proposer, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<address>(), result: 0}
+        Proposal {id, type, proposer, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
     }
 
 
@@ -201,7 +201,7 @@ module dev::QiaraGovernanceV2 {
                                     if (_isChange) {
                                         capabilities::remove_capability_multi(
                                             user,
-                                            to_adress_multi(new_value),
+                                            new_value,
                                             header,
                                             constant,
                                             &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
@@ -209,7 +209,7 @@ module dev::QiaraGovernanceV2 {
                                     } else {
                                         capabilities::create_capability_multi(
                                             user,
-                                            to_adress_multi(new_value),
+                                            new_value,
                                             header,
                                             constant,
                                             editable,
@@ -385,17 +385,6 @@ module dev::QiaraGovernanceV2 {
         vote_value
     }
 
-
-    fun to_adress_multi(addresses: vector<vector<u8>>): vector<address>{
-        let len = vector::length(&addresses);
-        let vect = vector::empty<address>();
-        while (len > 0) {
-            let address = from_bcs::to_address(*vector::borrow(&addresses, len-1));
-            len = len - 1;
-            vector::push_back(&mut vect, address);
-        };
-        vect
-    }
 
     fun assert_allowed_type(types: vector<String>){
         let len = vector::length(&types);

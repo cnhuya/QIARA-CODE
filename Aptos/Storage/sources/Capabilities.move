@@ -1,4 +1,4 @@
-module dev::QiaraCapabilitiesV2 {
+module dev::QiaraCapabilitiesV3 {
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
@@ -78,7 +78,7 @@ module dev::QiaraCapabilitiesV2 {
 
 
 
-    public fun create_capability_multi(user:vector<vector<u8>>, shared: vector<String>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{
+    public fun create_capability_multi(shared: vector<String>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{
         let len = vector::length(&header);
         while(len>0){
             create_capability(*vector::borrow(&user, len-1), *vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), *vector::borrow(&removable, len-1), permission);
@@ -86,8 +86,7 @@ module dev::QiaraCapabilitiesV2 {
         };
     }
 
-    public fun create_capability(user: vector<u8>,shared: String,header: String,name: String,removable: bool,cap: &Permission) acquires Capabilities, KeyRegistry {
-        Shared::assert_is_sub_owner(shared, user);
+    public fun create_capability(shared: String,header: String,name: String,removable: bool,cap: &Permission) acquires Capabilities, KeyRegistry {
 
         let db = borrow_global_mut<Capabilities>(OWNER);
         let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
@@ -128,16 +127,15 @@ module dev::QiaraCapabilitiesV2 {
     }
 
 
-    public fun remove_capability_multi(user:vector<vector<u8>>, shared: vector<String>, header: vector<String>, constant_name: vector<String>, permission: &Permission) acquires Capabilities, KeyRegistry{
+    public fun remove_capability_multi(shared: vector<String>, header: vector<String>, constant_name: vector<String>, permission: &Permission) acquires Capabilities, KeyRegistry{
         let len = vector::length(&header);
         while(len>0){
-            remove_capability(*vector::borrow(&user, len-1), *vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), permission);
+            remove_capability(*vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), permission);
             len=len-1;
         };
     }
 
-    public fun remove_capability(user: vector<u8>,shared: String,header: String,name: String,cap: &Permission) acquires Capabilities, KeyRegistry {
-        Shared::assert_is_sub_owner(shared, user);
+    public fun remove_capability(shared: String,header: String,name: String,cap: &Permission) acquires Capabilities, KeyRegistry {
         let db = borrow_global_mut<Capabilities>(OWNER);
         let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
 

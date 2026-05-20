@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraGovernanceV2"
+    name = "QiaraGovernanceV3"
     version = "1.0.0"
     authors = []
 
@@ -22,7 +22,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraMarginV2]
+    [dependencies.QiaraMarginV3]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
@@ -32,7 +32,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraStorageV1]
+    [dependencies.QiaraStorageV2]
     git = 'https://github.com/cnhuya/QIARA-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'
