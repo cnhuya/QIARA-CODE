@@ -81,7 +81,7 @@ module dev::QiaraCapabilitiesV3 {
     public fun create_capability_multi(shared: vector<String>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{
         let len = vector::length(&header);
         while(len>0){
-            create_capability(*vector::borrow(&user, len-1), *vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), *vector::borrow(&removable, len-1), permission);
+            create_capability(*vector::borrow(&shared, len-1), *vector::borrow(&header, len-1), *vector::borrow(&constant_name, len-1), *vector::borrow(&removable, len-1), permission);
             len=len-1;
         };
     }
