@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV3{
+module dev::QiaraTokensCoreV4{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,21 +18,21 @@ module dev::QiaraTokensCoreV3{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV3::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV3::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV3::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV3::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV4::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV4::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV4::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV4::{Self as TokensQiara,  Access as TokensQiaraAccess};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV1::{Self as Shared};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV4::{Self as Storages};
+    use dev::QiaraStoragesV5::{Self as Storages};
 
-    use dev::QiaraChainTypesV4::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV4::{Self as TokensType};
-    use dev::QiaraProviderTypesV4::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV5::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV5::{Self as TokensType};
+    use dev::QiaraProviderTypesV5::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -255,12 +255,12 @@ module dev::QiaraTokensCoreV3{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV2"),
+            string::utf8(b"QiaraTokensCoreV4"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV2"),
+            string::utf8(b"QiaraTokensCoreV4"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -624,7 +624,7 @@ module dev::QiaraTokensCoreV3{
     
     public entry fun claim_inflation(claimer: &signer,shared: String) acquires Permissions, ManagedFungibleAsset  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(claimer)));
-        TokensQiara::change_last_claim(claimer, TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
+        TokensQiara::change_last_claim(shared, TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
         let asset = get_metadata(utf8(b"Qiara"));
         let claimable_amount = TokensQiara::claimable(*option::borrow(&fungible_asset::supply(asset)));
         let managed = authorized_borrow_refs(utf8(b"QIARA"));

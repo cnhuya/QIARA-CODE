@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV3 {
+module dev::QiaraTokensQiaraV4 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -14,10 +14,10 @@ module dev::QiaraTokensQiaraV3 {
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
 
-    use dev::QiaraTokensCoreV3::{Self as TokensCore};
+    use dev::QiaraTokensCoreV4::{Self as TokensCore};
 
-    use dev::QiaraCapabilitiesV1::{Self as capabilities};
-    use dev::QiaraStorageV1::{Self as storage};
+    use dev::QiaraCapabilitiesV2::{Self as capabilities};
+    use dev::QiaraStorageV2::{Self as storage};
     const ADMIN: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -52,8 +52,8 @@ module dev::QiaraTokensQiaraV3 {
     }
 
 // === ENTRY FUNCTIONS === //
-    public fun change_last_claim(claimer: &signer, perm: Permission) acquires Timers {
-        assert!(capabilities::assert_wallet_capability(signer::address_of(claimer), utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
+    public fun change_last_claim(shared:String, perm: Permission) acquires Timers {
+        assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
         let timers = borrow_global_mut<Timers>(@dev);
         timers.last_claimed = timestamp::now_seconds();
     }
