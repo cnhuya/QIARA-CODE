@@ -21,7 +21,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTypesV4]
+    [dependencies.QiaraTypesV5]
     git = 'https://github.com/cnhuya/QIARA-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
