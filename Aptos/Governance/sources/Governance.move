@@ -1,6 +1,7 @@
-module dev::QiaraGovernanceV3 {
+module dev::QiaraGovernanceV5 {
     use std::signer;
     use std::string::{Self, String, utf8};
+    use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
     use std::vector;
     use std::bcs;
     use aptos_std::type_info;
@@ -9,11 +10,11 @@ module dev::QiaraGovernanceV3 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV3::{Self as Margin};
+    use dev::QiaraMarginV4::{Self as Margin};
 
-    use dev::QiaraStorageV2::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV2::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV2::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraStorageV3::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV3::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV3::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV1::{Self as TokensShared};
     const OWNER: address = @dev;
 
@@ -36,8 +37,12 @@ module dev::QiaraGovernanceV3 {
 
     struct Proposal has copy, store, drop {
         id: u64,
+        name: String,
+        desc: String,
+        status: u8,
         type: vector<String>,
-        proposer: address,
+        proposer: vector<u8>,
+        shared: String,
         duration: u64,
         header: vector<String>,
         constant: vector<String>,
@@ -52,53 +57,12 @@ module dev::QiaraGovernanceV3 {
     }
 
 
-    #[event]
-    struct ProposeEvent has store, drop {
-        id: u64,
-        type: vector<String>,
-        proposer: address,
-        start: u256,
-        end: u256,
-        header: vector<String>,
-        constant: vector<String>,
-        isChange: vector<bool>,
-        editable: vector<bool>,
-        new_value: vector<vector<u8>>,
-        value_type: vector<String>,
-    }
-
-    #[event]
-    struct ProposalResultEvent has store, drop {
-        id: u64,
-        type: vector<String>,
-        proposer: address,
-        start: u64,
-        end: u64,
-        header: vector<String>,
-        constant: vector<String>,
-        new_value: vector<vector<u8>>,
-        value_type: vector<String>,
-        isChange: vector<bool>,
-        editable: vector<bool>,
-        yes: u256,
-        no: u256,
-        result: u8,
-    }
-
-    #[event]
-    struct Vote has store, drop {
-        proposal_id: u64,
-        voter: address,
-        isYes: bool,
-        amount: u256,
-    }
-
     struct PendingProposals has key {
         proposals: vector<Proposal>
     }
 
-    fun make_proposal(id: u64, type: vector<String>, proposer: address, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
-        Proposal {id, type, proposer, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
+    fun make_proposal(id: u64, name: String, desc: String, status: u8, type: vector<String>, proposer: vector<u8>, shared: String, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
+        Proposal {id, name, desc, status, type, proposer, shared, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
     }
 
 
@@ -139,7 +103,11 @@ module dev::QiaraGovernanceV3 {
                 let Proposal {
                     id,
                     type,
+                    name,
+                    desc,
+                    status,
                     proposer,
+                    shared,
                     duration,
                     header,
                     constant,
@@ -171,6 +139,7 @@ module dev::QiaraGovernanceV3 {
 
                         if (((yes * 100) / total_votes) >= (quorum_required as u256)) {
                             result = 1;
+                            status = 1;
                             let x = vector::length(&type);
                             while(x > 0){
                                 let _type = vector::borrow(&type, x-1);
@@ -200,16 +169,14 @@ module dev::QiaraGovernanceV3 {
                                 } else if (*_type == utf8(b"Capability")) {
                                     if (_isChange) {
                                         capabilities::remove_capability_multi(
-                                            user,
-                                            new_value,
+                                            to_string_multi(new_value),
                                             header,
                                             constant,
                                             &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
                                         );
                                     } else {
                                         capabilities::create_capability_multi(
-                                            user,
-                                            new_value,
+                                            to_string_multi(new_value),
                                             header,
                                             constant,
                                             editable,
@@ -240,6 +207,9 @@ module dev::QiaraGovernanceV3 {
 
             let data = vector[
                 Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
+                Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+                Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
+                Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&status)),
                 Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
                 Event::create_data_struct(utf8(b"proposer"), utf8(b"address"), bcs::to_bytes(&proposer)),
                 Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&duration)),
@@ -260,11 +230,13 @@ module dev::QiaraGovernanceV3 {
         }
     }
 
-    public entry fun propose(sub_owner: vector<u8>, shared_storage_name: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
+    public entry fun propose(sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
         propose_internal(
             b"0x0",
             sub_owner, 
             shared_storage_name,  
+            name,
+            desc,
             type, 
             isChange, 
             header, 
@@ -288,7 +260,7 @@ module dev::QiaraGovernanceV3 {
             Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sender_bytes),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
-            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u256"), bcs::to_bytes(&vote_value)),
             Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
         ];
         Event::emit_governance_event(utf8(b"Vote"), data)
@@ -296,12 +268,14 @@ module dev::QiaraGovernanceV3 {
 
 // Modular Interface
 
-    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
+    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
 
         propose_internal(
-            signer::address_of(validator),
+            bcs::to_bytes(&signer::address_of(validator)),
             sub_owner, 
             shared_storage_name, 
+            name, 
+            desc,
             type, 
             isChange, 
             header, 
@@ -325,7 +299,7 @@ module dev::QiaraGovernanceV3 {
             Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sub_owner),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
-            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u64"), bcs::to_bytes(&vote_value)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u256"), bcs::to_bytes(&vote_value)),
             Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&isYes)),
         ];
         Event::emit_governance_event(utf8(b"Vote"), data)
@@ -334,7 +308,7 @@ module dev::QiaraGovernanceV3 {
 
 // Internal helpers
 
-    fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String,creator_bytes: vector<u8>,type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
+    fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String, name: String, desc: String, type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
         TokensShared::assert_is_owner(user, shared);
         assert!(!capabilities::assert_wallet_capability(shared, std::string::utf8(b"QiaraGovernance"), std::string::utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
         assert_allowed_type(type);
@@ -345,8 +319,12 @@ module dev::QiaraGovernanceV3 {
 
         let proposal = make_proposal(
             proposal_id, 
+            name,
+            desc,
+            0,
             type, 
-            creator_bytes, 
+            user, 
+            shared,
             duration, 
             header, 
             constant_name, 
@@ -357,10 +335,31 @@ module dev::QiaraGovernanceV3 {
         );
         std::vector::push_back(&mut registry.proposals, proposal);
 
+        // Emit event
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&validator)),
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+            Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
+            Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&0)),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
+            Event::create_data_struct(utf8(b"isChange"), utf8(b"vector<bool>"), bcs::to_bytes(&isChange)),
+            Event::create_data_struct(utf8(b"header"), utf8(b"vector<string>"), bcs::to_bytes(&header)),
+            Event::create_data_struct(utf8(b"constant"), utf8(b"vector<string>"), bcs::to_bytes(&constant_name)),
+            Event::create_data_struct(utf8(b"new_value"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&new_value)),
+            Event::create_data_struct(utf8(b"value_type"), utf8(b"vector<string>"), bcs::to_bytes(&value_type)),
+            Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
+            Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&duration)),
+            Event::create_data_struct(utf8(b"created"), utf8(b"u64"), bcs::to_bytes(&timestamp::now_seconds())),
+        ];
+        Event::emit_governance_event(utf8(b"Create Proposal"), data);
+
         count_ref.count = count_ref.count + 1;
     }
 
-    fun vote_internal(shared_storage_name: String, proposal_id: u64, isYes: bool): u64 acquires PendingProposals {
+    fun vote_internal(shared_storage_name: String, proposal_id: u64, isYes: bool): u256 acquires PendingProposals {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
         let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
@@ -382,7 +381,26 @@ module dev::QiaraGovernanceV3 {
             };
         };
 
-        vote_value
+        (vote_value)
+    }
+
+
+
+    fun to_string_multi(names_raw: vector<vector<u8>>): vector<String> {
+        let len = vector::length(&names_raw);
+        let vect = vector::empty<String>();
+        while (len > 0) {
+            // Copy the raw bytes of the current element
+            let name_raw = *vector::borrow(&names_raw, len - 1);
+            
+            // Initialize the BCS Stream and deserialize it to a String
+            let stream = bcs_stream::new(name_raw);
+            let name = bcs_stream::deserialize_string(&mut stream);
+            
+            len = len - 1;
+            vector::push_back(&mut vect, name);
+        };
+        vect
     }
 
 
@@ -391,7 +409,7 @@ module dev::QiaraGovernanceV3 {
         let i = 0;
         while (i < len) {
             let type = vector::borrow(&types, i);
-            assert!(*type == utf8(b"Constant") || *type == utf8(b"Capability") || *type == utf8(b"Function"), ERROR_INVALID_PROPOSAL_TYPE);
+            assert!(*type == utf8(b"Variables") || *type == utf8(b"Capability") || *type == utf8(b"Function"), ERROR_INVALID_PROPOSAL_TYPE);
             i = i + 1;
         }
     }
