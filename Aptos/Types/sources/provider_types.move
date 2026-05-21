@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV6 {
+module dev::QiaraProviderTypesV7 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -71,6 +71,7 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     // Aptos Vaults
     register_vault(signer, utf8(b"Echelon"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
     register_vault(signer, utf8(b"Aave"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
+    register_vault(signer, utf8(b"Qiara"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
 
     // === 2. Allow Tokens (Fills the 'tokens' vector in ProviderData) ===
     
@@ -97,6 +98,7 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     // Aptos Tokens
     allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
     allow_tokens_for_provider(signer, utf8(b"Echelon"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
+    allow_tokens_for_provider(signer, utf8(b"Qiara"), utf8(b"Aptos"), vector[utf8(b"Qiara"), utf8(b"BQiara")]);
 }
 
     public entry fun reg_bluefin(signer: &signer) acquires ReverseProviders , Providers{

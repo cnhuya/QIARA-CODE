@@ -161,6 +161,7 @@ module dev::QiaraTokensCoreV5{
 
     public entry fun init_qiara(admin: &signer){
         init_token(admin, utf8(b"Qiara"), utf8(b"QIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/qiara.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 0, 0, 0, 1);   
+        init_token(admin, utf8(b"Burned Qiara"), utf8(b"BQIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/burned_qiara.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 0, 0, 0, 1);   
     }
     public entry fun init_deep(admin: &signer){
         init_token(admin, utf8(b"Deepbook"), utf8(b"QDEEP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/deepbook.webp"),  1_683_072_000, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 10_000_000_000, 4_368_147_611, 10_000_000_000, 1);
@@ -274,7 +275,7 @@ module dev::QiaraTokensCoreV5{
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
         if(symbol == utf8(b"QIARA")){
-            TokensQiara::init_qiara(admin);
+            TokensQiara::init_qiara(admin, asset);
         }
     }
 // === PUBLIC FUNCTIONS === //

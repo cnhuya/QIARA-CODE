@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV5 {
+module dev::QiaraTokensBurnedQiaraV5 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,7 +19,7 @@ module dev::QiaraTokensQiaraV5 {
     // SmartTable is used for gas-efficient key-value tracking on-chain
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraTokensCoreV5::{Self as TokensCore};
+    use dev::QiaraTokensCoreV5::{Self as TokensCore, Access as TokensCoreAccess};
 
     use dev::QiaraCapabilitiesV3::{Self as capabilities};
     use dev::QiaraStorageV3::{Self as storage};
@@ -48,23 +48,27 @@ module dev::QiaraTokensQiaraV5 {
         tracked_amounts: SmartTable<String, u64>
     }
 
-    struct Timers has key {
-        creation: u64,
-        last_claimed: u64,
+    struct Permissions has key {
+        token_core: TokensCoreAccess,
     }
 
 // === INIT === //
+
+    fun init_module(admin: &signer){
+        let deploy_addr = signer::address_of(admin);
+
+        if (!exists<Permissions>(@dev)) {
+            move_to(admin, Permissions { token_core: TokensCore::give_access(admin)});
+        };
+
+    }
     /// Initializes Qiara timers and creates the secure custom token storage.
     /// You can pass the metadata object of your custom token directly.
     /// (If you prefer not to pass the metadata object as an argument, you can swap 
     /// `metadata` with a getter from your core module, e.g., `TokensCore::get_metadata()`)
     public fun init_qiara(admin: &signer, metadata: Object<Metadata>) {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-        
-        // Initialize Timers
-        if (!exists<Timers>(@dev)) {
-            move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
-        };
+
 
         // Initialize BurnedQiara storage & SmartTable tracking
         if (!exists<BurnedQiara>(@dev)) {
@@ -84,15 +88,10 @@ module dev::QiaraTokensQiaraV5 {
     }
 
 // === ENTRY FUNCTIONS === //
-    public fun change_last_claim(shared:String, perm: Permission) acquires Timers {
-        assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
-        let timers = borrow_global_mut<Timers>(@dev);
-        timers.last_claimed = timestamp::now_seconds();
-    }
 
     /// Deposits tokens from the user's primary store into our custom store and 
     /// tracks the accumulated amount sent by a specific 'shared_name' (string).
-    public entry fun deposit_and_track_burned_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara {
+    public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
         let to_store = burn_qiara.balances;
@@ -115,68 +114,12 @@ module dev::QiaraTokensQiaraV5 {
         } else {
             smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
         };
+        let fa = TokensCore::mint("BQiara", "aptos", amount);
+        deposit(shared, to_store, fa, "aptos");
     }
 
 
 // === HELPER FUNCTIONS === //
-
-    #[view]
-    public fun return_burned_storage(): Object<FungibleStore> acquires BurnedQiara {
-        let burn_storage = borrow_global<BurnedQiara>(@dev);
-        burn_storage.balances
-    }
-
-    #[view]
-    public fun get_last_claimed(): u64 acquires Timers {
-        borrow_global<Timers>(@dev).last_claimed
-    }
-
-    #[view]
-    public fun get_inflation(): u64 {
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION")))
-    }
-
-    #[view]
-    public fun get_inflation_debt(): u64 {
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION_DEBT")))
-    }
-
-    #[view]
-    public fun get_minimal_fee(): u64 { // 500
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE_MINIMAL")))
-    }
-
-    #[view]
-    public fun get_burn_fee(): u64 { // 500
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE")))
-    }
-
-    #[view]
-    public fun get_burn_fee_increase(): u64 { // 100
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_INCREASE")))
-    }
-
-
-    #[view]
-    public fun get_month(): u64 acquires Timers { // 0
-        let timers = borrow_global<Timers>(ADMIN);
-        ((timestamp::now_seconds() - timers.creation ) / 2_629_743)
-    }
-
-    #[view]
-    public fun claimable(circulating_supply: u128): u128 acquires Timers {
-        let timers = borrow_global_mut<Timers>(ADMIN);
-
-        // Seconds in a year
-        let seconds_per_year = 31_536_000; // 365*24*60*60
-
-        // Time since last claim
-        let delta_seconds = timestamp::now_seconds() - timers.last_claimed;
-
-        // Calculate claimable amount proportionally
-        (circulating_supply * (get_inflation() as u128) * (delta_seconds as u128)) / ((seconds_per_year as u128) * 10_000)
-    }
-
     /// View function to query the total tracked deposited amount for a specific shared name.
     #[view]
     public fun get_tracked_burned_amount(shared_name: String): u64 acquires BurnedQiara {
