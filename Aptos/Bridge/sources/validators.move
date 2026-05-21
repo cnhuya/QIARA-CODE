@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV10 {
+module dev::QiaraValidatorsV11 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -9,7 +9,7 @@ module dev::QiaraValidatorsV10 {
     use std::string::{Self as String, String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV4::{Self as Margin};
+    use dev::QiaraMarginV5::{Self as Margin};
 
     use dev::QiaraSharedV1::{Self as Shared};
 
