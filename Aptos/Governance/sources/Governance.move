@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV5 {
+module dev::QiaraGovernanceV6 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -10,7 +10,7 @@ module dev::QiaraGovernanceV5 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV4::{Self as Margin};
+    use dev::QiaraMarginV5::{Self as Margin};
 
     use dev::QiaraStorageV3::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV3::{Self as capabilities, Access as CapabilitiesAccess};
