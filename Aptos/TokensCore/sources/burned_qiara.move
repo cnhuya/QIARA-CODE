@@ -1,4 +1,4 @@
-module dev::QiaraTokensBurnedQiaraV5 {
+module dev::QiaraTokensBurnedQiaraV6 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -13,16 +13,12 @@ module dev::QiaraTokensBurnedQiaraV5 {
     use aptos_framework::object::{Self, Object, ConstructorRef};
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
-    use dev::QiaraSharedV1::{Self as Shared};
-
-    // === NEW IMPORT === //
-    // SmartTable is used for gas-efficient key-value tracking on-chain
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraTokensCoreV5::{Self as TokensCore, Access as TokensCoreAccess};
-
-    use dev::QiaraCapabilitiesV3::{Self as capabilities};
+    use dev::QiaraSharedV1::{Self as Shared};
+    use dev::QiaraTokensCoreV6::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV3::{Self as storage};
+
     const ADMIN: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -61,20 +57,11 @@ module dev::QiaraTokensBurnedQiaraV5 {
             move_to(admin, Permissions { token_core: TokensCore::give_access(admin)});
         };
 
-    }
-    /// Initializes Qiara timers and creates the secure custom token storage.
-    /// You can pass the metadata object of your custom token directly.
-    /// (If you prefer not to pass the metadata object as an argument, you can swap 
-    /// `metadata` with a getter from your core module, e.g., `TokensCore::get_metadata()`)
-    public fun init_qiara(admin: &signer, metadata: Object<Metadata>) {
-        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-
-
         // Initialize BurnedQiara storage & SmartTable tracking
         if (!exists<BurnedQiara>(@dev)) {
             // 1. Create a non-deletable (sticky) object to host the custom store.
             let constructor_ref = &object::create_sticky_object(signer::address_of(admin));
-            
+            let metadata =  TokensCore::get_metadata(utf8(b"Qiara"));
             // 2. Create the custom FungibleStore for your token.
             // By passing the specific token's metadata, the Aptos Fungible Asset framework 
             // strictly guarantees that this store can ONLY ever accept and hold this specific token type.
@@ -86,6 +73,7 @@ module dev::QiaraTokensBurnedQiaraV5 {
             });
         };
     }
+
 
 // === ENTRY FUNCTIONS === //
 

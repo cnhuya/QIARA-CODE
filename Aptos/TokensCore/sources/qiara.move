@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV5 {
+module dev::QiaraTokensQiaraV6 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -13,13 +13,6 @@ module dev::QiaraTokensQiaraV5 {
     use aptos_framework::object::{Self, Object, ConstructorRef};
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
-    use dev::QiaraSharedV1::{Self as Shared};
-
-    // === NEW IMPORT === //
-    // SmartTable is used for gas-efficient key-value tracking on-chain
-    use aptos_std::smart_table::{Self, SmartTable};
-
-    use dev::QiaraTokensCoreV5::{Self as TokensCore};
 
     use dev::QiaraCapabilitiesV3::{Self as capabilities};
     use dev::QiaraStorageV3::{Self as storage};
@@ -42,46 +35,11 @@ module dev::QiaraTokensQiaraV5 {
     }
     
 // === STRUCTS === //
-    // Stores the secure custom fee store and tracks balance updates per shared name
-    struct BurnedQiara has key {
-        balances: Object<FungibleStore>,
-        tracked_amounts: SmartTable<String, u64>
-    }
-
     struct Timers has key {
         creation: u64,
         last_claimed: u64,
     }
 
-// === INIT === //
-    /// Initializes Qiara timers and creates the secure custom token storage.
-    /// You can pass the metadata object of your custom token directly.
-    /// (If you prefer not to pass the metadata object as an argument, you can swap 
-    /// `metadata` with a getter from your core module, e.g., `TokensCore::get_metadata()`)
-    public fun init_qiara(admin: &signer, metadata: Object<Metadata>) {
-        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-        
-        // Initialize Timers
-        if (!exists<Timers>(@dev)) {
-            move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
-        };
-
-        // Initialize BurnedQiara storage & SmartTable tracking
-        if (!exists<BurnedQiara>(@dev)) {
-            // 1. Create a non-deletable (sticky) object to host the custom store.
-            let constructor_ref = &object::create_sticky_object(signer::address_of(admin));
-            
-            // 2. Create the custom FungibleStore for your token.
-            // By passing the specific token's metadata, the Aptos Fungible Asset framework 
-            // strictly guarantees that this store can ONLY ever accept and hold this specific token type.
-            let store = fungible_asset::create_store(constructor_ref, metadata);
-            
-            move_to(admin, BurnedQiara {
-                balances: store,
-                tracked_amounts: smart_table::new<String, u64>()
-            });
-        };
-    }
 
 // === ENTRY FUNCTIONS === //
     public fun change_last_claim(shared:String, perm: Permission) acquires Timers {
@@ -90,32 +48,6 @@ module dev::QiaraTokensQiaraV5 {
         timers.last_claimed = timestamp::now_seconds();
     }
 
-    /// Deposits tokens from the user's primary store into our custom store and 
-    /// tracks the accumulated amount sent by a specific 'shared_name' (string).
-    public entry fun deposit_and_track_burned_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
-        let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
-        let to_store = burn_qiara.balances;
-        
-        // Get the metadata of your token from our custom store
-        let metadata = fungible_asset::store_metadata(to_store);
-        let sender_addr = signer::address_of(sender);
-        
-        // Find the sender's primary fungible store
-        let from_store = primary_fungible_store::primary_store(sender_addr, metadata);
-        
-        // Transfer the tokens from sender's primary store to our custom BurnedQiara store.
-        // (Using dispatchable_fungible_asset ensures any potential transfer hooks/dispatch logic runs safely)
-        dispatchable_fungible_asset::transfer(sender, from_store, to_store, amount);
-        
-        // Record the transferred amount in our tracking table per shared name
-        if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
-            let current_amount = smart_table::borrow_mut(&mut burn_qiara.tracked_amounts, shared);
-            *current_amount = *current_amount + amount;
-        } else {
-            smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
-        };
-    }
 
 
 // === HELPER FUNCTIONS === //
@@ -177,21 +109,4 @@ module dev::QiaraTokensQiaraV5 {
         (circulating_supply * (get_inflation() as u128) * (delta_seconds as u128)) / ((seconds_per_year as u128) * 10_000)
     }
 
-    /// View function to query the total tracked deposited amount for a specific shared name.
-    #[view]
-    public fun get_tracked_burned_amount(shared_name: String): u64 acquires BurnedQiara {
-        let burn_qiara = borrow_global<BurnedQiara>(@dev);
-        if (smart_table::contains(&burn_qiara.tracked_amounts, shared_name)) {
-            *smart_table::borrow(&burn_qiara.tracked_amounts, shared_name)
-        } else {
-            0
-        }
-    }
-
-    /// View function to query the metadata of the token that this store tracks.
-    #[view]
-    public fun get_tracked_token_metadata(): Object<Metadata> acquires BurnedQiara {
-        let burn_qiara = borrow_global<BurnedQiara>(@dev);
-        fungible_asset::store_metadata(burn_qiara.balances)
-    }
 }

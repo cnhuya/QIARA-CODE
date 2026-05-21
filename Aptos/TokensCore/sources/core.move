@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV5{
+module dev::QiaraTokensCoreV6{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,21 +18,21 @@ module dev::QiaraTokensCoreV5{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV5::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV5::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV5::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV5::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV6::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV6::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV6::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV6::{Self as TokensQiara,  Access as TokensQiaraAccess};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV1::{Self as Shared};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV6::{Self as Storages};
+    use dev::QiaraStoragesV7::{Self as Storages};
 
-    use dev::QiaraChainTypesV6::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV6::{Self as TokensType};
-    use dev::QiaraProviderTypesV6::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV7::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV7::{Self as TokensType};
+    use dev::QiaraProviderTypesV7::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -256,12 +256,12 @@ module dev::QiaraTokensCoreV5{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV5"),
+            string::utf8(b"QiaraTokensCoreV6"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV5"),
+            string::utf8(b"QiaraTokensCoreV6"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -274,9 +274,6 @@ module dev::QiaraTokensCoreV5{
    
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
-        if(symbol == utf8(b"QIARA")){
-            TokensQiara::init_qiara(admin, asset);
-        }
     }
 // === PUBLIC FUNCTIONS === //
     public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires Permissions, ManagedFungibleAsset{
