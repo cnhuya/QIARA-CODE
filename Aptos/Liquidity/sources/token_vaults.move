@@ -1,4 +1,4 @@
-module dev::QiaraTokenVaultsV4{
+module dev::QiaraTokenVaultsV5{
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -14,17 +14,17 @@ module dev::QiaraTokenVaultsV4{
     use aptos_framework::account;
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraTokensMetadataV5::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV5::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensRatesV5::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV5::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV7::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV7::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensRatesV7::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV7::{Self as TokensTiers};
 
-    use dev::QiaraMarginV4::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV4::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV5::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV5::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV1::{Self as Shared};
     
-    use dev::QiaraChainTypesV6::{Self as ChainTypes};
+    use dev::QiaraChainTypesV8::{Self as ChainTypes};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
