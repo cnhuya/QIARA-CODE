@@ -56,6 +56,11 @@ module dev::QiaraTokensBurnedQiaraV6 {
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { token_core: TokensCore::give_access(admin)});
         };
+    }
+
+    public entry fun init_burned_qiara(admin: &signer){
+        let deploy_addr = signer::address_of(admin);
+
 
         // Initialize BurnedQiara storage & SmartTable tracking
         if (!exists<BurnedQiara>(@dev)) {
@@ -79,7 +84,7 @@ module dev::QiaraTokensBurnedQiaraV6 {
 
     /// Deposits tokens from the user's primary store into our custom store and 
     /// tracks the accumulated amount sent by a specific 'shared_name' (string).
-    public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara {
+    public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
         let to_store = burn_qiara.balances;
@@ -102,8 +107,8 @@ module dev::QiaraTokensBurnedQiaraV6 {
         } else {
             smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
         };
-        let fa = TokensCore::mint("BQiara", "aptos", amount);
-        deposit(shared, to_store, fa, "aptos");
+        let fa = TokensCore::mint(utf8(b"Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        TokensCore::deposit(shared, to_store, fa, utf8(b"Aptos"));
     }
 
 

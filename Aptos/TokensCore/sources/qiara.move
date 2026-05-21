@@ -48,15 +48,16 @@ module dev::QiaraTokensQiaraV6 {
         timers.last_claimed = timestamp::now_seconds();
     }
 
+    public entry fun init_qiara(admin: &signer){
+        let deploy_addr = signer::address_of(admin);
 
+        if (!exists<Timers>(@dev)) {
+            move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
+        };
+    }
 
 // === HELPER FUNCTIONS === //
 
-    #[view]
-    public fun return_burned_storage(): Object<FungibleStore> acquires BurnedQiara {
-        let burn_storage = borrow_global<BurnedQiara>(@dev);
-        burn_storage.balances
-    }
 
     #[view]
     public fun get_last_claimed(): u64 acquires Timers {

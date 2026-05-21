@@ -197,7 +197,7 @@ module dev::QiaraStorageV3 {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_vault"),utf8(b"0x72F726F722436b95a691cC438183e67632eBFF76"), true, &give_permission(&give_access(admin))); // 0.001%  
         register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_token"),utf8(b"0x0D5322Af414db3bd855cC44424F8532859469957"), true, &give_permission(&give_access(admin))); // 0.001%  
-
+        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"REQUIRED_BURNED_TOKENS_FOR_REWARDS"), 1_000, false, &give_permission(&give_access(admin))); // 0,001 burned tokens per 1$
     }
 
     public entry fun more7(admin: &signer) acquires ConstantDatabase{

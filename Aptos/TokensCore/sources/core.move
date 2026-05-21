@@ -22,6 +22,7 @@ module dev::QiaraTokensCoreV6{
     use dev::QiaraTokensOmnichainV6::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensTiersV6::{Self as TokensTiers};
     use dev::QiaraTokensQiaraV6::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
@@ -274,6 +275,10 @@ module dev::QiaraTokensCoreV6{
    
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
+        if(symbol == utf8(b"QIARA")){
+            TokensQiara::init_qiara(admin);
+            //TokensBurnedQiara::init_burned_qiara(admin);
+        }
     }
 // === PUBLIC FUNCTIONS === //
     public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires Permissions, ManagedFungibleAsset{
