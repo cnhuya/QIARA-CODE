@@ -240,6 +240,11 @@ module dev::QiaraStorageV3 {
         change_constant(admin, utf8(b"QiaraFaucet"), utf8(b"USD_VALUE"), bc::to_bytes(&100_000_000u64), &give_permission(&give_access(admin))); // 5
     }
 
+    public entry fun more13(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+        register_constant<u64>(admin, utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE"), 15_000_000, true, &give_permission(&give_access(admin))); // 1x
+    }
+
     fun register_constant<T: drop>(address: &signer, header: String, constant_name: String, value: T, editable: bool, permission: &Permission) acquires ConstantCounter, ConstantDatabase, KeyRegistry {
         assert!(signer::address_of(address) == OWNER, ERROR_NOT_ADMIN);
         let db = borrow_global_mut<ConstantDatabase>(OWNER);
