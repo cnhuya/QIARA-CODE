@@ -18,9 +18,13 @@ module dev::QiaraTokensBurnedQiaraV7 {
     use dev::QiaraSharedV1::{Self as Shared};
     use dev::QiaraTokensCoreV7::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV3::{Self as storage};
-
+    
+// === CONSTANTS === //
     const ADMIN: address = @dev;
+    const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
+    const SECONDS_PER_YEAR: u64 = 31_536_000;  // 365 * 24 * 60 * 60
 
+// === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
 
@@ -61,20 +65,15 @@ module dev::QiaraTokensBurnedQiaraV7 {
     public entry fun init_burned_qiara(admin: &signer){
         let deploy_addr = signer::address_of(admin);
 
-
-        // Initialize BurnedQiara storage & SmartTable tracking
         if (!exists<BurnedQiara>(@dev)) {
-            // 1. Create a non-deletable (sticky) object to host the custom store.
             let constructor_ref = &object::create_sticky_object(signer::address_of(admin));
-            let metadata =  TokensCore::get_metadata(utf8(b"Qiara"));
-            // 2. Create the custom FungibleStore for your token.
-            // By passing the specific token's metadata, the Aptos Fungible Asset framework 
-            // strictly guarantees that this store can ONLY ever accept and hold this specific token type.
+            let metadata = TokensCore::get_metadata(utf8(b"Qiara"));
             let store = fungible_asset::create_store(constructor_ref, metadata);
             
             move_to(admin, BurnedQiara {
                 balances: store,
-                tracked_amounts: smart_table::new<String, u64>()
+                tracked_amounts: smart_table::new<String, u64>(),
+                user_claims: smart_table::new<String, UserClaimState>(),  // Initialize new table
             });
         };
     }
@@ -92,13 +91,9 @@ module dev::QiaraTokensBurnedQiaraV7 {
         // Get the metadata of your token from our custom store
         let metadata = fungible_asset::store_metadata(to_store);
         let sender_addr = signer::address_of(sender);
-        
-        // Find the sender's primary fungible store
-        let from_store = primary_fungible_store::primary_store(sender_addr, metadata);
-        
-        // Transfer the tokens from sender's primary store to our custom BurnedQiara store.
-        // (Using dispatchable_fungible_asset ensures any potential transfer hooks/dispatch logic runs safely)
-        dispatchable_fungible_asset::transfer(sender, from_store, to_store, amount);
+        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(sender),metadata);
+        let fa = TokensCore::withdraw(shared, obj, amount, utf8(b"Aptos"));
+        TokensCore::burn_fa(utf8(b"Qiara"), utf8(b"Aptos"), fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
         
         // Record the transferred amount in our tracking table per shared name
         if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
@@ -107,12 +102,80 @@ module dev::QiaraTokensBurnedQiaraV7 {
         } else {
             smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
         };
-        let fa = TokensCore::mint(utf8(b"Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
-        TokensCore::deposit(shared, to_store, fa, utf8(b"Aptos"));
+        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(sender),TokensCore::get_metadata(utf8(b"Burned Qiara")));
+        let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        TokensCore::deposit(shared, obj, new_fa, utf8(b"Aptos"));
+    }
+    /// Claims accumulated rewards based on burned amount and time since last claim
+    public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
+        
+        let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
+        let current_time = timestamp::now_seconds();
+        let sender_addr = signer::address_of(sender);
+        
+        // Get burned amount for this shared name
+        let burned_amount = if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
+            *smart_table::borrow(&burn_qiara.tracked_amounts, shared)
+        } else {
+            0
+        };
+        
+        if (burned_amount == 0) {
+            return;  // Nothing burned, nothing to reward
+        };
+        
+        // Get or initialize user claim state
+        let last_claim = if (smart_table::contains(&burn_qiara.user_claims, shared)) {
+            smart_table::borrow(&burn_qiara.user_claims, shared).last_claim_timestamp
+        } else {
+            // First claim: initialize with current time (no backdated rewards)
+            smart_table::add(&mut burn_qiara.user_claims, shared, UserClaimState { last_claim_timestamp: current_time });
+            current_time
+        };
+        
+        // Calculate time elapsed and rewards
+        let time_elapsed = current_time - last_claim;
+        let reward_rate = get_reward_rate();
+        let reward = calculate_reward(burned_amount, reward_rate, time_elapsed);
+        
+        // Update last claim timestamp
+        if (smart_table::contains(&burn_qiara.user_claims, shared)) {
+            let state = smart_table::borrow_mut(&mut burn_qiara.user_claims, shared);
+            state.last_claim_timestamp = current_time;
+        };
+        
+        // Mint and deposit rewards if any
+        if (reward > 0) {
+            let reward_metadata = TokensCore::get_metadata(utf8(b"Qiara")); // Reward token
+            let obj = primary_fungible_store::ensure_primary_store_exists(sender_addr, reward_metadata);
+            let reward_fa = TokensCore::mint(
+                utf8(b"Qiara"), 
+                utf8(b"Aptos"), 
+                reward, 
+                TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core)
+            );
+            TokensCore::deposit(shared, obj, reward_fa, utf8(b"Aptos"));
+        };
     }
 
 
 // === HELPER FUNCTIONS === //
+   
+    /// Calculates reward: (burned * rate * elapsed) / (PRECISION * SECONDS_PER_YEAR)
+    /// Uses u128 intermediates to prevent overflow
+    #[view]
+    public fun calculate_reward(burned_amount: u64, reward_rate: u64, time_elapsed: u64): u64 {
+        if (burned_amount == 0 || time_elapsed == 0 || reward_rate == 0) {
+            return 0;
+        };
+        
+        let numerator = (burned_amount as u128) * (reward_rate as u128) * (time_elapsed as u128);
+        let denominator = (PRECISION as u128) * (SECONDS_PER_YEAR as u128);
+        
+        (numerator / denominator) as u64
+    }
+    
     /// View function to query the total tracked deposited amount for a specific shared name.
     #[view]
     public fun get_tracked_burned_amount(shared_name: String): u64 acquires BurnedQiara {
@@ -129,5 +192,10 @@ module dev::QiaraTokensBurnedQiaraV7 {
     public fun get_tracked_token_metadata(): Object<Metadata> acquires BurnedQiara {
         let burn_qiara = borrow_global<BurnedQiara>(@dev);
         fungible_asset::store_metadata(burn_qiara.balances)
+    }
+
+    #[view]
+    public fun get_reward_rate(): u64 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE")))
     }
 }

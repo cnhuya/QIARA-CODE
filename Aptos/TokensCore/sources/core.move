@@ -179,7 +179,7 @@ module dev::QiaraTokensCoreV7{
         ma_drilla_lul(signer, shared, utf8(b"USDT"), utf8(b"Ethereum"));
         ma_drilla_lul(signer, shared, utf8(b"Virtuals"), utf8(b"Ethereum"));
        // tttta(10101);
-       // ma_drilla_lul(signer, shared, utf8(b"Deepbook"), utf8(b"Sui"));
+        ma_drilla_lul(signer, shared, utf8(b"Deepbook"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"Monad"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"USDT0"), utf8(b"Monad"));
@@ -201,8 +201,8 @@ module dev::QiaraTokensCoreV7{
         ma_drilla_lul(signer, shared, utf8(b"USDT"), utf8(b"Aptos"));
         ma_drilla_lul(signer, shared, utf8(b"Aptos"), utf8(b"Aptos"));
 
-       // ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Sui"));
-       // ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Aptos"));
+        ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Sui"));
+        ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Aptos"));
         //        tttta(9);
     }
 

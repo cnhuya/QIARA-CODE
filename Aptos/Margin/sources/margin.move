@@ -552,29 +552,36 @@ module dev::QiaraMarginV5{
     }
 
 #[view]
-    public fun get_user_all_balances(shared: String,): Map<String, Map<String, Map<String, Credit>>> acquires TokenHoldings {
-        let th = borrow_global<TokenHoldings>(@dev);
-        let inner = table::borrow(&th.holdings, shared);
+public fun get_user_all_balances(shared: String): Map<String, Map<String, Map<String, Credit>>> acquires TokenHoldings {
+    let th = borrow_global<TokenHoldings>(@dev);
+    
+    // ✅ FIX: Check if shared exists BEFORE borrowing
+    if (!table::contains(&th.holdings, shared)) {
+        // Return empty map instead of aborting
+        return map::new<String, Map<String, Map<String, Credit>>>();
+    };
+    
+    // Safe to borrow now that we know the key exists
+    let inner = table::borrow(&th.holdings, shared);
 
-        let tokens = TokensType::return_full_nick_names_list();
-        let len_tokens = vector::length(&tokens);
-        let map = map::new<String, Map<String, Map<String, Credit>>>();
-        let i = 0;
+    let tokens = TokensType::return_full_nick_names_list();
+    let len_tokens = vector::length(&tokens);
+    let map = map::new<String, Map<String, Map<String, Credit>>>();
+    let i = 0;
+    
+    while (i < len_tokens) {
+        let token = *vector::borrow(&tokens, i);
         
-        while (i < len_tokens) {
-            let token = *vector::borrow(&tokens, i);
-            
-            // FIX: Removed the '!' operator
-            if (table::contains(inner, token)) { 
-                let tokens_map = table::borrow(inner, token);
-                // Dereferencing '*' works only if the Map has the 'copy' ability
-                map::add(&mut map, token, *tokens_map);
-            };
-            i = i + 1;
+        // Check if token exists for this shared storage
+        if (table::contains(inner, token)) { 
+            let tokens_map = table::borrow(inner, token);
+            map::add(&mut map, token, *tokens_map);
         };
+        i = i + 1;
+    };
 
-        map
-    }
+    map
+}
 
 
     #[view]
