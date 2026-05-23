@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV7{
+module dev::QiaraTokensCoreV8{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,10 +18,10 @@ module dev::QiaraTokensCoreV7{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV7::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV7::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV7::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV7::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV8::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV8::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV8::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV8::{Self as TokensQiara,  Access as TokensQiaraAccess};
     //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
@@ -29,11 +29,11 @@ module dev::QiaraTokensCoreV7{
     use dev::QiaraSharedV1::{Self as Shared};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV8::{Self as Storages};
+    use dev::QiaraStoragesV9::{Self as Storages};
 
-    use dev::QiaraChainTypesV8::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV8::{Self as TokensType};
-    use dev::QiaraProviderTypesV8::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV9::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV9::{Self as TokensType};
+    use dev::QiaraProviderTypesV9::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -258,12 +258,12 @@ module dev::QiaraTokensCoreV7{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV7"),
+            string::utf8(b"QiaraTokensCoreV8"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV7"),
+            string::utf8(b"QiaraTokensCoreV8"),
             string::utf8(b"c_withdraw"),
         );
    

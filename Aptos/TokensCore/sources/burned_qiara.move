@@ -1,4 +1,4 @@
-module dev::QiaraTokensBurnedQiaraV7 {
+module dev::QiaraTokensBurnedQiaraV8 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -16,7 +16,7 @@ module dev::QiaraTokensBurnedQiaraV7 {
     use aptos_std::smart_table::{Self, SmartTable};
 
     use dev::QiaraSharedV1::{Self as Shared};
-    use dev::QiaraTokensCoreV7::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensCoreV8::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV3::{Self as storage};
     
 // === CONSTANTS === //
@@ -42,10 +42,16 @@ module dev::QiaraTokensBurnedQiaraV7 {
     }
     
 // === STRUCTS === //
-    // Stores the secure custom fee store and tracks balance updates per shared name
+    /// Tracks per-user claim state
+    struct UserClaimState has copy, drop, store {
+        last_claim_timestamp: u64,
+    }
+
+    /// Stores the secure custom fee store and tracks balance updates per shared name
     struct BurnedQiara has key {
         balances: Object<FungibleStore>,
-        tracked_amounts: SmartTable<String, u64>
+        tracked_amounts: SmartTable<String, u64>,
+        user_claims: SmartTable<String, UserClaimState>,  // NEW: track claim history
     }
 
     struct Permissions has key {
@@ -175,7 +181,7 @@ module dev::QiaraTokensBurnedQiaraV7 {
         
         (numerator / denominator) as u64
     }
-    
+
     /// View function to query the total tracked deposited amount for a specific shared name.
     #[view]
     public fun get_tracked_burned_amount(shared_name: String): u64 acquires BurnedQiara {
