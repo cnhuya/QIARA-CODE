@@ -25,7 +25,7 @@ module dev::QiaraGenesisV2 {
     #[view]
     public fun return_genesis_timestamp(): u256 acquires Genesis {
         let val = borrow_global<Genesis>(@dev);
-        return val.genesis;
+        return val.genesis
     }
 
     #[view]
