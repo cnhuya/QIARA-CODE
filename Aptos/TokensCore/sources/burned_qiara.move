@@ -47,6 +47,11 @@ module dev::QiaraTokensBurnedQiaraV8 {
         last_claim_timestamp: u64,
     }
 
+    struct UserBurnSummary has copy, drop {
+        burned_amount: u64,
+        last_claim_timestamp: u64,
+    }
+
     /// Stores the secure custom fee store and tracks balance updates per shared name
     struct BurnedQiara has key {
         balances: Object<FungibleStore>,
@@ -101,6 +106,7 @@ module dev::QiaraTokensBurnedQiaraV8 {
         let fa = TokensCore::withdraw(shared, obj, amount, utf8(b"Aptos"));
         TokensCore::burn_fa(utf8(b"Qiara"), utf8(b"Aptos"), fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
         
+
         // Record the transferred amount in our tracking table per shared name
         if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
             let current_amount = smart_table::borrow_mut(&mut burn_qiara.tracked_amounts, shared);
@@ -110,6 +116,7 @@ module dev::QiaraTokensBurnedQiaraV8 {
         };
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(sender),TokensCore::get_metadata(utf8(b"Burned Qiara")));
         let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+                claim_rewards(sender, shared);
         TokensCore::deposit(shared, obj, new_fa, utf8(b"Aptos"));
     }
     /// Claims accumulated rewards based on burned amount and time since last claim
@@ -180,6 +187,31 @@ module dev::QiaraTokensBurnedQiaraV8 {
         let denominator = (PRECISION as u128) * (SECONDS_PER_YEAR as u128);
         
         (numerator / denominator) as u64
+    }
+
+    /// View: Returns both burned amount and last claim timestamp for a shared name
+    #[view]
+    public fun get_user_burn_summary(shared_name: String): UserBurnSummary acquires BurnedQiara {
+        let burn_qiara = borrow_global<BurnedQiara>(@dev);
+        
+        // Get burned amount
+        let burned_amount = if (smart_table::contains(&burn_qiara.tracked_amounts, shared_name)) {
+            *smart_table::borrow(&burn_qiara.tracked_amounts, shared_name)
+        } else {
+            0
+        };
+        
+        // Get last claim timestamp
+        let last_claim = if (smart_table::contains(&burn_qiara.user_claims, shared_name)) {
+            smart_table::borrow(&burn_qiara.user_claims, shared_name).last_claim_timestamp
+        } else {
+            0  // Never claimed
+        };
+        
+        UserBurnSummary {
+            burned_amount,
+            last_claim_timestamp: last_claim,
+        }
     }
 
     /// View function to query the total tracked deposited amount for a specific shared name.
