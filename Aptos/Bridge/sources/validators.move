@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV12 {
+module dev::QiaraValidatorsV13 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -58,7 +58,6 @@ module dev::QiaraValidatorsV12 {
         map: Map<String, Validator>,
     }
     struct Validator has key, store, copy, drop {
-        secp256k1_address: vector<u8>,
         secp256k1_pub_key: vector<u8>,
         isActive: bool,
         last_active: u64,
@@ -84,26 +83,25 @@ module dev::QiaraValidatorsV12 {
 
 // === PUBLIC FUNCTIONS === //
 
-    public entry fun dev_register_validator(signer: &signer, shared: String, validator: vector<u8>, secp256k1_address: vector<u8>, secp256k1_pub_key: vector<u8>) acquires PendingValidators, ActiveValidators, Validators {
+    public entry fun dev_register_validator(signer: &signer, shared: String, validator: vector<u8>, secp256k1_pub_key: vector<u8>) acquires PendingValidators, ActiveValidators, Validators {
         Shared::assert_is_sub_owner(shared, validator);
         
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
         let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
         let validators = borrow_global_mut<Validators>(@dev);
          //       tttta(98000);
-        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, secp256k1_address, secp256k1_pub_key);
+        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, secp256k1_pub_key);
 
 
     }
 
     // Interface for users/validators
-    public entry fun register_validator(signer: &signer, shared: String, secp256k1_address: vector<u8>, secp256k1_pub_key: vector<u8>, power:u256) {
+    public entry fun register_validator(signer: &signer, shared: String, secp256k1_pub_key: vector<u8>, power:u256) {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"secp256k1_address"), utf8(b"string"), bcs::to_bytes(&secp256k1_address)),
             Event::create_data_struct(utf8(b"secp256k1_pub_key"), utf8(b"string"), bcs::to_bytes(&secp256k1_pub_key)),
             Event::create_data_struct(utf8(b"power"), utf8(b"u256"), bcs::to_bytes(&power)),
         ];
@@ -133,13 +131,13 @@ module dev::QiaraValidatorsV12 {
     } 
 
     // Interface for consensus
-    public fun c_register_validator(signer: &signer, shared: String, validator: vector<u8>, secp256k1_address: vector<u8>, secp256k1_pub_key: vector<u8>, perm: Permission) acquires PendingValidators, ActiveValidators, Validators {
+    public fun c_register_validator(signer: &signer, shared: String, validator: vector<u8>, secp256k1_pub_key: vector<u8>, perm: Permission) acquires PendingValidators, ActiveValidators, Validators {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));    
         let active_validators = borrow_global_mut<ActiveValidators>(@dev);
         let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
         let validators = borrow_global_mut<Validators>(@dev);
 
-        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, secp256k1_address, secp256k1_pub_key);
+        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, secp256k1_pub_key);
 
     }
     public fun c_update_root(signer: &signer, shared: String, new_root: String, perm: Permission) acquires ActiveValidators {
@@ -153,18 +151,18 @@ module dev::QiaraValidatorsV12 {
     }
 
 // === INTERNAL FUNCTIONS === //
-    fun reg_validator(pending_validators: &mut vector<PendingValidator>, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, validator: String, secp256k1_address: vector<u8>, secp256k1_pub_key: vector<u8>) {
+    fun reg_validator(pending_validators: &mut vector<PendingValidator>, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, validator: String,secp256k1_pub_key: vector<u8>) {
         if(map::contains_key(validators, &validator)) {
             abort ERROR_VALIDATOR_ALREADY_REGISTERED
         };
 
-        let validator_struct = Validator { secp256k1_address: secp256k1_address, secp256k1_pub_key: secp256k1_pub_key, isActive: true, last_active: 0, sub_validators: map::new<String, u256>() };
+        let validator_struct = Validator { secp256k1_pub_key: secp256k1_pub_key, isActive: true, last_active: 0, sub_validators: map::new<String, u256>() };
         map::upsert(validators, validator, validator_struct);
         take_validator_snapshot(validator, validators, pending_validators, active_validators);
     }
 
 
-    fun take_validator_snapshot(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<PendingValidator>, active_validators: &mut ActiveValidators) {
+fun take_validator_snapshot(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<PendingValidator>, active_validators: &mut ActiveValidators) {
         let validator_struct = map::borrow_mut(validators, &validator);
         let power = Margin::get_user_total_staked_usd(validator);
         
@@ -229,7 +227,49 @@ module dev::QiaraValidatorsV12 {
                 vector::push_back(&mut vect, xv.shared);
                 len=len-1;
             };
+
+            // --- EVENT EMISSION LOGIC START ---
+            // Calculate added and deleted validators by comparing the lists
+            let added_validators = vector::empty<String>();
+            let deleted_validators = vector::empty<String>();
+
+            let old_len = vector::length(&active_validators.list);
+            let new_len = vector::length(&vect);
+
+            // Added: Present in new active list (vect) but not in old active list
+            let x = 0;
+            while (x < new_len) {
+                let val = vector::borrow(&vect, x);
+                if (!vector::contains(&active_validators.list, val)) {
+                    vector::push_back(&mut added_validators, *val);
+                };
+                x = x + 1;
+            };
+
+            // Deleted: Present in old active list but not in new active list
+            let y = 0;
+            while (y < old_len) {
+                let val = vector::borrow(&active_validators.list, y);
+                if (!vector::contains(&vect, val)) {
+                    vector::push_back(&mut deleted_validators, *val);
+                };
+                y = y + 1;
+            };
+
+            // Format the event data vector
+            let data = vector[
+                Event::create_data_struct(utf8(b"new_validators"), utf8(b"vector<String>"), bcs::to_bytes(&added_validators)),
+                Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"vector<String>"), bcs::to_bytes(&deleted_validators)),
+            ];
+
+            // Emit the unified "Validators Rotated" event
+            Event::emit_validators_event(utf8(b"Validators Rotated"), data);
+            // --- EVENT EMISSION LOGIC END ---
+
             active_validators.list = vect;
+            
+            // Explicitly update the snapshot epoch so rotation only fires once per epoch transition
+            active_validators.epoch = (Genesis::return_epoch() as u64);
         };
     }
 
@@ -296,13 +336,20 @@ module dev::QiaraValidatorsV12 {
     }
 
     #[view]
-    public fun return_validator_raw(val: String): (vector<u8>, vector<u8>, bool, Map<String, u256>) acquires Validators {
+    public fun return_validator_raw(val: String): (vector<u8>, bool, Map<String, u256>) acquires Validators {
         let vars = borrow_global<Validators>(@dev);
         if(!map::contains_key(&vars.map, &val)) {
             abort ERROR_VALIDATOR_DOESNT_EXISTS
         };
         let validator  = map::borrow(&vars.map, &val);
-        return (validator.secp256k1_address, validator.secp256k1_pub_key, validator.isActive, validator.sub_validators)
+        return (validator.secp256k1_pub_key, validator.isActive, validator.sub_validators)
     }
 
 }
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"new_validators"), utf8(b"vector<string>"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"vector<string>"), bcs::to_bytes(&signer::address_of(signer))),
+
+        ];
+        Event::emit_validators_event(utf8(b"Validators Rotated"), data);

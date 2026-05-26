@@ -128,7 +128,7 @@ module dev::QiaraGovernanceV6 {
                 let min_votes = storage::expect_u64(
                     storage::viewConstant(utf8(b"QiaraGovernance"), utf8(b"MINIMUM_TOTAL_VOTES_PERCENTAGE_SUPPLY"))
                 );
-                if(yes >= (min_votes as u256)){
+                if(yes >= 1){
                     // 3. Calculate quorum %
                     let total_votes = yes + no;
                     let  result: u8 = 2; // default fail

@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV12{
+module dev::QiaraPayloadV13{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -117,10 +117,9 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (a, x, k, b, c, d, e, f)
     }
 
-    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>, vector<u8>)  acquires Permissions {
+    public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>)  acquires Permissions {
         let (_, validator) = find_payload_value(utf8(b"validator"), type_names, payload);
         let (_, shared) = find_payload_value(utf8(b"shared"), type_names, payload);
-        let (_, secp256k1_address) = find_payload_value(utf8(b"secp256k1_address"), type_names, payload);
         let (_, secp256k1_pub_key) = find_payload_value(utf8(b"secp256k1_pub_key"), type_names, payload);
         
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
@@ -130,7 +129,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
-        return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_address), from_bcs::to_bytes(secp256k1_pub_key))
+        return (from_bcs::to_bytes(validator), from_bcs::to_string(shared), from_bcs::to_bytes(secp256k1_pub_key))
     }
 
     public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>)  acquires Permissions {

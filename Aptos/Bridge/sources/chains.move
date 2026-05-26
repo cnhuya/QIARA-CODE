@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV12{
+module dev::QiaraBridgeV13{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,8 +29,8 @@ module dev::QiaraBridgeV12{
 
     use dev::QiaraMarginV6::{Self as Margin};
 
-    use dev::QiaraPayloadV12::{Self as Payload};
-    use dev::QiaraValidatorsV12::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV13::{Self as Payload};
+    use dev::QiaraValidatorsV13::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -121,7 +121,6 @@ module dev::QiaraBridgeV12{
     struct ProofVote has key, copy, store, drop{
         weight: u128,
         signature: vector<u8>,
-        secp256k1_address: vector<u8>,
         secp256k1_pub_key: vector<u8>,
     }
 
@@ -130,7 +129,6 @@ module dev::QiaraBridgeV12{
         s_r8x: String,
         s_r8y: String,
         s: String,
-        pub_key_x: String,
         pub_key_y: String,
     }
     struct ProofVotes has key, copy, store, drop {
@@ -204,7 +202,7 @@ module dev::QiaraBridgeV12{
        //                    tttta(10); 
         Validators::take_snapshot(signer, validator);
          //          tttta(10); 
-        let (secp256k1_address, secp256k1_pub_key, isActive,  _) = Validators::return_validator_raw(validator);
+        let (secp256k1_pub_key, isActive,  _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
@@ -231,7 +229,6 @@ module dev::QiaraBridgeV12{
                 proof,
                 inputs,
                 signature,
-                secp256k1_address,
                 secp256k1_pub_key,
                 zk_type
             );
@@ -262,11 +259,11 @@ module dev::QiaraBridgeV12{
             let (did_validate, _) = check_validator_validation_proof(validator, votes.votes);
 
             if (!did_validate) {
-                let (secp256k1_address, secp256k1_pub_key, _, _) = Validators::return_validator_raw(validator);
+                let (secp256k1_pub_key, _, _) = Validators::return_validator_raw(validator);
                 let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
                 let vote_weight = (vote_weight_u256 as u128);
 
-                let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_address: secp256k1_address, secp256k1_pub_key: secp256k1_pub_key };
+                let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_pub_key: secp256k1_pub_key };
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
                 
@@ -353,7 +350,7 @@ module dev::QiaraBridgeV12{
         let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
-        let (pub_key_x, pub_key_y, _, _) = Validators::return_validator_raw(validator);
+        let (pub_key_y, _, _) = Validators::return_validator_raw(validator);
         let pending = borrow_global_mut<Pending>(STORAGE);
         let validated = borrow_global_mut<Validated>(STORAGE);
         Validators::take_snapshot(signer, validator);
@@ -389,7 +386,7 @@ module dev::QiaraBridgeV12{
                 identifier,
                 type_names,
                 payload,
-                build_zkVote_from_payload(utf8(b"pub_key_x"), utf8(b"pub_key_y"), type_names, payload),
+                build_zkVote_from_payload(utf8(b"pub_key_y"), type_names, payload),
                 event_type // Use the string we decoded earlier
             );
         } else if (consensus_type == utf8(b"none")) {
@@ -399,7 +396,7 @@ module dev::QiaraBridgeV12{
         };
     }
 
-    fun build_zkVote_from_payload(pubkwey_x: String, pubkey_y: String, type_names: vector<String>, payload: vector<vector<u8>>): ZkVote {
+    fun build_zkVote_from_payload(pubkey_y: String, type_names: vector<String>, payload: vector<vector<u8>>): ZkVote {
         let (_, s_r8x) = Payload::find_payload_value(utf8(b"s_r8x"), type_names, payload);
         let (_, s_r8y) = Payload::find_payload_value(utf8(b"s_r8y"), type_names, payload);
         let (_, s) = Payload::find_payload_value(utf8(b"s"), type_names, payload);
@@ -415,7 +412,6 @@ module dev::QiaraBridgeV12{
             s_r8x: string_s_r8x, //s_r8x,
             s_r8y:   string_s_r8y, //s_r8y,
             s:    string_s, //s_r8y,
-            pub_key_x: pubkwey_x,
             pub_key_y: pubkey_y,
             //index:  from_bcs::to_u16(s), //s_r8y,
         }
@@ -443,7 +439,7 @@ module dev::QiaraBridgeV12{
         return (false, 0)
     }
 
-    fun handle_proof_event(signer: &signer, validator: String, type: String, chain: String, pending_table: &mut table::Table<vector<u8>, ProofVotes>, validated_table: &mut table::Table<vector<u8>, ProofVotes>, identifier: vector<u8>,  type_names: vector<String>, payload: vector<vector<u8>>,proof: vector<u256>, inputs: vector<u256>, signature: vector<u8>, secp256k1_address: vector<u8>, secp256k1_pub_key: vector<u8>, event_type: String) {
+    fun handle_proof_event(signer: &signer, validator: String, type: String, chain: String, pending_table: &mut table::Table<vector<u8>, ProofVotes>, validated_table: &mut table::Table<vector<u8>, ProofVotes>, identifier: vector<u8>,  type_names: vector<String>, payload: vector<vector<u8>>,proof: vector<u256>, inputs: vector<u256>, signature: vector<u8>, secp256k1_pub_key: vector<u8>, event_type: String) {
         // 1. Load configuration constants
 
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
@@ -462,7 +458,7 @@ module dev::QiaraBridgeV12{
         let vote_weight = (vote_weight_u256 as u128);
         // 3. Update or Create the Pending state
 
-                let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_address: secp256k1_address, secp256k1_pub_key: secp256k1_pub_key };
+                let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_pub_key: secp256k1_pub_key };
 
         let vect = vector[validator];
         let vote_map = map::new<String, ProofVote>();
@@ -715,8 +711,8 @@ module dev::QiaraBridgeV12{
             
             // 5. Execute Bridging Logic
             if (event_type == utf8(b"Register Validator")) {
-                let (validator, shared, secp256k1_address, secp256k1_pub_key) = Payload::prepare_register_validator(type_names, payload);
-                Validators::c_register_validator(signer, shared, validator, secp256k1_address, secp256k1_pub_key, Validators::give_permission(&borrow_global<Permissions>(@dev).validators));
+                let (validator, shared, secp256k1_pub_key) = Payload::prepare_register_validator(type_names, payload);
+                Validators::c_register_validator(signer, shared, validator, secp256k1_pub_key, Validators::give_permission(&borrow_global<Permissions>(@dev).validators));
             } else if (event_type == utf8(b"Request Bridge")) {
                   //             tttta(100);
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(type_names, payload);
