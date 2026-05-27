@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraGovernanceV6"
+    name = "QiaraGovernanceV7"
     version = "1.0.0"
     authors = []
 
@@ -41,5 +41,10 @@
     git = 'https://github.com/cnhuya/QIARA-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'
+
+    [dependencies.QiaraUtilV2]
+    git = 'https://github.com/cnhuya/AEXIS-CODE.git'
+    rev = 'main'
+    subdir = 'Aptos/Util'
 
     [dev-dependencies]

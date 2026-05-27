@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV6 {
+module dev::QiaraGovernanceV7 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -16,6 +16,8 @@ module dev::QiaraGovernanceV6 {
     use dev::QiaraCapabilitiesV3::{Self as capabilities, Access as CapabilitiesAccess};
     use dev::QiaraFunctionsV3::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV1::{Self as TokensShared};
+
+    use dev::QiaraGenesisV2::{Self as Genesis};
     const OWNER: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -61,6 +63,23 @@ module dev::QiaraGovernanceV6 {
         proposals: vector<Proposal>
     }
 
+    struct PendingVariableResults has store {
+        id: u64,
+        time: u64,
+        epoch: u256,
+        types: vector<String>, // Added to track types for delayed execution
+        headers: vector<String>,
+        constants: vector<String>,
+        new_value: vector<vector<u8>>,
+        isChange: vector<bool>,
+        editable: vector<bool>
+    }
+
+    struct Pending has key {
+        last_checked_epoch: u256,
+        vector: vector<PendingVariableResults>
+    }
+
     fun make_proposal(id: u64, name: String, desc: String, status: u8, type: vector<String>, proposer: vector<u8>, shared: String, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
         Proposal {id, name, desc, status, type, proposer, shared, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
     }
@@ -71,6 +90,10 @@ module dev::QiaraGovernanceV6 {
 
         if (!exists<PendingProposals>(OWNER)) {
             move_to(admin, PendingProposals { proposals: vector::empty<Proposal>() });
+        };
+
+        if (!exists<Pending>(OWNER)) {
+            move_to(admin, Pending {  last_checked_epoch: 0, vector: vector::empty<PendingVariableResults>() });
         };
 
         if (!exists<ProposalCount>(OWNER)) {
@@ -87,12 +110,10 @@ module dev::QiaraGovernanceV6 {
     }
 
     // finalize_proposal: remove proposal, destructure into locals, then operate on locals
-    public entry fun finalize_proposal(user: &signer, proposal_id: u64) acquires PendingProposals, Access {
-        let addr = signer::address_of(user);
-
+    public entry fun finalize_proposal(user: &signer, proposal_id: u64) acquires PendingProposals, Pending, Access {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
-
+        process_pending_constants(user); // Ensure pending constants are processed before finalizing any proposal
         while (len > 0) {
             let idx = len - 1;
             let prop_ref = vector::borrow(&registry.proposals, idx);
@@ -124,113 +145,112 @@ module dev::QiaraGovernanceV6 {
                 // 1. Ensure proposal duration expired
                 assert!(timestamp::now_seconds() > duration, ERROR_PROPOSAL_NOT_FINISHED_YET);
 
-                // 2. Ensure minimum participation threshold
-                let min_votes = storage::expect_u64(
-                    storage::viewConstant(utf8(b"QiaraGovernance"), utf8(b"MINIMUM_TOTAL_VOTES_PERCENTAGE_SUPPLY"))
-                );
-                if(yes >= 1){
-                    // 3. Calculate quorum %
-                    let total_votes = yes + no;
-                    let  result: u8 = 2; // default fail
-                    if (total_votes != 0) {
-                        let quorum_required = storage::expect_u64(
-                            storage::viewConstant(utf8(b"QiaraGovernance"), utf8(b"MINIMUM_QUARUM_FOR_PROPOSAL_TO_PASS"))
-                        );
+                // 2. Set default failed values
+                result = 2; 
+                status = 2;
 
-                        if (((yes * 100) / total_votes) >= (quorum_required as u256)) {
-                            result = 1;
-                            status = 1;
-                            let x = vector::length(&type);
-                            while(x > 0){
-                                let _type = vector::borrow(&type, x-1);
-                                let _isChange = *vector::borrow(&isChange, x-1);
-                                x=x-1;
+                let total_votes = yes + no;
+                if (total_votes > 0) {
+                    let quorum_required = storage::expect_u64(
+                        storage::viewConstant(utf8(b"QiaraGovernance"), utf8(b"MINIMUM_QUARUM_FOR_PROPOSAL_TO_PASS"))
+                    );
 
-                                if (*_type == utf8(b"Constant")) {
-                                    if (_isChange) {
-                                        storage::change_constant_multi(
-                                            user,
-                                            header,
-                                            constant,
-                                            new_value,
-                                            &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
-                                        );
-                                    } else {
-                                        storage::handle_registration_multi(
-                                            user,
-                                            header,
-                                            constant,
-                                            new_value,
-                                            value_type,
-                                            editable,
-                                            &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
-                                        );
-                                    };
-                                } else if (*_type == utf8(b"Capability")) {
-                                    if (_isChange) {
-                                        capabilities::remove_capability_multi(
-                                            to_string_multi(new_value),
-                                            header,
-                                            constant,
-                                            &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
-                                        );
-                                    } else {
-                                        capabilities::create_capability_multi(
-                                            to_string_multi(new_value),
-                                            header,
-                                            constant,
-                                            editable,
-                                            &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
-                                        );
-                                    };
-                                } else if (*_type == utf8(b"Function")) {
-                                    if (_isChange) {
-                                        functions::consume_function_multi (
-                                            user,
-                                            header,
-                                            constant,
-                                            &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
-                                        );
-                                    } else {
-                                        functions::register_function_multi(
-                                            user,
-                                            header,
-                                            constant,
-                                            &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
-                                        );
-                                    };
+                    // 3. Calculate quorum percentage
+                    if (((yes * 100) / total_votes) >= (quorum_required as u256)) {
+                        result = 1; // Passed
+                        status = 1; // Passed
+
+                        // Store values to the Pending queue (including copy of `type`)
+                        let pending = borrow_global_mut<Pending>(OWNER);
+                        vector::push_back(&mut pending.vector, PendingVariableResults {
+                            id,
+                            time: timestamp::now_seconds(),
+                            epoch: Genesis::return_epoch(),
+                            types: value_type, // Store the types vector
+                            headers: header,
+                            constants: constant,
+                            new_value: new_value,
+                            isChange: isChange,
+                            editable: editable
+                        });
+
+                        // Execute immediately ONLY for Capability and Function
+                        let x = vector::length(&type);
+                        while (x > 0) {
+                            let _type = vector::borrow(&type, x-1);
+                            let _isChange = *vector::borrow(&isChange, x-1);
+                            x = x - 1;
+
+                            if (*_type == utf8(b"Capability")) {
+                                if (_isChange) {
+                                    capabilities::remove_capability_multi(
+                                        to_string_multi(new_value),
+                                        header,
+                                        constant,
+                                        &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
+                                    );
+                                } else {
+                                    capabilities::create_capability_multi(
+                                        to_string_multi(new_value),
+                                        header,
+                                        constant,
+                                        editable,
+                                        &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
+                                    );
+                                };
+                            } else if (*_type == utf8(b"Function")) {
+                                if (_isChange) {
+                                    functions::consume_function_multi (
+                                        user,
+                                        header,
+                                        constant,
+                                        &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
+                                    );
+                                } else {
+                                    functions::register_function_multi(
+                                        user,
+                                        header,
+                                        constant,
+                                        &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
+                                    );
                                 };
                             };
+                            // NOTE: "Constant" types are skipped here and handled later by process_pending_constants
                         };
                     };
                 };
+                let epoch = Genesis::return_epoch();
+                // 4. Emit Governance Event
+                let data = vector[
+                    Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
+                    Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+                    Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
+                    Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&status)),
+                    Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
+                    Event::create_data_struct(utf8(b"proposer"), utf8(b"address"), bcs::to_bytes(&proposer)),
+                    Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&duration)),
+                    Event::create_data_struct(utf8(b"header"), utf8(b"vector<string>"), bcs::to_bytes(&header)),
+                    Event::create_data_struct(utf8(b"constant"), utf8(b"vector<string>"), bcs::to_bytes(&constant)),
+                    Event::create_data_struct(utf8(b"new_value"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&new_value)),
+                    Event::create_data_struct(utf8(b"value_type"), utf8(b"vector<string>"), bcs::to_bytes(&value_type)),
+                    Event::create_data_struct(utf8(b"isChange"), utf8(b"vector<bool>"), bcs::to_bytes(&isChange)),
+                    Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
+                    Event::create_data_struct(utf8(b"yes"), utf8(b"u256"), bcs::to_bytes(&yes)),
+                    Event::create_data_struct(utf8(b"no"), utf8(b"u256"), bcs::to_bytes(&no)),
+                    Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&result)),
+                    Event::create_data_struct(utf8(b"epoch"), utf8(b"u256"), bcs::to_bytes(&epoch)),
+                ];
+                Event::emit_governance_event(utf8(b"Proposal Result"), data);
 
-            let data = vector[
-                Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
-                Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
-                Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
-                Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&status)),
-                Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
-                Event::create_data_struct(utf8(b"proposer"), utf8(b"address"), bcs::to_bytes(&proposer)),
-                Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&duration)),
-                Event::create_data_struct(utf8(b"header"), utf8(b"vector<string>"), bcs::to_bytes(&header)),
-                Event::create_data_struct(utf8(b"constant"), utf8(b"vector<string>"), bcs::to_bytes(&constant)),
-                Event::create_data_struct(utf8(b"new_value"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&new_value)),
-                Event::create_data_struct(utf8(b"value_type"), utf8(b"vector<string>"), bcs::to_bytes(&value_type)),
-                Event::create_data_struct(utf8(b"isChange"), utf8(b"vector<bool>"), bcs::to_bytes(&isChange)),
-                Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
-                Event::create_data_struct(utf8(b"yes"), utf8(b"u256"), bcs::to_bytes(&yes)),
-                Event::create_data_struct(utf8(b"no"), utf8(b"u256"), bcs::to_bytes(&no)),
-                Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&result)),
-            ];
-
-            Event::emit_governance_event(utf8(b"Proposal Result"), data);
-            len = idx;
+                len = idx;
             };
         }
     }
 
-    public entry fun propose(sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
+
+// Native Interface
+    public entry fun propose(user: &signer, sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Access {
+        process_pending_constants(user);
         propose_internal(
             b"0x0",
             sub_owner, 
@@ -267,9 +287,8 @@ module dev::QiaraGovernanceV6 {
     }
 
 // Modular Interface
-
-    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount {
-
+    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Access {
+        process_pending_constants(validator); // Ensure pending constants are processed before finalizing any proposal
         propose_internal(
             bcs::to_bytes(&signer::address_of(validator)),
             sub_owner, 
@@ -307,6 +326,43 @@ module dev::QiaraGovernanceV6 {
 
 
 // Internal helpers
+
+    public entry fun test_gov(){
+
+        let type = vector[utf8(b"Constant"), utf8(b"Constant"), utf8(b"Constant")];
+        let headers = vector[utf8(b"QiaraStorage"), utf8(b"QiaraCapabilities"), utf8(b"QiaraFunctions")];
+        let constants = vector[utf8(b"QiaraStorage"), utf8(b"QiaraCapabilities"), utf8(b"QiaraFunctions")];
+        let new_value = vector[(bcs::to_bytes(&utf8(b"TestConstantValue1"))), (bcs::to_bytes(&utf8(b"TestConstantValue2"))), (bcs::to_bytes(&utf8(b"TestConstantValue3")))];
+        let value_type = vector[utf8(b"string"), utf8(b"string"), utf8(b"string")];
+        let isChange = vector[false, false, false];
+        let editable = vector[true, true, true];
+        let yes: u256 = 100;
+        let no: u256 = 50;
+        let result: u8 = 1;
+        let epoch = Genesis::return_epoch();
+
+
+                        let data = vector[
+                    Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&0)),
+                    Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&utf8(b"Test Proposal"))),
+                    Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&utf8(b"This is a test proposal description."))),
+                    Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&0)),
+                    Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
+                    Event::create_data_struct(utf8(b"proposer"), utf8(b"address"), bcs::to_bytes(&@dev)),
+                    Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&100000)),
+                    Event::create_data_struct(utf8(b"header"), utf8(b"vector<string>"), bcs::to_bytes(&headers)),
+                    Event::create_data_struct(utf8(b"constant"), utf8(b"vector<string>"), bcs::to_bytes(&constants)),
+                    Event::create_data_struct(utf8(b"new_value"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&new_value)),
+                    Event::create_data_struct(utf8(b"value_type"), utf8(b"vector<string>"), bcs::to_bytes(&value_type)),
+                    Event::create_data_struct(utf8(b"isChange"), utf8(b"vector<bool>"), bcs::to_bytes(&isChange)),
+                    Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
+                    Event::create_data_struct(utf8(b"yes"), utf8(b"u256"), bcs::to_bytes(&yes)),
+                    Event::create_data_struct(utf8(b"no"), utf8(b"u256"), bcs::to_bytes(&no)),
+                    Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&result)),
+                    Event::create_data_struct(utf8(b"epoch"), utf8(b"u256"), bcs::to_bytes(&epoch)),
+                ];
+                Event::emit_governance_event(utf8(b"Proposal Result"), data);
+    }
 
     fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String, name: String, desc: String, type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
         TokensShared::assert_is_owner(user, shared);
@@ -385,7 +441,67 @@ module dev::QiaraGovernanceV6 {
         (vote_value)
     }
 
+    fun process_pending_constants(user: &signer) acquires Pending, Access {
+        let pending = borrow_global_mut<Pending>(OWNER);
+        let current_epoch = Genesis::return_epoch();
+        if((pending.last_checked_epoch as u256) >= current_epoch) {
+            return;
+        }; 
+        let len = vector::length(&pending.vector);
+        pending.last_checked_epoch = current_epoch;
+        let i = 0;
+        while (i < len) {
+            let prop_ref = vector::borrow(&pending.vector, i);
+            
+            // Check if the current epoch is at least +1 compared to when it was stored
+            if (current_epoch >= prop_ref.epoch + 1) {
+                // Remove the pending item to process it atomically
+                let prop = vector::remove(&mut pending.vector, i);
+                let PendingVariableResults {
+                    id: _,
+                    time: _,
+                    epoch: _,
+                    types,
+                    headers,
+                    constants,
+                    new_value,
+                    isChange,
+                    editable,
+                } = prop;
 
+                let x = vector::length(&types);
+                while (x > 0) {
+                    let _isChange = *vector::borrow(&isChange, x - 1);
+                    x = x - 1;
+
+                        if (_isChange) {
+                            storage::change_constant_multi(
+                                user,
+                                headers,
+                                constants,
+                                new_value,
+                                &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
+                            );
+                        } else {
+                            storage::handle_registration_multi(
+                                user,
+                                headers,
+                                constants,
+                                new_value,
+                                types,
+                                editable,
+                                &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
+                            );
+                    };
+                };
+                
+                // Adjust length; do not increment `i` since an item was removed
+                len = len - 1;
+            } else {
+                i = i + 1;
+            }
+        }
+    }
 
     fun to_string_multi(names_raw: vector<vector<u8>>): vector<String> {
         let len = vector::length(&names_raw);

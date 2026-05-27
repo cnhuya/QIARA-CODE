@@ -7,7 +7,7 @@ module dev::QiaraStorageV3 {
     use aptos_std::type_info;
     use aptos_std::from_bcs;
     use std::bcs::{Self as bc};
-
+    use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     struct Access has key, store, drop { }
     struct Permission has key, drop { }
 
@@ -245,6 +245,8 @@ module dev::QiaraStorageV3 {
         register_constant<u64>(admin, utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE"), 15_000_000, true, &give_permission(&give_access(admin))); // 1x
     }
 
+
+
     fun register_constant<T: drop>(address: &signer, header: String, constant_name: String, value: T, editable: bool, permission: &Permission) acquires ConstantCounter, ConstantDatabase, KeyRegistry {
         assert!(signer::address_of(address) == OWNER, ERROR_NOT_ADMIN);
         let db = borrow_global_mut<ConstantDatabase>(OWNER);
@@ -440,6 +442,28 @@ module dev::QiaraStorageV3 {
         // If not found
         abort ERROR_CONSTANT_DOES_NOT_EXIST
     }
+
+    #[view]
+        public fun viewAllConstants(): Map<String, vector<Constant>> acquires ConstantDatabase, KeyRegistry {
+            let db = borrow_global<ConstantDatabase>(OWNER);
+            let key_registry = borrow_global<KeyRegistry>(OWNER);
+
+            let all_constants = map::new<String, vector<Constant>>();
+            let headers = key_registry.keys;
+            let len = vector::length(&headers);
+            let i = 0;
+            while (i < len) {
+                let header = vector::borrow(&headers, i);
+        
+                if (table::contains(&db.database, *header)) {
+                    let constants_ref = table::borrow(&db.database, *header);
+                    map::add(&mut all_constants, *header, *constants_ref);
+                };
+                i = i + 1;
+            };
+            all_constants
+        }
+
      #[view]
     public fun expect_u8(data: vector<u8>): u8 {
         from_bcs::to_u8(data)

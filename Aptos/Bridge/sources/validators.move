@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV13 {
+module dev::QiaraValidatorsV14 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -265,6 +265,16 @@ fun take_validator_snapshot(validator: String, validators: &mut Map<String, Vali
         };
         *map::borrow(validators, &validator)
     }
+    public entry fun test_validators_change(new_validator: vector<u8>, removed_validator: vector<u8>, epoch:u64) {
+                            let data = vector[
+                        Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+                        Event::create_data_struct(utf8(b"epoch"), utf8(b"u64"), bcs::to_bytes(&epoch)),
+                        Event::create_data_struct(utf8(b"new_validator"), utf8(b"vector<u8>"), bcs::to_bytes(&new_validator)),
+                        Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"vector<u8>"), bcs::to_bytes(&removed_validator)),
+                    ];
+                    Event::emit_validators_event(utf8(b"Validator Change"), data);
+    }
+
 // === VIEW FUNCTIONS === //
     #[view]
     public fun return_all_validators(): Map<String, Validator> acquires Validators {

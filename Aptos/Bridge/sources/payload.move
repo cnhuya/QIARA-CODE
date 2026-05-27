@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV13{
+module dev::QiaraPayloadV14{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -12,6 +12,7 @@ module dev::QiaraPayloadV13{
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraOmniNonceV2::{Self as OmniNonce, Access as OmniNonceAccess};
     //use dev::QiaraIdentifierV1::{Self as identifier};
 
     const ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES: u64 = 0;
@@ -29,7 +30,7 @@ module dev::QiaraPayloadV13{
         assert!(signer::address_of(admin) == @dev, 1);
 
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {nonce: Nonce::give_access(admin)});
+            move_to(admin, Permissions {nonce: Nonce::give_access(admin), omni_nonce: OmniNonce::give_access(admin)});
         };
 
     }
@@ -37,6 +38,7 @@ module dev::QiaraPayloadV13{
 
     struct Permissions has key, store, drop {
         nonce: NonceAccess,
+        omni_nonce: OmniNonceAccess,
     }
 
 
@@ -63,7 +65,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     }
 }
 
-    public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
+    public fun create_omnichain_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
         let (_, addedValidator) = find_payload_value(utf8(b"added_validator"), type_names, payload);
         let (_, removedValidator) = find_payload_value(utf8(b"removed_validator"), type_names, payload);
         let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
@@ -73,7 +75,17 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
     }
 
-    public fun create_omnichain_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
+    public fun create_omnichain_identifier_variables(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
+        let (_, addedValidator) = find_payload_value(utf8(b"header"), type_names, payload);
+        let (_, removedValidator) = find_payload_value(utf8(b"constant"), type_names, payload);
+        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
+       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        Event::create_omnichain_identifier2(addedValidator, removedValidator, nonce)
+
+    }
+
+    public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
         let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
@@ -92,6 +104,12 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (value, *vector::borrow(&from, index))
     }
 
+   public fun prepare_omnichain_event(type_names: vector<String>, payload: vector<vector<u8>>) acquires Permissions  {
+        let (_, type_raw) = find_payload_value(utf8(b"type"), type_names, payload);
+        let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
+        OmniNonce::increment_nonce(type, OmniNonce::give_permission(&borrow_global<Permissions>(@dev).omni_nonce));
+    }
+       
     public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, String)  acquires Permissions  {
         
         // 1. Extract raw byte chunks
