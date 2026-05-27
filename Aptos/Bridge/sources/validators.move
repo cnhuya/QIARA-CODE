@@ -188,6 +188,18 @@ fun take_validator_snapshot(validator: String, validators: &mut Map<String, Vali
                     power: power, 
                     snapshot: active_validators.epoch 
                 });
+
+                // --- IMMEDIATE EVENT EMISSION (ADDITION) ---
+                // No need for vectors; emit the string values directly [1]
+                let empty_str = utf8(b"");
+                let data = vector[
+                    Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+                    Event::create_data_struct(utf8(b"epoch"), utf8(b"u64"), bcs::to_bytes(&active_validators.epoch)),
+                    Event::create_data_struct(utf8(b"new_validator"), utf8(b"String"), bcs::to_bytes(&validator)),
+                    Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"String"), bcs::to_bytes(&empty_str)),
+                ];
+                Event::emit_validators_event(utf8(b"Validator Change"), data);
+
             } else {
                 // Case B: List is full (16), find the weakest validator
                 let min_power = power;
@@ -207,68 +219,41 @@ fun take_validator_snapshot(validator: String, validators: &mut Map<String, Vali
 
                 // If we found someone weaker than the new validator, replace them
                 if (found_weakest) {
+                    // Capture the evicted validator's identifier before removal [1]
+                    let weakest_pending = vector::borrow(pending_validators, weakest_index);
+                    let removed_validator = weakest_pending.shared;
+
                     vector::remove(pending_validators, weakest_index);
                     vector::push_back(pending_validators, PendingValidator { 
                         shared: validator, 
                         power: power, 
                         snapshot: active_validators.epoch 
                     });
+
+                    // --- IMMEDIATE EVENT EMISSION (REPLACEMENT) ---
+                    // Emit both added and removed validators as single strings [1]
+                    let data = vector[
+                        Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+                        Event::create_data_struct(utf8(b"epoch"), utf8(b"u64"), bcs::to_bytes(&active_validators.epoch)),
+                        Event::create_data_struct(utf8(b"new_validator"), utf8(b"String"), bcs::to_bytes(&validator)),
+                        Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"String"), bcs::to_bytes(&removed_validator)),
+                    ];
+                    Event::emit_validators_event(utf8(b"Validator Change"), data);
                 };
             };
         };
 
-        // Update last active if epoch progressed
+        // Update last active if epoch progressed (strictly state-syncing, no emission)
         if (Genesis::return_epoch() > (active_validators.epoch as u256)) {
 
             let vect = vector::empty<String>();
             let len = vector::length(pending_validators);
-            while(len>0){
+            while(len > 0){
                 let xv = vector::borrow(pending_validators, len-1);
                 vector::push_back(&mut vect, xv.shared);
-                len=len-1;
+                len = len - 1;
             };
-
-            // --- EVENT EMISSION LOGIC START ---
-            // Calculate added and deleted validators by comparing the lists
-            let added_validators = vector::empty<String>();
-            let deleted_validators = vector::empty<String>();
-
-            let old_len = vector::length(&active_validators.list);
-            let new_len = vector::length(&vect);
-
-            // Added: Present in new active list (vect) but not in old active list
-            let x = 0;
-            while (x < new_len) {
-                let val = vector::borrow(&vect, x);
-                if (!vector::contains(&active_validators.list, val)) {
-                    vector::push_back(&mut added_validators, *val);
-                };
-                x = x + 1;
-            };
-
-            // Deleted: Present in old active list but not in new active list
-            let y = 0;
-            while (y < old_len) {
-                let val = vector::borrow(&active_validators.list, y);
-                if (!vector::contains(&vect, val)) {
-                    vector::push_back(&mut deleted_validators, *val);
-                };
-                y = y + 1;
-            };
-
-            // Format the event data vector
-            let data = vector[
-                Event::create_data_struct(utf8(b"new_validators"), utf8(b"vector<String>"), bcs::to_bytes(&added_validators)),
-                Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"vector<String>"), bcs::to_bytes(&deleted_validators)),
-            ];
-
-            // Emit the unified "Validators Rotated" event
-            Event::emit_validators_event(utf8(b"Validators Rotated"), data);
-            // --- EVENT EMISSION LOGIC END ---
-
             active_validators.list = vect;
-            
-            // Explicitly update the snapshot epoch so rotation only fires once per epoch transition
             active_validators.epoch = (Genesis::return_epoch() as u64);
         };
     }
@@ -347,9 +332,3 @@ fun take_validator_snapshot(validator: String, validators: &mut Map<String, Vali
 
 }
 
-        let data = vector[
-            Event::create_data_struct(utf8(b"new_validators"), utf8(b"vector<string>"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"vector<string>"), bcs::to_bytes(&signer::address_of(signer))),
-
-        ];
-        Event::emit_validators_event(utf8(b"Validators Rotated"), data);

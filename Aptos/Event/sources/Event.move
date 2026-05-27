@@ -140,6 +140,30 @@ module event::QiaraEventV1 {
         hash::sha2_256(vect)
     }
 
+    public fun create_omnichain_identifier(addedValidator: vector<u8>, removedValidator: vector<u8>, nonce: vector<u8>): vector<u8> {
+        let vect = vector::empty<u8>();
+    
+        // 1. Convert vectors to u256 first so your BE function can process them
+        // OR: If they are already 32 bytes, just append them directly!
+        let addedValidator_u256 = bytes_to_u256(addedValidator);
+        let removedValidator_u256 = bytes_to_u256(removedValidator);
+        let nonce_u256 = bytes_to_u256(nonce);
+        
+        // 2. Convert to 32-byte Big Endian vectors
+        let addedValidator_bytes = u256_to_bytes_be(addedValidator_u256);
+        let removedValidator_bytes = u256_to_bytes_be(removedValidator_u256);
+        let nonce_bytes = u256_to_bytes_be(nonce_u256);
+        
+        // 3. Concatenate (matches abi.encodePacked)
+        vector::append(&mut vect, addedValidator_bytes);
+        vector::append(&mut vect, removedValidator_bytes);
+        vector::append(&mut vect, nonce_bytes);
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000009");
+        
+        // 4. SHA2-256 hash
+        hash::sha2_256(vect)
+    }
+
     // Helper to turn your input vector into the u256 your function expects
     public fun bytes_to_u256(bytes: vector<u8>): u256 {
         let val = 0u256;

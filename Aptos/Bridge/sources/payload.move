@@ -64,6 +64,16 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 }
 
     public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
+        let (_, addedValidator) = find_payload_value(utf8(b"added_validator"), type_names, payload);
+        let (_, removedValidator) = find_payload_value(utf8(b"removed_validator"), type_names, payload);
+        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
+       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        Event::create_omnichain_identifier(addedValidator, removedValidator, nonce)
+
+    }
+
+    public fun create_omnichain_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
         let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
