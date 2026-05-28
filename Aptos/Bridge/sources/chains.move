@@ -229,13 +229,19 @@ module dev::QiaraBridgeV14{
 
         //assert!(table::contains(&validated.zk, identifier), ERROR_PROOF_NOT_FOUND);
         // tttta(100);
+        let identifier: vector<u8> = vector::empty<u8>();
         let (_, type_raw) = Payload::find_payload_value(utf8(b"fun_type"), type_names, payload);
-        if(fun_type != utf8(b"Validators")){
-            let identifier = Payload::create_omnichain_identifier(type_names, payload);
-        } else if (fun_type == utf8(b"Variables")){
-            let identifier = Payload::create_omnichain_identifier2(type_names, payload);
+        //tttta(999);
+                let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
+        if(type == utf8(b"Validators")){
+           // tttta(1);
+             identifier = Payload::create_omnichain_identifier(type_names, payload);
+
+        } else if (type == utf8(b"Variables")){
+           // tttta(0);
+             identifier = Payload::create_omnichain_identifier_variables(type_names, payload);
         }
-        let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
+
 
             handle_omnichain_event(
                 signer,
