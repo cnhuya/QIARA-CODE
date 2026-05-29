@@ -407,7 +407,7 @@ module dev::QiaraBridgeV14{
                 Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
                 Event::create_data_struct(utf8(b"total_weight"), utf8(b"u128"), bcs::to_bytes(&quorum)),
             ];
-            Event::emit_validation_event(utf8(b"Validated Event"), data_summary);
+            Event::emit_validation_event(utf8(b"Validated Proof Event"), data_summary);
         };
     }
 
@@ -605,7 +605,7 @@ fun handle_omnichain_event(
                 Event::create_data_struct(utf8(b"proofs"), utf8(b"vector<u256>"), bcs::to_bytes(&proof)),
                 Event::create_data_struct(utf8(b"inputs"), utf8(b"vector<u256>"), bcs::to_bytes(&inputs)),
             ];
-            Event::emit_omnichain_proof_event(data_proof);
+            Event::emit_proof_event(data_proof);
 
             // Emit Register Event
             let data = vector[
@@ -647,7 +647,7 @@ fun handle_omnichain_event(
                 Event::create_data_struct(utf8(b"type_names"), utf8(b"vector<String>"), bcs::to_bytes(&type_names)),
                 Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
             ];
-            Event::emit_validation_event(utf8(b"Validated Event"), data);
+            Event::emit_validation_event(utf8(b"Validated Omnichain Event"), data);
         };
     }
     fun handle_proof_event(signer: &signer, validator: String, type: String, chain: String, pending_table: &mut table::Table<vector<u8>, ProofVotes>, validated_table: &mut table::Table<vector<u8>, ProofVotes>, identifier: vector<u8>,  type_names: vector<String>, payload: vector<vector<u8>>,proof: vector<u256>, inputs: vector<u256>, signature: vector<u8>, secp256k1_pub_key: vector<u8>, event_type: String) {
