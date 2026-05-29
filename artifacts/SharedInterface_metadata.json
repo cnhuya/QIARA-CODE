@@ -8,34 +8,72 @@
 			{
 				"inputs": [
 					{
+						"internalType": "address",
+						"name": "_events",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "events",
+				"outputs": [
+					{
+						"internalType": "contract IEvents",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
 						"internalType": "string",
-						"name": "action",
+						"name": "name",
+						"type": "string"
+					}
+				],
+				"name": "m_create_shared_storage",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "name",
 						"type": "string"
 					},
 					{
-						"components": [
-							{
-								"internalType": "string",
-								"name": "name",
-								"type": "string"
-							},
-							{
-								"internalType": "string",
-								"name": "typeName",
-								"type": "string"
-							},
-							{
-								"internalType": "bytes",
-								"name": "value",
-								"type": "bytes"
-							}
-						],
-						"internalType": "struct IEvents.Data[]",
-						"name": "data",
-						"type": "tuple[]"
+						"internalType": "bytes",
+						"name": "sub_owner",
+						"type": "bytes"
 					}
 				],
-				"name": "emitVaultEvent",
+				"name": "p_allow_sub_owner",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "sub_owner",
+						"type": "bytes"
+					}
+				],
+				"name": "p_remove_sub_owner",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -54,7 +92,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "IEvents"
+			"Evm/interfaces/shared.sol": "SharedInterface"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},

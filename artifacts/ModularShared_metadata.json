@@ -92,7 +92,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "ModularShared"
+			"Evm/interfaces/governance.sol": "ModularShared"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -170,7 +170,7 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
+		"Evm/interfaces/governance.sol": {
 			"keccak256": "0xf7b13b9b89c7e52769126e0d48bfaffb748a0f6aaa6c6e30e88f147087736f90",
 			"license": "MIT",
 			"urls": [
