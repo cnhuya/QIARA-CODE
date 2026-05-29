@@ -11,7 +11,7 @@ interface IEvents {
     function emitVaultEvent(string calldata action, Data[] calldata data) external;
 }
 
-contract ModularShared  {
+contract SharedInterface  {
 
     IEvents public immutable events;
 

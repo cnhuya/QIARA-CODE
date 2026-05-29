@@ -94,6 +94,40 @@
 				"inputs": [
 					{
 						"internalType": "uint256",
+						"name": "xLow",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "xHigh",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "yLow",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "yHigh",
+						"type": "uint256"
+					}
+				],
+				"name": "deriveAddressFromSplitPubKey",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "pure",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
 						"name": "_field",
 						"type": "uint256"
 					}
@@ -192,11 +226,6 @@
 						"type": "uint256[6]"
 					},
 					{
-						"internalType": "address[]",
-						"name": "validators",
-						"type": "address[]"
-					},
-					{
 						"internalType": "bytes",
 						"name": "_signatures",
 						"type": "bytes"
@@ -220,11 +249,6 @@
 						"type": "uint256[6]"
 					},
 					{
-						"internalType": "address[]",
-						"name": "validators",
-						"type": "address[]"
-					},
-					{
 						"internalType": "bytes",
 						"name": "_signatures",
 						"type": "bytes"
@@ -246,11 +270,6 @@
 						"internalType": "uint256[6]",
 						"name": "input",
 						"type": "uint256[6]"
-					},
-					{
-						"internalType": "address[]",
-						"name": "validators",
-						"type": "address[]"
 					},
 					{
 						"internalType": "bytes",
@@ -445,11 +464,11 @@
 			]
 		},
 		"Evm/core/base/vaultDelegator.sol": {
-			"keccak256": "0xdf80fd2726a4cfd977129c4b530ec6f0ddfeab9a84217ca6eca314c928bfe832",
+			"keccak256": "0xf624b515a384e3f7c15e4f31b251be2cb4aadfc99dbe7e4c908df7b4ac4828de",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://053df0191cb3ba861577993928d96d1e0fb769b4922242beea469fc9dab3bbdf",
-				"dweb:/ipfs/QmYdxWy4qCs576xkYS1qfSJNAycxXbJFd8xwiUvxoGjKFR"
+				"bzz-raw://3d1ae91e46355c071876f22cb70a752e6183b2ef87f2f5272452809d3bd8d8b6",
+				"dweb:/ipfs/QmaRaxZXgBf59PxyhmMTsH5FyB4roV57ahwxR7dvRDgK4C"
 			]
 		}
 	},

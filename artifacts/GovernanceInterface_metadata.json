@@ -8,12 +8,41 @@
 			{
 				"inputs": [
 					{
-						"internalType": "string",
-						"name": "action",
-						"type": "string"
-					},
+						"internalType": "address",
+						"name": "_events",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "events",
+				"outputs": [
+					{
+						"internalType": "contract IEvents",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
 					{
 						"components": [
+							{
+								"internalType": "bytes",
+								"name": "sub_owner",
+								"type": "bytes"
+							},
+							{
+								"internalType": "string",
+								"name": "shared_storage_name",
+								"type": "string"
+							},
 							{
 								"internalType": "string",
 								"name": "name",
@@ -21,21 +50,84 @@
 							},
 							{
 								"internalType": "string",
-								"name": "typeName",
+								"name": "desc",
 								"type": "string"
 							},
 							{
-								"internalType": "bytes",
-								"name": "value",
-								"type": "bytes"
+								"internalType": "string[]",
+								"name": "type_",
+								"type": "string[]"
+							},
+							{
+								"internalType": "bool[]",
+								"name": "isChange",
+								"type": "bool[]"
+							},
+							{
+								"internalType": "string[]",
+								"name": "header",
+								"type": "string[]"
+							},
+							{
+								"internalType": "string[]",
+								"name": "constant_name",
+								"type": "string[]"
+							},
+							{
+								"internalType": "bytes[]",
+								"name": "new_value",
+								"type": "bytes[]"
+							},
+							{
+								"internalType": "string[]",
+								"name": "value_type",
+								"type": "string[]"
+							},
+							{
+								"internalType": "uint256",
+								"name": "duration",
+								"type": "uint256"
+							},
+							{
+								"internalType": "bool[]",
+								"name": "editable",
+								"type": "bool[]"
 							}
 						],
-						"internalType": "struct IEvents.Data[]",
-						"name": "data",
-						"type": "tuple[]"
+						"internalType": "struct GovernanceInterface.ProposeParams",
+						"name": "params",
+						"type": "tuple"
 					}
 				],
-				"name": "emitVaultEvent",
+				"name": "m_propose",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "sub_owner",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "shared_storage_name",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "proposal_id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isYes",
+						"type": "bool"
+					}
+				],
+				"name": "m_vote",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -54,7 +146,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "IEvents"
+			"Evm/interfaces/governance.sol": "GovernanceInterface"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -132,12 +224,12 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
-			"keccak256": "0x298b5dba8af0f215980a60765fdd7ff20a0e4251d438319802ca4b54f7364715",
+		"Evm/interfaces/governance.sol": {
+			"keccak256": "0x7bbd1c3bbda2416ed6a4a65af2080e6b758940958a3a846bc3572c86aa6cddd0",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://d0c5dfd538f59ace0f6773d4e746218707e489b9953ea3fa96ca08bea739f156",
-				"dweb:/ipfs/QmVpSVToWgVMFTmsBWBx8wbXAvg2Xpv8T9Vye25jgxiGmN"
+				"bzz-raw://7866551399bbd927659b47843e06aaff555f1164978de59258acdf4ab7725a82",
+				"dweb:/ipfs/QmWcrEwoWiQ8q3qVeJRb1iT8QDfoup6maSmfLkJpvGkCXy"
 			]
 		}
 	},
