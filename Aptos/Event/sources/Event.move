@@ -112,7 +112,10 @@ module event::QiaraEventV1 {
         name: String,
         aux: vector<Data>,
     }
-
+    #[event]
+    struct OmniProofEvent has copy, drop, store {
+        aux: vector<Data>,
+    }
 // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @event, 1);
@@ -134,7 +137,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, user_bytes);
         vector::append(&mut vect, bcs::to_bytes(&type));
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000009");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000010");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
@@ -158,7 +161,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, addedValidator_bytes);
         vector::append(&mut vect, removedValidator_bytes);
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000009");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000010");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
@@ -182,7 +185,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, addedValidator_bytes);
         vector::append(&mut vect, removedValidator_bytes);
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000009");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000010");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
@@ -313,6 +316,12 @@ module event::QiaraEventV1 {
     public fun emit_proof_event(data: vector<Data>) {
         vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
          event::emit(ProofEvent {
+            aux: data,
+        });
+    }
+    public fun emit_omnichain_proof_event(data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
+         event::emit(OmniProofEvent {
             aux: data,
         });
     }

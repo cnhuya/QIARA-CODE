@@ -605,7 +605,7 @@ fun handle_omnichain_event(
                 Event::create_data_struct(utf8(b"proofs"), utf8(b"vector<u256>"), bcs::to_bytes(&proof)),
                 Event::create_data_struct(utf8(b"inputs"), utf8(b"vector<u256>"), bcs::to_bytes(&inputs)),
             ];
-            Event::emit_proof_event(data_proof);
+            Event::emit_omnichain_proof_event(data_proof);
 
             // Emit Register Event
             let data = vector[
@@ -985,6 +985,12 @@ fun handle_omnichain_event(
         assert!(table::contains(&proof.proof, identifier), ERROR_NOT_FOUND);
         return *table::borrow(&proof.proof, identifier)
     }
+    #[view]
+    public fun return_omnichain_pending_tx(identifier: vector<u8>): OmniVotes acquires Pending {
+        let omnichain = borrow_global<Pending>(@dev);
+        assert!(table::contains(&omnichain.omnichain, identifier), ERROR_NOT_FOUND);
+        return *table::borrow(&omnichain.omnichain, identifier)
+    }
 
     #[view]
     public fun return_native_validated_tx(identifier: vector<u8>): MainVotes acquires Validated {
@@ -1004,7 +1010,12 @@ fun handle_omnichain_event(
         assert!(table::contains(&proof.proof, identifier), ERROR_NOT_FOUND);
         return *table::borrow(&proof.proof, identifier)
     }
-
+    #[view]
+    public fun return_omnichain_validated_tx(identifier: vector<u8>): OmniVotes acquires Validated {
+        let omnichain = borrow_global<Validated>(@dev);
+        assert!(table::contains(&omnichain.omnichain, identifier), ERROR_NOT_FOUND);
+        return *table::borrow(&omnichain.omnichain, identifier)
+    }
 
 
 
