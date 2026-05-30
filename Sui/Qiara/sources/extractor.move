@@ -7,13 +7,15 @@ module Qiara::QiaraExtractorV1 {
     // --- Constants ---
     const E_INVALID_INPUT_LENGTH: u64 = 400;
 
-    // Indices based on Go Circuit Public Inputs
+    // Indices based on Go Circuit Public Inputs (Tx Balance Circuit)
     const INDEX_OLD_ROOT: u64 = 0;
     const INDEX_NEW_ROOT: u64 = 1;
     const INDEX_USER_L: u64   = 2;
     const INDEX_USER_H: u64   = 3;
     const INDEX_VAULT: u64    = 4;
     const INDEX_PACKED_TX: u64 = 5;
+
+    // --- Return Structures ---
 
     public struct UnpackedTx has drop {
         chain_id: u64,
@@ -22,7 +24,8 @@ module Qiara::QiaraExtractorV1 {
         storage_id: u64
     }
 
-// --- Getters for UnpackedTx ---
+
+    // --- Getters for UnpackedTx ---
 
     public fun tx_amount(self: &UnpackedTx): u64 {
         self.amount
@@ -42,28 +45,91 @@ module Qiara::QiaraExtractorV1 {
 
     // --- Public Extraction API ---
 
+    /// Extracts and reconstructs VariableHeader and VariableName as Strings.
+    /// Requires at least 7 public inputs (224 bytes).
+    public fun extract_variable_strings(inputs: &vector<u8>): (String, String, vector<u8>) {
+        assert!(vector::length(inputs) >= 224, E_INVALID_INPUT_LENGTH);
 
+        // 1. Extract and unpack VariableHeader (upper bits of index 2)
+        let packed_context = bytes_to_u256(extract_chunk(inputs, 2));
+        let variable_header = u256_to_string(packed_context >> 16);
+
+        // 2. Reconstruct VariableName as a combined u256 and convert to String
+        let name_low = bytes_to_u256(extract_chunk(inputs, 3));
+        let name_high = bytes_to_u256(extract_chunk(inputs, 4));
+        let name_u256 = (name_high << 128) | name_low;
+        let variable_name = u256_to_string(name_u256);
+
+        // 3. Reconstruct NewVariableData (Index 5 and 6)
+        let data_low = bytes_to_u256(extract_chunk(inputs, 5));
+        let data_high = bytes_to_u256(extract_chunk(inputs, 6));
+        
+        // Combined 32-byte payload reconstructed inline
+        let mut variable_data = vector::empty<u8>();
+        vector::append(&mut variable_data, u256_to_bytes_be_part(data_high, 16));
+        vector::append(&mut variable_data, u256_to_bytes_be_part(data_low, 16));
+
+        (variable_header, variable_name, variable_data)
+    }
+
+    /// Extract and reconstruct the 65-byte SEC1 uncompressed validator public key.
+    /// Coordinates are at indices 3 (XLow), 4 (XHigh), 5 (YLow), and 6 (YHigh).
+    /// Requires at least 7 public inputs (224 bytes).
+    public fun extract_validator_pubkey(inputs: &vector<u8>): vector<u8> {
+        assert!(vector::length(inputs) >= 224, E_INVALID_INPUT_LENGTH);
+
+        let x_low  = bytes_to_u256(extract_chunk(inputs, 3));
+        let x_high = bytes_to_u256(extract_chunk(inputs, 4));
+        let y_low  = bytes_to_u256(extract_chunk(inputs, 5));
+        let y_high = bytes_to_u256(extract_chunk(inputs, 6));
+
+        let mut pubkey = vector::empty<u8>();
+        
+        // 1. Uncompressed SEC1 format prefix (0x04)
+        vector::push_back(&mut pubkey, 0x04);
+
+        // 2. Reconstruct X Coordinate (High 16 bytes then Low 16 bytes)
+        vector::append(&mut pubkey, u256_to_bytes_be_part(x_high, 16));
+        vector::append(&mut pubkey, u256_to_bytes_be_part(x_low, 16));
+
+        // 3. Reconstruct Y Coordinate (High 16 bytes then Low 16 bytes)
+        vector::append(&mut pubkey, u256_to_bytes_be_part(y_high, 16));
+        vector::append(&mut pubkey, u256_to_bytes_be_part(y_low, 16));
+
+        pubkey
+    }
+
+    /// Extracts and unpacks balance transaction data.
+    /// Requires at least 6 public inputs (192 bytes).
     public fun extract_all_tx_data(inputs: &vector<u8>): UnpackedTx {
+        assert!(vector::length(inputs) >= 192, E_INVALID_INPUT_LENGTH);
         let packed_bytes = extract_chunk(inputs, INDEX_PACKED_TX);
         unpack_slot(bytes_to_u256(packed_bytes))
     }
 
+    /// Extracts and reconstructs user address.
+    /// Requires at least 4 public inputs (128 bytes).
     public fun extract_user_address(inputs: &vector<u8>): address {
+        assert!(vector::length(inputs) >= 128, E_INVALID_INPUT_LENGTH);
         let low_u256 = bytes_to_u256(extract_chunk(inputs, INDEX_USER_L));
         let high_u256 = bytes_to_u256(extract_chunk(inputs, INDEX_USER_H));
         reconstruct_address(high_u256, low_u256)
     }
 
-    /// Extract VaultAddress (index 4) - often used as a token/contract ID
+    /// Extract VaultAddress (index 4) - often used as a token/contract ID.
+    /// Requires at least 5 public inputs (160 bytes).
     public fun extract_provider(inputs: &vector<u8>): String {
+        assert!(vector::length(inputs) >= 160, E_INVALID_INPUT_LENGTH);
         u256_to_string(bytes_to_u256(extract_chunk(inputs, INDEX_VAULT)))
     }
 
     public fun extract_old_root(inputs: &vector<u8>): u256 {
+        assert!(vector::length(inputs) >= 32, E_INVALID_INPUT_LENGTH);
         bytes_to_u256(extract_chunk(inputs, INDEX_OLD_ROOT))
     }
 
     public fun extract_new_root(inputs: &vector<u8>): u256 {
+        assert!(vector::length(inputs) >= 64, E_INVALID_INPUT_LENGTH);
         bytes_to_u256(extract_chunk(inputs, INDEX_NEW_ROOT))
     }
 
@@ -71,6 +137,7 @@ module Qiara::QiaraExtractorV1 {
     /// This takes the first 6 public signals, converts them to Big Endian (Solidity format),
     /// concatenates them, and hashes them using Keccak256.
     public fun build_nullifier(inputs: &vector<u8>): u256 {
+        assert!(vector::length(inputs) >= 192, E_INVALID_INPUT_LENGTH);
         let mut data = vector::empty<u8>();
         
         let mut i = 0;
@@ -97,7 +164,6 @@ module Qiara::QiaraExtractorV1 {
         // 5. Convert the 32-byte hash result back to a u256
         bytes_to_u256_be(hash_bytes)
     }
-
 
     // --- Internal Bit Shifting & Unpacking ---
 
@@ -133,7 +199,6 @@ module Qiara::QiaraExtractorV1 {
         chunk
     }
 
-
     /// Converts Little Endian bytes (from Proof) to u256
     public fun bytes_to_u256(bytes: vector<u8>): u256 {
         let mut res: u256 = 0;
@@ -167,6 +232,7 @@ module Qiara::QiaraExtractorV1 {
         };
         res
     }
+
     fun u256_to_bytes_be_part(value: u256, len: u64): vector<u8> {
         let mut bytes = vector::empty<u8>();
         let mut i = 0;

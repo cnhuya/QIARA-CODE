@@ -188,7 +188,7 @@ module Qiara::QiaraDelegatorV1 {
         let (user, amount, vault_provider, nullifier) = zk::verify_balance(public_inputs, proof_points);
 
         // 2. Verify signatures from validators and ensure they are valid and from active validators
-        zk::verify_signatures(state, signatures, public_inputs);
+        validators::verify_signatures(state, signatures, public_inputs);
 
         // 3. Check if nullifier has been used before to prevent double-withdrawals
         if(table::contains(&nullifiers.table, nullifier)) {

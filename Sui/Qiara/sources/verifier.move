@@ -8,7 +8,6 @@ module Qiara::QiaraVerifierV1 {
     use std::string::{Self,String};
     use std::vector;
     use sui::table::length;
-    use sui::ecdsa_k1;
     use Qiara::QiaraExtractorV1::{Self as extractor, UnpackedTx};
     use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState}; 
 
@@ -57,7 +56,7 @@ const VARIABLE_RAW_VK: vector<u8> = x"7ce121c91f0e3901a8ca59133e4389c930e8423b43
         (user, amount, vault_provider, nullifier)
     }
 
-    public entry fun verify_validator(public_inputs: vector<u8>,proof_points: vector<u8>) {
+    public entry fun verify_validator(public_inputs: vector<u8>,proof_points: vector<u8>): vector<u8> {
         let curve = groth16::bn254();
 
         let pvk = groth16::prepare_verifying_key(&curve, &VALIDATOR_RAW_VK);
@@ -65,10 +64,12 @@ const VARIABLE_RAW_VK: vector<u8> = x"7ce121c91f0e3901a8ca59133e4389c930e8423b43
         let pp_struct = groth16::proof_points_from_bytes(proof_points);
 
         assert!(groth16::verify_groth16_proof(&curve, &pvk, &pi_struct, &pp_struct), EInvalidProof);
+
+        extractor::extract_validator_pubkey(&public_inputs)
     }
 
 
-    public entry fun verify_variable(public_inputs: vector<u8>,proof_points: vector<u8>) {
+    public entry fun verify_variable(public_inputs: vector<u8>,proof_points: vector<u8>): (String, String, vector<u8>) {
         let curve = groth16::bn254();
 
         let pvk = groth16::prepare_verifying_key(&curve, &VARIABLE_RAW_VK);
@@ -76,31 +77,9 @@ const VARIABLE_RAW_VK: vector<u8> = x"7ce121c91f0e3901a8ca59133e4389c930e8423b43
         let pp_struct = groth16::proof_points_from_bytes(proof_points);
 
         assert!(groth16::verify_groth16_proof(&curve, &pvk, &pi_struct, &pp_struct), EInvalidProof);
+
+        extractor::extract_variable_strings(&public_inputs)
     }
 
-    public fun verify_signatures(state: &ValidatorState, signatures: vector<vector<u8>>, inputs: vector<u8>) {
-        let mut n = vector::length(&signatures);
-        let validator_pubkeys = validators::get_active_pubkeys(state);
-        
-        while (n > 0) {
-            let i = n - 1;
-            let sig = &signatures[i];
-            
-            // Ensure signature is valid length before calling native function to avoid aborts
-            assert!(vector::length(sig) == 65, EInvalidSignatureLength);
-
-            // 1. Recover compressed key from signature
-            let recovered_compressed = ecdsa_k1::secp256k1_ecrecover(sig, &inputs, 0);
-
-            // 2. Decompress to get uncompressed (65 bytes, starts with 0x04)
-            let recovered_uncompressed = ecdsa_k1::decompress_pubkey(&recovered_compressed);
-
-            // Note: recovered_key is the 65-byte uncompressed public key.
-            // Ensure your validators::get_active_pubkeys returns the same format.
-            assert!(vector::contains(&validator_pubkeys, &recovered_uncompressed), ENotValidator);
-            
-            n = i;
-        }
-    }
 
 }
