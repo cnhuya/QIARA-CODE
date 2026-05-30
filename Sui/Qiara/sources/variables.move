@@ -2,15 +2,15 @@ module Qiara::QiaraVariablesV1 {
     use std::string::{Self, String};
     use sui::vec_map::{Self, VecMap};
     use sui::tx_context::{Self, TxContext};
-    use sui::bcs;
     use sui::clock::Clock;
     use sui::object::{Self, UID};
     use sui::transfer;
-    use sui::event;
+    use sui::address; // Added to resolve address::from_bytes [1]
 
     use Qiara::QiaraEpochManagerV1 as epoch_manager;
     use Qiara::QiaraEpochManagerV1::Config;
     use Qiara::QiaraVerifierV1 as zk;
+    use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState}; 
 
     // --- Errors ---
     const ERegistryLocked: u64 = 0;
@@ -142,7 +142,6 @@ module Qiara::QiaraVariablesV1 {
             };
             
             registry.last_processed_epoch = current_epoch;
-            
         }
     }
 
@@ -152,17 +151,17 @@ module Qiara::QiaraVariablesV1 {
     }
 
     public entry fun friend_add_variable(
+        state: &ValidatorState,
         registry: &mut Registry, 
-        header: String, 
-        name: String, 
-        data: vector<u8>, 
+        epoch_manager_state: &Config,
         public_inputs: vector<u8>, 
         proof_points: vector<u8>,
-        epoch_manager_state: &Config,
+        signatures: vector<vector<u8>>,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        zk::verify_variable(public_inputs, proof_points);
+        validators::verify_signatures(state, signatures, public_inputs);
+        let (header, name, data) = zk::verify_variable(public_inputs, proof_points);
         
         // Handle epoch rollover before adding
         check_and_handle_epoch_rollover(registry, epoch_manager_state, clock, ctx);
@@ -183,49 +182,92 @@ module Qiara::QiaraVariablesV1 {
         *vec_map::get(inner_map, &name)
     }
 
-    // --- Helper Getters ---
+    // --- Robust Helper Getters ---
+    
     public fun get_variable_to_u8(registry: &Registry, header: String, name: String): u8 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u8(&mut bytes)
+        let len = vector::length(&data);
+        assert!(len > 0, EVariableNotFound);
+        *vector::borrow(&data, len - 1) // Decodes the very last byte (LSB)
     }
     
     public fun get_variable_to_u16(registry: &Registry, header: String, name: String): u16 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u16(&mut bytes)
+        let len = vector::length(&data);
+        let mut res: u16 = 0;
+        let mut i = if (len >= 2) { len - 2 } else { 0 };
+        while (i < len) {
+            res = (res << 8) | (*vector::borrow(&data, i) as u16);
+            i = i + 1;
+        };
+        res
     }
     
     public fun get_variable_to_u32(registry: &Registry, header: String, name: String): u32 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u32(&mut bytes)
+        let len = vector::length(&data);
+        let mut res: u32 = 0;
+        let mut i = if (len >= 4) { len - 4 } else { 0 };
+        while (i < len) {
+            res = (res << 8) | (*vector::borrow(&data, i) as u32);
+            i = i + 1;
+        };
+        res
     }
     
     public fun get_variable_to_u64(registry: &Registry, header: String, name: String): u64 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u64(&mut bytes)
+        let len = vector::length(&data);
+        let mut res: u64 = 0;
+        let mut i = if (len >= 8) { len - 8 } else { 0 };
+        while (i < len) {
+            res = (res << 8) | (*vector::borrow(&data, i) as u64);
+            i = i + 1;
+        };
+        res
     }
     
     public fun get_variable_to_u128(registry: &Registry, header: String, name: String): u128 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u128(&mut bytes)
+        let len = vector::length(&data);
+        let mut res: u128 = 0;
+        let mut i = if (len >= 16) { len - 16 } else { 0 };
+        while (i < len) {
+            res = (res << 8) | (*vector::borrow(&data, i) as u128);
+            i = i + 1;
+        };
+        res
     }
     
     public fun get_variable_to_u256(registry: &Registry, header: String, name: String): u256 {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_u256(&mut bytes)
+        let len = vector::length(&data);
+        let mut res: u256 = 0;
+        let mut i = if (len >= 32) { len - 32 } else { 0 };
+        while (i < len) {
+            res = (res << 8) | (*vector::borrow(&data, i) as u256);
+            i = i + 1;
+        };
+        res
     }
     
+    /// Safely trims null padding bytes (0x00) to recover the original vector payload
     public fun get_variable_to_vecu8(registry: &Registry, header: String, name: String): vector<u8> {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_vec_u8(&mut bytes)
+        let mut trimmed = vector::empty<u8>();
+        let mut i = 0;
+        let len = vector::length(&data);
+        while (i < len) {
+            let byte = *vector::borrow(&data, i);
+            if (byte != 0) {
+                vector::push_back(&mut trimmed, byte);
+            };
+            i = i + 1;
+        };
+        trimmed
     }
     
+    /// Converts the trimmed byte array to a readable String
     public fun get_variable_as_string(registry: &Registry, header: String, name: String): String {
         let bytes = get_variable_to_vecu8(registry, header, name);
         string::utf8(bytes)
@@ -233,13 +275,14 @@ module Qiara::QiaraVariablesV1 {
     
     public fun get_variable_to_bool(registry: &Registry, header: String, name: String): bool {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_bool(&mut bytes)
+        let len = vector::length(&data);
+        assert!(len > 0, EVariableNotFound);
+        *vector::borrow(&data, len - 1) != 0
     }
     
+    /// Converts the 32-byte representation directly into a Sui Address
     public fun get_variable_to_address(registry: &Registry, header: String, name: String): address {
         let data = get_variable(registry, header, name);
-        let mut bytes = bcs::new(data);
-        bcs::peel_address(&mut bytes)
+        address::from_bytes(data)
     }
 }
