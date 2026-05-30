@@ -9,9 +9,15 @@ contract IValidators {
     uint256 public activeRoot;
     uint256 public pendingRoot;
 
-    // --- Address Lists ---
+    // --- Struct to queue sequential updates [1] ---
+    struct PendingUpdate {
+        address validator;
+        bool isRemoval;
+    }
+
+    // --- Address Lists & Update Queue ---
     address[] public activeAddresses;
-    address[] public pendingAddresses;
+    PendingUpdate[] public pendingUpdates; // Replaced pendingAddresses [1]
 
     // --- Epoch Tracking ---
     IEpochManager public epochManager;
@@ -20,9 +26,10 @@ contract IValidators {
     address public authorizedContract;
     address public owner;
 
+    // --- Events ---
     event AuthorizedContractUpdated(address indexed newAddress);
     event EpochManagerUpdated(address indexed newManager);
-    event AddressAddedToPending(address indexed user, uint256 epoch);
+    event AddressAddedToPending(address indexed user, bool isRemoval, uint256 epoch);
     event ListsRolledOver(uint256 newEpoch, uint256 countMoved);
 
     constructor() {
@@ -53,11 +60,17 @@ contract IValidators {
     }
 
     // --- Logic ---
-    function addPendingAddress(address _user) external onlyAuthorized {
+    
+    function addPendingAddress(address _user, bool isRemoval) external onlyAuthorized {
         _checkAndHandleEpochRollover();
 
-        pendingAddresses.push(_user);
-        emit AddressAddedToPending(_user, lastProcessedEpoch);
+        // Push structured update to the queue [1]
+        pendingUpdates.push(PendingUpdate({
+            validator: _user,
+            isRemoval: isRemoval
+        }));
+
+        emit AddressAddedToPending(_user, isRemoval, lastProcessedEpoch);
     }
 
     function _checkAndHandleEpochRollover() internal {
@@ -65,34 +78,79 @@ contract IValidators {
 
         // If time has moved into a new epoch compared to what we last saw
         if (currentEpoch > lastProcessedEpoch) {
-            
-            // 1. Move pending to active
-            // Note: In production, consider gas limits if pendingAddresses is huge.
-            activeAddresses = pendingAddresses;
+            uint256 len = pendingUpdates.length;
 
-            // 2. Clear pending for the new epoch
-            delete pendingAddresses;
+            // Process updates sequentially in FIFO order [1]
+            for (uint256 i = 0; i < len; i++) {
+                PendingUpdate memory update = pendingUpdates[i];
+                if (update.isRemoval) {
+                    _removeActiveAddress(update.validator); // [1]
+                } else {
+                    _addActiveAddress(update.validator); // [1]
+                }
+            }
 
-            // 3. Update the marker
+            // Clear pending updates for the new epoch [1]
+            delete pendingUpdates;
+
+            // Update the marker
             lastProcessedEpoch = currentEpoch;
 
             emit ListsRolledOver(currentEpoch, activeAddresses.length);
         }
     }
 
+    // --- Internal Helpers for State Manipulation ---
+
+    /// Deduplicates and appens a validator to the active set [1]
+    function _addActiveAddress(address _user) internal {
+        uint256 len = activeAddresses.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (activeAddresses[i] == _user) {
+                return; // Already present, skip
+            }
+        }
+        activeAddresses.push(_user);
+    }
+
+    /// Gas-efficient swap-and-pop removal from the active set [1]
+    function _removeActiveAddress(address _user) internal {
+        uint256 len = activeAddresses.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (activeAddresses[i] == _user) {
+                // Swap target element with the last element of the array, then pop [1]
+                activeAddresses[i] = activeAddresses[activeAddresses.length - 1];
+                activeAddresses.pop();
+                return;
+            }
+        }
+    }
 
     // --- ADMIN FUNCTION ---
     function addActiveAddressDirect(address _user) external onlyOwner {
-        activeAddresses.push(_user);
+        _addActiveAddress(_user);
     }
 
     // --- Helpers / Views ---
     function getActiveAddresses() external view returns (address[] memory) {
         return activeAddresses;
     }
-    function getPendingAddresses() external view returns (address[] memory) {
-        return pendingAddresses;
+
+    /// Returns the raw PendingUpdate structs queue [1]
+    function getPendingUpdates() external view returns (PendingUpdate[] memory) {
+        return pendingUpdates;
     }
+
+    /// Backwards compatibility helper: extracts just the addresses from pending queue [1]
+    function getPendingAddresses() external view returns (address[] memory) {
+        uint256 len = pendingUpdates.length;
+        address[] memory addresses = new address[](len);
+        for (uint256 i = 0; i < len; i++) {
+            addresses[i] = pendingUpdates[i].validator;
+        }
+        return addresses;
+    }
+
     function checkSystemEpoch() public view returns (uint256) {
         return epochManager.getCurrentEpoch();
     }

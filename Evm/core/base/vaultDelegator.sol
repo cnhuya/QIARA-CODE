@@ -22,7 +22,7 @@ interface IVariables {
     function getActiveVariable(string calldata header, string calldata name) external view returns (bytes memory);
 }
 interface IValidators{
-    function addPendingAddress(address _user) external;
+    function addPendingAddress(address _user, bool isRemoval) external;
     function getActiveAddresses() external view returns (address[] memory);
 }
 
@@ -91,23 +91,58 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
     }
-    function processZkValidator(uint[8] calldata proof, uint[7] calldata input,bytes calldata _signatures) external {
+   function processZkValidator(uint[8] calldata proof, uint[7] calldata input, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         validator_verifier.verifyProof(proof, input);
 
+        // --- EXTRACTING IS_REMOVAL AND VALIDATOR ADDRESS ---
+        // PackedContext is at index 2, contains (IsRemoval << 16) | Epoch [1]
+        uint256 packedContext = input[2];
+        // Extract IsRemoval: shift right by 16 bits and take the least significant bit
+        bool isRemoval = (packedContext >> 16) & 1 == 1; 
+        
+        // ChainID is at index 4
         uint256 chainID = input[4];
         require(chainID == block.chainid, "Wrong destination chain");
 
-        // 4. Replay Protection (Using SHA256)
-        uint256 nullifier = _calculateNullifier7(input);
+        // Public inputs for the validator address and the associated data (if any)
+        // Note: The actual validator pubkey is now reconstructed from indices 3, 4, 5, 6
+        // The `input[5]` and `input[6]` are likely the XHigh/YHigh parts respectively.
+        // Assuming you have a function in Go (or can recreate it in Solidity) to correctly reconstruct the public key from these parts
+        // and then derive the address from it if needed for comparison.
+
+        // If you need to use the *raw* 65-byte pubkey for comparison with stored validators,
+        // you would need to reconstruct it here. For simplicity, we'll assume you are comparing addresses.
+        // If your validator registry stores addresses, then deriving the address from the pubkey is correct.
+        // If it stores the 65-byte pubkey, you'll need to reconstruct it and then potentially hash it to an address if that's what your registry uses.
+
+        // Reconstruct the validator's address from its public key components if input[5] and input[6] represent its xHigh and yHigh respectively
+        // This assumes the Go circuit's input packing: [Other inputs...], XLow(idx 3), XHigh(idx 4), YLow(idx 5), YHigh(idx 6)
+        // In this function, input[5] and input[6] are the YLow and YHigh, so we need to adjust the logic if the public input indices differ.
+        // Let's assume input indices for validator pubkey are correct as per your Go circuit:
+        // input[3] -> ValidatorXLow
+        // input[4] -> ValidatorXHigh
+        // input[5] -> ValidatorYLow
+        // input[6] -> ValidatorYHigh
+        
+        // Reconstruct the full 256-bit coordinates.
+        uint256 x = (input[4] << 128) | input[3]; // xHigh << 128 | xLow
+        uint256 y = (input[6] << 128) | input[5]; // yHigh << 128 | yLow
+
+        // Hash the 64-byte coordinate concatenation (excluding the "04" prefix)
+        // Then cast to uint160 to truncate to the last 20 bytes (Ethereum Address)
+        address validatorAddress = address(uint160(uint256(keccak256(abi.encodePacked(x, y)))));
+
+
+        // 4. Replay Protection
+        // Nullifier calculation needs to be consistent with what was signed off-chain.
+        // If signatures were made over the *7 inputs* and *not* the nullifier, use _calculateNullifier7.
+        // If signatures were made over the *nullifier*, use _calculateNullifier7 for the message hash.
+        uint256 nullifier = _calculateNullifier7(input); 
         _verifyAllSignatures(bytes32(nullifier), _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
-
-        address validator = fieldToAddress(input[5]);
-
-        // 7. Final Call
-        validatorsRegistry.addPendingAddress(validator);
+        validatorsRegistry.addPendingAddress(validatorAddress, isRemoval);
     }
 
     // Dont hash the last pub signal, that contains the pubkey of the validator, which would result in all nulifiers being unique, leading to never reaching needed quarum
