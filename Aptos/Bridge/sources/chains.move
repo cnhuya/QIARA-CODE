@@ -234,7 +234,7 @@ module dev::QiaraBridgeV14{
         //tttta(999);
                 let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         if(type == utf8(b"Validators")){
-           // tttta(1);
+          //  tttta(1);
              identifier = Payload::create_omnichain_identifier(type_names, payload);
 
         } else if (type == utf8(b"Variables")){
@@ -599,13 +599,13 @@ fun handle_omnichain_event(
             table::add(pending_table, identifier, new_votes);
 
             // Emit Proof Event
-            let data_proof = vector[
+            /*let data_proof = vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
                 Event::create_data_struct(utf8(b"proofs"), utf8(b"vector<u256>"), bcs::to_bytes(&proof)),
                 Event::create_data_struct(utf8(b"inputs"), utf8(b"vector<u256>"), bcs::to_bytes(&inputs)),
             ];
-            Event::emit_proof_event(data_proof);
+            Event::emit_proof_event(data_proof);*/
 
             // Emit Register Event
             let data = vector[

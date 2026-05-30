@@ -99,6 +99,18 @@ module Qiara::QiaraExtractorV1 {
         pubkey
     }
 
+    /// Extracts the validator is_removal status from PackedContext (index 2).
+    /// Returns true if it is a removal operation, and false if it is an addition.
+    public fun extract_validator_is_removal(inputs: &vector<u8>): bool {
+        assert!(vector::length(inputs) >= 224, E_INVALID_INPUT_LENGTH);
+
+        // Extract PackedContext (index 2)
+        let packed_context = bytes_to_u256(extract_chunk(inputs, 2));
+
+        // Shift right by 16 bits and mask the LSB
+        ((packed_context >> 16) & 1) == 1
+    }
+
     /// Extracts and unpacks balance transaction data.
     /// Requires at least 6 public inputs (192 bytes).
     public fun extract_all_tx_data(inputs: &vector<u8>): UnpackedTx {

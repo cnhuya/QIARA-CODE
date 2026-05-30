@@ -56,7 +56,7 @@ const VARIABLE_RAW_VK: vector<u8> = x"7ce121c91f0e3901a8ca59133e4389c930e8423b43
         (user, amount, vault_provider, nullifier)
     }
 
-    public entry fun verify_validator(public_inputs: vector<u8>,proof_points: vector<u8>): vector<u8> {
+    public entry fun verify_validator(public_inputs: vector<u8>,proof_points: vector<u8>): (vector<u8>, bool) {
         let curve = groth16::bn254();
 
         let pvk = groth16::prepare_verifying_key(&curve, &VALIDATOR_RAW_VK);
@@ -65,7 +65,9 @@ const VARIABLE_RAW_VK: vector<u8> = x"7ce121c91f0e3901a8ca59133e4389c930e8423b43
 
         assert!(groth16::verify_groth16_proof(&curve, &pvk, &pi_struct, &pp_struct), EInvalidProof);
 
-        extractor::extract_validator_pubkey(&public_inputs)
+        let pubkey = extractor::extract_validator_pubkey(&public_inputs);
+        let isRemoval = extractor::extract_validator_is_removal(&public_inputs);
+        (pubkey, isRemoval)
     }
 
 

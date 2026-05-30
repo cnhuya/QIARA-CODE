@@ -105,7 +105,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     }
 
    public fun prepare_omnichain_event(type_names: vector<String>, payload: vector<vector<u8>>) acquires Permissions  {
-        let (_, type_raw) = find_payload_value(utf8(b"type"), type_names, payload);
+        let (_, type_raw) = find_payload_value(utf8(b"fun_type"), type_names, payload);
         let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         OmniNonce::increment_nonce(type, OmniNonce::give_permission(&borrow_global<Permissions>(@dev).omni_nonce));
     }
