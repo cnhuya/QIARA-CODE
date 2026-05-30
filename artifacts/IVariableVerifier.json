@@ -37,7 +37,7 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"verifyProof(uint256[8],uint256[6])": "9cb28658"
+			"verifyProof(uint256[8],uint256[7])": "1042664e"
 		}
 	},
 	"abi": [
@@ -49,9 +49,9 @@
 					"type": "uint256[8]"
 				},
 				{
-					"internalType": "uint256[6]",
+					"internalType": "uint256[7]",
 					"name": "input",
-					"type": "uint256[6]"
+					"type": "uint256[7]"
 				}
 			],
 			"name": "verifyProof",

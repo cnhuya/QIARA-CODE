@@ -7,10 +7,10 @@ interface IBalanceVerifier {
     function verifyProof(uint[8] calldata proof, uint[6] calldata input) external view;
 }
 interface IVariableVerifier {
-    function verifyProof(uint[8] calldata proof, uint[6] calldata input) external view;
+    function verifyProof(uint[8] calldata proof, uint[7] calldata input) external view;
 }
 interface IValidatorVerifier {
-    function verifyProof(uint[8] calldata proof, uint[6] calldata input) external view;
+    function verifyProof(uint[8] calldata proof, uint[7] calldata input) external view;
 }
 
 interface IQiaraVault {
@@ -66,11 +66,11 @@ contract QiaraZKDelegator is Ownable {
         //revert("DEBUG_10510");
         // 6. User Address Reconstruction
         address user = address(uint160((userH << 128) | userL));
-   // revert("DEBUG_1051075");
+        // revert("DEBUG_1051075");
         // 7. Final Call
         IQiaraVault(vaultAddr).directWithdraw(user, storageName, amount, nullifier);
     }
-    function processZkVariable(uint[8] calldata proof, uint[6] calldata input, bytes calldata _signatures) external {
+    function processZkVariable(uint[8] calldata proof, uint[7] calldata input, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
        variable_verifier.verifyProof(proof, input);
 
@@ -83,7 +83,7 @@ contract QiaraZKDelegator is Ownable {
         bytes memory variableValue = fieldToBytes(input[4]);
 
         // 4. Replay Protection (Using SHA256)
-        uint256 nullifier = _calculateNullifier8(input);
+        uint256 nullifier = _calculateNullifier7(input);
         _verifyAllSignatures(bytes32(nullifier), _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
@@ -91,7 +91,7 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
     }
-    function processZkValidator(uint[8] calldata proof, uint[6] calldata input,bytes calldata _signatures) external {
+    function processZkValidator(uint[8] calldata proof, uint[7] calldata input,bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         validator_verifier.verifyProof(proof, input);
 
@@ -99,7 +99,7 @@ contract QiaraZKDelegator is Ownable {
         require(chainID == block.chainid, "Wrong destination chain");
 
         // 4. Replay Protection (Using SHA256)
-        uint256 nullifier = _calculateNullifier6(input);
+        uint256 nullifier = _calculateNullifier7(input);
         _verifyAllSignatures(bytes32(nullifier), _signatures);
         require(!usedNullifiers[nullifier], "Replay attack detected");
         usedNullifiers[nullifier] = true;
@@ -128,7 +128,7 @@ contract QiaraZKDelegator is Ownable {
         return uint256(hash);
     }
     // Dont hash the last pub signal, that contains the pubkey of the validator, which would result in all nulifiers being unique, leading to never reaching needed quarum
-    function _calculateNullifier6(uint256[6] calldata input) internal pure returns (uint256) {
+    function _calculateNullifier7(uint256[7] calldata input) internal pure returns (uint256) {
         // abi.encodePacked concatenates all values into a raw byte stream.
         // Hashing the entire array ensures that if ANY signal changes, the nullifier changes.
         bytes32 hash = keccak256(abi.encodePacked(
@@ -136,7 +136,10 @@ contract QiaraZKDelegator is Ownable {
             input[1],
             input[2],
             input[3],
-            input[4]
+            input[4],
+            input[5],
+            input[6]
+
             //_pubSignals[5],
         ));
 
