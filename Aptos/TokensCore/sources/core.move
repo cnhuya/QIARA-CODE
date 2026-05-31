@@ -539,7 +539,7 @@ module dev::QiaraTokensCoreV9{
 
         let fa = internal_withdraw((storage_address_bytes),storage, amount, chain, managed);
 
-        TokensOmnichain::change_TokenSupply(symbol, chain, fungible_asset::amount(&fa), false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
+        TokensOmnichain::change_TokenSupply(symbol, chain, fungible_asset::amount(&fa), false, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
         fungible_asset::burn(&managed.burn_ref, fa);
     
         let data = vector[
