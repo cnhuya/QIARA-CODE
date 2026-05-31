@@ -556,7 +556,7 @@ module dev::QiaraTokensCoreV9{
         Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
 
-        rates::update_rates(symbol, chain, provider, rate, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
+        TokensRates::update_rate(symbol, chain, provider, rate, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
 
 
         if(vector::length(&user) == 33){
