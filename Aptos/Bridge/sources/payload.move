@@ -110,7 +110,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         OmniNonce::increment_nonce(type, OmniNonce::give_permission(&borrow_global<Permissions>(@dev).omni_nonce));
     }
        
-    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, String)  acquires Permissions  {
+    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, u64,String)  acquires Permissions  {
         
         // 1. Extract raw byte chunks
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
@@ -137,7 +137,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let c = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
         let d = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
         let f = bcs_stream::deserialize_string(&mut bcs_stream::new(hash_raw));
-        let y = bcs_stream::deserialize_string(&mut bcs_stream::new(rate_raw));
+        let y = bcs_stream::deserialize_u64(&mut bcs_stream::new(rate_raw));
 
         // Extract U64
         let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
