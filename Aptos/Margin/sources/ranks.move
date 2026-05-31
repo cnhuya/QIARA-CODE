@@ -4,7 +4,7 @@ module dev::QiaraRanksV7{
     use std::vector;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV10:{Self as TokensType};
+    use dev::QiaraTokenTypesV10::{Self as TokensType};
     use dev::QiaraChainTypesV10::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
