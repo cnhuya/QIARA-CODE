@@ -798,9 +798,9 @@ fun handle_omnichain_event(
             // 5. Execute Bridging Logic (Main Event Specific)
             if (event_type == utf8(b"Bridge Deposit")) {
                 // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                let (receiver, x, shared, symbol, chain, provider, amount, rate, hash) = Payload::prepare_bridge_deposit(type_names, payload);
                 //tttta(0);
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, amount, TokensCore::give_permission(&cap.tokens_core));
+                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, rate, TokensCore::give_permission(&cap.tokens_core));
                 TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
                 if(provider != utf8(b"none")) {
                     Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));

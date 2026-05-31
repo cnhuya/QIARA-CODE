@@ -120,6 +120,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
         let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
         let (_, hash_raw) = find_payload_value(utf8(b"hash"), type_names, payload);
+        let (_, rate_raw) = find_payload_value(utf8(b"rate"), type_names, payload);
 
         // 2. Decode using bcs_stream
 
@@ -136,13 +137,14 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let c = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
         let d = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
         let f = bcs_stream::deserialize_string(&mut bcs_stream::new(hash_raw));
+        let y = bcs_stream::deserialize_string(&mut bcs_stream::new(rate_raw));
 
         // Extract U64
         let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-        return (a, x, k, b, c, d, e, f)
+        return (a, x, k, b, c, d, e, y, f)
     }
 
     public fun prepare_register_validator(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, vector<u8>)  acquires Permissions {

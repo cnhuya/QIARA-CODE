@@ -21,6 +21,7 @@ module dev::QiaraTokensCoreV8{
     use dev::QiaraTokensMetadataV8::{Self as TokensMetadata};
     use dev::QiaraTokensOmnichainV8::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensTiersV8::{Self as TokensTiers};
+    use dev::QiaraTokensRatesV8::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensQiaraV8::{Self as TokensQiara,  Access as TokensQiaraAccess};
     //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
 
@@ -70,6 +71,7 @@ module dev::QiaraTokensCoreV8{
     struct Permissions has key {
         tokens_omnichain_access: TokensOmnichainAccess,
         tokens_qiara_access: TokensQiaraAccess,
+        tokens_rates_access: TokensRatesAccess,
     }
 
     struct ManagedFungibleAsset has key {
@@ -133,7 +135,7 @@ module dev::QiaraTokensCoreV8{
     fun init_module(admin: &signer){
 
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
+            move_to(admin, Permissions { tokens_rates_access: TokensRates::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
         };
     }
 
@@ -211,7 +213,8 @@ module dev::QiaraTokensCoreV8{
         ensure_safety(token, chain);
 
         //tttta(7);
-        let fa = mint(token, chain, INIT_SUPPLY, give_permission(&give_access(signer)));
+        let fa = internal_mint(token, chain, INIT_SUPPLY, authorized_borrow_refs(token));
+        //let fa = mint(token, chain, INIT_SUPPLY, give_permission(&give_access(signer)));
         let asset = get_metadata(token);
         let store = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),asset);
         //tttta(1);
@@ -549,10 +552,11 @@ module dev::QiaraTokensCoreV8{
 
     }
 
-    public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
+    public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, rate: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
         Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
-    
+
+        rates::update_rates(symbol, chain, provider, rate, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
 
 
         if(vector::length(&user) == 33){
