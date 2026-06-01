@@ -536,7 +536,9 @@ fun handle_omnichain_event(
         // Calculate voting power (Weight)
         let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
         let vote_weight = (vote_weight_u256 as u128);
-
+        if (vote_weight == 0) {
+            abort(ERROR_INVALID_VOTING_POWER);
+        };
         // Build the signature map for this validator
         let signature_map = map::new<String, vector<u8>>();
         let i = 0;
@@ -668,7 +670,9 @@ fun handle_omnichain_event(
         let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
         let vote_weight = (vote_weight_u256 as u128);
         // 3. Update or Create the Pending state
-
+        if (vote_weight == 0) {
+            abort(ERROR_INVALID_VOTING_POWER);
+        };
                 let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_pub_key: secp256k1_pub_key };
 
         let vect = vector[validator];
@@ -721,7 +725,9 @@ fun handle_omnichain_event(
         // Calculate voting power (Weight)
         let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
         let vote_weight = (vote_weight_u256 as u128);
-
+        if (vote_weight == 0) {
+            abort(ERROR_INVALID_VOTING_POWER);
+        };
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
@@ -847,6 +853,9 @@ fun handle_omnichain_event(
         // Calculate voting power (Weight)
         let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
         let vote_weight = (vote_weight_u256 as u128);
+                if (vote_weight == 0) {
+            abort(ERROR_INVALID_VOTING_POWER);
+        };
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
