@@ -206,7 +206,7 @@ module dev::QiaraStorageV4 {
         register_constant<u64>(admin, utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE"), 15_000_000, true, &give_permission(&give_access(admin))); // 1x
 
     }
-    public entry fun more6(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+    public entry fun more6(admin: &signer) {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         //register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_vault"),utf8(b"0x72F726F722436b95a691cC438183e67632eBFF76"), true, &give_permission(&give_access(admin))); // 0.001%  
         //register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_token"),utf8(b"0x0D5322Af414db3bd855cC44424F8532859469957"), true, &give_permission(&give_access(admin))); // 0.001%  

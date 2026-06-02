@@ -1,4 +1,4 @@
-module dev::QiaraTokensBurnedQiaraV9 {
+module dev::QiaraTokensBurnedQiaraV10 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -15,9 +15,9 @@ module dev::QiaraTokensBurnedQiaraV9 {
     use std::string::{Self as string, String, utf8};
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraSharedV1::{Self as Shared};
-    use dev::QiaraTokensCoreV9::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraStorageV3::{Self as storage};
+    use dev::QiaraSharedV3::{Self as Shared};
+    use dev::QiaraTokensCoreV10::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraStorageV4::{Self as storage};
     
 // === CONSTANTS === //
     const ADMIN: address = @dev;
