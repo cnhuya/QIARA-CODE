@@ -807,7 +807,7 @@ fun handle_omnichain_event(
                 let (receiver, x, shared, symbol, chain, provider, amount, rate, hash) = Payload::prepare_bridge_deposit(type_names, payload);
                 //tttta(0);
                 TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, rate, TokensCore::give_permission(&cap.tokens_core));
-                TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
                 if(provider != utf8(b"none")) {
                     Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
                 }

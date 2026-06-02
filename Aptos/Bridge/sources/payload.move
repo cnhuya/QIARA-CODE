@@ -92,7 +92,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let addr_stream = &mut bcs_stream::new(addr);
         let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
-       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+       // Nonce::increment_nonce(addr_bytes, re, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
         Event::create_identifier(addr, consensus, nonce)
 

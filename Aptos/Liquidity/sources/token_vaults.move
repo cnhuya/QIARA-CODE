@@ -92,7 +92,7 @@ module dev::QiaraTokenVaultsV8{
 
     }
 
-    public fun fast_add_accumulated_rewards(token: String , value: u256, cap: Permission) acquires GlobalVault{
+    public fun fast_add_accumulated_rewards(token: String , provider: String, value: u256, cap: Permission) acquires GlobalVault{
         let value_protocol_revenue = value / 2;
         let value_protocol_reserves = value-value_protocol_revenue;
 

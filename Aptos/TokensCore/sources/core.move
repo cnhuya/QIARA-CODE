@@ -367,6 +367,7 @@ module dev::QiaraTokensCoreV9{
     }
 
     public fun mint_to(address: address, shared: String, symbol: String, chain: String, amount: u64, cap: Permission) acquires Permissions, ManagedFungibleAsset {
+        //tttta(123);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&address));
         let asset = get_metadata(symbol); 
         let managed = authorized_borrow_refs(symbol);
@@ -553,7 +554,10 @@ module dev::QiaraTokensCoreV9{
     }
 
     public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, rate: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
+        //tttta(0);
+        
         Shared::assert_is_sub_owner(shared, user);
+        //tttta(1);
         ensure_safety(symbol, chain);
 
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));

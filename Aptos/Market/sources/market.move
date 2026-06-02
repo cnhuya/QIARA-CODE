@@ -535,9 +535,11 @@ module dev::QiaraVaultsV7 {
             // Original items from the data vector
             Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
-            Event::create_data_struct(utf8(b"gas_fee"), utf8(b"u256"), bcs::to_bytes(&gas_fee)),
             Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
             Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+            Event::create_data_struct(utf8(b"gas_rate"), utf8(b"u256"), bcs::to_bytes(&gas_rate)),
+            Event::create_data_struct(utf8(b"gas_fee"), utf8(b"u256"), bcs::to_bytes(&gas_fee)),
 
             Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
             Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest))
@@ -567,7 +569,8 @@ module dev::QiaraVaultsV7 {
 
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::remove_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        Gas::add_withdraw(token, amount_u256);
+        let gas_rate = Gas::add_withdraw(token, amount_u256);
+        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, staked_rewards, user_points) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
@@ -583,6 +586,9 @@ module dev::QiaraVaultsV7 {
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
             Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
             Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+            Event::create_data_struct(utf8(b"gas_rate"), utf8(b"u256"), bcs::to_bytes(&gas_rate)),
+            Event::create_data_struct(utf8(b"gas_fee"), utf8(b"u256"), bcs::to_bytes(&gas_fee)),
 
             Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
             Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest))
@@ -612,7 +618,8 @@ module dev::QiaraVaultsV7 {
         Liquidity::add_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        Gas::add_borrow(token, amount_u256);
+        let gas_rate = Gas::add_borrow(token, amount_u256);
+        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, staked_rewards, user_points) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
@@ -628,6 +635,9 @@ module dev::QiaraVaultsV7 {
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
             Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
             Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+            Event::create_data_struct(utf8(b"gas_rate"), utf8(b"u256"), bcs::to_bytes(&gas_rate)),
+            Event::create_data_struct(utf8(b"gas_fee"), utf8(b"u256"), bcs::to_bytes(&gas_fee)),
 
             Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
             Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest))

@@ -89,6 +89,15 @@ module dev::QiaraGasV2{
 
 
 
+    public entry fun dev_reset_gas(admin: &signer) acquires Gas {
+        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
+        let gas = borrow_global_mut<Gas>(@dev);
+        gas.usd_deposits = 0;
+        gas.usd_withdrawals = 0;
+        gas.usd_borrows = 0;
+        gas.last_update = timestamp::now_seconds();
+    }
+
     //supra move tool view --function-id 0xc536f11396d0510d90b021cbae973ab1f71155e8ff32c9d544bfb48212b11ac9::QiaraGasV1::calculateFunding --args u256:50 u256:1250000 u256:2500000 u256:1250000 u256:1522143811 u256:408101064 u256:784666762 u256:3481215007  u256:275
     #[view]
     public fun calculateFunding(skewer: u256, avg_leverage: u256, base: u256,withdrawal_weight: u256, prev_deposits: u256, deposits: u256, prev_withdrawals: u256, withdrawals: u256, last_update_sec: u256,): (u256,u256,u256,u256,u256,u256) {
@@ -113,37 +122,55 @@ module dev::QiaraGasV2{
         return (total_fee, previous_deposit_impact, previous_withdrawal_impact, new_deposits, new_withdrawals, ((ratio*ratio)/e6))
     }
 
-// 1. Remove "acquires Gas" here. You are passing the reference in.
-    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256,u256,u256,u256,u256,u256) {
-        let base = 2_500_000;
-        let skewer = 50;
-        let withdrawal_weight = 1_250_000;
+#[view]
+    public fun calculateGas_test(
+        deposits: u256, 
+        withdrawals: u256, 
+        new_deposit: u256, 
+        new_withdrawal: u256, 
+        leverage: u256, 
+        last_update_sec: u256
+    ): (u256, u256, u256, u256, u256, u256) {
+        let base = 1_000_000;
+        let withdrawal_weight = 5_000_000;
         let e6 = 1_000_000;
+        
+        // Fixed-point scaling where 100% is 100_000_000
+        let e8 = 100_000_000u256;
+        let percentage_decay = 1_000u256; // 0.001% decay per second
+        let max_decay = 25_000_000u256;   // Max 25% decay
 
-        let last_update_sec = ((timestamp::now_seconds() - gas_ref.last_update) as u256);
-
-        // Standard decay logic
-        let deposit_decay = (gas_ref.usd_deposits * skewer * last_update_sec) / 1_000_000;
-        let previous_deposit_impact = if (deposit_decay >= gas_ref.usd_deposits) {
-            0
+        // Calculate the elapsed decay percentage and cap it at max_decay (25%)
+        let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
+            max_decay
         } else {
-            gas_ref.usd_deposits - deposit_decay
+            percentage_decay * last_update_sec
         };
 
-        let withdrawal_decay = (gas_ref.usd_withdrawals * skewer * last_update_sec) / 1_000_000;
-        let previous_withdrawal_impact = if (withdrawal_decay >= gas_ref.usd_withdrawals) {
+        // Standard decay logic using input base deposits and withdrawals
+        let deposit_decay = (deposits * decay_pct) / e8;
+        let previous_deposit_impact = if (deposit_decay >= deposits) {
             0
         } else {
-            gas_ref.usd_withdrawals - withdrawal_decay
+            deposits - deposit_decay
         };
-        let new_deposits = deposit + previous_deposit_impact;
-        let new_withdrawals = withdrawal + previous_withdrawal_impact;
 
-            // Corrected logic: Ensure the denominator is at least 1
+        let withdrawal_decay = (withdrawals * decay_pct) / e8;
+        let previous_withdrawal_impact = if (withdrawal_decay >= withdrawals) {
+            0
+        } else {
+            withdrawals - withdrawal_decay
+        };
+
+        // Calculate active values after decay with new inputs
+        let new_deposits = new_deposit + previous_deposit_impact;
+        let new_withdrawals = new_withdrawal + previous_withdrawal_impact;
+
+        // Corrected logic: Ensure the denominator is at least 1
         let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
 
-        let total_fee = (base * ((ratio * ratio) / e6) / e6) + (gas_ref.avg_leverage as u256) + base;
-        
+        // Updated avg_leverage usage to match the 'leverage' input parameter
+        let total_fee = (base * ((ratio * ratio) / e6) / e6) + leverage + base;
 
         let data = vector[
             // Items from the event top-level fields
@@ -153,9 +180,81 @@ module dev::QiaraGasV2{
         ];
 
         Event::emit_historical_event(utf8(b"Gas"), data);
-        return (total_fee, previous_deposit_impact, previous_withdrawal_impact, new_deposits, new_withdrawals, ((ratio * ratio) / e6))
+        
+        return (
+            total_fee, 
+            previous_deposit_impact, 
+            previous_withdrawal_impact, 
+            new_deposits, 
+            new_withdrawals, 
+            ((ratio * ratio) / e6)
+        )
     }
+public fun calculateGas(
+        gas_ref: &mut Gas, 
+        deposit: u256, 
+        withdrawal: u256
+    ): (u256, u256, u256, u256, u256, u256) {
+        let base = 1_000_000u256;
+        let withdrawal_weight = 5_000_000u256; // 5x
+        let e6 = 1_000_000u256;
+        
+        // Fixed-point scaling where 100% is 100_000_000
+        let e8 = 100_000_000u256; 
+        let percentage_decay = 1_000u256; // 0.001% decay per second
+        let max_decay = 25_000_000u256;   // Max 25% decay
 
+        let last_update_sec = ((timestamp::now_seconds() - gas_ref.last_update) as u256);
+
+        // Calculate the elapsed decay percentage and cap it at max_decay (25%)
+        let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
+            max_decay
+        } else {
+            percentage_decay * last_update_sec
+        };
+
+        // Standard decay logic with 100% scale division
+        let deposit_decay = (gas_ref.usd_deposits * decay_pct) / e8;
+        let previous_deposit_impact = if (deposit_decay >= gas_ref.usd_deposits) {
+            0
+        } else {
+            gas_ref.usd_deposits - deposit_decay
+        };
+
+        let withdrawal_decay = (gas_ref.usd_withdrawals * decay_pct) / e8;
+        let previous_withdrawal_impact = if (withdrawal_decay >= gas_ref.usd_withdrawals) {
+            0
+        } else {
+            gas_ref.usd_withdrawals - withdrawal_decay
+        };
+        
+        let new_deposits = deposit + previous_deposit_impact;
+        let new_withdrawals = withdrawal + previous_withdrawal_impact;
+
+        // Corrected logic: Ensure the denominator is at least 1
+        let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
+
+        let total_fee = (base * ((ratio * ratio) / e6) / e6) + (gas_ref.avg_leverage as u256) + base;
+
+        let data = vector[
+            // Items from the event top-level fields
+            Event::create_data_struct(utf8(b"gas"), utf8(b"u256"), bcs::to_bytes(&total_fee)),
+            Event::create_data_struct(utf8(b"previous_deposit_impact"), utf8(b"u256"), bcs::to_bytes(&previous_deposit_impact)),
+            Event::create_data_struct(utf8(b"previous_withdrawal_impact"), utf8(b"u256"), bcs::to_bytes(&previous_withdrawal_impact)),
+        ];
+
+        Event::emit_historical_event(utf8(b"Gas"), data);
+        
+        gas_ref.last_update = timestamp::now_seconds();
+        return (
+            total_fee, 
+            previous_deposit_impact, 
+            previous_withdrawal_impact, 
+            new_deposits, 
+            new_withdrawals, 
+            ((ratio * ratio) / e6)
+        )
+    }
 
         #[view]
         public fun calculate_gas_fee(time: u64, gas_fee: u256, amount: u256): u256 {
