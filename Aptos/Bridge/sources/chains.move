@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV15{
+module dev::QiaraBridgeV16{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -21,16 +21,16 @@ module dev::QiaraBridgeV15{
 
     use dev::QiaraSharedV1::{Self as Shared};
 
-    use dev::QiaraTokensCoreV9::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV9::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensValidatorsV9::{Self as TokensValidators};
+    use dev::QiaraTokensCoreV10::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV10::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensValidatorsV10::{Self as TokensValidators};
     
-    use dev::QiaraVaultsV7::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV8::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV7::{Self as Margin};
+    use dev::QiaraMarginV8::{Self as Margin};
 
-    use dev::QiaraPayloadV15::{Self as Payload};
-    use dev::QiaraValidatorsV15::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV16::{Self as Payload};
+    use dev::QiaraValidatorsV16::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
