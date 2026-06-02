@@ -16,7 +16,7 @@ module dev::QiaraMarginV8{
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
-
+    use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
     use dev::QiaraSharedV3::{Self as Shared};
 
 // === ERRORS === //
@@ -329,6 +329,8 @@ module dev::QiaraMarginV8{
         let tokens_holdings = borrow_global_mut<TokenHoldings>(@dev);
         let tokens = TokensType::return_full_nick_names_list();
 
+        let staked_ltv_increase = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256);
+
         let total_staked = 0u256;
         let total_dep = 0u256;
         let total_margin = 0u256;
@@ -357,6 +359,8 @@ module dev::QiaraMarginV8{
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
             let efficiency = (TokensMetadata::get_coin_metadata_tier_efficiency(&metadata) as u256);
             let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
+            efficiency = calculate_increased_efficiency(efficiency, ltv_increase);
+            let staked_efficiency = calculate_increased_efficiency_by_staking(efficiency, staked_ltv_increase);
             // Pre-collect keys to avoid borrow conflicts
             let vect_chain = vector::empty<String>();
             let vect_provider = vector::empty<String>();
@@ -411,7 +415,7 @@ module dev::QiaraMarginV8{
                     if (token == utf8(b"Qiara")) {
                         current_staked_usd = uv.staked / denom;
                     } else {
-                        current_staked_usd = (uv.staked * price) / denom;
+                        current_staked_usd = (((uv.staked * price) / denom) * staked_efficiency) / 100_000_000;
                     };
 
                     // Accumulate totals
@@ -595,7 +599,7 @@ module dev::QiaraMarginV8{
     public fun calculate_increased_efficiency(base_efficiency: u256, efficiency_factor: u256): (u256)  {
         //100_000_000 - 85_000_000
         let missing_increase = 100_000_000 - base_efficiency; // Assuming 100% efficiency is represented as 1,000,000,000 (for 4 decimal places)
-
+        let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
 
         // Efficiency increase is calculated as: 
         //base_efficiency + (base_efficiency * efficiency_factor / 10000)
@@ -607,7 +611,7 @@ module dev::QiaraMarginV8{
 
         // Cap the efficiency at 100%
         if (new_efficiency > 100_000_000) {
-            (100_000_000)
+            (max_allowed_ltv)
         } else {
             (new_efficiency)
         }
@@ -616,7 +620,7 @@ module dev::QiaraMarginV8{
 
     #[view]
     public fun calculate_increased_efficiency_by_staking(base_efficiency: u256, efficiency_factor: u256): (u256)  {
-
+        let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
         // Efficiency increase is calculated as: 
         //base_efficiency + (base_efficiency * efficiency_factor / 10000)
         // 85000000 + (85_000_000 * 50_000_000)
@@ -627,7 +631,7 @@ module dev::QiaraMarginV8{
 
         // Cap the efficiency at 100%
         if (new_efficiency > 100_000_000) {
-            (100_000_000)
+            (max_allowed_ltv)
         } else {
             (new_efficiency)
         }
