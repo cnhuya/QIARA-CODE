@@ -1,4 +1,4 @@
-module dev::QiaraMarginV7{
+module dev::QiaraMarginV8{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,14 +8,16 @@ module dev::QiaraMarginV7{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraTokensMetadataV9::{Self as TokensMetadata};
+    use dev::QiaraRanksV8::{Self as Ranks};
 
-    use dev::QiaraTokenTypesV10::{Self as TokensType};
+    use dev::QiaraTokensMetadataV10::{Self as TokensMetadata};
+
+    use dev::QiaraTokenTypesV11::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
 
-    use dev::QiaraSharedV1::{Self as Shared};
+    use dev::QiaraSharedV3::{Self as Shared};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -354,7 +356,7 @@ module dev::QiaraMarginV7{
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
             let efficiency = (TokensMetadata::get_coin_metadata_tier_efficiency(&metadata) as u256);
-
+            let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
             // Pre-collect keys to avoid borrow conflicts
             let vect_chain = vector::empty<String>();
             let vect_provider = vector::empty<String>();
@@ -551,38 +553,37 @@ module dev::QiaraMarginV7{
         *table::borrow(inner, token)
     }
 
-#[view]
-public fun get_user_all_balances(shared: String): Map<String, Map<String, Map<String, Credit>>> acquires TokenHoldings {
-    let th = borrow_global<TokenHoldings>(@dev);
-    
-    // ✅ FIX: Check if shared exists BEFORE borrowing
-    if (!table::contains(&th.holdings, shared)) {
-        // Return empty map instead of aborting
-        return map::new<String, Map<String, Map<String, Credit>>>();
-    };
-    
-    // Safe to borrow now that we know the key exists
-    let inner = table::borrow(&th.holdings, shared);
-
-    let tokens = TokensType::return_full_nick_names_list();
-    let len_tokens = vector::length(&tokens);
-    let map = map::new<String, Map<String, Map<String, Credit>>>();
-    let i = 0;
-    
-    while (i < len_tokens) {
-        let token = *vector::borrow(&tokens, i);
+    #[view]
+    public fun get_user_all_balances(shared: String): Map<String, Map<String, Map<String, Credit>>> acquires TokenHoldings {
+        let th = borrow_global<TokenHoldings>(@dev);
         
-        // Check if token exists for this shared storage
-        if (table::contains(inner, token)) { 
-            let tokens_map = table::borrow(inner, token);
-            map::add(&mut map, token, *tokens_map);
+        // ✅ FIX: Check if shared exists BEFORE borrowing
+        if (!table::contains(&th.holdings, shared)) {
+            // Return empty map instead of aborting
+            return map::new<String, Map<String, Map<String, Credit>>>();
         };
-        i = i + 1;
-    };
+        
+        // Safe to borrow now that we know the key exists
+        let inner = table::borrow(&th.holdings, shared);
 
-    map
-}
+        let tokens = TokensType::return_full_nick_names_list();
+        let len_tokens = vector::length(&tokens);
+        let map = map::new<String, Map<String, Map<String, Credit>>>();
+        let i = 0;
+        
+        while (i < len_tokens) {
+            let token = *vector::borrow(&tokens, i);
+            
+            // Check if token exists for this shared storage
+            if (table::contains(inner, token)) { 
+                let tokens_map = table::borrow(inner, token);
+                map::add(&mut map, token, *tokens_map);
+            };
+            i = i + 1;
+        };
 
+        map
+    }
 
     #[view]
     public fun get_user_credit(shared: String): (u256, bool) acquires TokenHoldings {
@@ -590,6 +591,22 @@ public fun get_user_all_balances(shared: String): Map<String, Map<String, Map<St
         return (credit.value, credit.isPositive)
     }
 
+    #[view]
+    public fun calculate_increased_efficiency(base_efficiency: u256, efficiency_factor: u256): (u256)  {
+        let missing_increase = 1_000_000_000 - base_efficiency; // Assuming 100% efficiency is represented as 1,000,000,000 (for 4 decimal places)
+
+        // Efficiency increase is calculated as: base_efficiency + (base_efficiency * efficiency_factor / 10000)
+        let efficiency_increase = (missing_increase * efficiency_factor) / 10000;
+        let new_efficiency = base_efficiency + efficiency_increase;
+
+
+        // Cap the efficiency at 100%
+        if (new_efficiency > 10000) {
+            (10000)
+        } else {
+            (new_efficiency)
+        }
+    }
 // === MUT RETURNS === //
     fun find_balance(feature_table: &mut TokenHoldings,shared: String,token: String,chain: String, provider: String,): &mut Credit {
         {

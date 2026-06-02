@@ -1,16 +1,16 @@
-module dev::QiaraRanksV7{
+module dev::QiaraRanksV8{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV10::{Self as TokensType};
-    use dev::QiaraChainTypesV10::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV11::{Self as TokensType};
+    use dev::QiaraChainTypesV11::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraStorageV3::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV1::{Self as Shared, Ownership};
+    use dev::QiaraSharedV3::{Self as Shared, Ownership};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -139,6 +139,26 @@ module dev::QiaraRanksV7{
     }
 
     #[view]
+    public fun return_raw_shared_rank(shared: String): (u256, u256, u256) acquires UsersProfile{
+        let points_table = borrow_global<UsersProfile>(@dev);
+        let ownership = Shared::return_shared_ownership_new(shared);
+        if(!table::contains(&points_table.table, shared)){
+            return (0, 0, 0);
+        };
+
+        let user = table::borrow(&points_table.table, shared);
+        let level = return_level_from_xp(user.experience);
+        let rank = convert_level_to_rank(level);
+
+        if(user.custom_rank != utf8(b"None")){
+            rank = user.custom_rank;
+        };
+
+        return (calculate_fee_deduction(convert_rank_to_power(rank)), calculate_ltv_increase(convert_rank_to_power(rank)), calculate_withdrawal_over_limit(convert_rank_to_power(rank)))
+    
+    }
+
+    #[view]
     public fun view_ranks(rank: vector<String>): vector<ViewRank>{
         let len = vector::length(&rank);
         let vect = vector::empty<ViewRank>();
@@ -160,6 +180,8 @@ module dev::QiaraRanksV7{
     }
 
     
+
+
 
     #[view]
     public fun return_multiple_shared_rank(shared: vector<String>): Map<String, ViewUser> acquires UsersProfile{
