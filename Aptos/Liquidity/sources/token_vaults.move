@@ -1,4 +1,4 @@
-module dev::QiaraTokenVaultsV9{
+module dev::QiaraTokenVaultsV10{
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -92,7 +92,7 @@ module dev::QiaraTokenVaultsV9{
 
     }
 
-    public fun fast_add_accumulated_rewards(token: String , provider: String, value: u256, cap: Permission) acquires GlobalVault{
+    public fun fast_add_accumulated_rewards(token: String,  value: u256, cap: Permission) acquires GlobalVault{
         let value_protocol_revenue = value / 2;
         let value_protocol_reserves = value-value_protocol_revenue;
 
