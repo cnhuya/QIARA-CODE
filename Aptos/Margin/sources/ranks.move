@@ -343,7 +343,7 @@ module dev::QiaraRanksV9{
         let base = (return_base_xp_multi_per_day() as u128);
         
         // Integer division of the exponent loses the decimal precision (e.g., 1.25 becomes 1)
-        let exponent = (return_exponent_xp_multi_per_day() as u128) / 10_000;
+        let exponent = (return_exponent_xp_multi_per_day() as u128);
         
         let scale = 10_000; // Assuming a scaling factor of 10,000 (4 decimals)
         let result = fixed_pow(base, exponent, scale);
