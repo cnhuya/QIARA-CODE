@@ -445,7 +445,7 @@ module dev::QiaraSharedV3 {
             abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
         };
 
-        *table::borrow(&shared.storage, name).owner
+        table::borrow(&shared.storage, name).owner
     }
 
     #[view]
