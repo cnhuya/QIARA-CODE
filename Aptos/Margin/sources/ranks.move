@@ -336,10 +336,10 @@ module dev::QiaraRanksV9{
         let increased_qburned_reward_rate = (power as u256) * return_increased_qburned_reward_rate_per_power(); // each rank power gives 5% fee deduction
         return increased_qburned_reward_rate
     }
-    
+
     #[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
-        let days = first_interaction / 86400; // convert seconds to days
+        let days = (timestamp::now_seconds() - first_interaction) / 86400; // convert seconds to days
         let base = (return_base_xp_multi_per_day() as u128);
         
         // Integer division of the exponent loses the decimal precision (e.g., 1.25 becomes 1)
