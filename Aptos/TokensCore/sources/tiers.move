@@ -148,6 +148,7 @@ module dev::QiaraTokensTiersV11{
             market_borrow_interest_multiplier: market_borrow_interest_multiplier(id),
             market_base_lending_apr: market_base_lending_apr(id),
             price_impact_penalty: price_impact_penalty(id),
+            bridge_fee: bridge_fee(id),
             deposit_limit: deposit_limit(id),
             borrow_limit: borrow_limit(id),
             w_fee: minimal_w_fee(id),

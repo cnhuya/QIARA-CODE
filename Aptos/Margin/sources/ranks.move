@@ -101,6 +101,7 @@ module dev::QiaraRanksV8{
     public fun return_shared_rank(shared: String): ViewUser acquires UsersProfile{
         let points_table = borrow_global<UsersProfile>(@dev);
         let ownership = Shared::return_shared_ownership_new(shared);
+        let () = Shared::extract_raw_params(ownership);
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,

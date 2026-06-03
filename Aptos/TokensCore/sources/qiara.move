@@ -40,29 +40,31 @@ module dev::QiaraTokensQiaraV11 {
     }
     
 // === STRUCTS === //
-    struct Timers has key {
+    struct Timers has copy,key {
         creation: u64,
         last_claimed: u64,
     }
 
-    struct Tokenomics has key{
+    struct Tokenomics has copy,key{
         burned: u128,
         minted: u128,
         initial_supply: u128,
     }
 
-    Struct QiaraData has copy {
+    struct QiaraData has copy {
         timers: Timers,
         epoch: u64,
         inflation: u64,
+        actual_inflation: u64,
         inflation_minimal: u64,
         inflation_debt: u64,
         burn_fee: u64,
+        actual_burn_fee: u64,
         burn_fee_increase: u64,
         burn_fee_minimal: u64,
         validator_emissions: u64,
         locked_qiara_rate: u64,
-        tokenomics: Tokenomics
+        tokenomics: Tokenomics,
         current_supply: u128,
         locked_qiara: u128,
     }
@@ -79,6 +81,9 @@ module dev::QiaraTokensQiaraV11 {
 
         if (!exists<Timers>(@dev)) {
             move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
+        };
+        if (!exists<Tokenomics>(@dev)) {
+            move_to(admin, Tokenomics { burned: 0, minted: 0, initial_supply: 0 });
         };
     }
 
@@ -103,7 +108,7 @@ module dev::QiaraTokensQiaraV11 {
     }
 
 // === VIEW FUNCTIONS === //
-    #[view]
+#[view]
     public fun get_qiara_data(): QiaraData acquires Timers, Tokenomics {
         let timers = borrow_global<Timers>(@dev);
         let tokenomics = borrow_global<Tokenomics>(@dev);
@@ -112,17 +117,17 @@ module dev::QiaraTokensQiaraV11 {
             epoch: get_epoch(),
             inflation: get_inflation(),
             actual_inflation: get_inflation() - get_inflation_debt(),
-            minimal_inflation: get_minimal_inflation(),
+            inflation_minimal: get_minimal_inflation(),
             inflation_debt: get_inflation_debt(),
             burn_fee: get_burn_fee(),
-            actual_burn_fee: burn_fee, // increase every month
+            actual_burn_fee: Self::burn_fee(), // Explicitly calls the view function
             burn_fee_increase: get_burn_fee_increase(),
             burn_fee_minimal: get_burn_fee_minimal(),
             validator_emissions: get_emissions_validators(),
             locked_qiara_rate: get_locked_qiara_rate(),
             tokenomics: *tokenomics,
-            current_supply: tokenomics.initial_supply + tokenomics.minted - tokenomics.burned
-            locked_qiara: fungible_asset::supply(get_metadata(utf8(b"Burned Qiara"))),
+            current_supply: 1_000_000_000_000 + tokenomics.initial_supply + tokenomics.minted - tokenomics.burned,
+            locked_qiara: option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Burned Qiara"))), 0), // Safely unwraps Option<u128>
         }
     }
 
@@ -152,11 +157,10 @@ module dev::QiaraTokensQiaraV11 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"LOCKED_QIARA_REWARD_RATE")))
     }
 
-    #[view] //change
+    #[view] 
     public fun get_inflation_debt(): u64 { // 0.025%
         get_epoch() * storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION_DEBT")))
     }
-
 
     #[view] 
     public fun get_burn_fee(): u64 { // 0.001%
@@ -167,17 +171,16 @@ module dev::QiaraTokensQiaraV11 {
     public fun get_burn_fee_minimal(): u64 { // 0.001%
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE_MINIMAL")))
     }
-    #[view] //change
+
+    #[view]
     public fun get_burn_fee_increase(): u64 { // 0.00025%
         get_epoch() * storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_INCREASE")))
     }
 
-
-
     #[view]
     public fun get_epoch(): u64 acquires Timers { // 0
         let timers = borrow_global<Timers>(ADMIN);
-        ((timestamp::now_seconds() - timers.creation ) / Genesis::return_epoch_duration()) as u64
+        ((timestamp::now_seconds() - timers.creation ) / (Genesis::return_epoch_duration() as u64)) as u64
     }
 
     #[view]
@@ -189,10 +192,11 @@ module dev::QiaraTokensQiaraV11 {
 
         // Time since last claim
         let delta_seconds = timestamp::now_seconds() - timers.last_claimed;
-
+        let actual_inflation = (get_inflation() - get_inflation_debt()) / 1_000_000  / 100; // Recheck later for math if the /100 is correct
         // Calculate claimable amount proportionally
-        (circulating_supply * (get_inflation() as u128) * (delta_seconds as u128)) / ((seconds_per_year as u128) * 10_000)
+        (circulating_supply * (actual_inflation as u128) * (delta_seconds as u128)) / (seconds_per_year as u128)
     }
+
 
     #[view]
     public fun burn_fee(): u64 acquires Timers {
@@ -200,15 +204,18 @@ module dev::QiaraTokensQiaraV11 {
     }
 
     #[view]
-    public fun burn_calculation(amount: u128): (u128, u128) acquires Timers {
+    public fun burn_calculation(amount: u64): (u64) acquires Timers {
         let fee = burn_fee();
-        let fee_minimal = get_burn_fee_minimal();
-
-        let calculated_fee = (amount * (fee as u128)) / 10_000;
-        if (calculated_fee < fee_minimal as u128) {
-            (calculated_fee, fee_minimal as u128)
-        } else {
-            (calculated_fee, fee_minimal as u128)
-        }
+        let scale = 100_000_000;
+        
+        let burn_amount = (amount *(fee)) / scale;
+        if(burn_amount == 0){
+            if(get_burn_fee_minimal() > amount){
+                return amount;
+            } else {
+                return get_burn_fee_minimal();                
+            };
+        };
+        return if(burn_amount > get_burn_fee_minimal()) {burn_amount} else {get_burn_fee_minimal()}
     }
 }

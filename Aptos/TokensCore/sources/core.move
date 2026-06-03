@@ -261,12 +261,12 @@ module dev::QiaraTokensCoreV11{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV10"),
+            string::utf8(b"QiaraTokensCoreV11"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV10"),
+            string::utf8(b"QiaraTokensCoreV11"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -281,7 +281,6 @@ module dev::QiaraTokensCoreV11{
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
         if(symbol == utf8(b"QIARA")){
             TokensQiara::init_qiara(admin);
-            //TokensBurnedQiara::init_burned_qiara(admin);
         }
     }
 // === PUBLIC FUNCTIONS === //
@@ -309,8 +308,8 @@ module dev::QiaraTokensCoreV11{
     fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset acquires Permissions {
         ChainTypes::ensure_valid_chain_name(chain);
         fungible_asset::set_frozen_flag(&managed.transfer_ref, store, true);
-        if(fungible_asset::name(fungible_asset::store_metadata(store)) == utf8(b"QIARA")){
-            let fee = calculate_qiara_fees(amount);
+        if(fungible_asset::name(fungible_asset::store_metadata(store)) == utf8(b"Qiara")){
+            let fee = TokensQiara::burn_calculation(amount);
             if(fee >= amount){
                 amount = 0;
                 fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));          
@@ -320,6 +319,7 @@ module dev::QiaraTokensCoreV11{
                 fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));
                 TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
             };
+            TokensQiara::accrue_burned_tokens((fee as u128), TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
             return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
         };
 
@@ -367,7 +367,6 @@ module dev::QiaraTokensCoreV11{
     }
 
     public fun mint_to(address: address, shared: String, symbol: String, chain: String, amount: u64, cap: Permission) acquires Permissions, ManagedFungibleAsset {
-        //tttta(123);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&address));
         let asset = get_metadata(symbol); 
         let managed = authorized_borrow_refs(symbol);
@@ -650,7 +649,7 @@ module dev::QiaraTokensCoreV11{
 
     }
 
-
+/*
 
     #[view]
     public fun ensure_fees(validator: address, symbol: String, chain: String, amount: u256): (u256, u256){ // change to u256 for security overflows
@@ -680,8 +679,8 @@ module dev::QiaraTokensCoreV11{
     public fun ensure_accrue_fees(validator: address, symbol: String, chain: String, amount: u256): u256{
         let (fee, validator_reward) = ensure_fees(validator, symbol, chain, amount);
         return (amount-fee)
-    }
-    #[view]
+    }*/
+/*    #[view]
     public fun calculate_qiara_fees(amount: u64): u64 {
         // 500 + 100*0 = 500
         let burn_fee_bps = TokensQiara::get_burn_fee() + TokensQiara::get_burn_fee_increase() * TokensQiara::get_month();
@@ -700,7 +699,7 @@ module dev::QiaraTokensCoreV11{
         };
         return burn_amount
     }
-
+*/
 
 // === HELPFER FUNCTIONS === //
 

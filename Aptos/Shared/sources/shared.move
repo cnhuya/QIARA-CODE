@@ -414,6 +414,18 @@ module dev::QiaraSharedV3 {
         *table::borrow(&shared.storage, name)
     }
 
+    // useles remove later
+    public fun return_shared_raw_ref_params(owner: vector<u8>, name: String): (u64, u64) acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+
+        if (!table::contains(&shared.storage, name)) {
+            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+        };
+
+        let ref_cpde_params = table::borrow(&shared.storage, name).ref_code_params;
+        (ref_cpde_params.xp_tax, ref_cpde_params.fee_tax)
+    }
+
     #[view]
     public fun return_shared_ownership_new(name: String): Ownership acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
@@ -470,4 +482,10 @@ module dev::QiaraSharedV3 {
         let ownership_record = table::borrow(&shared.storage, name);
         assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
     }
+    
+    public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
+        (ownership_record.ref_code_params.xp_tax, ownership_record.ref_code_params.fee_tax)
+    }
+
+
 }
