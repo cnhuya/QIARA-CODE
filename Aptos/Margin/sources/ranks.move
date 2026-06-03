@@ -1,4 +1,4 @@
-module dev::QiaraRanksV8{
+module dev::QiaraRanksV9{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,7 +9,7 @@ module dev::QiaraRanksV8{
     use dev::QiaraChainTypesV11::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV6::{Self as storage, Access as StorageAccess};
 
     use dev::QiaraSharedV3::{Self as Shared, Ownership, RefCodeParams};
 
