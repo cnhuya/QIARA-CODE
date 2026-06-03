@@ -67,6 +67,7 @@ module dev::QiaraRanksV9{
         fee_deduction: u256,
         ltv_increase: u256,
         withdraval_over_limit: u256,
+        increased_qburned_reward_rate: u256,
     }
 
 // === INIT === //
@@ -136,7 +137,7 @@ module dev::QiaraRanksV9{
         if(user.custom_rank != utf8(b"None")){
             rank = user.custom_rank;
         };
-
+        let (xp_multiplier, _, _) = calculate_xp_multiplier(user.first_interaction);
         return ViewUser {
             ownership: ownership,
             ref_code_params: Shared::create_empty_raw_params2(),
@@ -151,7 +152,7 @@ module dev::QiaraRanksV9{
             ltv_increase: calculate_ltv_increase(convert_rank_to_power(rank)),
             withdraval_over_limit: calculate_withdrawal_over_limit(convert_rank_to_power(rank)),
             increased_qburned_reward_rate: calculate_increased_qburned_reward_rate(convert_rank_to_power(rank)),
-            xp_multiplier: calculate_xp_multiplier(first_interaction),
+            xp_multiplier: xp_multiplier,
         }
     }
 
@@ -338,13 +339,13 @@ module dev::QiaraRanksV9{
     #[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256,u256, u256){
         let days = first_interaction / 86400; // convert seconds to days
-        let base = return_base_xp_multi_per_day() as u256;
+        let base = return_base_xp_multi_per_day();
         //1_250_000 / 10_000
         let exponent  = return_exponent_xp_multi_per_day() / 10_000;
 
         let result = math128::pow(base, exponent);
 
-        return (((days*result)as u256), (days as u256), (result as u256))
+        return ((((days as u128)*result)as u256), (days as u256), (result as u256))
     }
 
     fun convert_level_to_rank(level: u256): String {
