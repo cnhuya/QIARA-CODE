@@ -217,7 +217,10 @@ module dev::QiaraStorageV6 {
         register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"EMISSIONS_VALIDATORS"), 2_000_000, true, &give_permission(&give_access(admin))); // 25%  
 
     }
-
+    public entry fun more7(admin: &signer) acquires ConstantDatabase, {
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+        change_constant(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), bc::to_bytes(&10_000u64), &give_permission(&give_access(admin))); // 5
+    }
 
 
     fun register_constant<T: drop>(address: &signer, header: String, constant_name: String, value: T, editable: bool, permission: &Permission) acquires ConstantCounter, ConstantDatabase, KeyRegistry {

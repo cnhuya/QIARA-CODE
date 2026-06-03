@@ -336,16 +336,23 @@ module dev::QiaraRanksV9{
         let increased_qburned_reward_rate = (power as u256) * return_increased_qburned_reward_rate_per_power(); // each rank power gives 5% fee deduction
         return increased_qburned_reward_rate
     }
+    
     #[view]
-    public fun calculate_xp_multiplier(first_interaction: u64): (u256,u256, u256){
+    public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
         let days = first_interaction / 86400; // convert seconds to days
-        let base = return_base_xp_multi_per_day();
-        //1_250_000 / 10_000
-        let exponent  = return_exponent_xp_multi_per_day() / 10_000;
+        let base = (return_base_xp_multi_per_day() as u128);
+        
+        // Integer division of the exponent loses the decimal precision (e.g., 1.25 becomes 1)
+        let exponent = (return_exponent_xp_multi_per_day() as u128) / 10_000;
+        
+        let scale = 10_000; // Assuming a scaling factor of 10,000 (4 decimals)
+        let result = fixed_pow(base, exponent, scale);
 
-        let result = math128::pow(base, exponent);
-
-        return ((((days as u128)*result)as u256), (days as u256), (result as u256))
+        return (
+            (((days as u128) * result) as u256), 
+            (days as u256), 
+            (result as u256)
+        )
     }
 
     fun convert_level_to_rank(level: u256): String {
@@ -393,4 +400,30 @@ module dev::QiaraRanksV9{
         }
         
     }
+/// Calculates (base^exponent) for fixed-point numbers.
+    /// Divides by scale at each step to prevent intermediate values from overflowing.
+    public fun fixed_pow(base: u128, exponent: u128, scale: u128): u128 {
+        if (exponent == 0) {
+            return scale
+        };
+        let p = scale;
+        let n = base;
+        
+        // Cast to u256 to prevent intermediate multiplication overflows
+        let p_u256 = (p as u256);
+        let n_u256 = (n as u256);
+        let scale_u256 = (scale as u256);
+        
+        while (exponent > 0) {
+            if (exponent % 2 == 1) {
+                p_u256 = (p_u256 * n_u256) / scale_u256;
+            };
+            exponent = exponent / 2;
+            if (exponent > 0) {
+                n_u256 = (n_u256 * n_u256) / scale_u256;
+            };
+        };
+        (p_u256 as u128)
+    }
+
  }
