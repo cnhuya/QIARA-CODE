@@ -91,32 +91,6 @@ module dev::QiaraTokensRatesV10 {
         rate.last_update = timestamp::now_seconds();
     }
 
-    // deprecated
-    /*public fun accrue_global(token: String, chain: String, provider: String, lend_rate: u256,exp_scale: u256,utilization: u256,total_deposits: u256,total_borrows: u256,_cap: Permission) acquires RateList {
-        let rate = find_rate(borrow_global_mut<RateList>(@dev), token, chain);
-
-        let now = timestamp::now_seconds();
-        if (now <= rate.last_update) return;
-        let elapsed = now - rate.last_update;
-        if (elapsed == 0) return;
-
-        if (total_deposits > 0) {
-            let (lend_rate_decimal, _, _) = Math::compute_rate(utilization, lend_rate, exp_scale, true, 5);
-            let reward_per_unit = ((((lend_rate_decimal / 1000) * 1_000_000) * (elapsed as u256)) / 31_536_000) / total_deposits;
-            assert!((rate.reward_index as u256) + reward_per_unit <= (340282366920938463463374607431768211455u128 as u256), 1001);
-            rate.reward_index = (((rate.reward_index as u256) + reward_per_unit) as u128);
-
-            let (borrow_rate_decimal, _, _) = Math::compute_rate(utilization, lend_rate, exp_scale, false, 5);
-            if (total_borrows > 0) {
-                let interest_per_unit = (((borrow_rate_decimal / 1000) * 1_000_000) * (elapsed as u256) / 31_536_000) / total_borrows;
-                assert!((rate.interest_index as u256) + interest_per_unit <= (340282366920938463463374607431768211455u128 as u256), 1002);
-                rate.interest_index = (((rate.interest_index as u256) + interest_per_unit) as u128);
-            };
-        };
-
-        rate.last_update = now;
-    }*/
-
     public fun find_rate(x: &mut RateList, token: String, chain: String, provider: String): &mut Rate {
         ChainTypes::ensure_valid_chain_name(chain);
         ProviderTypes::ensure_valid_provider(provider, chain);

@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV1{
+module dev::QiaraBridgeV16{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};

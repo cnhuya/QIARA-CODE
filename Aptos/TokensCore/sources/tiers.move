@@ -32,7 +32,21 @@ module dev::QiaraTokensTiersV10{
         multiplier: u16,
     }
 
-
+    struct FullTier has store, key, drop {
+        tierID: u8,
+        tierName: String,
+        efficiency: u16,
+        multiplier: u16,
+        market_daily_withdraw_limit: u64,
+        market_borrow_interest_multiplier: u64,
+        market_base_lending_apr: u64,
+        price_impact_penalty: u64,
+        bridge_fee: u128,
+        deposit_limit: u128,
+        borrow_limit: u128,
+        w_fee: u64,
+        oracle_native_weight: u256,
+ }
 /// === INIT ===
     fun init_module(admin: &signer){
 
@@ -122,7 +136,58 @@ module dev::QiaraTokensTiersV10{
         abort(ERROR_TIER_NOT_FOUND)
     }  
 
+    fun view_full_tier(id: u8): FullTier{
+        let tier = view_tier(id);
+
+        let full_tier = FullTier {
+            tierID: tier.tierID,
+            tierName: tier.tierName,
+            efficiency: tier.efficiency,
+            multiplier: tier.multiplier,
+            market_daily_withdraw_limit: market_daily_withdraw_limit(id),
+            market_borrow_interest_multiplier: market_borrow_interest_multiplier(id),
+            market_base_lending_apr: market_base_lending_apr(id),
+            price_impact_penalty: price_impact_penalty(id),
+            deposit_limit: deposit_limit(id),
+            borrow_limit: borrow_limit(id),
+            w_fee: minimal_w_fee(id),
+            oracle_native_weight: oracle_native_weight(id),
+        };
+
+        return full_tier
+
+    }
+
+    fun view_all_full_tiers(): vector<FullTier> {
+        let full_tiers = vector::empty<FullTier>();
+
+        // Iterate through IDs 1 to 7
+        let i = 1;
+        while (i <= 7) {
+            let full_tier = view_full_tier(i);
+            vector::push_back(&mut full_tiers, full_tier);
+            i = i + 1;
+        };
+
+        // Add IDs 255 and 254
+        vector::push_back(&mut full_tiers, view_full_tier(255));
+        vector::push_back(&mut full_tiers, view_full_tier(254));
+
+        return full_tiers
+    }
 /// === VIEW FUNCTIONS ===
+
+
+    #[view]
+    public fun all_full_tiers():vector<FullTier>{
+        view_all_full_tiers()
+    }
+
+    #[view]
+    public fun get_full_tier(id:u8):FullTier{
+        view_full_tier(id)
+    }
+
     #[view]
     public fun all_tiers():vector<Tier>{
         build_tiers()
@@ -183,48 +248,6 @@ module dev::QiaraTokensTiersV10{
             ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"BORROW_LIMIT"))) as u128)
         }
 
-
-        #[view]
-        public fun profit_fee(id: u8): u64 {
-            let tier = get_tier(id);
-            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"PROFIT_FEE"))))
-        }
-
-        #[view]
-        public fun leverage_cut(id: u8): u64 {
-            let tier = get_tier(id);
-            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"LEVERAGE_CUT"))))
-        }
-
-        #[view]
-        public fun max_position(id: u8): u128{
-            let tier = get_tier(id);
-            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_POSITION"))) as u128)
-        }
-
-        #[view]
-        public fun perps_rate_scale(id: u8): u64 {
-            storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"PERPS_PERCENTAGE_SCALE"))) - ((id as u64)*1000)
-        }
-
-
-
-        #[view]
-        public fun perps_max_leverage(id: u8): u64 {
-            // formula: (max_leverage * tier_multiplier (descending/flipped, starting from below)) / max_leverage_slashing
-            // i.e (1_000_000 * 5_000) / 2_000_000 -> 2_500 (25x) || id = 1
-
-            if(id == 255 || id == 254){
-                return 0
-            };
-
-            let max_tier_id = 7;
-            let effective_multiplier = tier_multiplier(max_tier_id-id+1); // +1 is here so that if id is 7, then it returns multiplier for tier 1 which is intended
-
-            // in the future change the max leverage to 1_000_000 (1) and add MAX_LEVERAGE_SLASHING to 2_000_000 (2)
-            storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"))) * effective_multiplier / 25_000_000 / 2 
-        }
-
         #[view]
         public fun oracle_native_weight(id: u8): u256 {
             // formula: (native_oracle_weight * tier_multiplier) / native_oracle_weight_slashing + native_oracle_weight
@@ -242,8 +265,6 @@ module dev::QiaraTokensTiersV10{
 
         }
 
-
-    //93010000000
         #[view]
         public fun market_daily_withdraw_limit(id: u8): u64 {
             // formula: (withdraw_limit * tier_efficiency)/1000 + withdraw_limit
@@ -297,20 +318,45 @@ module dev::QiaraTokensTiersV10{
             ((base_fee + ((base_fee * multiplier)/100) / 2) as u128) // the /100 is here because of multiplier scailing
         }
 
+
+    // PERPS SETTINGS
         #[view]
-        public fun flat_usd_fee(id: u8): u128{
+        public fun profit_fee(id: u8): u64 {
             let tier = get_tier(id);
-            let base_fee = storage::expect_u64(storage::viewConstant(utf8(b"QiaraTokens"), utf8(b"FLAT_USD_FEE")));
-            let multiplier = (tier.multiplier as u64);
-            (((base_fee * multiplier)/100) as u128) // the /100 is here because of multiplier scailing
+            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"PROFIT_FEE"))))
         }
 
         #[view]
-        public fun transfer_fee(id: u8): u128{
+        public fun leverage_cut(id: u8): u64 {
             let tier = get_tier(id);
-            let base_fee = storage::expect_u64(storage::viewConstant(utf8(b"QiaraTokens"), utf8(b"TRANSFER_FEE")));
-            let multiplier = (tier.multiplier as u64);
-            ((base_fee + ((base_fee * multiplier)/100) / 10) as u128) // the /100 is here because of multiplier scailing
+            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"LEVERAGE_CUT"))))
+        }
+
+        #[view]
+        public fun max_position(id: u8): u128{
+            let tier = get_tier(id);
+            ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_POSITION"))) as u128)
+        }
+
+        #[view]
+        public fun perps_rate_scale(id: u8): u64 {
+            storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"PERPS_PERCENTAGE_SCALE"))) - ((id as u64)*1000)
+        }
+
+        #[view]
+        public fun perps_max_leverage(id: u8): u64 {
+            // formula: (max_leverage * tier_multiplier (descending/flipped, starting from below)) / max_leverage_slashing
+            // i.e (1_000_000 * 5_000) / 2_000_000 -> 2_500 (25x) || id = 1
+
+            if(id == 255 || id == 254){
+                return 0
+            };
+
+            let max_tier_id = 7;
+            let effective_multiplier = tier_multiplier(max_tier_id-id+1); // +1 is here so that if id is 7, then it returns multiplier for tier 1 which is intended
+
+            // in the future change the max leverage to 1_000_000 (1) and add MAX_LEVERAGE_SLASHING to 2_000_000 (2)
+            storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"))) * effective_multiplier / 25_000_000 / 2 
         }
 
 

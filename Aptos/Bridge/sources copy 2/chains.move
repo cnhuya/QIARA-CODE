@@ -213,24 +213,35 @@ module dev::QiaraBridgeV16{
 
 
     public entry fun register_omnichain_event(signer: &signer, validator: String, type_names: vector<String>, payload: vector<vector<u8>>, proof: vector<u256>, inputs: vector<u256>, chains: vector<String>, signatures: vector<vector<u8>>) acquires Pending, Validated, Permissions {
+       // Payload::ensure_valid_payload(type_names, payload);
+        
         let validated = borrow_global_mut<Validated>(STORAGE);
+           // tttta(100);
         let pending = borrow_global_mut<Pending>(STORAGE);
-
+       //                    tttta(10); 
         Validators::take_snapshot(signer, validator);
-        let (_, secp256k1_pub_key, isActive,  _,  _,  total_power,  _) = Validators::return_validator_raw(validator);
+         //          tttta(10); 
+        let (secp256k1_pub_key, isActive,  _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
         let zk_type = bcs_stream::deserialize_string(&mut bcs_stream::new(zk_type_raw));
 
+        //assert!(table::contains(&validated.zk, identifier), ERROR_PROOF_NOT_FOUND);
+        // tttta(100);
         let identifier: vector<u8> = vector::empty<u8>();
         let (_, type_raw) = Payload::find_payload_value(utf8(b"fun_type"), type_names, payload);
-        let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
+        //tttta(999);
+                let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         if(type == utf8(b"Validators")){
+          //  tttta(1);
              identifier = Payload::create_omnichain_identifier(type_names, payload);
+
         } else if (type == utf8(b"Variables")){
+           // tttta(0);
              identifier = Payload::create_omnichain_identifier_variables(type_names, payload);
         }
+
 
             handle_omnichain_event(
                 signer,
@@ -246,8 +257,7 @@ module dev::QiaraBridgeV16{
                 signatures,
                 secp256k1_pub_key,
                 zk_type,
-                identifier,
-                (total_power as u128)
+                identifier
             );
     }
 
@@ -256,15 +266,19 @@ module dev::QiaraBridgeV16{
         let identifier = Payload::create_identifier(type_names, payload);
         
         let validated = borrow_global_mut<Validated>(STORAGE);
+           // tttta(100);
         let pending = borrow_global_mut<Pending>(STORAGE);
+       //                    tttta(10); 
         Validators::take_snapshot(signer, validator);
-
-        let (_, secp256k1_pub_key, isActive,  _,  _,  total_power,  _) = Validators::return_validator_raw(validator);
+         //          tttta(10); 
+        let (secp256k1_pub_key, isActive,  _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
         let zk_type = bcs_stream::deserialize_string(&mut bcs_stream::new(zk_type_raw));
 
+        //assert!(table::contains(&validated.zk, identifier), ERROR_PROOF_NOT_FOUND);
+        // tttta(100);
         let (_, chain_raw) = Payload::find_payload_value(utf8(b"chain"), type_names, payload);
         let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
 
@@ -285,8 +299,7 @@ module dev::QiaraBridgeV16{
                 inputs,
                 signature,
                 secp256k1_pub_key,
-                zk_type,
-                (total_power as u128)
+                zk_type
             );
     }
 
@@ -315,12 +328,14 @@ module dev::QiaraBridgeV16{
             let (did_validate, _) = check_validator_validation_proof(validator, votes.votes);
 
             if (!did_validate) {
-                let (_, secp256k1_pub_key, isActive,  _,  _,  vote_weight,  _) = Validators::return_validator_raw(validator);
+                let (secp256k1_pub_key, _, _) = Validators::return_validator_raw(validator);
+                let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
+                let vote_weight = (vote_weight_u256 as u128);
 
-                let vote = ProofVote { signature: signature, weight: (vote_weight as u128), secp256k1_pub_key: secp256k1_pub_key };
+                let vote = ProofVote { signature: signature, weight: vote_weight, secp256k1_pub_key: secp256k1_pub_key };
                 map::add(&mut votes.votes, validator, vote);
-                votes.total_weight = votes.total_weight + (vote_weight as u128);
-
+                votes.total_weight = votes.total_weight + vote_weight;
+                
                 // Manage Reward Pool
                 if (vector::length(&votes.rv) < max_rewarded) {
                     if (!vector::contains(&votes.rv, &validator)) {
@@ -404,7 +419,7 @@ module dev::QiaraBridgeV16{
         let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
-        let (_, secp256k1_pub_key, isActive,  _,  _,  vote_weight,  _) = Validators::return_validator_raw(validator);
+        let (pub_key_y, _, _) = Validators::return_validator_raw(validator);
         let pending = borrow_global_mut<Pending>(STORAGE);
         let validated = borrow_global_mut<Validated>(STORAGE);
         Validators::take_snapshot(signer, validator);
@@ -429,8 +444,7 @@ module dev::QiaraBridgeV16{
                 type_names,
                 payload,
                 _sig_bytes,
-                event_type,
-                (vote_weight as u128)
+                event_type
             );
         } else if (consensus_type == utf8(b"zk")) {
             handle_zk_event(
@@ -442,8 +456,7 @@ module dev::QiaraBridgeV16{
                 type_names,
                 payload,
                 build_zkVote_from_payload(utf8(b"pub_key_y"), type_names, payload),
-                event_type, // Use the string we decoded earlier
-                (vote_weight as u128)
+                event_type // Use the string we decoded earlier
             );
         } else if (consensus_type == utf8(b"none")) {
             return
@@ -508,8 +521,7 @@ fun handle_omnichain_event(
         signatures: vector<vector<u8>>, 
         secp256k1_pub_key: vector<u8>, 
         consensus_type: String, 
-        identifier: vector<u8>,
-        vote_weight: u128
+        identifier: vector<u8>
     ) acquires Permissions {
         // 1. Load configuration constants
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
@@ -522,6 +534,8 @@ fun handle_omnichain_event(
         };
 
         // Calculate voting power (Weight)
+        let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
+        let vote_weight = (vote_weight_u256 as u128);
         if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
         };
@@ -638,7 +652,7 @@ fun handle_omnichain_event(
             Event::emit_validation_event(utf8(b"Validated Omnichain Event"), data);
         };
     }
-    fun handle_proof_event(signer: &signer, validator: String, type: String, chain: String, pending_table: &mut table::Table<vector<u8>, ProofVotes>, validated_table: &mut table::Table<vector<u8>, ProofVotes>, identifier: vector<u8>,  type_names: vector<String>, payload: vector<vector<u8>>,proof: vector<u256>, inputs: vector<u256>, signature: vector<u8>, secp256k1_pub_key: vector<u8>, event_type: String, vote_weight: u128) {
+    fun handle_proof_event(signer: &signer, validator: String, type: String, chain: String, pending_table: &mut table::Table<vector<u8>, ProofVotes>, validated_table: &mut table::Table<vector<u8>, ProofVotes>, identifier: vector<u8>,  type_names: vector<String>, payload: vector<vector<u8>>,proof: vector<u256>, inputs: vector<u256>, signature: vector<u8>, secp256k1_pub_key: vector<u8>, event_type: String) {
         // 1. Load configuration constants
 
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
@@ -652,6 +666,9 @@ fun handle_omnichain_event(
             abort(ERROR_DUPLICATE_EVENT);
         };
 
+        // Calculate voting power (Weight)
+        let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
+        let vote_weight = (vote_weight_u256 as u128);
         // 3. Update or Create the Pending state
         if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
@@ -695,7 +712,7 @@ fun handle_omnichain_event(
         Event::emit_consensus_register_event(data);
 
     }
-    fun handle_main_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, MainVotes>, validated_table: &mut table::Table<vector<u8>, MainVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>,signature: vector<u8>,  event_type: String, vote_weight: u128 ) acquires Permissions {
+    fun handle_main_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, MainVotes>, validated_table: &mut table::Table<vector<u8>, MainVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>,signature: vector<u8>,  event_type: String ) acquires Permissions {
         // 1. Load configuration constants
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
@@ -705,6 +722,9 @@ fun handle_omnichain_event(
             abort(ERROR_DUPLICATE_EVENT);
         };
 
+        // Calculate voting power (Weight)
+        let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
+        let vote_weight = (vote_weight_u256 as u128);
         if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
         };
@@ -820,20 +840,22 @@ fun handle_omnichain_event(
             Event::emit_validation_event(utf8(b"Validated Event"), data);
         };
     }
-    fun handle_zk_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, ZkVotes>, validated_table: &mut table::Table<vector<u8>, ZkVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>, zk_vote: ZkVote, event_type: String,vote_weight: u128 ) acquires Permissions {
+    fun handle_zk_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, ZkVotes>, validated_table: &mut table::Table<vector<u8>, ZkVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>, zk_vote: ZkVote, event_type: String ) acquires Permissions {
+        // 1. Load configuration constants
+           //     tttta(100);
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
         let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
-        
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
         };
-
-        if (vote_weight == 0) {
+        // Calculate voting power (Weight)
+        let (_, _, _, _, _, _, _, _, vote_weight_u256, _, _) = Margin::get_user_total_usd(validator);
+        let vote_weight = (vote_weight_u256 as u128);
+                if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
         };
-
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
@@ -908,7 +930,10 @@ fun handle_omnichain_event(
             assert!(exists<Permissions>(@dev), ERROR_CAPS_NOT_PUBLISHED);
             
             // 5. Execute Bridging Logic
-            if (event_type == utf8(b"Request Bridge")) {
+            if (event_type == utf8(b"Register Validator")) {
+                let (validator, shared, secp256k1_pub_key) = Payload::prepare_register_validator(type_names, payload);
+                Validators::c_register_validator(signer, shared, validator, secp256k1_pub_key, Validators::give_permission(&borrow_global<Permissions>(@dev).validators));
+            } else if (event_type == utf8(b"Request Bridge")) {
                   //             tttta(100);
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(type_names, payload);
                 //tttta(45454);

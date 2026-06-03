@@ -16,6 +16,11 @@ module dev::QiaraTokensQiaraV10 {
 
     use dev::QiaraCapabilitiesV4::{Self as capabilities};
     use dev::QiaraStorageV4::{Self as storage};
+
+    use dev::QiaraTokenTypesV11::{Self as TokensType};
+
+    use dev::QiaraGenesisV2::{Self as Genesis};
+
     const ADMIN: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -40,6 +45,27 @@ module dev::QiaraTokensQiaraV10 {
         last_claimed: u64,
     }
 
+    struct Tokenomics has key{
+        burned: u128,
+        minted: u128,
+        initial_supply: u128,
+    }
+
+    Struct QiaraData has copy {
+        timers: Timers,
+        epoch: u64,
+        inflation: u64,
+        inflation_minimal: u64,
+        inflation_debt: u64,
+        burn_fee: u64,
+        burn_fee_increase: u64,
+        burn_fee_minimal: u64,
+        validator_emissions: u64,
+        locked_qiara_rate: u64,
+        tokenomics: Tokenomics
+        current_supply: u128,
+        locked_qiara: u128,
+    }
 
 // === ENTRY FUNCTIONS === //
     public fun change_last_claim(shared:String, perm: Permission) acquires Timers {
@@ -56,44 +82,102 @@ module dev::QiaraTokensQiaraV10 {
         };
     }
 
+
 // === HELPER FUNCTIONS === //
 
+    public fun accrue_burned_tokens(amount: u128, perm: Permission) acquires Tokenomics {
+        let tokenomics = borrow_global_mut<Tokenomics>(@dev);
+        tokenomics.burned = tokenomics.burned + amount;
+    }
+
+    public fun accrue_minted_tokens(amount: u128, perm: Permission) acquires Tokenomics {
+        let tokenomics = borrow_global_mut<Tokenomics>(@dev);
+        tokenomics.minted = tokenomics.minted + amount;
+    }
+
+    #[view]
+    /// Return the address of the managed fungible asset that's created when this module is deployed.
+    public fun get_metadata(symbol:String): Object<Metadata> {
+        let asset_address = object::create_object_address(&ADMIN, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(symbol))); // Ethereum -> Qiara31 Ethereum
+        object::address_to_object<Metadata>(asset_address)
+    }
+
+// === VIEW FUNCTIONS === //
+    #[view]
+    public fun get_qiara_data(): QiaraData acquires Timers, Tokenomics {
+        let timers = borrow_global<Timers>(@dev);
+        let tokenomics = borrow_global<Tokenomics>(@dev);
+        QiaraData {
+            timers: *timers,
+            epoch: get_epoch(),
+            inflation: get_inflation(),
+            actual_inflation: get_inflation() - get_inflation_debt(),
+            minimal_inflation: get_minimal_inflation(),
+            inflation_debt: get_inflation_debt(),
+            burn_fee: get_burn_fee(),
+            actual_burn_fee: burn_fee, // increase every month
+            burn_fee_increase: get_burn_fee_increase(),
+            burn_fee_minimal: get_burn_fee_minimal(),
+            validator_emissions: get_emissions_validators(),
+            locked_qiara_rate: get_locked_qiara_rate(),
+            tokenomics: *tokenomics,
+            current_supply: tokenomics.initial_supply + tokenomics.minted - tokenomics.burned
+            locked_qiara: fungible_asset::supply(get_metadata(utf8(b"Burned Qiara"))),
+        }
+    }
 
     #[view]
     public fun get_last_claimed(): u64 acquires Timers {
         borrow_global<Timers>(@dev).last_claimed
     }
 
-    #[view]
-    public fun get_inflation(): u64 {
+    #[view] 
+    public fun get_inflation(): u64 { // 10%
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION")))
     }
 
     #[view]
-    public fun get_inflation_debt(): u64 {
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION_DEBT")))
+    public fun get_minimal_inflation(): u64 { // 10%
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"MINIMAL_INFLATION")))
     }
 
     #[view]
-    public fun get_minimal_fee(): u64 { // 500
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE_MINIMAL")))
+    public fun get_emissions_validators(): u64 { // 1%
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"EMISSIONS_VALIDATORS")))
     }
 
+    
     #[view]
-    public fun get_burn_fee(): u64 { // 500
+    public fun get_locked_qiara_rate(): u64 { // 25%
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"LOCKED_QIARA_REWARD_RATE")))
+    }
+
+    #[view] //change
+    public fun get_inflation_debt(): u64 { // 0.025%
+        get_epoch() * storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"INFLATION_DEBT")))
+    }
+
+
+    #[view] 
+    public fun get_burn_fee(): u64 { // 0.001%
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE")))
     }
 
     #[view]
-    public fun get_burn_fee_increase(): u64 { // 100
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_INCREASE")))
+    public fun get_burn_fee_minimal(): u64 { // 0.001%
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_FEE_MINIMAL")))
+    }
+    #[view] //change
+    public fun get_burn_fee_increase(): u64 { // 0.00025%
+        get_epoch() * storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BURN_INCREASE")))
     }
 
 
+
     #[view]
-    public fun get_month(): u64 acquires Timers { // 0
+    public fun get_epoch(): u64 acquires Timers { // 0
         let timers = borrow_global<Timers>(ADMIN);
-        ((timestamp::now_seconds() - timers.creation ) / 2_629_743)
+        ((timestamp::now_seconds() - timers.creation ) / Genesis::return_epoch_duration()) as u64
     }
 
     #[view]
@@ -110,4 +194,21 @@ module dev::QiaraTokensQiaraV10 {
         (circulating_supply * (get_inflation() as u128) * (delta_seconds as u128)) / ((seconds_per_year as u128) * 10_000)
     }
 
+    #[view]
+    public fun burn_fee(): u64 acquires Timers {
+        get_burn_fee_increase() + get_burn_fee()
+    }
+
+    #[view]
+    public fun burn_calculation(amount: u128): (u128, u128) acquires Timers {
+        let fee = burn_fee();
+        let fee_minimal = get_burn_fee_minimal();
+
+        let calculated_fee = (amount * (fee as u128)) / 10_000;
+        if (calculated_fee < fee_minimal as u128) {
+            (calculated_fee, fee_minimal as u128)
+        } else {
+            (calculated_fee, fee_minimal as u128)
+        }
+    }
 }

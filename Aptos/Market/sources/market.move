@@ -857,38 +857,7 @@ module dev::QiaraVaultsV8 {
         Margin::remove_interest(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, (reward_amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::remove_rewards(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, (interest_amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
     }
-// === VIEWS === //
 
-    #[view]
-    public fun get_utilization_ratio(deposited: u256, borrowed: u256): u256 {
-        //abort(147);
-        if (deposited == 0 || borrowed == 0) {
-            0
-        } else {
-            ((borrowed * 100_000_000) / deposited)
-        }
-    }
-    
-
-    #[view]
-    public fun get_withdraw_fee(multiply: u256, limit: u256, amount: u256): u256 {
-
-
-        let base_fee = 100; // 0.01% base fee
-        let utilization = ((amount*1_000_000) / limit)*100;
-
-        let bonus = (multiply / 10); // utilization has 50% effect
-
-
-        //(base_fee * (multiply/10) + bonus)
-
-        // 100 + 5
-        if(utilization == 0){
-            utilization = 100;
-        };
-
-        return ((base_fee + ((bonus*base_fee)/100))*(utilization/2)/100_000_000) + (base_fee + ((bonus*base_fee)/100))
-    }
 
     fun tttta(number: u64){
         abort(number);
@@ -966,6 +935,38 @@ module dev::QiaraVaultsV8 {
         Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         return ( amount-fee, fee)
+    }
+
+// === VIEWS === //
+
+    #[view]
+    public fun get_utilization_ratio(deposited: u256, borrowed: u256): u256 {
+        //abort(147);
+        if (deposited == 0 || borrowed == 0) {
+            0
+        } else {
+            ((borrowed * 100_000_000) / deposited)
+        }
+    }
+    
+    #[view]
+    public fun get_withdraw_fee(multiply: u256, limit: u256, amount: u256): u256 {
+
+
+        let base_fee = 100; // 0.01% base fee
+        let utilization = ((amount*1_000_000) / limit)*100;
+
+        let bonus = (multiply / 10); // utilization has 50% effect
+
+
+        //(base_fee * (multiply/10) + bonus)
+
+        // 100 + 5
+        if(utilization == 0){
+            utilization = 100;
+        };
+
+        return ((base_fee + ((bonus*base_fee)/100))*(utilization/2)/100_000_000) + (base_fee + ((bonus*base_fee)/100))
     }
 
     #[view] 

@@ -18,7 +18,6 @@ module dev::QiaraValidatorsV16 {
     const ERROR_VALIDATOR_DOESNT_EXISTS: u64 = 3;
     const ERROR_NOT_REGISTERED_VALIDATOR: u64 = 4;
     const ERROR_NOT_STAKER: u64 = 5;
-    const ERROR_KEYS_CANNOT_BE_EMPTY: u64 = 6;
 
     // === ACCESS === //
     struct Access has store, key, drop {}
@@ -231,6 +230,63 @@ module dev::QiaraValidatorsV16 {
         
         // Re-evaluate validator snapshot and ranking
         take_validator_snapshot_internal(validator, &mut validators.map, &mut pending_validators.list, active_validators);
+    }
+
+    // Interface for consensus
+    public fun c_register_validator(signer: &signer, shared: String, validator: vector<u8>, pub_key: vector<u8>, pubkey_evm_address: vector<u8>, _perm: Permission) acquires PendingValidators, ActiveValidators, Validators {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));    
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
+        let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
+        let validators = borrow_global_mut<Validators>(@dev);
+
+        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pub_key, pubkey_evm_address);
+    }
+
+    public fun c_change_staker_validator(signer: &signer, shared: String, validator: vector<u8>, new_validator: String, _perm: Permission) acquires PendingValidators, ActiveValidators, Validators, Stakers {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
+        let validators = borrow_global_mut<Validators>(@dev);
+        let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
+        let stakers = borrow_global_mut<Stakers>(@dev);
+
+        change_staker_validator_internal(
+            shared, 
+            new_validator, 
+            active_validators, 
+            &mut validators.map, 
+            &mut pending_validators.list, 
+            &mut stakers.table
+        );
+    }
+
+    public fun c_change_validator_evm_address(signer: &signer, shared: String, validator: vector<u8>, pubkey_evm_address: vector<u8>, _perm: Permission) acquires Validators {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));
+        let validators = borrow_global_mut<Validators>(@dev); 
+        
+        if(!map::contains_key(&mut validators.map, &shared)) {
+            abort ERROR_VALIDATOR_DOESNT_EXISTS
+        };
+
+        let validator_struct = map::borrow_mut(&mut validators.map, &shared);
+        validator_struct.pubkey_evm_address = pubkey_evm_address;
+    }
+
+    public fun c_change_validator_pubkey(signer: &signer,  shared: String, validator: vector<u8>, pub_key: vector<u8>, _perm: Permission) acquires Validators {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&validator));
+        let validators = borrow_global_mut<Validators>(@dev); 
+        
+        if(!map::contains_key(&mut validators.map, &shared)) {
+            abort ERROR_VALIDATOR_DOESNT_EXISTS
+        };
+
+        let validator_struct = map::borrow_mut(&mut validators.map, &shared);
+        validator_struct.pub_key = pub_key;
+    }
+
+    public fun c_update_root(signer: &signer, shared: String, new_root: String, _perm: Permission) acquires ActiveValidators {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
+        active_validators.root = new_root;
     }
 
     fun tttta(error: u64){

@@ -444,6 +444,7 @@ module dev::QiaraTokensCoreV10{
     
     }
 
+
 // === PERMISSIONELESS FUNCTIONS === // - for permissioneless access across chains
     public fun p_transfer(validator: &signer, from_shared: String, sender: vector<u8>, to: vector<u8>, to_shared: String, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions {
         Shared::assert_is_sub_owner(from_shared, bcs::to_bytes(&sender));
