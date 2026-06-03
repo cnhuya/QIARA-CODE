@@ -1,4 +1,4 @@
-module dev::QiaraTokensBurnedQiaraV11 {
+module dev::QiaraBurnedQiaraV8 {
     use std::signer;
     use std::option;
     use std::vector;

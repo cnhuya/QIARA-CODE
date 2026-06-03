@@ -2,12 +2,13 @@ module dev::QiaraRanksV8{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
+    use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
     use dev::QiaraTokenTypesV11::{Self as TokensType};
     use dev::QiaraChainTypesV11::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-
+    use aptos_std::math128::{Self as math128};
     use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
 
     use dev::QiaraSharedV3::{Self as Shared, Ownership, RefCodeParams};
@@ -17,6 +18,8 @@ module dev::QiaraRanksV8{
     const ERROR_NOT_REGISTERED: u64 = 2;
     const ERROR_SOME_OF_REWARD_STRUCT_IS_NONE: u64 = 3;
     const ERROR_SOME_OF_INTEREST_STRUCT_IS_NONE: u64 = 4;
+
+
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -37,6 +40,7 @@ module dev::QiaraRanksV8{
     }
 
     struct User has store, key {
+        first_interaction: u64,
         experience: u256,
         custom_rank: String,
     }
@@ -44,6 +48,7 @@ module dev::QiaraRanksV8{
     struct ViewUser has copy, drop, store{
         ownership: Ownership,
         ref_code_params: RefCodeParams,
+        first_interaction: u64,
         experience: u256,
         experience_to_this_level: u256,
         experience_to_next_level: u256,
@@ -53,6 +58,8 @@ module dev::QiaraRanksV8{
         fee_deduction: u256,
         ltv_increase: u256,
         withdraval_over_limit: u256,
+        increased_qburned_reward_rate: u256,
+        xp_multiplier: u256,
     }
 
     struct ViewRank has copy, drop, store{
@@ -75,7 +82,7 @@ module dev::QiaraRanksV8{
     public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
         Shared::assert_shared_storage(shared);
         if (!table::contains(&table.table, shared)) {
-            table::add(&mut table.table, shared, User {experience: 0, custom_rank: utf8(b"None")});
+            table::add(&mut table.table, shared, User {first_interaction: timestamp::now_seconds(), experience: 0, custom_rank: utf8(b"None")});
         };
         return table::borrow_mut(&mut table.table, shared)
     }
@@ -107,6 +114,7 @@ module dev::QiaraRanksV8{
             return ViewUser {
                 ownership: ownership,
                 ref_code_params: Shared::create_empty_raw_params(),
+                first_interaction: 0,
                 experience: 0,
                 experience_to_this_level: 0,
                 experience_to_next_level: 0,
@@ -116,6 +124,9 @@ module dev::QiaraRanksV8{
                 fee_deduction: 0,
                 ltv_increase: 0,
                 withdraval_over_limit: 0,
+                increased_qburned_reward_rate: 0,
+                xp_multiplier: 0,
+
             }
         };
 
@@ -130,6 +141,7 @@ module dev::QiaraRanksV8{
         return ViewUser {
             ownership: ownership,
             ref_code_params: Shared::create_empty_raw_params(),
+            first_interaction: user.first_interaction,
             experience: user.experience,
             experience_to_this_level: return_xp_needed_to_level(level),
             experience_to_next_level: return_xp_needed_to_level(level+1),
@@ -139,6 +151,8 @@ module dev::QiaraRanksV8{
             fee_deduction: calculate_fee_deduction(convert_rank_to_power(rank)),
             ltv_increase: calculate_ltv_increase(convert_rank_to_power(rank)),
             withdraval_over_limit: calculate_withdrawal_over_limit(convert_rank_to_power(rank)),
+            increased_qburned_reward_rate: calculate_increased_qburned_reward_rate(convert_rank_to_power(rank)),
+            xp_multiplier: calculate_xp_multiplier(first_interaction),
         }
     }
 
@@ -175,6 +189,7 @@ module dev::QiaraRanksV8{
                 fee_deduction: calculate_fee_deduction(convert_rank_to_power(rank)),
                 ltv_increase: calculate_ltv_increase(convert_rank_to_power(rank)),
                 withdraval_over_limit: calculate_withdrawal_over_limit(convert_rank_to_power(rank)),
+                increased_qburned_reward_rate: calculate_increased_qburned_reward_rate(convert_rank_to_power(rank)),
             };
             len = len-1;
             vector::push_back(&mut vect, rank_);
@@ -182,9 +197,6 @@ module dev::QiaraRanksV8{
 
         return vect
     }
-
-    
-
 
 
     #[view]
@@ -255,13 +267,38 @@ module dev::QiaraRanksV8{
     public fun return_withdrawal_over_limit_per_power(): u256{
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"WITHDRAWAL_OVER_LIMIT_PER_POWER"))) as u256)
     }
-
+    #[view]
+    public fun return_increased_qburned_reward_rate_per_power(): u256{
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"INCREASED_QBURNED_REWARD_RATE_PER_POWER"))) as u256)
+    }
+    #[view]
+    public fun return_base_xp_multi_per_day(): u128{
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"))) as u128)
+    }
+    #[view]
+    public fun return_exponent_xp_multi_per_day(): u128{
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"))) as u128)
+    }
 
     fun calculate_fee_deduction(power: u8): u256{
         let deduction_percentage = (power as u256) * return_fee_deduction_per_power(); // each rank power gives 5% fee deductionpower as u256 * 5; // each rank power gives 5% fee deduction
         return deduction_percentage
     }
     fun calculate_ltv_increase(power: u8): u256{
+        
+        if (power==10){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  15_000_000
+        };
+
+        if (power==13){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  22_500_000
+        };
+
+        if (power==15){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  30_000_000
+        };
+
+        
         if(power>=2){ // minimum rank to have ltv increase is Gold (power 3)
             return 0
         };
@@ -270,12 +307,45 @@ module dev::QiaraRanksV8{
     }
     fun calculate_withdrawal_over_limit(power: u8): u256{
 
+        if (power==10){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  10_000_000
+        };
+
+        if (power==13){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  15_000_000
+        };
+
+        if (power==15){ // minimum rank to have ltv increase is Emerald (power 1)
+            return  20_000_000
+        };
+
         if(power>=4){ // minimum rank to have ltv increase is Emerald (power 5)
             return 0
         };
 
         let deduction_percentage = (power as u256) * return_withdrawal_over_limit_per_power(); // each rank power gives 5% fee deduction
         return deduction_percentage
+    }
+    fun calculate_increased_qburned_reward_rate(power: u8): u256{
+
+
+        if(power>=1){ // minimum rank to have ltv increase is Emerald (power 2)
+            return 0
+        };
+
+        let increased_qburned_reward_rate = (power as u256) * return_increased_qburned_reward_rate_per_power(); // each rank power gives 5% fee deduction
+        return increased_qburned_reward_rate
+    }
+    #[view]
+    public fun calculate_xp_multiplier(first_interaction: u64): (u256,u256, u256){
+        let days = first_interaction / 86400; // convert seconds to days
+        let base = return_base_xp_multi_per_day() as u256;
+        //1_250_000 / 10_000
+        let exponent  = return_exponent_xp_multi_per_day() / 10_000;
+
+        let result = math128::pow(base, exponent);
+
+        return (((days*result)as u256), (days as u256), (result as u256))
     }
 
     fun convert_level_to_rank(level: u256): String {
@@ -312,8 +382,15 @@ module dev::QiaraRanksV8{
             return 5
         } else if (rank == utf8(b"Diamond")){
             return 6
+        } else if (rank == utf8(b"VIP I")){
+            return 10
+        } else if (rank == utf8(b"VIP II")){
+            return 13
+        } else if (rank == utf8(b"VIP III")){
+            return 15
         } else {
             return 7
         }
+        
     }
  }

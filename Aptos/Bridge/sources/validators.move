@@ -7,10 +7,12 @@ module dev::QiaraValidatorsV16 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV8::{Self as Margin};
+    use dev::QiaraMarginV8::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV3::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
 
+    use dev::QiaraTokensQiaraV11::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV11::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
@@ -50,6 +52,7 @@ module dev::QiaraValidatorsV16 {
         map: Map<String, Validator>,
     }
     struct Validator has key, store, copy, drop {
+        addr: vector<u8>,
         pub_key: vector<u8>,
         pubkey_evm_address: vector<u8>,
         isActive: bool,
@@ -67,24 +70,33 @@ module dev::QiaraValidatorsV16 {
 
     struct Permissions has key {
         shared: SharedAccess,
+        margin: MarginAccess,
+        tokens_core: SharedAccess,
     }
 
     struct Stakers has key, store {
         table: Table<String, String>,
     }
 
+    struct PerEpoch has key, store{
+        total_credits: u256
+        emissions: u256
+        total_weight: u256
+        vote_weights: Map<String, u256>
+    }
     // === INIT === //
     fun init_module(admin: &signer) {
         let admin_addr = signer::address_of(admin);
         assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
         move_to(admin, ActiveValidators {list: vector::empty<String>(), root: utf8(b""), epoch: 0});
         move_to(admin, PendingValidators {list: vector::empty<String>()});
+        move_to(admin, PerEpoch {total_credits: 0, emissions: 0,  total_weight: 0, vote_weights: map::new<Voter, u256>()});
         move_to(admin, Validators {map: map::new<String, Validator>()});
         if (!exists<Stakers>(@dev)) {
             move_to(admin, Stakers { table: table::new<String, String>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { shared: Shared::give_access(admin) });
+            move_to(admin, Permissions { shared: Shared::give_access(admin), margin: Margin::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
     }
 
@@ -112,15 +124,6 @@ module dev::QiaraValidatorsV16 {
 
         reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pub_key, pubkey_evm_address);
 
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(signer))),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&pub_key)),
-            Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
-            Event::create_data_struct(utf8(b"power"), utf8(b"u256"), bcs::to_bytes(&power)),
-        ];
-        Event::emit_consensus_event(utf8(b"Register Validator"), data);
     }
 
     // Interface for changing a staker's chosen validator on-chain
@@ -340,6 +343,7 @@ module dev::QiaraValidatorsV16 {
             i = i + 1;
         };
 
+        let deleted_validator = utf8(b"");
         if (!already_exists) {
             if (len < 16) {
                 // Case A: Room in the list, just add them
@@ -365,10 +369,22 @@ module dev::QiaraValidatorsV16 {
 
                 // If we found someone weaker than the new validator, replace them
                 if (found_weakest) {
-                    vector::remove(pending_validators, weakest_index);
+                    deleted_validator = vector::remove(pending_validators, weakest_index);
                     vector::push_back(pending_validators, validator);
                 };
             };
+
+            let data = vector[
+                Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+                Event::create_data_struct(utf8(b"new_validator"), utf8(b"string"), validator),
+                Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"string"), deleted_validator),
+                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+                Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&pub_key)),
+                Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
+                Event::create_data_struct(utf8(b"power"), utf8(b"u256"), bcs::to_bytes(&power)),
+            ];
+            Event::emit_consensus_event(utf8(b"Register Validator"), data);
+
         };
 
         // Update active list if epoch progressed
@@ -449,4 +465,100 @@ module dev::QiaraValidatorsV16 {
         let validator  = map::borrow(&vars.map, &val);
         return (validator.pubkey_evm_address, validator.pub_key, validator.isActive, validator.power, validator.snapshot, validator.total_power, validator.stakers)
     }
+
+    public fun acrue_modularity_fee(shared: String, user: vector<u8>) acquires Permissions, PerEpoch{
+        let per_epoch = borrow_global<PerEpoch>(@dev);
+        let flat_usd_fee = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"))) as u256);
+        Margin::add_credit(shared, user, flat_usd_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        per_epoch.total_credits = per_epoch.total_credits + flat_usd_fee;
+    }
+
+    public fun acrue_vote(shared: String, user: vector<u8>, vote_weight: u256) acquires PerEpoch, ActiveValidators, Permissions {
+        let per_epoch = borrow_global_mut<PerEpoch>(@dev);
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
+        let permissions = borrow_global<Permissions>(@dev);
+        let voter = Voter { shared, user };
+
+        // Check if this voter has already voted during the current epoch
+        if (map::contains_key(&per_epoch.vote_weights, &voter)) {
+            // If the voter exists, retrieve a mutable reference to their weight and add the new weight
+            let current_weight = map::borrow_mut(&mut per_epoch.vote_weights, &voter);
+            *current_weight = *current_weight + vote_weight;
+        } else {
+            // If they don't exist, insert them as a new voter
+            map::add(&mut per_epoch.vote_weights, voter, vote_weight);
+        };
+
+        // Update the sum of all vote weights for the epoch to keep the reward pool calculations accurate
+        per_epoch.total_weight = per_epoch.total_weight + vote_weight;
+
+        distribute_rewards(per_epoch, active_validators, permissions);
+
+    }
+
+
+ fun distribute_rewards(per_epoch: PerEpoch, active_validators: ActiveValidators, permissions: Permissions) {
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
+        let current_epoch = (Genesis::return_epoch() as u64);
+
+        if (Genesis::return_epoch() > (active_validators.epoch as u256)) {
+            active_validators.epoch = current_epoch;
+        } else {
+            return
+        };
+
+        // Borrow PerEpoch mutably so we can reset its fields at the end
+        let per_epoch = borrow_global_mut<PerEpoch>(@dev);
+        
+        // Avoid division by zero
+        if (per_epoch.total_weight == 0) {
+            return
+        };
+
+        // Extracted keys from the map; map::keys returns a copy (by value)
+        let validators = map::keys(&per_epoch.vote_weights);
+        let len = vector::length(&validators);
+        let permissions = borrow_global<Permissions>(@dev);
+
+        while (len > 0) {
+            let voter = vector::borrow(&validators, len - 1);
+            let weight = *map::borrow(&per_epoch.vote_weights, voter);
+
+            // Calculate reward with safe order of operations to avoid precision loss
+            let validator_emission_reward = (weight * per_epoch.emissions) / per_epoch.total_weight;
+            let validator_credit_reward = (weight * per_epoch.total_credits) / per_epoch.total_weight;
+
+            let shared_str = *&voter.shared;
+            let user_addr = *&voter.user;
+
+            Margin::add_credit(
+                shared_str, 
+                Shared::return_shared_owner(shared_str), 
+                validator_credit_reward, 
+                Margin::give_permission(&permissions.margin)
+            );
+            
+            TokensCore::mint_qiara_emissions(
+                shared_str,  
+                validator_emission_reward, 
+                TokensCore::give_permission(&permissions.tokens_core)
+            );
+
+            len = len - 1;
+        };
+
+        // === RESET STATE FOR THE NEW EPOCH ===
+        
+        // 1. Reset credits and weights back to 0
+        per_epoch.total_credits = 0;
+        per_epoch.total_weight = 0;
+
+        // 2. Clear all previous votes so validators must be voted on again
+        per_epoch.vote_weights = map::new<Voter, u256>();
+
+        // 3. Set the new emissions for the upcoming epoch.
+        per_epoch.emissions = TokensQiara::calculate_emissions(); 
+
+    }
+
 }

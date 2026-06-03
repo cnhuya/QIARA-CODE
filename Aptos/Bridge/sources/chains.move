@@ -754,6 +754,8 @@ fun handle_omnichain_event(
             };
             table::add(pending_table, identifier, new_votes);
 
+            Validators::acrue_vote(shared: String, user: vector<u8>, vote_weight: u256)
+
             // Emit Register Event
             let data = vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),

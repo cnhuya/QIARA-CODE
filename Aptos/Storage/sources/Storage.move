@@ -195,6 +195,9 @@ module dev::QiaraStorageV5 {
         register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 1_000_000, true, &give_permission(&give_access(admin))); // 0.05/s/$
         register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"), 100_000_000, true, &give_permission(&give_access(admin))); // 100*level
 
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), 1_250_000, true, &give_permission(&give_access(admin))); // 1,25X   
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), 10_000, true, &give_permission(&give_access(admin))); // 0.1%
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"INCREASED_QBURNED_REWARD_RATE_PER_POWER"), 5_000_000, true, &give_permission(&give_access(admin))); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"FEE_DEDUCTION_PER_POWER"), 5_000_000, true, &give_permission(&give_access(admin))); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"LTVP_INCREASE_PER_POWER"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"WITHDRAWAL_OVER_LIMIT_PER_POWER"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%

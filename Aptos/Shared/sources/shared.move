@@ -438,6 +438,17 @@ module dev::QiaraSharedV3 {
     }
 
     #[view]
+    public fun return_shared_owner(name: String): vector<u8> acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+
+        if (!table::contains(&shared.storage, name)) {
+            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+        };
+
+        *table::borrow(&shared.storage, name).owner
+    }
+
+    #[view]
     public fun return_ref_code_params(name: String): RefCodeParams acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
 
