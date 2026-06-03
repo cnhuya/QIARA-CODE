@@ -5,10 +5,9 @@ module dev::QiaraRanksV9{
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV11::{Self as TokensType};
-    use dev::QiaraChainTypesV11::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV13::{Self as TokensType};
+    use dev::QiaraChainTypesV13::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use aptos_std::math128::{Self as math128};
     use dev::QiaraStorageV6::{Self as storage, Access as StorageAccess};
 
     use dev::QiaraSharedV3::{Self as Shared, Ownership, RefCodeParams};
@@ -109,11 +108,11 @@ module dev::QiaraRanksV9{
     public fun return_shared_rank(shared: String): ViewUser acquires UsersProfile{
         let points_table = borrow_global<UsersProfile>(@dev);
         let ownership = Shared::return_shared_ownership_new(shared);
-        let () = Shared::extract_raw_params(ownership);
+        let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,
-                ref_code_params: Shared::create_empty_raw_params(),
+                ref_code_params: Shared::create_empty_raw_params2(),
                 first_interaction: 0,
                 experience: 0,
                 experience_to_this_level: 0,
@@ -140,7 +139,7 @@ module dev::QiaraRanksV9{
 
         return ViewUser {
             ownership: ownership,
-            ref_code_params: Shared::create_empty_raw_params(),
+            ref_code_params: Shared::create_empty_raw_params2(),
             first_interaction: user.first_interaction,
             experience: user.experience,
             experience_to_this_level: return_xp_needed_to_level(level),

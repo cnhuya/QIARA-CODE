@@ -513,5 +513,7 @@ module dev::QiaraSharedV3 {
         RefCodeParams { xp_tax: 0, fee_tax: 0 }
     }
 
-
+    public fun create_empty_raw_params2(): RefCodeParams {
+        RefCodeParams { xp_tax: 0, fee_tax: 0 }
+    }
 }
