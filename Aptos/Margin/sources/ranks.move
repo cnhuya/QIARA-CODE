@@ -276,6 +276,10 @@ module dev::QiaraRanksV9{
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"))) as u128)
     }
     #[view]
+    public fun return_scaler_xp_multi_per_day(): u128{
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"))) as u128)
+    }
+    #[view]
     public fun return_exponent_xp_multi_per_day(): u128{
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"))) as u128)
     }
@@ -337,21 +341,35 @@ module dev::QiaraRanksV9{
         return increased_qburned_reward_rate
     }
 
-    #[view]
+
+//0,5678%
+//567_840_000_000
+#[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
-        let days = (timestamp::now_seconds() - first_interaction) / 86400; // convert seconds to days
-        let base = (return_base_xp_multi_per_day() as u128);
-        
-        // Integer division of the exponent loses the decimal precision (e.g., 1.25 becomes 1)
-        let exponent = (return_exponent_xp_multi_per_day() as u128);
-        
-        let scale = 10_000; // Assuming a scaling factor of 10,000 (4 decimals)
-        let result = fixed_pow(base, exponent, scale);
+        let days = (((timestamp::now_seconds() - first_interaction) / 86400) as u256);
+        let base = (return_base_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
+        let exponent = (return_exponent_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
+        let scaler = (return_scaler_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
+        let result: u256 = 0;
+        let multiplier_scaled: u256 = 0;
+        if (days > 0) {
+            // 1. Correctly scale the days up by 1,000,000 and assign to a variable
+            let days_scaled = days * 1_000_000; 
+            
+            // 2. Perform the calculation: Days * (Days_scaled + W45_scaled) / W44
+            // W45 = 1,000 -> scaled by 1,000,000 is 1,000,000,000
+            // W44 = 25,000
+            // 14 * (14,000,000 + 1,000,000,000) / 25,000
+            multiplier_scaled = (days * (days_scaled + exponent)) / scaler; 
+            
+            // 3. Multiply by your base rate
+            result = multiplier_scaled * base; 
+        };
 
         return (
-            (((days as u128) * result) as u256), 
-            (days as u256), 
-            (result as u256)
+            result , 
+            days, 
+            multiplier_scaled
         )
     }
 

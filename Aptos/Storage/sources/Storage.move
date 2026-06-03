@@ -195,8 +195,8 @@ module dev::QiaraStorageV6 {
         register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 1_000_000, true, &give_permission(&give_access(admin))); // 0.05/s/$
         register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"), 100_000_000, true, &give_permission(&give_access(admin))); // 100*level
 
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), 1_250_000, true, &give_permission(&give_access(admin))); // 1,25X   
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), 10_000, true, &give_permission(&give_access(admin))); // 0.1%
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), 1_000_000_000, true, &give_permission(&give_access(admin))); // 1,25X   
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), 1_000_000, true, &give_permission(&give_access(admin))); // 0.1%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"INCREASED_QBURNED_REWARD_RATE_PER_POWER"), 5_000_000, true, &give_permission(&give_access(admin))); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"FEE_DEDUCTION_PER_POWER"), 5_000_000, true, &give_permission(&give_access(admin))); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"LTVP_INCREASE_PER_POWER"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%
@@ -206,6 +206,8 @@ module dev::QiaraStorageV6 {
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"PERPS_VOLUME_CONVERSION"), 100_000, true, &give_permission(&give_access(admin))); // 0.1x
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 1_000_000, true, &give_permission(&give_access(admin))); // 0.05/s/$
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"DAILY_CLAIM"), 100_000_000, true, &give_permission(&give_access(admin))); // 100*level
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"), 25_000_000_000, true, &give_permission(&give_access(admin))); // 25%  
+
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"TIME_PERIOD"), 86400, true, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"USD_VALUE"), 100_000_000, true, &give_permission(&give_access(admin))); // 0.1x
 
@@ -217,9 +219,11 @@ module dev::QiaraStorageV6 {
         register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"EMISSIONS_VALIDATORS"), 2_000_000, true, &give_permission(&give_access(admin))); // 25%  
 
     }
-    public entry fun more7(admin: &signer) acquires ConstantDatabase, {
+    public entry fun more7(admin: &signer) acquires ConstantDatabase {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        change_constant(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), bc::to_bytes(&1_250_000u64), &give_permission(&give_access(admin))); // 5
+        change_constant(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), bc::to_bytes(&1_000_000_000u64), &give_permission(&give_access(admin))); // 5
+        change_constant(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), bc::to_bytes(&1_000_000u64), &give_permission(&give_access(admin))); // 5
+        change_constant(admin, utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"), bc::to_bytes(&25_000u64), &give_permission(&give_access(admin))); // 5
     }
 
 
