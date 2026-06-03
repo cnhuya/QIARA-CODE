@@ -223,6 +223,6 @@ module dev::QiaraTokensQiaraV13 {
     public fun calculate_emissions(): (u64) {
         let emissions = get_emissions_validators();
         let current_supply = option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0);
-        return (emissions * current_supply) / 1_000_000
+        return (emissions * (current_supply as u64)) / 1_000_000
     }
 }
