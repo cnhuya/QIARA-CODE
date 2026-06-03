@@ -1,9 +1,9 @@
-module dev::QiaraTokensTiersV11{
+module dev::QiaraTokensTiersV13{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::type_info::{Self, TypeInfo};
-    use dev::QiaraStorageV5::{Self as storage};
+    use dev::QiaraStorageV6::{Self as storage};
 
 
 // === ERRORS === //
