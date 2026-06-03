@@ -648,18 +648,6 @@ module dev::QiaraTokensCoreV13{
 
     }
 
-    public fun mint_qiara_emissions(shared: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset  {
-        //Shared::assert_is_sub_owner(shared, user);
-        let asset = get_metadata(utf8(b"Qiara"));
-        let managed = authorized_borrow_refs(utf8(b"QIARA"));
-
-        let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
-
-        let to_wallet = primary_fungible_store::ensure_primary_store_exists(signer::address_of(claimer),asset);
-        internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
-
-    }
-
     public fun mint_qiara(shared: String, user: vector<u8>, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset  {
         Shared::assert_is_sub_owner(shared, user);
         let asset = get_metadata(utf8(b"Qiara"));
@@ -667,12 +655,12 @@ module dev::QiaraTokensCoreV13{
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
 
-        if(!account::exists_at(from_bcs::to_address(user))){
-            TokensOmnichain::change_UserTokenSupply(utf8(b"Qiara"), utf8(b"Aptos"), shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            return
-        };
+        //if(!account::exists_at(from_bcs::to_address(user))){
+        //    TokensOmnichain::change_UserTokenSupply(utf8(b"Qiara"), utf8(b"Aptos"), shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
+        //   return
+        //};
 
-        let to_wallet = primary_fungible_store::ensure_primary_store_exists(signer::address_of(claimer),asset);
+        let to_wallet = primary_fungible_store::ensure_primary_store_exists(from_bcs::to_address(user),asset);
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
     }

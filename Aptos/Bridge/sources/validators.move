@@ -78,11 +78,16 @@ module dev::QiaraValidatorsV16 {
         table: Table<String, String>,
     }
 
+    struct Voter has key, store {
+        shared: String,
+        user: vector<u8>,
+    }
+
     struct PerEpoch has key, store{
         total_credits: u256
         emissions: u256
         total_weight: u256
-        vote_weights: Map<String, u256>
+        vote_weights: Map<Voter, u256>
     }
     // === INIT === //
     fun init_module(admin: &signer) {
@@ -533,13 +538,14 @@ module dev::QiaraValidatorsV16 {
 
             Margin::add_credit(
                 shared_str, 
-                Shared::return_shared_owner(shared_str), 
+                user_addr, 
                 validator_credit_reward, 
                 Margin::give_permission(&permissions.margin)
             );
             
-            TokensCore::mint_qiara_emissions(
+            TokensCore::mint_qiara(
                 shared_str,  
+                user_addr
                 validator_emission_reward, 
                 TokensCore::give_permission(&permissions.tokens_core)
             );
