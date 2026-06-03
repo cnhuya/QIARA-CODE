@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV10{
+module dev::QiaraTokensCoreV11{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,11 +18,11 @@ module dev::QiaraTokensCoreV10{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV10::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV10::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV10::{Self as TokensTiers};
-    use dev::QiaraTokensRatesV10::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensQiaraV10::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV11::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV11::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV11::{Self as TokensTiers};
+    use dev::QiaraTokensRatesV11::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensQiaraV11::{Self as TokensQiara,  Access as TokensQiaraAccess};
     //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
@@ -30,11 +30,11 @@ module dev::QiaraTokensCoreV10{
     use dev::QiaraSharedV3::{Self as Shared};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV11::{Self as Storages};
+    use dev::QiaraStoragesV12::{Self as Storages};
 
-    use dev::QiaraChainTypesV11::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV11::{Self as TokensType};
-    use dev::QiaraProviderTypesV11::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV12::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV12::{Self as TokensType};
+    use dev::QiaraProviderTypesV12::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
