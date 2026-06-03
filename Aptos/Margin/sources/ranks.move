@@ -10,7 +10,7 @@ module dev::QiaraRanksV8{
 
     use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV3::{Self as Shared, Ownership};
+    use dev::QiaraSharedV3::{Self as Shared, Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -43,6 +43,7 @@ module dev::QiaraRanksV8{
 
     struct ViewUser has copy, drop, store{
         ownership: Ownership,
+        ref_code_params: RefCodeParams,
         experience: u256,
         experience_to_this_level: u256,
         experience_to_next_level: u256,
@@ -105,6 +106,7 @@ module dev::QiaraRanksV8{
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,
+                ref_code_params: Shared::create_empty_raw_params(),
                 experience: 0,
                 experience_to_this_level: 0,
                 experience_to_next_level: 0,
@@ -127,6 +129,7 @@ module dev::QiaraRanksV8{
 
         return ViewUser {
             ownership: ownership,
+            ref_code_params: Shared::create_empty_raw_params(),
             experience: user.experience,
             experience_to_this_level: return_xp_needed_to_level(level),
             experience_to_next_level: return_xp_needed_to_level(level+1),

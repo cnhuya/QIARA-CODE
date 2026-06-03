@@ -438,6 +438,17 @@ module dev::QiaraSharedV3 {
     }
 
     #[view]
+    public fun return_ref_code_params(name: String): RefCodeParams acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+
+        if (!table::contains(&shared.storage, name)) {
+            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+        };
+
+        table::borrow(&shared.storage, name).ref_code_params
+    }
+
+    #[view]
     public fun assert_shared_storage(name: String): bool acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
         return table::contains(&shared.storage, name)
@@ -482,9 +493,13 @@ module dev::QiaraSharedV3 {
         let ownership_record = table::borrow(&shared.storage, name);
         assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
     }
-    
+
     public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
         (ownership_record.ref_code_params.xp_tax, ownership_record.ref_code_params.fee_tax)
+    }
+
+    public fun create_empty_raw_params(ownership_record: Ownership): RefCodeParams {
+        RefCodeParams { xp_tax: 0, fee_tax: 0 }
     }
 
 
