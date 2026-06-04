@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV16{
+module dev::QiaraBridgeV17{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -17,20 +17,19 @@ module dev::QiaraBridgeV16{
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStorageV4::{Self as storage};
+    use dev::QiaraStorageV6::{Self as storage};
 
     use dev::QiaraSharedV3::{Self as Shared};
 
-    use dev::QiaraTokensCoreV10::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV10::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensValidatorsV10::{Self as TokensValidators};
+    use dev::QiaraTokensCoreV13::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV13::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV8::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV9::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV8::{Self as Margin};
+    use dev::QiaraMarginV10::{Self as Margin};
 
-    use dev::QiaraPayloadV16::{Self as Payload};
-    use dev::QiaraValidatorsV16::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV17::{Self as Payload};
+    use dev::QiaraValidatorsV17::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -141,7 +140,6 @@ module dev::QiaraBridgeV16{
 
     struct OmniVotes has key, copy, store, drop {
         votes: Map<String, OmniVote>,
-        rv: vector<String>, // rewarded validators
         data_types: vector<String>,
         data: vector<vector<u8>>,
         proof: vector<u256>,
@@ -153,7 +151,6 @@ module dev::QiaraBridgeV16{
 
     struct ProofVotes has key, copy, store, drop {
         votes: Map<String, ProofVote>,
-        rv: vector<String>, // rewarded validators
         data_types: vector<String>,
         data: vector<vector<u8>>,
         proof: vector<u256>,
@@ -165,7 +162,6 @@ module dev::QiaraBridgeV16{
     }
     struct MainVotes has key, copy, store, drop {
         votes: Map<String, Vote>,
-        rv: vector<String>, // rewarded validators
         data_types: vector<String>,
         data: vector<vector<u8>>,
         total_weight: u128,
@@ -173,7 +169,6 @@ module dev::QiaraBridgeV16{
     }
     struct ZkVotes has key, copy, store, drop {
         votes: Map<String, ZkVote>,
-        rv: vector<String>, // rewarded validators
         data_types: vector<String>,
         data: vector<vector<u8>>,
         total_weight: u128,
@@ -320,14 +315,7 @@ module dev::QiaraBridgeV16{
                 let vote = ProofVote { signature: signature, weight: (vote_weight as u128), secp256k1_pub_key: secp256k1_pub_key };
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + (vote_weight as u128);
-
-                // Manage Reward Pool
-                if (vector::length(&votes.rv) < max_rewarded) {
-                    if (!vector::contains(&votes.rv, &validator)) {
-                        vector::push_back(&mut votes.rv, validator);
-                    };
-                };
-
+                Validators::acrue_vote(validator, Shared::return_shared_owner(validator),  (vote_weight as u256));
                 // Emit Vote Event
                 let data = vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -494,7 +482,7 @@ module dev::QiaraBridgeV16{
         };
         return (false, 0)
     }
-fun handle_omnichain_event(
+    fun handle_omnichain_event(
         signer: &signer, 
         validator: String, 
         type: String, 
@@ -548,12 +536,6 @@ fun handle_omnichain_event(
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
                 
-                // Manage Reward Pool (Fastest validators get the spots)
-                if (vector::length(&votes.rv) < max_rewarded) {
-                    if (!vector::contains(&votes.rv, &validator)) {
-                        vector::push_back(&mut votes.rv, validator);
-                    };
-                };
 
                 // Emit Vote Event
                 let data = vector[
@@ -575,7 +557,6 @@ fun handle_omnichain_event(
                 
             let new_votes = OmniVotes {
                 votes: vote_map, 
-                rv: vect, 
                 data_types: type_names,
                 data: payload,
                 proof: proof,
@@ -625,7 +606,6 @@ fun handle_omnichain_event(
             let cap = borrow_global<Permissions>(@dev);
 
             Payload::prepare_omnichain_event(type_names, payload);
-
             // Emit Validated Event
             let data = vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -663,8 +643,7 @@ fun handle_omnichain_event(
         map::add(&mut vote_map, validator, vote);
             
         let new_votes = ProofVotes {
-            votes: vote_map, 
-            rv: vect, 
+            votes: vote_map,  
             data_types: type_names,
             data: payload,
             proof: proof,
@@ -718,13 +697,7 @@ fun handle_omnichain_event(
                 let vote = Vote { signature: signature, weight: vote_weight };
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                
-                // Manage Reward Pool (Fastest validators get the spots)
-                if (vector::length(&votes.rv) < max_rewarded) {
-                    if (!vector::contains(&votes.rv, &validator)) {
-                        vector::push_back(&mut votes.rv, validator);
-                    };
-                };
+                Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
 
                 // Emit Vote Event
                 let data = vector[
@@ -743,18 +716,14 @@ fun handle_omnichain_event(
             let vect = vector[validator];
             let vote_map = map::new<String, Vote>();
             map::add(&mut vote_map, validator, validator_vote);
-            
             let new_votes = MainVotes {
                 votes: vote_map, 
-                rv: vect, 
                 data_types: type_names,
                 data: payload,
                 total_weight: vote_weight, 
                 time: timestamp::now_seconds()
             };
             table::add(pending_table, identifier, new_votes);
-
-            Validators::acrue_vote(shared: String, user: vector<u8>, vote_weight: u256)
 
             // Emit Register Event
             let data = vector[
@@ -795,21 +764,25 @@ fun handle_omnichain_event(
                 }
 
             } else if (event_type == utf8(b"Modular Withdraw")) {
-                let (shared, user, synbol, chain, provider, amount, receiver) = Payload::prepare_modular_withdraw(type_names, payload);
-                TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
+                let (name, user, synbol, chain, provider, amount, receiver) = Payload::prepare_modular_withdraw(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user) = Payload::prepare_modular_storage_creation(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
                 Shared::p_create_shared_storage(signer, user, name)
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
                 Shared::p_allow_sub_owner(signer, user, name, sub_owner)
             } else if (event_type == utf8(b"Modular Storage Sub Owner Removed")) {
                 let (name, user, sub_owner) = Payload::prepare_p_remove_sub_owner(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
                 Shared::p_remove_sub_owner(signer, user, name, sub_owner)
             } else {
                 abort(ERROR_INVALID_MESSAGE);
             };
-
+            
             // Emit Validated Event
             let data = vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -846,13 +819,8 @@ fun handle_omnichain_event(
                 zk_vote.weight = vote_weight;
                 map::add(&mut votes.votes, validator, zk_vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                
-                // Manage Reward Pool (Fastest validators get the spots)
-                if (vector::length(&votes.rv) < max_rewarded) {
-                    if (!vector::contains(&votes.rv, &validator)) {
-                        vector::push_back(&mut votes.rv, validator);
-                    };
-                };
+                Validators::acrue_vote(validator, Shared::return_shared_owner(validator),  (vote_weight as u256));
+
                 // Emit Vote Event
                 let data = vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -870,10 +838,8 @@ fun handle_omnichain_event(
             let vect = vector[validator];
             let vote_map = map::new<String, ZkVote>();
             map::add(&mut vote_map, validator, zk_vote);
-            
             let new_votes = ZkVotes {
                 votes: vote_map, 
-                rv: vect, 
                 data_types: type_names,
                 data: payload,
                 total_weight: vote_weight, 
@@ -914,6 +880,7 @@ fun handle_omnichain_event(
                   //             tttta(100);
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(type_names, payload);
                 //tttta(45454);
+                Validators::acrue_modularity_fee(shared, Shared::return_shared_owner(shared));
                 TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 let data = vector[
