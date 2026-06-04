@@ -465,7 +465,7 @@ module dev::QiaraValidatorsV17 {
     }
 
     public fun acrue_modularity_fee(shared: String, user: vector<u8>) acquires Permissions, PerEpoch{
-        let per_epoch = borrow_global<PerEpoch>(@dev);
+        let per_epoch = borrow_global_mut<PerEpoch>(@dev);
         let flat_usd_fee = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"))) as u256);
         Margin::remove_credit(shared, user, flat_usd_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         per_epoch.total_credits = per_epoch.total_credits + flat_usd_fee;
