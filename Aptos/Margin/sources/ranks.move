@@ -199,7 +199,6 @@ module dev::QiaraRanksV10{
         return vect
     }
 
-
     #[view]
     public fun return_multiple_shared_rank(shared: vector<String>): Map<String, ViewUser> acquires UsersProfile{
         let points_table = borrow_global<UsersProfile>(@dev);
@@ -349,8 +348,6 @@ module dev::QiaraRanksV10{
         return deduction_percentage
     }
     fun calculate_increased_qburned_reward_rate(power: u8): u256{
-
-
         if(power>=1){ // minimum rank to have ltv increase is Emerald (power 2)
             return 0
         };
@@ -434,5 +431,17 @@ module dev::QiaraRanksV10{
         
     }
 
+    public fun extract_gas_fee_reduction(view_user: ViewUser): u256{
+        view_user.fee_deduction
+    }
+    public fun extract_xp_increase(view_user: ViewUser): u256{
+        view_user.xp_multiplier
+    }
+    public fun extract_increased_qburned_reward_rate(view_user: ViewUser): u256{
+        view_user.increased_qburned_reward_rate
+    }
+    public fun extract_withdrawal_over_limit(view_user: ViewUser): u256{
+        view_user.withdraval_over_limit
+    }
 
  }

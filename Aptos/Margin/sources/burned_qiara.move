@@ -18,7 +18,7 @@ module dev::QiaraBurnedQiaraV10 {
     use dev::QiaraSharedV3::{Self as Shared};
     use dev::QiaraTokensCoreV13::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV6::{Self as storage};
-    
+    use dev::QiaraRanksV10::{Self as Ranks};
 // === CONSTANTS === //
     const ADMIN: address = @dev;
     const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
@@ -149,7 +149,9 @@ module dev::QiaraBurnedQiaraV10 {
         
         // Calculate time elapsed and rewards
         let time_elapsed = current_time - last_claim;
-        let reward_rate = get_reward_rate();
+        let view_user_rank = Ranks::return_shared_rank(shared);
+        let user_increased_reward_rate = Ranks::extract_gas_fee_reduction(view_user_rank);
+        let reward_rate = calculate_increased_reward_rate((user_increased_reward_rate as u64));
         let reward = calculate_reward(burned_amount, reward_rate, time_elapsed);
         
         // Update last claim timestamp
@@ -236,4 +238,19 @@ module dev::QiaraBurnedQiaraV10 {
     public fun get_reward_rate(): u64 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE")))
     }
+
+    #[view]
+    public fun calculate_increased_reward_rate(increase: u64): (u64) {
+        let base_reward_rate = get_reward_rate();
+        let scale = 1_000_000;
+        // e.g., (10_000_000 * 50_000_000) / 100_000_000 / 100
+        // (500_000_000_000_000 / 100_000_000 )/ 100
+        // (500_000_000 / 100)
+        // 5_000_000, which equals 5% (correct)
+        let actual_user_dedicated_reward_rate = (base_reward_rate * increase) / scale / 100;
+
+        actual_user_dedicated_reward_rate
+
+    }
+
 }

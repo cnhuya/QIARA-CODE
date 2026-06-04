@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV8 {
+module dev::QiaraVaultsV9 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -15,22 +15,22 @@ module dev::QiaraVaultsV8 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV10::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV10::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensRatesV10::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV10::{Self as TokensTiers};
-    use dev::QiaraTokensOmnichainV10::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV8::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV8::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV8::{Self as RI};
+    use dev::QiaraTokensCoreV13::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV13::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensRatesV13::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV1::{Self as TokensTiers};
+    use dev::QiaraTokensOmnichainV13::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraMarginV9::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV9::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV9::{Self as RI};
     //use dev::QiaraAutomationV1::{Self as auto, Access as AutoAccess};
 
-    use dev::QiaraTokenTypesV11::{Self as TokensTypes};
-    use dev::QiaraChainTypesV11::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV11::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV13::{Self as TokensTypes};
+    use dev::QiaraChainTypesV13::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV13::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV4::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV4::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV6::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV6::{Self as capabilities, Access as CapabilitiesAccess};
 
     use dev::QiaraSharedV3::{Self as Shared};
 
@@ -509,7 +509,11 @@ module dev::QiaraVaultsV8 {
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
+    
+        let gas_rate = Gas::add_deposit(token, amount_u256);
+        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
+
+        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
         if(amount_u256_taxed == 0) { return };
 
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
@@ -519,9 +523,7 @@ module dev::QiaraVaultsV8 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::add_locked_fee(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, ((fee-1000000000000000000)*99)/100, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        let gas_rate = Gas::add_deposit(token, amount_u256);
-        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
-        TokenVaults::fast_add_accumulated_rewards(token, gas_fee,TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
+
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, staked_rewards, user_points) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
@@ -928,12 +930,13 @@ module dev::QiaraVaultsV8 {
         return (storage_address_bytes)
     }
     // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
-    fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256): (u256, u256) acquires Permissions{
-        if(fee < 1*1000000000000000000){
-            fee =  1*1000000000000000000
+    fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256, gas_fee: u256): (u256, u256) acquires Permissions{
+        let combined_fee = fee+gas_fee;
+        if(combined_fee < 1*1000000000000000000){
+            combined_fee =  1*1000000000000000000
         };
         Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
+        TokenVaults::fast_add_accumulated_rewards(token, gas_fee,TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
         return ( amount-fee, fee)
     }
 
