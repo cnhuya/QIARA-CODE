@@ -210,6 +210,10 @@ module dev::QiaraStorageV6 {
 
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"TIME_PERIOD"), 86400, true, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"USD_VALUE"), 100_000_000, true, &give_permission(&give_access(admin))); // 0.1x
+      
+        register_constant<u64>(admin, utf8(b"QiaraShared"), utf8(b"BASE_SHARED_XP_INCREASE"), 25_000_000, true, &give_permission(&give_access(admin))); // 25%  
+        register_constant<u64>(admin, utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION"), 10_000_000, true, &give_permission(&give_access(admin))); // 10%  
+   
 
     }
     public entry fun more6(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
@@ -224,6 +228,14 @@ module dev::QiaraStorageV6 {
         change_constant(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), bc::to_bytes(&1_000_000_000u64), &give_permission(&give_access(admin))); // 5
         change_constant(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), bc::to_bytes(&1_000_000u64), &give_permission(&give_access(admin))); // 5
         change_constant(admin, utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"), bc::to_bytes(&25_000u64), &give_permission(&give_access(admin))); // 5
+    }
+
+    public entry fun more8(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+        //register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_vault"),utf8(b"0x72F726F722436b95a691cC438183e67632eBFF76"), true, &give_permission(&give_access(admin))); // 0.001%  
+        //register_constant<String>(admin, utf8(b"QiaraBaseAssets"), utf8(b"testToken_token"),utf8(b"0x0D5322Af414db3bd855cC44424F8532859469957"), true, &give_permission(&give_access(admin))); // 0.001%  
+        register_constant<u64>(admin, utf8(b"QiaraShared"), utf8(b"BASE_SHARED_XP_INCREASE"), 25_000_000, true, &give_permission(&give_access(admin))); // 25%  
+        register_constant<u64>(admin, utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION"), 10_000_000, true, &give_permission(&give_access(admin))); // 10%  
     }
 
 

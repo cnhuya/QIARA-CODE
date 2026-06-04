@@ -83,7 +83,7 @@ module dev::QiaraTokensQiaraV13 {
             move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
         };
         if (!exists<Tokenomics>(@dev)) {
-            move_to(admin, Tokenomics { burned: 0, minted: 0, initial_supply: 0 });
+            move_to(admin, Tokenomics { burned: 0, minted: 0, initial_supply:  option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0),});
         };
     }
 
@@ -110,13 +110,20 @@ module dev::QiaraTokensQiaraV13 {
 // === VIEW FUNCTIONS === //
 #[view]
     public fun get_qiara_data(): QiaraData acquires Timers, Tokenomics {
-        let timers = borrow_global<Timers>(@dev);
         let tokenomics = borrow_global<Tokenomics>(@dev);
+        let inflation_debt = get_inflation_debt();
+        let save_inflation;
+        if( inflation_debt > get_inflation() ) {
+            save_inflation = get_minimal_inflation();
+        } else {
+            save_inflation = get_inflation() - inflation_debt;
+        };
+        let timers = borrow_global<Timers>(@dev);
         QiaraData {
             timers: *timers,
             epoch: get_epoch(),
             inflation: get_inflation(),
-            actual_inflation: get_inflation() - get_inflation_debt(),
+            actual_inflation: save_inflation,
             inflation_minimal: get_minimal_inflation(),
             inflation_debt: get_inflation_debt(),
             burn_fee: get_burn_fee(),

@@ -1,4 +1,4 @@
-module dev::QiaraRanksV9{
+module dev::QiaraRanksV10{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -110,6 +110,7 @@ module dev::QiaraRanksV9{
         let points_table = borrow_global<UsersProfile>(@dev);
         let ownership = Shared::return_shared_ownership_new(shared);
         let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
+        let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,
@@ -121,11 +122,11 @@ module dev::QiaraRanksV9{
                 level: 0,
                 rank: utf8(b"Iron"),
                 custom_rank: utf8(b"None"),
-                fee_deduction: 0,
+                fee_deduction: 0 + (gas_fee_reduction as u256),
                 ltv_increase: 0,
                 withdraval_over_limit: 0,
                 increased_qburned_reward_rate: 0,
-                xp_multiplier: 0,
+                xp_multiplier: 0 + (xp_increased as u256),
 
             }
         };
@@ -148,11 +149,11 @@ module dev::QiaraRanksV9{
             level: level,
             rank: rank,
             custom_rank: user.custom_rank,
-            fee_deduction: calculate_fee_deduction(convert_rank_to_power(rank)),
+            fee_deduction: calculate_fee_deduction(convert_rank_to_power(rank)) + (gas_fee_reduction as u256),
             ltv_increase: calculate_ltv_increase(convert_rank_to_power(rank)),
             withdraval_over_limit: calculate_withdrawal_over_limit(convert_rank_to_power(rank)),
             increased_qburned_reward_rate: calculate_increased_qburned_reward_rate(convert_rank_to_power(rank)),
-            xp_multiplier: xp_multiplier,
+            xp_multiplier: xp_multiplier + (xp_increased as u256),
         }
     }
 
@@ -282,6 +283,23 @@ module dev::QiaraRanksV9{
     #[view]
     public fun return_exponent_xp_multi_per_day(): u128{
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"))) as u128)
+    }
+
+    #[view]
+    public fun calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax: u64, ref_code_xp_tax: u64): (u64, u64) {
+        let base_gas_reduction = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION")));
+        let base_xp_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_XP_INCREASE")));
+
+        let scale = 1_000_000;
+        // e.g., (10_000_000 * 50_000_000) / 100_000_000 / 100
+        // (500_000_000_000_000 / 100_000_000 )/ 100
+        // (500_000_000 / 100)
+        // 5_000_000, which equals 5% (correct)
+        let actual_gas_reduction = (base_gas_reduction * ref_code_gas_tax) / scale / 100;
+        let actual_xp_increase = (base_xp_increase * ref_code_xp_tax) / scale / 100;
+
+        (actual_gas_reduction, actual_xp_increase)
+
     }
 
     fun calculate_fee_deduction(power: u8): u256{
@@ -415,30 +433,6 @@ module dev::QiaraRanksV9{
         }
         
     }
-/// Calculates (base^exponent) for fixed-point numbers.
-    /// Divides by scale at each step to prevent intermediate values from overflowing.
-    public fun fixed_pow(base: u128, exponent: u128, scale: u128): u128 {
-        if (exponent == 0) {
-            return scale
-        };
-        let p = scale;
-        let n = base;
-        
-        // Cast to u256 to prevent intermediate multiplication overflows
-        let p_u256 = (p as u256);
-        let n_u256 = (n as u256);
-        let scale_u256 = (scale as u256);
-        
-        while (exponent > 0) {
-            if (exponent % 2 == 1) {
-                p_u256 = (p_u256 * n_u256) / scale_u256;
-            };
-            exponent = exponent / 2;
-            if (exponent > 0) {
-                n_u256 = (n_u256 * n_u256) / scale_u256;
-            };
-        };
-        (p_u256 as u128)
-    }
+
 
  }
