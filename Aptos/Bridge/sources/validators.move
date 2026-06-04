@@ -103,8 +103,6 @@ module dev::QiaraValidatorsV17 {
     // === PUBLIC FUNCTIONS === //
 
     public entry fun dev_register_validator(signer: &signer, shared: String, validator: vector<u8>, pub_key: vector<u8>,pubkey_evm_address: vector<u8>) acquires PendingValidators, ActiveValidators, Validators {
-        let admin_addr = signer::address_of(signer);
-        assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
         Shared::assert_is_sub_owner(shared, validator);
         
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
@@ -316,19 +314,29 @@ module dev::QiaraValidatorsV17 {
     }
 
     fun take_validator_snapshot_internal(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators) {
-        let validator_struct = map::borrow_mut(validators, &validator);
         let own_power = Margin::get_user_total_staked_usd(validator);
         
-        let old_own_power = validator_struct.power;
-        validator_struct.power = own_power;
-        if (validator_struct.total_power >= old_own_power) {
-            validator_struct.total_power = validator_struct.total_power - old_own_power + own_power;
-        } else {
-            validator_struct.total_power = own_power;
-        };
-        validator_struct.snapshot = active_validators.epoch;
+        let pub_key;
+        let pubkey_evm_address;
+        let total_power;
 
-        let total_power = validator_struct.total_power;
+        // Scope the mutable borrow so it is released immediately after these updates
+        {
+            let validator_struct = map::borrow_mut(validators, &validator);
+            let old_own_power = validator_struct.power;
+            validator_struct.power = own_power;
+            if (validator_struct.total_power >= old_own_power) {
+                validator_struct.total_power = validator_struct.total_power - old_own_power + own_power;
+            } else {
+                validator_struct.total_power = own_power;
+            };
+            validator_struct.snapshot = active_validators.epoch;
+
+            total_power = validator_struct.total_power;
+            pub_key = *&validator_struct.pub_key;
+            pubkey_evm_address = *&validator_struct.pubkey_evm_address;
+        }; // The mutable borrow of `validators` is completely released here
+
         let len = vector::length(pending_validators);
         let i = 0;
         let already_exists = false;
@@ -378,11 +386,10 @@ module dev::QiaraValidatorsV17 {
                 Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
                 Event::create_data_struct(utf8(b"new_validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"string"), bcs::to_bytes(&deleted_validator)),
-                Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&validator_struct.pub_key)),
-                Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&validator_struct.pubkey_evm_address)),
+                Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&pub_key)),
+                Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
             ];
             Event::emit_consensus_event(utf8(b"Register Validator"), data);
-
         };
 
         // Update active list if epoch progressed
