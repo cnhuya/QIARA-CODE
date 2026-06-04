@@ -117,7 +117,7 @@ module dev::QiaraRanksV9{
                 first_interaction: 0,
                 experience: 0,
                 experience_to_this_level: 0,
-                experience_to_next_level: 0,
+                experience_to_next_level: return_xp_needed_to_level(1),
                 level: 0,
                 rank: utf8(b"Iron"),
                 custom_rank: utf8(b"None"),
@@ -341,10 +341,7 @@ module dev::QiaraRanksV9{
         return increased_qburned_reward_rate
     }
 
-
-//0,5678%
-//567_840_000_000
-#[view]
+    #[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
         let days = (((timestamp::now_seconds() - first_interaction) / 86400) as u256);
         let base = (return_base_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
