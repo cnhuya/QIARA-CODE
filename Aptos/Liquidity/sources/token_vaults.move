@@ -19,8 +19,8 @@ module dev::QiaraTokenVaultsV11{
     use dev::QiaraTokensRatesV13::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV13::{Self as TokensTiers};
 
-    use dev::QiaraMarginV9::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV9::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV10::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV10::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV3::{Self as Shared};
     
