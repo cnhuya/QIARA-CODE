@@ -28,8 +28,8 @@ module dev::QiaraBridgeV19{
 
     use dev::QiaraMarginV12::{Self as Margin};
 
-    use dev::QiaraPayloadV18::{Self as Payload};
-    use dev::QiaraValidatorsV18::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV19::{Self as Payload};
+    use dev::QiaraValidatorsV19::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
