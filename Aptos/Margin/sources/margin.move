@@ -237,37 +237,44 @@ module dev::QiaraMarginV11{
             balance.stake_lock = (Genesis::return_epoch() as u64);
         };
         let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev),token,chain,provider);
-        staked_value = staked_value + value;
+        *staked_value = *staked_value + value;
     }
 
-    public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings{
+    public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings, TotalStaked { // Added TotalStaked here
         Shared::assert_is_sub_owner(shared, user);
-        assert!(vector::length(&token) == vector::length(&chain) && vector::length(&token) == vector::length(&provider) && vector::length(&token) == vector::length(&value), ERROR_ARGUMENT_LENGHT_MISSMATCH);
+        assert!(
+            vector::length(&token) == vector::length(&chain) && 
+            vector::length(&token) == vector::length(&provider) && 
+            vector::length(&token) == vector::length(&value), 
+            ERROR_ARGUMENT_LENGHT_MISSMATCH
+        );
 
         let len = vector::length(&token);
-        while(len>0){
+        while(len > 0){
             let token = vector::borrow(&token, len-1);
             let chain = vector::borrow(&chain, len-1);
             let provider = vector::borrow(&provider, len-1);
             let value = vector::borrow(&value, len-1);
-            let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, *token, *chain, *provider);
+            let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev), shared, *token, *chain, *provider);
 
             assert!(balance.stake_lock+2 <= (Genesis::return_epoch() as u64), ERROR_STAKE_LOCKED);
 
             if(*value > balance.staked){
-                balance.staked = 0
+                balance.staked = 0;
             } else {
                 balance.staked = balance.staked - *value;
             };
 
-            let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev),token,chain,provider);
-            if( *value > staked_value){
-                staked_value = 0
+            let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev), *token, *chain, *provider);
+            
+            // Fixed reference assignments and comparisons
+            if (*value > *staked_value) {
+                *staked_value = 0;
             } else {
-                staked_value = staked_value - *value;
+                *staked_value = *staked_value - *value;
             };
 
-            len = len-1
+            len = len-1;
         };
     }
 
