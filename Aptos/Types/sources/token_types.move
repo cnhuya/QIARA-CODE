@@ -5,7 +5,7 @@ module dev::QiaraTokenTypesV15 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::table::{Self, Table};
 
-    use dev::QiaraChainTypesV14::{Self as ChainTypes};
+    use dev::QiaraChainTypesV15::{Self as ChainTypes};
 
     const TOKEN_PREFIX: vector<u8> = b"Qiara91 ";
     const SYMBOL_PREFIX: vector<u8> = b"Q";
