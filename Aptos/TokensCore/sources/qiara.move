@@ -62,6 +62,7 @@ module dev::QiaraTokensQiaraV14 {
         actual_burn_fee: u64,
         burn_fee_increase: u64,
         burn_fee_minimal: u64,
+        validator_emissions_rate: u64,
         validator_emissions: u64,
         locked_qiara_rate: u64,
         tokenomics: Tokenomics,
@@ -130,7 +131,8 @@ module dev::QiaraTokensQiaraV14 {
             actual_burn_fee: Self::burn_fee(), // Explicitly calls the view function
             burn_fee_increase: get_burn_fee_increase(),
             burn_fee_minimal: get_burn_fee_minimal(),
-            validator_emissions: get_emissions_validators(),
+            validator_emissions_rate: get_emissions_validators(),
+            validator_emissions: calculate_emissions(),
             locked_qiara_rate: get_locked_qiara_rate(),
             tokenomics: *tokenomics,
             current_supply: 2000000000000 + tokenomics.initial_supply + tokenomics.minted - tokenomics.burned,
@@ -230,7 +232,7 @@ module dev::QiaraTokensQiaraV14 {
     public fun calculate_emissions(): (u64) {
         let emissions = get_emissions_validators();
         let current_supply = option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0);
-        return (emissions * (current_supply as u64)) / 1_000_000
+        return (emissions * (current_supply as u64)) 
     }
 
     #[view]
