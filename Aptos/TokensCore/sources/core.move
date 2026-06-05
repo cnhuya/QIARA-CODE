@@ -43,6 +43,9 @@ module dev::QiaraTokensCoreV14{
     const ERROR_ACCOUNT_DOES_NOT_EXISTS: u64 = 3;
     const ERROR_SUFFICIENT_BALANCE: u64 = 4;
 
+//40_000_000_000
+//2_000_000_000_000 
+
     //100_000_000
 
     //1_000_000 = 1%
