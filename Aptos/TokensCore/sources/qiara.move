@@ -133,7 +133,7 @@ module dev::QiaraTokensQiaraV13 {
             validator_emissions: get_emissions_validators(),
             locked_qiara_rate: get_locked_qiara_rate(),
             tokenomics: *tokenomics,
-            current_supply: 1_000_000_000_000 + tokenomics.initial_supply + tokenomics.minted - tokenomics.burned,
+            current_supply:  tokenomics.initial_supply + tokenomics.minted - tokenomics.burned,
             locked_qiara: option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Burned Qiara"))), 0), // Safely unwraps Option<u128>
         }
     }
@@ -233,3 +233,4 @@ module dev::QiaraTokensQiaraV13 {
         return (emissions * (current_supply as u64)) / 1_000_000
     }
 }
+

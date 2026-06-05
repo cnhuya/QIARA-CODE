@@ -462,6 +462,18 @@ module dev::QiaraValidatorsV17 {
     }
 
     #[view]
+    public fun return_all_pending_validators(val: String): vector<String> acquires PendingValidators {
+        let vars = borrow_global<PendingValidators>(@dev);
+        return vars.list
+    }
+
+    #[view]
+    public fun return_all_pending_validators(val: String): vector<String> acquires PendingValidators {
+        let vars = borrow_global<PendingValidators>(@dev);
+        return vars.list
+    }
+
+    #[view]
     public fun return_validator_raw(val: String): (vector<u8>, vector<u8>, bool, u256, u64, u256, Map<String, StakerData>) acquires Validators {
         let vars = borrow_global<Validators>(@dev);
         if(!map::contains_key(&vars.map, &val)) {
