@@ -83,7 +83,7 @@ module dev::QiaraMarginV11{
             move_to(admin,TokenHoldings {holdings: table::new<String, Table<String, Map<String, Map<String, Credit>>>>(), credit: table::new<String, Integer>()});
         };
         if (!exists<TotalStaked>(@dev)) {
-            move_to(admin,TotalStaked {map: Map::new<String, Map<String, Map<String, u256>>>()});
+            move_to(admin,TotalStaked {map: map::new<String, Map<String, Map<String, u256>>>()});
         };
 
     }
