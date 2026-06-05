@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV18{
+module dev::QiaraPayloadV19{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};

@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV18 {
+module dev::QiaraValidatorsV19 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -90,7 +90,7 @@ module dev::QiaraValidatorsV18 {
         assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
         move_to(admin, ActiveValidators {list: vector::empty<String>(), root: utf8(b""), epoch: 0});
         move_to(admin, PendingValidators {list: vector::empty<String>()});
-        move_to(admin, PerEpoch {total_credits: 0, emissions: 0,  total_weight: 0, vote_weights: map::new<String, u256>()});
+        move_to(admin, PerEpoch {total_credits: 0, emissions: (TokensQiara::calculate_emissions() as u256),  total_weight: 0, vote_weights: map::new<String, u256>()});
         move_to(admin, Validators {map: map::new<String, Validator>()});
         if (!exists<Stakers>(@dev)) {
             move_to(admin, Stakers { table: table::new<String, String>() });
