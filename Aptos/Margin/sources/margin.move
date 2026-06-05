@@ -1,4 +1,4 @@
-module dev::QiaraMarginV10{
+module dev::QiaraMarginV11{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,11 +8,9 @@ module dev::QiaraMarginV10{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV10::{Self as Ranks};
-
-    use dev::QiaraTokensMetadataV13::{Self as TokensMetadata};
-
-    use dev::QiaraTokenTypesV13::{Self as TokensType};
+    use dev::QiaraRanksV11::{Self as Ranks};
+    use dev::QiaraTokensMetadataV14::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV14::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
@@ -46,15 +44,14 @@ module dev::QiaraMarginV10{
         credit: Table<String, Integer>, // universal "credit" ($ value essentially), per user (shared_storage) | this is used for perpetual profits... and more in the future
     }
 
+    struct TotalStaked has key{
+        map: Map<String,Map<String, Map<String, u256>>>,
+    }
+
     struct Integer has drop, key, store, copy {
         value: u256,
         isPositive: bool,
     }
-
-   // struct LockedFee has key, store {
-   //     value: u128,
-   //     last_claim: u64,
-   // }
 
     struct Credit has key, store, copy, drop{
         deposited: u256,
@@ -84,6 +81,9 @@ module dev::QiaraMarginV10{
         };
         if (!exists<TokenHoldings>(@dev)) {
             move_to(admin,TokenHoldings {holdings: table::new<String, Table<String, Map<String, Map<String, Credit>>>>(), credit: table::new<String, Integer>()});
+        };
+        if (!exists<TotalStaked>(@dev)) {
+            move_to(admin,TotalStaked {map: Map::new<String, Map<String, Map<String, u256>>>()});
         };
 
     }
@@ -229,13 +229,15 @@ module dev::QiaraMarginV10{
         };
     }
 
-    public fun add_stake(shared: String, user: vector<u8>, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires TokenHoldings{
+    public fun add_stake(shared: String, user: vector<u8>, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires TokenHoldings, TotalStaked{
         Shared::assert_is_sub_owner(shared, user);
         {
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
             balance.staked = balance.staked + value;
             balance.stake_lock = (Genesis::return_epoch() as u64);
         };
+        let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev),token,chain,provider);
+        staked_value = staked_value + value;
     }
 
     public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings{
@@ -257,6 +259,14 @@ module dev::QiaraMarginV10{
             } else {
                 balance.staked = balance.staked - *value;
             };
+
+            let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev),token,chain,provider);
+            if( *value > staked_value){
+                staked_value = 0
+            } else {
+                staked_value = staked_value - *value;
+            };
+
             len = len-1
         };
     }
@@ -540,6 +550,65 @@ module dev::QiaraMarginV10{
     }
 
     #[view]
+    public fun get_total_staked_usd(): u256 acquires TotalStaked {
+        if (!exists<TotalStaked>(@dev)) {
+            return 0
+        };
+
+        let total_staked_ref = borrow_global<TotalStaked>(@dev);
+        let tokens = map::keys(&total_staked_ref.map);
+        let len_tokens = vector::length(&tokens);
+        let i = 0;
+        let total_staked_usd = 0u256;
+
+        while (i < len_tokens) {
+            let token = *vector::borrow(&tokens, i);
+
+            // Skip calculations for the native Qiara token as requested
+            if (token == utf8(b"Qiara")) {
+                i = i + 1;
+                continue;
+            };
+
+            // Retrieve price, denomination, and metadata using the protocol's system
+            let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+            let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
+            let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
+
+            // Avoid division by zero
+            if (denom > 0) {
+                let chain_map = map::borrow(&total_staked_ref.map, &token);
+                let chains = map::keys(chain_map);
+                let len_chain = vector::length(&chains);
+                let y = 0;
+
+                while (y < len_chain) {
+                    let chain = *vector::borrow(&chains, y);
+                    let providers_map = map::borrow(chain_map, &chain);
+                    let providers = map::keys(providers_map);
+                    let len_providers = vector::length(&providers);
+                    let x = 0;
+
+                    while (x < len_providers) {
+                        let provider = *vector::borrow(&providers, x);
+                        let staked_amount = *map::borrow(providers_map, &provider);
+
+                        // Calculate USD value: (Staked amount * Oracle Price) / Denomination
+                        let current_staked_usd = (staked_amount * price) / denom;
+                        total_staked_usd = total_staked_usd + current_staked_usd;
+
+                        x = x + 1;
+                    };
+                    y = y + 1;
+                };
+            };
+            i = i + 1;
+        };
+
+        total_staked_usd
+    }
+
+    #[view]
     public fun get_user_balance(shared: String, token: String, chain: String , provider: String,): Credit acquires TokenHoldings {
         return *find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider)
     }
@@ -693,6 +762,26 @@ module dev::QiaraMarginV10{
         return table::borrow_mut(&mut feature_table.credit, shared)
     }
 
+    fun find_staked_entry(feature_table: &mut TotalStaked, token: String,chain: String, provider: String,): &mut u256 {
+        // Level 1: Check and initialize Token Map
+        if (!map::contains_key(&feature_table.map, &token)) {
+            map::add(&mut feature_table.map, copy token, map::create<String, Map<String, u256>>());
+        };
+        let user_holdings = map::borrow_mut(&mut feature_table.map, &token);
+
+        // Level 2: Check and initialize Chain Map
+        if (!map::contains_key(user_holdings, &chain)) {
+            map::add(user_holdings, copy chain, map::create<String, u256>());
+        };
+        let holdings = map::borrow_mut(user_holdings, &chain);
+
+        // Level 3: Check and initialize Provider staked u256 balance
+        if (!map::contains_key(holdings, &provider)) {
+            map::add(holdings, copy provider, 0);
+        };
+        
+        map::borrow_mut(holdings, &provider)
+    }
 
 
 // === HELPERS === //

@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraTokensV13"
+    name = "QiaraTokensV14"
     version = "2.1.1"
     authors = []
 
@@ -22,7 +22,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTypesV13]
+    [dependencies.QiaraTypesV14]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
@@ -42,7 +42,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraStoragesV13]
+    [dependencies.QiaraStoragesV14]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storages'
