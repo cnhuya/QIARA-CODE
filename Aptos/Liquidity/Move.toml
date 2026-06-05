@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraLiquidityV13"
+    name = "QiaraLiquidityV14"
     version = "2.1.1"
     authors = []
 
@@ -22,17 +22,17 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTokensV14]
+    [dependencies.QiaraTokensV15]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV14]
+    [dependencies.QiaraTypesV15]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV11]
+    [dependencies.QiaraMarginV12]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
