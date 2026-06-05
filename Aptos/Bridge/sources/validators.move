@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV19 {
+module dev::QiaraValidatorsV20 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -83,6 +83,7 @@ module dev::QiaraValidatorsV19 {
         emissions: u256,
         total_weight: u256,
         vote_weights: Map<String, u256>,
+        total_staked: u256
     }
     // === INIT === //
     fun init_module(admin: &signer) {
@@ -507,7 +508,7 @@ module dev::QiaraValidatorsV19 {
 
         // Update the sum of all vote weights for the epoch to keep the reward pool calculations accurate
         per_epoch.total_weight = per_epoch.total_weight + vote_weight;
-
+        per_epoch.total_staked = (Margin::get_total_staked_usd() as u256);
         distribute_rewards(per_epoch, active_validators, permissions);
 
     }
