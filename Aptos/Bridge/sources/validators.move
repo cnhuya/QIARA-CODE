@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV17 {
+module dev::QiaraValidatorsV18 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV17 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV10::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV12::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV3::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV6::{Self as storage};
-    use dev::QiaraTokensQiaraV13::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV13::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV15::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV15::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
@@ -78,7 +78,7 @@ module dev::QiaraValidatorsV17 {
     }
 
 
-    struct PerEpoch has key, store{
+    struct PerEpoch has copy,key, store{
         total_credits: u256,
         emissions: u256,
         total_weight: u256,
@@ -468,9 +468,9 @@ module dev::QiaraValidatorsV17 {
     }
 
     #[view]
-    public fun return_all_pending_validators(val: String): vector<String> acquires PendingValidators {
-        let vars = borrow_global<PendingValidators>(@dev);
-        return vars.list
+    public fun return_per_epoch(): PerEpoch acquires PerEpoch {
+        let vars = borrow_global<PerEpoch>(@dev);
+        return *vars
     }
 
     #[view]
