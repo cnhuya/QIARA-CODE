@@ -262,7 +262,7 @@ module dev::QiaraSharedV4 {
         table::add(&mut shared.storage, name, Ownership { 
             owner: user, 
             sub_owners: sub_owners,
-            selected_validator: selected,
+            selected_validator: selected_validator,
             ref_code: ref_code,
             ref_code_params: RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax },
             used_ref_code: used_ref_code,
