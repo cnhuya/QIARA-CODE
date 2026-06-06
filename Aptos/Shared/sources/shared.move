@@ -1,4 +1,4 @@
-module dev::QiaraSharedV3 {
+module dev::QiaraSharedV4 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -249,7 +249,7 @@ module dev::QiaraSharedV3 {
     }
 
     // PERMISSIONLESS INTERFACE
-    public entry fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String) acquires SharedStorage {
+    public entry fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64 ) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
 
         if (table::contains(&shared.storage, name)) {
@@ -262,10 +262,10 @@ module dev::QiaraSharedV3 {
         table::add(&mut shared.storage, name, Ownership { 
             owner: user, 
             sub_owners: sub_owners,
-            selected_validator: utf8(b""),
-            ref_code: utf8(b""),
-            ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0 },
-            used_ref_code: utf8(b""),
+            selected_validator: selected,
+            ref_code: ref_code,
+            ref_code_params: RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax },
+            used_ref_code: used_ref_code,
             users: vector::empty<String>(),
         });
 
