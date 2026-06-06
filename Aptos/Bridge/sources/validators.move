@@ -92,7 +92,7 @@ module dev::QiaraValidatorsV22 {
         assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
         move_to(admin, ActiveValidators {list: vector::empty<String>(), root: utf8(b""), epoch: 0});
         move_to(admin, PendingValidators {list: vector::empty<String>()});
-        move_to(admin, PerEpoch { epoch: Genesis::return_epoch(), total_credits: 0, emissions: (TokensQiara::calculate_emissions() as u256),  total_weight: 0, total_staked: Margin::get_total_staked_usd(), vote_weights: map::new<String, u256>()});
+        move_to(admin, PerEpoch { epoch: (Genesis::return_epoch() as u64), total_credits: 0, emissions: (TokensQiara::calculate_emissions() as u256),  total_weight: 0, total_staked: Margin::get_total_staked_usd(), vote_weights: map::new<String, u256>()});
         move_to(admin, Validators {map: map::new<String, Validator>()});
         if (!exists<Stakers>(@dev)) {
             move_to(admin, Stakers { table: table::new<String, String>() });
