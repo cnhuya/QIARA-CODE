@@ -24,7 +24,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
         };
         if (ref_code == string::utf8(b"")) {
             abort ERROR_REF_CODE_CANT_BE_EMPTY
-        };
+        };  
         if (ref_code == string::utf8(b"")) {
             abort ERROR_REF_CODE_CANT_BE_EMPTY
         };
