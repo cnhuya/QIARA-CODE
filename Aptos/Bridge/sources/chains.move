@@ -17,9 +17,9 @@ module dev::QiaraBridgeV21{
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStorageV6::{Self as storage};
+    use dev::QiaraStorageV7::{Self as storage};
 
-    use dev::QiaraSharedV3::{Self as Shared};
+    use dev::QiaraSharedV4::{Self as Shared};
 
     use dev::QiaraTokensCoreV16::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV16::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
