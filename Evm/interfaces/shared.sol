@@ -24,7 +24,7 @@ contract SharedInterface  {
         eventData[0] = IEvents.Data("sender", "address", abi.encode(msg.sender));
         eventData[1] = IEvents.Data("name", "string", abi.encode(name));
         eventData[2] = IEvents.Data("ref_code", "string", abi.encode(ref_code));
-        eventData[3] = IEvents.Data("ref_code", "string", abi.encode(used_ref_code));
+        eventData[3] = IEvents.Data("used_ref_code", "string", abi.encode(used_ref_code));
         eventData[4] = IEvents.Data("selected_validator", "string", abi.encode(selected_validator));
         eventData[5] = IEvents.Data("xp_tax", "uint64", abi.encode(xp_tax));
         eventData[6] = IEvents.Data("fee_tax", "uint64", abi.encode(fee_tax));
