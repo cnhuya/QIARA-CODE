@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV21 {
+module dev::QiaraValidatorsV22 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -79,6 +79,7 @@ module dev::QiaraValidatorsV21 {
 
 
     struct PerEpoch has copy,key, store{
+        epoch: u64,
         total_credits: u256,
         emissions: u256,
         total_weight: u256,
@@ -491,9 +492,8 @@ module dev::QiaraValidatorsV21 {
         per_epoch.total_credits = per_epoch.total_credits + flat_usd_fee;
     }
 
-    public fun acrue_vote(shared: String, user: vector<u8>, vote_weight: u256) acquires PerEpoch, ActiveValidators, Permissions {
+    public fun acrue_vote(shared: String, user: vector<u8>, vote_weight: u256) acquires PerEpoch, Permissions {
         let per_epoch = borrow_global_mut<PerEpoch>(@dev);
-        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
         let permissions = borrow_global<Permissions>(@dev);
 
         // Check if this voter has already voted during the current epoch
@@ -509,16 +509,16 @@ module dev::QiaraValidatorsV21 {
         // Update the sum of all vote weights for the epoch to keep the reward pool calculations accurate
         per_epoch.total_weight = per_epoch.total_weight + vote_weight;
         per_epoch.total_staked = (Margin::get_total_staked_usd() as u256);
-        distribute_rewards(per_epoch, active_validators, permissions);
+        distribute_rewards(per_epoch, permissions);
 
     }
 
 
-    fun distribute_rewards(per_epoch: &mut PerEpoch, active_validators: &mut ActiveValidators, permissions: &Permissions) {
+    fun distribute_rewards(per_epoch: &mut PerEpoch, permissions: &Permissions) {
         let current_epoch = (Genesis::return_epoch() as u64);
 
-        if (Genesis::return_epoch() > (active_validators.epoch as u256)) {
-            active_validators.epoch = current_epoch;
+        if (Genesis::return_epoch() > (per_epoch.epoch as u256)) {
+            per_epoch.epoch = current_epoch;
         } else {
             return
         };

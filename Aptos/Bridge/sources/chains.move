@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV21{
+module dev::QiaraBridgeV22{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -28,8 +28,8 @@ module dev::QiaraBridgeV21{
 
     use dev::QiaraMarginV13::{Self as Margin};
 
-    use dev::QiaraPayloadV21::{Self as Payload};
-    use dev::QiaraValidatorsV21::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV22::{Self as Payload};
+    use dev::QiaraValidatorsV22::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -293,7 +293,6 @@ module dev::QiaraBridgeV21{
         // 1. Constant Loading
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-        let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
 
         // 2. Initial Checks
         if (table::contains(&validated.proof, identifier)) {
@@ -502,7 +501,6 @@ module dev::QiaraBridgeV21{
         // 1. Load configuration constants
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-        let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
       
         // 2. Already validated check
         if (table::contains(validated_table, identifier)) {
@@ -623,7 +621,6 @@ module dev::QiaraBridgeV21{
 
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-        let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
       
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
@@ -678,7 +675,6 @@ module dev::QiaraBridgeV21{
         // 1. Load configuration constants
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-        let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
@@ -769,8 +765,8 @@ module dev::QiaraBridgeV21{
                 TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
+                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax);
                 Validators::acrue_modularity_fee(name,user);
-                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax)
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
@@ -798,7 +794,6 @@ module dev::QiaraBridgeV21{
     fun handle_zk_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, ZkVotes>, validated_table: &mut table::Table<vector<u8>, ZkVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>, zk_vote: ZkVote, event_type: String,vote_weight: u128 ) acquires Permissions {
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-        let max_rewarded = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MAXIMUM_REWARDED_VALIDATORS"))) as u64);
         
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
