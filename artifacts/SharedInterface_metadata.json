@@ -35,6 +35,31 @@
 						"internalType": "string",
 						"name": "name",
 						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "ref_code",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "used_ref_code",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "selected_validator",
+						"type": "string"
+					},
+					{
+						"internalType": "uint64",
+						"name": "xp_tax",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint64",
+						"name": "fee_tax",
+						"type": "uint64"
 					}
 				],
 				"name": "m_create_shared_storage",
@@ -56,6 +81,29 @@
 					}
 				],
 				"name": "p_allow_sub_owner",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "sub_owner",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "new_used_ref_code",
+						"type": "string"
+					}
+				],
+				"name": "p_change_used_ref_code",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -171,11 +219,11 @@
 			]
 		},
 		"Evm/interfaces/shared.sol": {
-			"keccak256": "0x298b5dba8af0f215980a60765fdd7ff20a0e4251d438319802ca4b54f7364715",
+			"keccak256": "0xac6ce5760c1a03b3968b15b0147eade05c8a5b3682a0f1c77e0799029ac7145f",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://d0c5dfd538f59ace0f6773d4e746218707e489b9953ea3fa96ca08bea739f156",
-				"dweb:/ipfs/QmVpSVToWgVMFTmsBWBx8wbXAvg2Xpv8T9Vye25jgxiGmN"
+				"bzz-raw://f9957f97bea3439ceee636557873118b40ef94613d57b6c84f0fb1f582bb4cf4",
+				"dweb:/ipfs/QmdQ81rBPAwMGFMfXkUv6vFKXoZQXtSDuATLE6ed4qpufT"
 			]
 		}
 	},

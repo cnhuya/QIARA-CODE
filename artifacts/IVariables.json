@@ -37,34 +37,10 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"addPendingVariable(string,string,bytes)": "2e057b9b",
 			"getActiveVariable(string,string)": "16f1adc1"
 		}
 	},
 	"abi": [
-		{
-			"inputs": [
-				{
-					"internalType": "string",
-					"name": "header",
-					"type": "string"
-				},
-				{
-					"internalType": "string",
-					"name": "name",
-					"type": "string"
-				},
-				{
-					"internalType": "bytes",
-					"name": "data",
-					"type": "bytes"
-				}
-			],
-			"name": "addPendingVariable",
-			"outputs": [],
-			"stateMutability": "nonpayable",
-			"type": "function"
-		},
 		{
 			"inputs": [
 				{

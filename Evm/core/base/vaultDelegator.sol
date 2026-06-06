@@ -74,8 +74,8 @@ contract QiaraZKDelegator is Ownable {
         // 1. Verify ZK Proof
        variable_verifier.verifyProof(proof, input);
 
-        uint256 chainID = input[5];
-        require(chainID == block.chainid, "Wrong destination chain");
+        //uint256 chainID = input[5];
+        //require(chainID == block.chainid, "Wrong destination chain");
 
         // 3. Convert Field Values to Strings
         string memory variableName = fieldToString(input[3]);
@@ -91,7 +91,7 @@ contract QiaraZKDelegator is Ownable {
         // 7. Final Call
         variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
     }
-   function processZkValidator(uint[8] calldata proof, uint[7] calldata input, bytes calldata _signatures) external {
+    function processZkValidator(uint[8] calldata proof, uint[7] calldata input, bytes calldata _signatures) external {
         // 1. Verify ZK Proof
         validator_verifier.verifyProof(proof, input);
 
