@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV15{
+module dev::QiaraTokensMetadataV16{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,11 +9,11 @@ module dev::QiaraTokensMetadataV15{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
 
-    use dev::QiaraStorageV6::{Self as storage};
+    use dev::QiaraStorageV7::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensRatesV15::{Self as rates};
-    use dev::QiaraTokensTiersV15::{Self as tier};
+    use dev::QiaraTokensRatesV16::{Self as rates};
+    use dev::QiaraTokensTiersV16::{Self as tier};
 
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraOracleV5::{Self as oracle, Access as OracleAccess};
