@@ -21,6 +21,7 @@ module dev::QiaraSharedV3 {
     const ERROR_XP_TAX_CANNOT_BE_ABOVE_100_PERCENT: u64 = 10;
     const ERROR_FEE_TAX_CANNOT_BE_ABOVE_100_PERCENT: u64 = 11;
     const ERROR_REF_CODE_ALREADY_EXISTS: u64 = 12;
+    const ERROR_REF_CODE_CANT_BE_EMPTY: u64 = 13;
     const MAX_ALLOWED_TAX: u64 = 100_000_000;
 
     // === ACCESS === //
@@ -77,6 +78,42 @@ module dev::QiaraSharedV3 {
         };
     }
 
+
+    public entry fun create_non_user_shared_storage(name: String) acquires SharedStorage {
+        let shared = borrow_global_mut<SharedStorage>(@dev);
+        let non_user_key = bcs::to_bytes(&name);
+
+        if (!table::contains(&shared.storage, name)) {
+            table::add(&mut shared.storage, name, Ownership { 
+                owner: non_user_key, 
+                sub_owners: vector::empty<vector<u8>>(),
+                selected_validator: utf8(b""),
+                ref_code: utf8(b""), 
+                ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0 }, 
+                used_ref_code: utf8(b""),
+                users: vector::empty<String>(),
+            });
+            table::add(&mut shared.storage_registry, non_user_key, vector::empty<String>());
+        } else {
+            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_ALREADY_EXISTS
+        };
+
+        let registry = table::borrow_mut(&mut shared.storage_registry, non_user_key);
+
+        if (vector::contains(registry, &name)) {
+            abort ERROR_IS_ALREADY_SUB_OWNER
+        } else {
+            vector::push_back(registry, name);
+        };
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
+            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
+        ];
+        Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
+    }
+
+
     // NATIVE INTERFACE
     public entry fun create_shared_storage(signer: &signer, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
@@ -88,6 +125,10 @@ module dev::QiaraSharedV3 {
             abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_ALREADY_EXISTS
         };
 
+
+        if (ref_code == utf8(b"")) {
+            abort ERROR_REF_CODE_CANT_BE_EMPTY
+        }
         // 2. Initialize sub_owners WITH the creator already inside
         let sub_owners = vector::empty<vector<u8>>();
         vector::push_back(&mut sub_owners, signer_addr_bytes);
@@ -128,40 +169,6 @@ module dev::QiaraSharedV3 {
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer_addr)),
-            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
-        ];
-        Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
-    }
-
-    public entry fun create_non_user_shared_storage(name: String) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        let non_user_key = bcs::to_bytes(&name);
-
-        if (!table::contains(&shared.storage, name)) {
-            table::add(&mut shared.storage, name, Ownership { 
-                owner: non_user_key, 
-                sub_owners: vector::empty<vector<u8>>(),
-                selected_validator: utf8(b""),
-                ref_code: utf8(b""), 
-                ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0 }, 
-                used_ref_code: utf8(b""),
-                users: vector::empty<String>(),
-            });
-            table::add(&mut shared.storage_registry, non_user_key, vector::empty<String>());
-        } else {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_ALREADY_EXISTS
-        };
-
-        let registry = table::borrow_mut(&mut shared.storage_registry, non_user_key);
-
-        if (vector::contains(registry, &name)) {
-            abort ERROR_IS_ALREADY_SUB_OWNER
-        } else {
-            vector::push_back(registry, name);
-        };
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
             Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
         ];
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
