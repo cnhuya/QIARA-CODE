@@ -20,6 +20,9 @@ contract QiaraMultiAssetVault is Ownable {
     IVariables public immutable variablesRegistry;
     IEvents public immutable events;
     string public providerName; 
+    uint256 public min;
+    uint256 public max;
+    uint256 private nonce; // Incrementing counter to prevent same-block duplicates [1]
 
     mapping(address => bool) public isSupportedToken;
 
@@ -32,9 +35,13 @@ contract QiaraMultiAssetVault is Ownable {
         address _events,
         address _variablesRegistry, 
         address _delegator, 
-        string memory _providerName
+        string memory _providerName,
+        uint256 _min,
+        uint256 _max
     ) Ownable(_delegator) {
         events = IEvents(_events);
+        min = _min;
+        max = _max;
         variablesRegistry = IVariables(_variablesRegistry);
         providerName = _providerName;
     }
@@ -121,14 +128,34 @@ contract QiaraMultiAssetVault is Ownable {
         // Transfers tokens from user to this vault
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        IEvents.Data[] memory eventData = new IEvents.Data[](5);
+        IEvents.Data[] memory eventData = new IEvents.Data[](6);
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
         eventData[1] = IEvents.Data("amount", "uint256", abi.encode(amount));
         eventData[2] = IEvents.Data("token", "string", abi.encode(assetName));
         eventData[3] = IEvents.Data("provider", "string", abi.encode(providerName));
         eventData[4] = IEvents.Data("timestamp", "uint256", abi.encode(block.timestamp));
+        eventData[5] = IEvents.Data("rate", "uint256", abi.encode(_getPseudoRandomRange()));
 
         events.emitVaultEvent("Deposit", eventData);
         emit Deposit(msg.sender, token, amount, providerName);
+    }
+    function _getPseudoRandomRange() internal returns (uint256) {
+        require(max >= min, "Vault: Max must be >= Min");
+        
+        // Calculate the size of the range (inclusive) [1]
+        uint256 rangeSpan = max - min + 1;
+
+        // Hash several semi-unpredictable variables together [1]
+        bytes32 hash = keccak256(abi.encodePacked(
+            block.timestamp,
+            block.prevrandao, // Use block.difficulty on older EVMs/testnets
+            msg.sender,
+            nonce
+        ));
+
+        nonce++; // Increment nonce [1]
+
+        // Map the hash to the span and shift it by the minimum value [1]
+        return min + (uint256(hash) % rangeSpan);
     }
 }

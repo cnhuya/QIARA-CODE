@@ -6,126 +6,6 @@
 	"output": {
 		"abi": [
 			{
-				"inputs": [],
-				"stateMutability": "nonpayable",
-				"type": "constructor"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "user",
-						"type": "address"
-					},
-					{
-						"indexed": false,
-						"internalType": "bool",
-						"name": "isRemoval",
-						"type": "bool"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "epoch",
-						"type": "uint256"
-					}
-				],
-				"name": "AddressAddedToPending",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "newAddress",
-						"type": "address"
-					}
-				],
-				"name": "AuthorizedContractUpdated",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "newManager",
-						"type": "address"
-					}
-				],
-				"name": "EpochManagerUpdated",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "newEpoch",
-						"type": "uint256"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "countMoved",
-						"type": "uint256"
-					}
-				],
-				"name": "ListsRolledOver",
-				"type": "event"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"name": "activeAddresses",
-				"outputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "activeRoot",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "_user",
-						"type": "address"
-					}
-				],
-				"name": "addActiveAddressDirect",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
 				"inputs": [
 					{
 						"internalType": "address",
@@ -145,45 +25,6 @@
 			},
 			{
 				"inputs": [],
-				"name": "authorizedContract",
-				"outputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "checkSystemEpoch",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "epochManager",
-				"outputs": [
-					{
-						"internalType": "contract IEpochManager",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "getActiveAddresses",
 				"outputs": [
 					{
@@ -194,133 +35,6 @@
 				],
 				"stateMutability": "view",
 				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "getPendingAddresses",
-				"outputs": [
-					{
-						"internalType": "address[]",
-						"name": "",
-						"type": "address[]"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "getPendingUpdates",
-				"outputs": [
-					{
-						"components": [
-							{
-								"internalType": "address",
-								"name": "validator",
-								"type": "address"
-							},
-							{
-								"internalType": "bool",
-								"name": "isRemoval",
-								"type": "bool"
-							}
-						],
-						"internalType": "struct IValidators.PendingUpdate[]",
-						"name": "",
-						"type": "tuple[]"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "lastProcessedEpoch",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "owner",
-				"outputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "pendingRoot",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"name": "pendingUpdates",
-				"outputs": [
-					{
-						"internalType": "address",
-						"name": "validator",
-						"type": "address"
-					},
-					{
-						"internalType": "bool",
-						"name": "isRemoval",
-						"type": "bool"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "_authAddress",
-						"type": "address"
-					}
-				],
-				"name": "setAuthorizedContract",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "_epochManager",
-						"type": "address"
-					}
-				],
-				"name": "setEpochManager",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
 			}
 		],
 		"devdoc": {
@@ -330,20 +44,13 @@
 		},
 		"userdoc": {
 			"kind": "user",
-			"methods": {
-				"getPendingAddresses()": {
-					"notice": "Backwards compatibility helper: extracts just the addresses from pending queue [1]"
-				},
-				"getPendingUpdates()": {
-					"notice": "Returns the raw PendingUpdate structs queue [1]"
-				}
-			},
+			"methods": {},
 			"version": 1
 		}
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/core/validators.sol": "IValidators"
+			"Evm/core/base/vaultDelegator.sol": "IValidators"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -357,12 +64,28 @@
 		"remappings": []
 	},
 	"sources": {
-		"Evm/core/validators.sol": {
-			"keccak256": "0xaef9d5919f9f522f3bc975946381944795816fa0efcb298ad3b79afb5be5b95a",
+		"@openzeppelin/contracts/access/Ownable.sol": {
+			"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://0a56f741705d4fd62fddbd13c3669da65c85e3cd699b593f445de0f00ad60b5f",
-				"dweb:/ipfs/Qme1DKXT611zRLXCEx8xKJXBBLC7HDi8VJqrjynGaD9bwn"
+				"bzz-raw://8ed324d3920bb545059d66ab97d43e43ee85fd3bd52e03e401f020afb0b120f6",
+				"dweb:/ipfs/QmfEckWLmZkDDcoWrkEvMWhms66xwTLff9DDhegYpvHo1a"
+			]
+		},
+		"@openzeppelin/contracts/utils/Context.sol": {
+			"keccak256": "0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://6a708e8a5bdb1011c2c381c9a5cfd8a9a956d7d0a9dc1bd8bcdaf52f76ef2f12",
+				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
+			]
+		},
+		"Evm/core/base/vaultDelegator.sol": {
+			"keccak256": "0x8a698fa9117193fc27792978c17629349f7ee0a29c8e0964f5ebdd925cddc5ff",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://122c3fdd587de07aaf174f98804f2b90bff2ee81eff24764315ac4f015b89cf9",
+				"dweb:/ipfs/QmQNmc3KSJcAKmV58ugMTm6Mq7xL2RXY2VFdd6kPevcd5u"
 			]
 		}
 	},
