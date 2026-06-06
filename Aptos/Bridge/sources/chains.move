@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV20{
+module dev::QiaraBridgeV21{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -21,15 +21,15 @@ module dev::QiaraBridgeV20{
 
     use dev::QiaraSharedV3::{Self as Shared};
 
-    use dev::QiaraTokensCoreV15::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV15::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV16::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV16::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV10::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV11::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV12::{Self as Margin};
+    use dev::QiaraMarginV13::{Self as Margin};
 
-    use dev::QiaraPayloadV20::{Self as Payload};
-    use dev::QiaraValidatorsV20::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV21::{Self as Payload};
+    use dev::QiaraValidatorsV21::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -768,9 +768,9 @@ module dev::QiaraBridgeV20{
                 Validators::acrue_modularity_fee(name,user);
                 TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
-                let (name, user) = Payload::prepare_modular_storage_creation(type_names, payload);
+                let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Shared::p_create_shared_storage(signer, user, name)
+                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax)
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);

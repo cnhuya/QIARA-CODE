@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV20{
+module dev::QiaraPayloadV21{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -7,8 +7,8 @@ module dev::QiaraPayloadV20{
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV15::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV15::{Self as TokenTypes};
+    use dev::QiaraChainTypesV16::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV16::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
@@ -147,18 +147,28 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (a, x, k, b, c, d, e, y, f)
     }
 
-    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>)  acquires Permissions {
+    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>, String, String, String, u64,u64,)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, ref_code_raw) = find_payload_value(utf8(b"ref_code"), type_names, payload);
+        let (_, used_ref_code_raw) = find_payload_value(utf8(b"used_ref_code"), type_names, payload);
+        let (_, selected_validator_raw) = find_payload_value(utf8(b"selected_validator"), type_names, payload);
+        let (_, xp_tax_raw) = find_payload_value(utf8(b"xp_tax"), type_names, payload);
+        let (_, fee_tax_raw) = find_payload_value(utf8(b"fee_tax"), type_names, payload);
 
         let user_stream = &mut bcs_stream::new(user_raw);
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let ref_code = bcs_stream::deserialize_string(&mut bcs_stream::new(ref_code_raw));
+        let used_ref_code = bcs_stream::deserialize_string(&mut bcs_stream::new(used_ref_code_raw));
+        let selected_validator = bcs_stream::deserialize_string(&mut bcs_stream::new(selected_validator_raw));
+        let xp_tax = bcs_stream::deserialize_u64(&mut bcs_stream::new(xp_tax_raw));
+        let fee_tax = bcs_stream::deserialize_u64(&mut bcs_stream::new(fee_tax_raw));
 
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-        return (name, user_bytes)
+        return (name, user_bytes, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax)
     }
 
     public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>)  acquires Permissions {
