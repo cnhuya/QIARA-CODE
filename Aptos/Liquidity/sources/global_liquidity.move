@@ -21,7 +21,7 @@ module dev::QiaraLiquidityV18 {
     use dev::QiaraRanksV14::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV4::{Self as Shared};
-    use dev::QiaraChainTypesV16::{Self as ChainTypes};
+    use dev::QiaraChainTypesV17::{Self as ChainTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
