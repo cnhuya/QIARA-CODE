@@ -1,4 +1,4 @@
-module dev::QiaraStoragesV16 {
+module dev::QiaraStoragesV17 {
     use std::signer;
     use std::string::{Self as string, String, utf8};
     use std::table::{Self, Table};
@@ -8,8 +8,8 @@ module dev::QiaraStoragesV16 {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     
-    use dev::QiaraChainTypesV16::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV16::{Self as TokensType};
+    use dev::QiaraChainTypesV17::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV17::{Self as TokensType};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
