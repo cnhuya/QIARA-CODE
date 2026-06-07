@@ -548,14 +548,12 @@ module dev::QiaraValidatorsV22 {
                 validator_credit_reward, 
                 Margin::give_permission(&permissions.margin)
             );
-            
             TokensCore::mint_qiara(
                 voter,  
                 user_addr,
                 (validator_emission_reward as u64), 
                 TokensCore::give_permission(&permissions.tokens_core)
             );
-
             len = len - 1;
         };
 

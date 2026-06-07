@@ -297,7 +297,7 @@ module dev::QiaraTokensTiersV16{
             let market_base_rate = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR")));
             
             //let market_base_rate_slashing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT")));
-            let market_base_rate_slashing = 5_000_000;
+            let market_base_rate_slashing = 10_000_000;
 
             return(1_000_000 * market_base_rate * tier_multiplier)/100/market_base_rate_slashing + market_base_rate
         }

@@ -656,7 +656,8 @@ module dev::QiaraTokensCoreV16{
     public fun mint_qiara(shared: String, user: vector<u8>, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset  {
         Shared::assert_is_sub_owner(shared, user);
         let asset = get_metadata(utf8(b"Qiara"));
-        let managed = authorized_borrow_refs(utf8(b"QIARA"));
+        let managed = authorized_borrow_refs(utf8(b"Qiara"));
+        //tttta(1);
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
 

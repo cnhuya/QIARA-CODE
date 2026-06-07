@@ -23,6 +23,7 @@ module dev::QiaraVaultsV11 {
     use dev::QiaraMarginV13::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV13::{Self as Points, Access as PointsAccess};
     use dev::QiaraRIV13::{Self as RI};
+    use dev::QiaraBurnedQiaraV13::{Self as BurnedQiara};
     //use dev::QiaraAutomationV1::{Self as auto, Access as AutoAccess};
 
     use dev::QiaraTokenTypesV16::{Self as TokensTypes};
@@ -99,64 +100,6 @@ module dev::QiaraVaultsV11 {
     }
 
 // === STRUCTS === //
-   
-    struct WithdrawTracker has key,store, copy, drop{
-        day: u16,
-        amount: u256,
-        limit: u256,
-    }
-
-
-    struct Incentive has key, store, copy, drop {
-        start: u64,
-        end: u64,
-        per_second: u256, //i.e 1
-    }
-
-   // Maybe in the future remove this, and move total borrowed into global vault? idk tho how would it do because of the phantom type tag
-    struct Vault has key, store, copy, drop{
-        total_borrowed: u256,
-        total_deposited: u256,
-        total_staked: u256,
-        total_accumulated_rewards: u256,
-        total_accumulated_interest: u256,
-        virtual_borrowed: u256,
-        virtual_deposited: u256,
-        balance: Object<FungibleStore>, // the actuall wrapped balance in object,
-        incentive: Incentive, // XP | or some gamefi system
-        w_tracker: WithdrawTracker,
-        last_update: u64,
-    }
-
-    struct FullVault has key, store, copy, drop{
-        token: String,
-        total_deposited: u256,
-        total_borrowed: u256,
-        utilization: u64,
-        lend_rate: u64,
-        borrow_rate: u64
-    }
-
-
-    struct VaultUSD has store, copy, drop {
-        tier: u8,
-        oracle_price: u128,
-        oracle_decimals: u8,
-        total_deposited: u256,
-        balance: u64,
-        borrowed: u256,
-        utilization: u256,
-        rewards: u256,
-        interest: u256,
-        fee: u256,
-    }
-
-    struct CompleteVault has key{
-        vault: VaultUSD,
-        coin: CoinMetadata,
-        w_fee: u64,
-        Metadata: VMetadata,
-    }
 
 // === FUNCTIONS === //
     fun init_module(admin: &signer){
@@ -166,7 +109,6 @@ module dev::QiaraVaultsV11 {
     //    init_all_vaults(admin);
 
     }
-
 
 // === CONSENSUS INTERFACE === //
     /// Deposit on behalf of `recipient`
@@ -521,15 +463,17 @@ module dev::QiaraVaultsV11 {
 
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
         if(amount_u256_taxed == 0) { return };
-
+        //tttta(0);
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         Liquidity::deposit_token(token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+            //   tttta(0);
         Margin::add_locked_fee(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, ((fee-1000000000000000000)*99)/100, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-
+       // tttta(10);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, staked_rewards, user_points) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
@@ -887,7 +831,7 @@ module dev::QiaraVaultsV11 {
 
 // === HELPERS === //
     public fun new_accrue(shared: String, user: vector<u8>,token: String, chain: String, provider: String): (u256,u256,u256, u256,u256, u256) acquires Permissions {
-        let (user_deposited, user_borrowed, _,_, user_staked, _, user_accumulated_rewards_index, _, user_accumulated_interest_index, _, user_last_interacted) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (user_deposited, user_borrowed, user_virtual_deposited,user_virtual_borrowed, user_staked, _, user_accumulated_rewards_index, _, user_accumulated_interest_index, _, user_last_interacted) = Margin::get_user_raw_balance(shared, token, chain, provider);
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         let (start, end, per_second) = Liquidity::return_raw_vault_incentive(token, chain, provider);
 
@@ -897,50 +841,39 @@ module dev::QiaraVaultsV11 {
         let id = TokensMetadata::get_coin_metadata_tier(&metadata);
 
         let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
-        let minimal_apr = calculate_minimal_apr(id, utilization);
-        let total_apr = (native_chain_lend_apr as u256) + (minimal_apr/1000);
-        let borrow_apr = total_apr + (total_apr * (TokensTiers::market_borrow_interest_multiplier(id) as u256))/1_000_000;
+        let (qiara_base_apr, _, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization, (native_chain_lend_apr/4) as u256); //25% of provider apr
 
         let time_diff = timestamp::now_seconds() - last_update;
         let user_time_diff = timestamp::now_seconds() - user_last_interacted;
         Liquidity::update(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // vault accumulated rewards index from APR (External Providers + Qiara Utilization Model)
-        let additional_accumulated_rewards = calculate_rewards(total_deposited, total_apr ,(time_diff as u256)); // (/100 - convert from percentage + /1000 - apr scale)
-        Liquidity::add_accumulated_rewards(token, chain, provider, additional_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-       
-        if(user_staked > 0){
-            staked_reward = (user_staked * (total_apr*105+1000) * (user_time_diff as u256))/100;
-        };
+        let additional_accumulated_rewards = calculate_rewards(total_deposited, total_apr, (time_diff as u256)); // (/100 - convert from percentage + /1000 - apr scale)
+        Liquidity::add_native_accumulated_rewards(token, chain, provider, additional_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        let net_deposited = if (user_deposited > user_staked) { user_deposited - user_staked } else { 0 };
+        let net_deposited = if (user_deposited+user_staked+user_virtual_deposited > user_borrowed-user_virtual_borrowed) { (user_deposited+user_staked+user_virtual_deposited) - (user_borrowed-user_virtual_borrowed) } else { 0 };
 
+        (_,_, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
         // user interest (fee)
         let user_interest = (user_borrowed * borrow_apr * (user_time_diff as u256));
+        Liquidity::add_accumulated_rewards(token, chain, provider, user_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_accumulated_interest(token, chain, provider, user_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::add_borrow(shared, user, token, chain, provider, user_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         // user interest reward
         let user_interest_reward = calculate_interest(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
-        Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward+staked_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        if(enoughLocked){
+            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
+        } else {
+            user_interest_reward = calculate_rewards(total_deposited, total_apr, (user_time_diff as u256)); // (/100 - convert from percentage + /1000 - apr scale)
+            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        };
         // user points reward
-        let points_reward = calculate_points(start, end, per_second, total_deposited, user_deposited, user_last_interacted);
+        let points_reward = calculate_deposit_points(user_deposited, user_last_interacted);
         Points::add_experience(shared,points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         return (total_accumulated_rewards, total_accumulated_interest, user_interest, user_interest_reward, staked_reward, points_reward)
     }
-    fun track_daily_withdraw_limit(token: String, provider_vault: &mut Vault, amount: u256){
-        assert!(provider_vault.w_tracker.limit <= amount, ERROR_WITHDRAW_LIMIT_EXCEEDED);
-        provider_vault.w_tracker.limit = provider_vault.w_tracker.limit + amount;
-
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
-
-        if(provider_vault.w_tracker.day != ((timestamp::now_seconds()/86400) as u16)){
-            provider_vault.w_tracker.day = ((timestamp::now_seconds()/86400) as u16);
-            provider_vault.w_tracker.amount = 0;
-            provider_vault.w_tracker.limit = provider_vault.total_deposited * 1_000_000*100 / (TokensTiers::market_daily_withdraw_limit(TokensMetadata::get_coin_metadata_tier(&metadata)) as u256); // set limit for new day
-        };
         
-    }
     fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){
@@ -950,26 +883,21 @@ module dev::QiaraVaultsV11 {
     }
     // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
     fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256, gas_fee: u256): (u256, u256) acquires Permissions{
-        let combined_fee = fee+gas_fee;
-        if(combined_fee < 1*1000000000000000000){
-            combined_fee =  1*1000000000000000000
+        let combined_fee = fee + gas_fee;
+        if (combined_fee < 1 * 1000000000000000000) {
+            combined_fee =  1 * 1000000000000000000;
         };
+        
         Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        TokenVaults::fast_add_accumulated_rewards(token, gas_fee,TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
-        return ( amount-fee, fee)
+        TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
+        
+        // Safety check to prevent negative amount if deposit amount is less than the minimum fee
+        let taxed_amount = if (amount > combined_fee) { amount - combined_fee } else { 0 };
+        
+        return (taxed_amount, combined_fee)
     }
 
 // === VIEWS === //
-
-    #[view]
-    public fun get_utilization_ratio(deposited: u256, borrowed: u256): u256 {
-        //abort(147);
-        if (deposited == 0 || borrowed == 0) {
-            0
-        } else {
-            ((borrowed * 100_000_000) / deposited)
-        }
-    }
     
     #[view]
     public fun get_withdraw_fee(multiply: u256, limit: u256, amount: u256): u256 {
@@ -989,31 +917,6 @@ module dev::QiaraVaultsV11 {
         };
 
         return ((base_fee + ((bonus*base_fee)/100))*(utilization/2)/100_000_000) + (base_fee + ((bonus*base_fee)/100))
-    }
-
-    #[view] 
-    public fun calculate_points(start: u64, end: u64, per_second: u256, total_deposited: u256, user_deposited: u256, last_update:u64): u256{
-
-        let base_points = calculate_deposit_points(user_deposited, last_update);
-
-        let active_time;
-
-        if(end > timestamp::now_seconds()){
-            end = timestamp::now_seconds();
-        };
-
-        if(end > last_update){
-            if(last_update > start){
-                active_time = end - last_update
-            } else {
-                active_time = end - start
-            }
-        } else {
-            active_time = 0;
-        };
-        let incentive_points_reward = (per_second * (active_time as u256) * user_deposited) / total_deposited;
-
-        return incentive_points_reward + base_points
     }
 
     #[view] 
@@ -1042,23 +945,6 @@ module dev::QiaraVaultsV11 {
     #[view]
     public fun calculate_interest(total_accumulated_rewards: u256, user_accumulated_rewards_index: u256, user_deposited: u256, total_deposited: u256): u256 {
         return (total_accumulated_rewards - user_accumulated_rewards_index) * user_deposited / total_deposited
-    }
-
-    #[view]
-    public fun calculate_minimal_apr(id: u8, utilization: u256): u256 {
-        // formula: base_apr * (utilization*utilization*utilization*utilization*utilization) / slashing + base_apr
-        // i.e  700_000 * (12500*12500*12500*12500*12500) / 100_000_000_000_000 + 700_000
-        // (700_000 * 3,05176E+20 / 1_000_000) / 100_000_000_000_000 + 700_000
-        // 2,13623E+20 / 100_000_000_000_000 * 100=(percentage_conversion) + 700_000
-        // 214_323_000 (214,323%) 
-
-        let utilx5 = (utilization*utilization*utilization*utilization*utilization);
-        let base_apr = (TokensTiers::market_base_lending_apr(id) as u256);
-
-        let x = (base_apr * utilx5) / 1_000_000;
-        let slashed = (x / 100_000_000_000_000)*100 + base_apr;
-
-        return slashed
     }
 
 }

@@ -236,7 +236,12 @@ module dev::QiaraBurnedQiaraV13 {
 
     #[view]
     public fun get_reward_rate(): u64 {
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraBurnedToken"), utf8(b"REWARD_RATE")))
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"LOCKED_QIARA_REWARD_RATE")))
+    }
+
+    #[view]
+    public fun get_required_conversion_rate(): u64 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"REQUIRED_BURNED_TOKENS_FOR_REWARDS")))
     }
 
     #[view]
@@ -250,6 +255,41 @@ module dev::QiaraBurnedQiaraV13 {
         let actual_user_dedicated_reward_rate = (base_reward_rate * increase) / scale / 100;
 
         actual_user_dedicated_reward_rate
+
+    }
+
+    #[view]
+    public fun calculate_required_locked_tokens(shared_name: String, dolars: u64): (u64, u64, bool) {
+        let conversion_rate = get_required_conversion_rate();
+        let scale = 1_000_000;
+        let user_burn_summary = get_user_burn_summary(shared_name);
+        if(user_burn_summary.burned_amount == 0){
+            return (0, 0, true);
+        };
+        // e.g., (10_000_000 / 1_000
+        let actual_user_dedicated_reward_rate = (dolars/1000000000000000000) / conversion_rate;
+        if ( user_burn_summary.burned_amount >= actual_user_dedicated_reward_rate) {
+            return (actual_user_dedicated_reward_rate, user_burn_summary.burned_amount, true);
+        };
+        (actual_user_dedicated_reward_rate, user_burn_summary.burned_amount, false)
+
+    }
+
+    #[view]
+    public fun calculate_required_locked_tokens_u256(shared_name: String, dolars: u256): (u256, u256, bool) {
+        let conversion_rate = (get_required_conversion_rate() as u256);
+        let scale = 1_000_000;
+        let user_burned = (get_user_burn_summary(shared_name).burned_amount as u256);
+
+        if(user_burned == 0){
+            return (0, 0, true);
+        };
+        // e.g., (10_000_000 / 1_000
+        let actual_user_dedicated_reward_rate = (dolars/1000000000000000000) / conversion_rate;
+        if ( user_burned >= actual_user_dedicated_reward_rate) {
+            return (actual_user_dedicated_reward_rate, user_burned, true);
+        };
+        (actual_user_dedicated_reward_rate, user_burned, false)
 
     }
 

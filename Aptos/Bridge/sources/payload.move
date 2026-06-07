@@ -206,6 +206,24 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
 
         return (name, user_bytes, sub_owner_bytes)
     }
+
+    public fun prepare_p_change_used_ref_code(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>, String )  acquires Permissions {
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload); 
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, new_used_ref_code_raw) = find_payload_value(utf8(b"ref_code"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let new_used_ref_code = bcs_stream::deserialize_string(&mut bcs_stream::new(new_used_ref_code_raw));
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+
+        return (name, user_bytes, new_used_ref_code)
+    }
+
     public fun prepare_modular_withdraw(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,  String, String, String, u64, vector<u8>)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);

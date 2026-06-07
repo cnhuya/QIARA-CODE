@@ -683,6 +683,7 @@ module dev::QiaraBridgeV22{
         if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
         };
+        //tttta(1);
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
@@ -694,7 +695,7 @@ module dev::QiaraBridgeV22{
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
                 Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
-
+                     //   tttta(100);
                 // Emit Vote Event
                 let data = vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -775,6 +776,10 @@ module dev::QiaraBridgeV22{
                 let (name, user, sub_owner) = Payload::prepare_p_remove_sub_owner(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
                 Shared::p_remove_sub_owner(signer, user, name, sub_owner)
+            } else if (event_type == utf8(b"Modular Storage Used Ref Code Updated")) {
+                let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code)
             } else {
                 abort(ERROR_INVALID_MESSAGE);
             };

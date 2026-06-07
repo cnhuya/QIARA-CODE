@@ -62,6 +62,7 @@ module dev::QiaraMarginV13{
         stake_lock: u64, // epoch
         rewards: u256,
         interest: u256,
+        native_reward_index_snapshot: u256,
         reward_index_snapshot: u256,
         interest_index_snapshot: u256,
         last_update: u64,
@@ -160,6 +161,13 @@ module dev::QiaraMarginV13{
         Shared::assert_is_sub_owner(shared, user);
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         balance.reward_index_snapshot = index;
+  //      balance.last_update = timestamp::now_seconds();
+    }
+
+    public fun update_native_reward_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
+        Shared::assert_is_sub_owner(shared, user);
+        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
+        balance.native_reward_index_snapshot = index;
   //      balance.last_update = timestamp::now_seconds();
     }
 
@@ -745,6 +753,7 @@ module dev::QiaraMarginV13{
             stake_lock: 0,
             rewards: 0,
             interest: 0,
+            native_reward_index_snapshot: 0,
             reward_index_snapshot: 0,
             interest_index_snapshot: 0,
             last_update: 0,
@@ -757,7 +766,6 @@ module dev::QiaraMarginV13{
 
         map::borrow_mut(a, &provider)
     }
-
 
     fun find_credit(feature_table: &mut TokenHoldings,shared: String): &mut Integer {
         {
