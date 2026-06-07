@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV17 {
+module dev::QiaraLiquidityV18 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -12,10 +12,10 @@ module dev::QiaraLiquidityV17 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensMetadataV16::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV16::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensRatesV16::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV16::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV17::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV17::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensRatesV17::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV17::{Self as TokensTiers};
 
     use dev::QiaraMarginV13::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV13::{Self as Points, Access as PointsAccess};
