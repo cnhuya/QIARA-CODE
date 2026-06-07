@@ -37,12 +37,12 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV18]
+    [dependencies.QiaraMarginV14]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraLiquidityV17]
+    [dependencies.QiaraLiquidityV18]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Liquidity'

@@ -20,10 +20,10 @@ module dev::QiaraVaultsV12 {
     use dev::QiaraTokensRatesV17::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV17::{Self as TokensTiers};
     use dev::QiaraTokensOmnichainV17::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV18::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV18::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV18::{Self as RI};
-    use dev::QiaraBurnedQiaraV18::{Self as BurnedQiara};
+    use dev::QiaraMarginV14::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV14::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV14::{Self as RI};
+    use dev::QiaraBurnedQiaraV14::{Self as BurnedQiara};
     //use dev::QiaraAutomationV1::{Self as auto, Access as AutoAccess};
 
     use dev::QiaraTokenTypesV17::{Self as TokensTypes};
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV12 {
 
     use dev::QiaraGasV2::{Self as Gas};
 
-    use dev::QiaraLiquidityV17::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV17::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV18::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV18::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 

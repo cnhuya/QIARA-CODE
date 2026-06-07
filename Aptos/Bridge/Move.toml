@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraBridgeV22"
+    name = "QiaraBridgeV23"
     version = "2.1.1"
     authors = []
 
@@ -22,22 +22,22 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTokensV16]
+    [dependencies.QiaraTokensV17]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV16]
+    [dependencies.QiaraTypesV17]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV13]
+    [dependencies.QiaraMarginV14]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraVaultsV11]
+    [dependencies.QiaraVaultsV12]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
