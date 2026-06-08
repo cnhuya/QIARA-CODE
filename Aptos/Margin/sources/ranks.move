@@ -1,16 +1,16 @@
-module dev::QiaraRanksV14{
+module dev::QiaraRanksV15{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV17::{Self as TokensType};
-    use dev::QiaraChainTypesV17::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV18::{Self as TokensType};
+    use dev::QiaraChainTypesV18::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraStorageV7::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV8::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV4::{Self as Shared, Ownership, RefCodeParams};
+    use dev::QiaraSharedV5::{Self as Shared, Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -114,7 +114,7 @@ module dev::QiaraRanksV14{
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,
-                ref_code_params: Shared::create_empty_raw_params2(),
+                ref_code_params: Shared::create_empty_raw_params(),
                 first_interaction: 0,
                 experience: 0,
                 experience_to_this_level: 0,
@@ -141,7 +141,7 @@ module dev::QiaraRanksV14{
         let (xp_multiplier, _, _) = calculate_xp_multiplier(user.first_interaction);
         return ViewUser {
             ownership: ownership,
-            ref_code_params: Shared::create_empty_raw_params2(),
+            ref_code_params: Shared::create_empty_raw_params(),
             first_interaction: user.first_interaction,
             experience: user.experience,
             experience_to_this_level: return_xp_needed_to_level(level),
