@@ -1,4 +1,4 @@
-module dev::QiaraTokensRatesV17 {
+module dev::QiaraTokensRatesV18 {
     use std::string::{Self as string, String, utf8};
     use std::type_info::{Self, TypeInfo};
     use std::signer;
@@ -7,9 +7,9 @@ module dev::QiaraTokensRatesV17 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraChainTypesV17::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV17::{Self as TokensType};
-    use dev::QiaraProviderTypesV17::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV18::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV18::{Self as TokensType};
+    use dev::QiaraProviderTypesV18::{Self as ProviderTypes};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
