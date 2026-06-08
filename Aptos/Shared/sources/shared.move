@@ -1,4 +1,4 @@
-module dev::QiaraSharedV5 {
+module dev::QiaraSharedV6 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -50,7 +50,6 @@ module dev::QiaraSharedV5 {
 
     struct Ownership has store, copy, drop {
         owner: vector<u8>,
-        storages: map::SimpleMap<String, Object<FungibleStore>>,
         sub_owners: vector<vector<u8>>,
         selected_validator: String,
         ref_code: String,
@@ -90,7 +89,6 @@ module dev::QiaraSharedV5 {
         if (!table::contains(&shared.storage, name)) {
             table::add(&mut shared.storage, name, Ownership { 
                 owner: non_user_key, 
-                storages: map::new<String, Object<FungibleStore>>(),
                 sub_owners: vector::empty<vector<u8>>(),
                 selected_validator: utf8(b""),
                 ref_code: utf8(b""), 
@@ -149,8 +147,7 @@ module dev::QiaraSharedV5 {
         
         // 3. Add the storage ownership with all fields populated (storages mapping initialized)
         table::add(&mut shared.storage, name, Ownership { 
-            owner: signer_addr_bytes, 
-            storages: map::new<String, Object<FungibleStore>>(), 
+            owner: signer_addr_bytes,  
             sub_owners: sub_owners,
             ref_code: ref_code,
             selected_validator: selected_validator,
@@ -269,7 +266,6 @@ module dev::QiaraSharedV5 {
 
         table::add(&mut shared.storage, name, Ownership { 
             owner: user, 
-            storages: map::new<String, Object<FungibleStore>>(),
             sub_owners: sub_owners,
             selected_validator: selected_validator,
             ref_code: ref_code,
@@ -387,51 +383,9 @@ module dev::QiaraSharedV5 {
         ownership_record.selected_validator = new_validator;
     }
 
-    // === NEW HELPER FUNCTIONS === //
-
-    /// Dynamically registers a new standard autonomous FungibleStore for a given asset metadata
-    /// inside an existing shared storage record. The store object is owned by itself (keyless).
-    public fun ensure_shared_store(name: String, user: vector<u8>, asset_name: String, metadata: Object<Metadata>) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-
-        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
-
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        
-        assert!(vector::contains(&ownership_record.sub_owners, &user), ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE);
-
-        if (!map::contains_key(&ownership_record.storages, &asset_name)) {
-            // 1. Create a secure, non-transferable vault object (initially owned by @dev)
-            let constructor_ref = object::create_object(@dev);
-            let store_address = object::address_from_constructor_ref(&constructor_ref);
-            
-            // 2. Create the FungibleStore inside the object
-            let store = fungible_asset::create_store(&constructor_ref, metadata);
-            
-            // 3. Transfer ownership of the store object to its own address so it is autonomous (keyless)
-            let transfer_ref = object::generate_transfer_ref(&constructor_ref);
-            let linear_transfer_ref = object::generate_linear_transfer_ref(&transfer_ref);
-            object::transfer_with_ref(linear_transfer_ref, store_address);
-
-            // 4. Record the store in the storages map
-            map::add(&mut ownership_record.storages, asset_name, store);
-        };
-    }
-
     // === VIEW FUNCTIONS === //
 
     /// Returns the unique FungibleStore object associated with an asset in a shared storage
-    #[view]
-    public fun get_shared_store(name: String, asset_name: String): Object<FungibleStore> acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
-
-        let ownership_record = table::borrow(&shared.storage, name);
-        assert!(map::contains_key(&ownership_record.storages, &asset_name), ERROR_SHARED_STORAGE_DOESNT_EXIST);
-
-        *map::borrow(&ownership_record.storages, &asset_name)
-    }
 
     #[view]
     public fun return_list_shared_storages(owner: vector<u8>): vector<String> acquires SharedStorage {
