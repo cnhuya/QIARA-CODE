@@ -59,12 +59,16 @@ module dev::QiaraLiquidityV20 {
     }
 
     struct Incentive has key, store, copy, drop {
+        token: String,
+        chain: String,
         epoch_start: u64,
         epoch_end: u64,
         storage: Object<FungibleStore>,
         deployer: address,
-        total_amount: u64,          // Track original budget
-        accumulated_rewards: u64,   // Track total claimed so far
+        total_amount: u64,
+        accumulated_rewards: u256,
+        index: u128,              // Global reward per share (scaled by 1e12)
+        last_update_epoch: u64,   // Track when the index was last updated
     }
 
     struct Vault has key, store, copy, drop {
@@ -140,12 +144,16 @@ module dev::QiaraLiquidityV20 {
         assert!(epoch_end > epoch_start, ERROR_EPOCH_MUST_BE_HIGHER_THAN_STARTING_EPOCH);
 
         let new_incentive = Incentive {
+            token,
+            chain,
             epoch_start,
             epoch_end,
             storage: incentive_store,
             deployer,
             total_amount: initial_balance,
-            accumulated_rewards: 0, // Initialize to 0
+            accumulated_rewards: 0, 
+            index: 0,                       // Initialized to 0 index
+            last_update_epoch: epoch_start, // Starts tracking from start of incentive
         };
 
         vector::push_back(&mut vault.incentives, new_incentive);
@@ -282,11 +290,38 @@ module dev::QiaraLiquidityV20 {
         };
     }
 
-    public fun distribute_rewards(token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_epoch: u64, current_epoch: u64, _cap: Permission) acquires GlobalVault {
+    public fun update_incentive_index(vault: &mut Vault, total_deposited: u256) {
+        let current_epoch = (Genesis::return_epoch() as u64);
+        let len = vector::length(&vault.incentives);
+        let i = 0;
+        while (i < len) {
+            let incentive = vector::borrow_mut(&mut vault.incentives, i);
+            
+            let start_overlap = if (incentive.last_update_epoch > incentive.epoch_start) { incentive.last_update_epoch } else { incentive.epoch_start };
+            let end_overlap = if (current_epoch < incentive.epoch_end) { current_epoch } else { incentive.epoch_end };
+            
+            if (start_overlap < end_overlap && total_deposited > 0) {
+                let overlap_duration = end_overlap - start_overlap;
+                let total_duration = incentive.epoch_end - incentive.epoch_start;
+                
+                let total_pool_reward = ((incentive.total_amount as u256) * (overlap_duration as u256)) / (total_duration as u256);
+                let scale = 1000000000000000000; // 1e12 scaling factor
+                
+                // Increase the global reward-per-share accumulator
+                let reward_per_share = (total_pool_reward * scale) / total_deposited;
+                incentive.index = incentive.index + (reward_per_share as u128);
+            };
+            
+            incentive.last_update_epoch = if (current_epoch > incentive.epoch_end) { incentive.epoch_end } else { current_epoch };
+            i = i + 1;
+        };
+    }
+
+   public fun distribute_rewards(shared: String, user: vector<u8>, token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_index: u128, _cap: Permission): u128 acquires GlobalVault, Permissions {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
-        if (total_deposited == 0 || user_deposited == 0 || user_last_epoch >= current_epoch) {
-            return
+        if (total_deposited == 0 || user_deposited == 0) {
+            return user_last_index
         };
 
         let len = vector::length(&vault.incentives);
@@ -295,51 +330,45 @@ module dev::QiaraLiquidityV20 {
         while (i < len) {
             let incentive = vector::borrow_mut(&mut vault.incentives, i);
             
-            // Calculate overlap between user deposit window [user_last_epoch, current_epoch]
-            // and incentive active window [incentive.epoch_start, incentive.epoch_end]
-            let start_overlap = if (user_last_epoch > incentive.epoch_start) { user_last_epoch } else { incentive.epoch_start };
-            let end_overlap = if (current_epoch < incentive.epoch_end) { current_epoch } else { incentive.epoch_end };
-            
-            if (start_overlap < end_overlap) {
-                let overlap_duration = end_overlap - start_overlap;
-                let total_duration = incentive.epoch_end - incentive.epoch_start;
+            // Only distribute rewards if the global index is ahead of the user's checkpoint
+            if (incentive.index > user_last_index) {
+                let index_diff = incentive.index - user_last_index;
+                let scale = 1000000000000000000; // 1e12 scale factor
                 
-                if (total_duration > 0) {
-                    // Calculate the share of pool rewards belonging to this overlapping epoch window
-                    let total_pool_reward = ((incentive.total_amount as u256) * (overlap_duration as u256)) / (total_duration as u256);
-                    
-                    // User's proportional share based on their deposit size
-                    let user_reward_amount = (total_pool_reward * user_deposited) / total_deposited;
-                    let user_reward_u64 = (user_reward_amount as u64);
-                    
-                    // Ensure we don't attempt to withdraw more than is physically present in the store
-                    let balance = fungible_asset::balance(incentive.storage);
-                    if (user_reward_u64 > balance) {
-                        user_reward_u64 = balance;
-                    };
-                    
-                    if (user_reward_u64 > 0) {
-                        // Withdraw the concrete FungibleAsset from storage
-                        let storage_address_string = non_user_storage_helper(&incentive.storage);
-                        let reward_fa = TokensCore::withdraw(storage_address_string, incentive.storage, user_reward_u64, chain);
-                        
-                        // Update the running tally of distributed rewards on this incentive
-                        incentive.accumulated_rewards = incentive.accumulated_rewards + user_reward_u64;
-
-                        // Transfer custody of reward_fa to the Margin module
-                        // Ensure Margin::add_rewards is updated to accept 'FungibleAsset' instead of 'u64'
-                        margin::add_rewards(
-                            token, 
-                            chain, 
-                            provider, 
-                            reward_fa, 
-                            margin::give_permission(&borrow_global<Permissions>(@dev).margin)
-                        );
-                    };
+                // User's reward = (user_deposited * index_diff) / scale
+                let user_reward_amount = (user_deposited * (index_diff as u256)) / (scale as u256);
+                let user_reward_u64 = ((user_reward_amount/ (scale as u256) as u64));
+                
+                let balance = fungible_asset::balance(incentive.storage);
+                if (user_reward_u64 > balance) {
+                    user_reward_u64 = balance;
                 };
+                
+                if (user_reward_u64 > 0) {
+                    let storage_address_string = non_user_storage_helper(&incentive.storage);
+                    let reward_fa = TokensCore::withdraw(storage_address_string, incentive.storage, user_reward_u64, chain);
+                    
+                    TokensCore::burn_fa(incentive.token, incentive.chain, reward_fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+                    incentive.accumulated_rewards = incentive.accumulated_rewards + user_reward_amount;
+
+                    Margin::add_rewards(
+                        shared,
+                        user,
+                        token, 
+                        chain, 
+                        provider, 
+                        user_reward_amount, 
+                        Margin::give_permission(&borrow_global<Permissions>(@dev).margin)
+                    );
+                };
+                
+                // Return the new global index so it can be saved as the user's checkpoint
+                return incentive.index
             };
             i = i + 1;
         };
+        
+        user_last_index
     }
 
     public fun update(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault {
@@ -348,17 +377,23 @@ module dev::QiaraLiquidityV20 {
         let current_epoch = (Genesis::return_epoch() as u64);
         vault.last_update = timestamp::now_seconds();
 
-        // Process incentives and remove finished ones to reclaim storage
+        // Process incentives and remove finished ones to reclaim storage after a grace period
         let len = vector::length(&vault.incentives);
         let i = len;
+        
+        // Define a grace period in epochs to allow users to trigger an interaction and claim
+        let claim_grace_period = 5; 
+
         while (i > 0) {
             let idx = i - 1;
             let incentive = vector::borrow(&vault.incentives, idx);
-            if (current_epoch >= incentive.epoch_end) {
+            
+            // Only sweep and remove the incentive if the claim grace period has elapsed
+            if (current_epoch >= incentive.epoch_end + claim_grace_period) {
                 let storage_address_string = non_user_storage_helper(&incentive.storage);
                 let balance = fungible_asset::balance(incentive.storage);
                 
-                // If there is any leftover asset inside, return it back to deployers's primary store
+                // If there is any leftover asset inside, return it back to deployer's primary store
                 if (balance > 0) {
                     let leftover_fa = TokensCore::withdraw(storage_address_string, incentive.storage, balance, chain);
                     primary_fungible_store::deposit(incentive.deployer, leftover_fa);
