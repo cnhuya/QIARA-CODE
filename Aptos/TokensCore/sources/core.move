@@ -22,7 +22,7 @@ module dev::QiaraTokensCoreV19{
     use dev::QiaraTokensOmnichainV19::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensTiersV19::{Self as TokensTiers};
     use dev::QiaraTokensRatesV19::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensQiaraV1::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensQiaraV19::{Self as TokensQiara,  Access as TokensQiaraAccess};
     //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};

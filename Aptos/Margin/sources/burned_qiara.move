@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV15 {
+module dev::QiaraBurnedQiaraV16 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -15,10 +15,10 @@ module dev::QiaraBurnedQiaraV15 {
     use std::string::{Self as string, String, utf8};
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraSharedV5::{Self as Shared};
-    use dev::QiaraTokensCoreV18::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraStorageV8::{Self as storage};
-    use dev::QiaraRanksV15::{Self as Ranks};
+    use dev::QiaraSharedV6::{Self as Shared};
+    use dev::QiaraTokensCoreV19::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraStorageV9::{Self as storage};
+    use dev::QiaraRanksV16::{Self as Ranks};
 // === CONSTANTS === //
     const ADMIN: address = @dev;
     const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
