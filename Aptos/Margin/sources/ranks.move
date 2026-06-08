@@ -8,7 +8,7 @@ module dev::QiaraRanksV16{
     use dev::QiaraTokenTypesV19::{Self as TokensType};
     use dev::QiaraChainTypesV19::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraStorageV8::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV9::{Self as storage, Access as StorageAccess};
 
     use dev::QiaraSharedV6::{Self as Shared, Ownership, RefCodeParams};
 
