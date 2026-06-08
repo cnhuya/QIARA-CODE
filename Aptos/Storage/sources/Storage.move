@@ -1,4 +1,4 @@
-module dev::QiaraStorageV7 {
+module dev::QiaraStorageV8 {
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
@@ -148,7 +148,7 @@ module dev::QiaraStorageV7 {
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"W_FEE"), 2_500, true, &give_permission(&give_access(admin))); // 0.001%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"W_CAP"), 500, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MARKET_PERCENTAGE_SCALE"), 5000, true, &give_permission(&give_access(admin)));
-        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), 500_000, true, &give_permission(&give_access(admin))); // 0.5%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), 100_000, true, &give_permission(&give_access(admin))); // 0.5%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER"), 100_000, true, &give_permission(&give_access(admin))); // 0.1x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER_SLASHING"), 10_000_000, true, &give_permission(&give_access(admin))); // 10x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT"), 5_000_000, true, &give_permission(&give_access(admin))); // 0.1x
