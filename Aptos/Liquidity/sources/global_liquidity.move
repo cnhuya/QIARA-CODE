@@ -282,7 +282,7 @@ module dev::QiaraLiquidityV20 {
         };
     }
 
-    public fun distribute_rewards(token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_epoch: u64, current_epoch: u64, _cap: Permission): acquires GlobalVault {
+    public fun distribute_rewards(token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_epoch: u64, current_epoch: u64, _cap: Permission) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
         if (total_deposited == 0 || user_deposited == 0 || user_last_epoch >= current_epoch) {
