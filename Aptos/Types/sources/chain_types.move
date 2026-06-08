@@ -1,4 +1,4 @@
-module dev::QiaraChainTypesV17 {
+module dev::QiaraChainTypesV18 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
