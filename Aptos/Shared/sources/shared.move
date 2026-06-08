@@ -47,6 +47,7 @@ module dev::QiaraSharedV4 {
 
     struct Ownership has store, copy, drop {
         owner: vector<u8>,
+        storage: Object<FungibleStore>,
         sub_owners: vector<vector<u8>>,
         selected_validator: String,
         ref_code: String,
