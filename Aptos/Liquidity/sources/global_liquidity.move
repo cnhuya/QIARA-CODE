@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV20 {
+module dev::QiaraLiquidityV22 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -23,11 +23,13 @@ module dev::QiaraLiquidityV20 {
     use dev::QiaraSharedV6::{Self as Shared};
     use dev::QiaraChainTypesV19::{Self as ChainTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};
+
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_WITHDRAW_LIMIT_EXCEEDED: u64 = 2;
     const ERROR_EPOCH_MUST_BE_HIGHER_THAN_CURRENT: u64 = 3;
     const ERROR_EPOCH_MUST_BE_HIGHER_THAN_STARTING_EPOCH: u64 = 4;
+    const ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO: u64 = 5;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -42,14 +44,12 @@ module dev::QiaraLiquidityV20 {
         Permission {}
     }
 
-
     struct Permissions has key, store, drop {
         margin: MarginAccess,
         points: PointsAccess,
         tokens_rates: TokensRatesAccess,
         tokens_core: TokensCoreAccess,
     }
-
 
 // === STRUCTS === //
      struct WithdrawTracker has key, store, copy, drop {
@@ -59,16 +59,12 @@ module dev::QiaraLiquidityV20 {
     }
 
     struct Incentive has key, store, copy, drop {
-        token: String,
-        chain: String,
-        epoch_start: u64,
-        epoch_end: u64,
-        storage: Object<FungibleStore>,
         deployer: address,
-        total_amount: u64,
-        accumulated_rewards: u256,
-        index: u128,              // Global reward per share (scaled by 1e12)
-        last_update_epoch: u64,   // Track when the index was last updated
+        total_amount: u256,       // Total credit budget allocated to this campaign
+        reward_rate: u256,        // Amount of virtual credits distributed per second globally
+        period_finish: u64,       // Timestamp (in seconds) when the campaign ends
+        last_update_time: u64,    // Last timestamp the index was updated
+        index: u128,              // Global reward-per-share accumulator (scaled by 1e18)
     }
 
     struct Vault has key, store, copy, drop {
@@ -81,7 +77,7 @@ module dev::QiaraLiquidityV20 {
         virtual_borrowed: u256,
         virtual_deposited: u256,
         storage: Object<FungibleStore>, // the actual wrapped balance in object,
-        incentives: vector<Incentive>, // XP | or some gamefi system
+        incentive: Incentive,           // Direct flat struct (no Option, no Vector)
         w_tracker: WithdrawTracker,
         last_update: u64,
     }
@@ -104,7 +100,6 @@ module dev::QiaraLiquidityV20 {
         balances: Table<String, Map<String, Map<String, Vault>>>,
     }
 
-
 // === INIT === //
     fun init_module(admin: &signer){
         if (!exists<GlobalVault>(@dev)) {
@@ -120,7 +115,6 @@ module dev::QiaraLiquidityV20 {
         abort(number);
     }
 
-
     fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){
@@ -129,34 +123,78 @@ module dev::QiaraLiquidityV20 {
         return (storage_address_bytes)
     }
 
-    public fun add_incentive(deployer: address, token: String, chain: String, provider: String, fa: FungibleAsset, epoch_start: u64, epoch_end: u64, _cap: Permission) acquires GlobalVault {
+    public fun add_incentive(
+        deployer: address, 
+        token: String, 
+        chain: String, 
+        provider: String, 
+        credits: u256, 
+        duration_seconds: u64, 
+        _cap: Permission
+    ) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
 
-        let metadata = fungible_asset::asset_metadata(&fa);
-        let constructor_ref = object::create_object(@dev);
-        let incentive_store = fungible_asset::create_store(&constructor_ref, metadata);
+        assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
+        let current_time = timestamp::now_seconds();
 
-        let initial_balance = fungible_asset::balance(incentive_store);
-        fungible_asset::deposit(incentive_store, fa);
-        
-        assert!(epoch_start > (Genesis::return_epoch() as u64), ERROR_EPOCH_MUST_BE_HIGHER_THAN_CURRENT);
-        assert!(epoch_end > epoch_start, ERROR_EPOCH_MUST_BE_HIGHER_THAN_STARTING_EPOCH);
+        if (vault.incentive.period_finish == 0) {
+            // ==========================================
+            // Scenario 1: Start a brand-new campaign
+            // ==========================================
+            let reward_rate = credits / (duration_seconds as u256);
 
-        let new_incentive = Incentive {
-            token,
-            chain,
-            epoch_start,
-            epoch_end,
-            storage: incentive_store,
-            deployer,
-            total_amount: initial_balance,
-            accumulated_rewards: 0, 
-            index: 0,                       // Initialized to 0 index
-            last_update_epoch: epoch_start, // Starts tracking from start of incentive
+            vault.incentive = Incentive {
+                deployer,
+                total_amount: credits,
+                reward_rate,
+                period_finish: current_time + duration_seconds,
+                last_update_time: current_time,
+                index: 0,
+            };
+        } else {
+            // ==========================================
+            // Scenario 2: Top up and extend active campaign
+            // ==========================================
+            
+            // 1. Sync global index internally to lock in historical rewards under the old rate
+            let last_applicable_time = if (current_time < vault.incentive.period_finish) {
+                current_time
+            } else {
+                vault.incentive.period_finish
+            };
+            
+            let total_deposited_snapshot = vault.total_deposited;
+            if (last_applicable_time > vault.incentive.last_update_time && total_deposited_snapshot > 0) {
+                let elapsed = last_applicable_time - vault.incentive.last_update_time;
+                let rewards_accrued = vault.incentive.reward_rate * (elapsed as u256);
+                let scale = 1000000000000000000;   // 1e18 scale factor
+                let upscale = 1000000000000000000; // 1e18 deposit upscale factor
+                
+                let reward_per_share = (rewards_accrued * scale * upscale) / total_deposited_snapshot;
+                vault.incentive.index = vault.incentive.index + (reward_per_share as u128);
+            };
+            
+            vault.incentive.last_update_time = last_applicable_time;
+
+            // Determine remaining time left in the current active campaign
+            let remaining_time = if (current_time < vault.incentive.period_finish) {
+                vault.incentive.period_finish - current_time
+            } else {
+                0
+            };
+
+            // Calculate any un-emitted credits from the active program
+            let remaining_credits = vault.incentive.reward_rate * (remaining_time as u256);
+            let combined_credits = remaining_credits + credits;
+
+            // Re-evaluate parameters based on the new extended duration
+            vault.incentive.reward_rate = combined_credits / (duration_seconds as u256);
+            vault.incentive.period_finish = current_time + duration_seconds;
+            vault.incentive.last_update_time = current_time;
+            vault.incentive.total_amount = vault.incentive.total_amount + credits;
+            vault.incentive.deployer = deployer; 
         };
-
-        vector::push_back(&mut vault.incentives, new_incentive);
     }
 
     public fun withdraw_token(token: String, chain: String,provider: String, amount:u256, cap: Permission): FungibleAsset acquires GlobalVault{
@@ -166,7 +204,6 @@ module dev::QiaraLiquidityV20 {
         vault.total_deposited = vault.total_deposited - amount*1000000000000000000;
         internal_daily_withdraw_limit(token, vault, amount*1000000000000000000);
         TokensCore::withdraw(storage_address_string, vault.storage, (amount as u64), chain)
-
     }
 
     public fun deposit_token(token: String, chain: String,provider: String, fa: FungibleAsset, cap: Permission) acquires GlobalVault{
@@ -175,9 +212,7 @@ module dev::QiaraLiquidityV20 {
 
         vault.total_deposited = vault.total_deposited + ((fungible_asset::amount(&fa) as u256)*1000000000000000000);
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
-
     }
-
 
     public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault{
         {
@@ -215,7 +250,6 @@ module dev::QiaraLiquidityV20 {
         };
     }
 
-
     public fun add_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault{
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
@@ -233,7 +267,6 @@ module dev::QiaraLiquidityV20 {
             };
         };
     }
-
 
     public fun add_virtual_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault{
         {
@@ -290,82 +323,65 @@ module dev::QiaraLiquidityV20 {
         };
     }
 
-    public fun update_incentive_index(vault: &mut Vault, total_deposited: u256) {
-        let current_epoch = (Genesis::return_epoch() as u64);
-        let len = vector::length(&vault.incentives);
-        let i = 0;
-        while (i < len) {
-            let incentive = vector::borrow_mut(&mut vault.incentives, i);
-            
-            let start_overlap = if (incentive.last_update_epoch > incentive.epoch_start) { incentive.last_update_epoch } else { incentive.epoch_start };
-            let end_overlap = if (current_epoch < incentive.epoch_end) { current_epoch } else { incentive.epoch_end };
-            
-            if (start_overlap < end_overlap && total_deposited > 0) {
-                let overlap_duration = end_overlap - start_overlap;
-                let total_duration = incentive.epoch_end - incentive.epoch_start;
-                
-                let total_pool_reward = ((incentive.total_amount as u256) * (overlap_duration as u256)) / (total_duration as u256);
-                let scale = 1000000000000000000; // 1e12 scaling factor
-                
-                // Increase the global reward-per-share accumulator
-                let reward_per_share = (total_pool_reward * scale) / total_deposited;
-                incentive.index = incentive.index + (reward_per_share as u128);
-            };
-            
-            incentive.last_update_epoch = if (current_epoch > incentive.epoch_end) { incentive.epoch_end } else { current_epoch };
-            i = i + 1;
+  public fun update_incentive_index(
+        token: String, 
+        chain: String, 
+        provider: String, 
+        total_deposited: u256, 
+        _cap: Permission
+    ) acquires GlobalVault {
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let vault = find_vault(vaults, token, chain, provider);
+        
+        // Skip index update if the incentive is not initialized
+        if (vault.incentive.period_finish == 0) {
+            return
         };
-    }
 
-   public fun distribute_rewards(shared: String, user: vector<u8>, token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_index: u128, _cap: Permission): u128 acquires GlobalVault, Permissions {
+        let current_time = timestamp::now_seconds();
+        
+        let last_applicable_time = if (current_time < vault.incentive.period_finish) {
+            current_time
+        } else {
+            vault.incentive.period_finish
+        };
+        
+        if (last_applicable_time > vault.incentive.last_update_time && total_deposited > 0) {
+            let elapsed = last_applicable_time - vault.incentive.last_update_time;
+            let rewards_accrued = vault.incentive.reward_rate * (elapsed as u256);
+            let scale = 1000000000000000000;   // 1e18 scale factor
+            let upscale = 1000000000000000000; // 1e18 deposit upscale factor
+            
+            // Increase the global reward-per-share accumulator
+            let reward_per_share = (rewards_accrued * scale * upscale) / total_deposited;
+            vault.incentive.index = vault.incentive.index + (reward_per_share as u128);
+        };
+        
+        // Advance the tracking pointer to the last applicable time
+        vault.incentive.last_update_time = last_applicable_time;
+    }
+    public fun distribute_rewards(shared: String, user: vector<u8>, token: String, chain: String, provider: String, total_deposited: u256, user_deposited: u256, user_last_index: u128, _cap: Permission): u128 acquires GlobalVault, Permissions {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
-        if (total_deposited == 0 || user_deposited == 0) {
+        if (total_deposited == 0 || user_deposited == 0 || vault.incentive.period_finish == 0) {
             return user_last_index
         };
 
-        let len = vector::length(&vault.incentives);
-        let i = 0;
-        
-        while (i < len) {
-            let incentive = vector::borrow_mut(&mut vault.incentives, i);
+        // Only distribute rewards if the global index is ahead of the user's checkpoint
+        if (vault.incentive.index > user_last_index) {
+            let index_diff = vault.incentive.index - user_last_index;
+            let scale = 1000000000000000000;   // 1e18 scale factor
             
-            // Only distribute rewards if the global index is ahead of the user's checkpoint
-            if (incentive.index > user_last_index) {
-                let index_diff = incentive.index - user_last_index;
-                let scale = 1000000000000000000; // 1e12 scale factor
-                
-                // User's reward = (user_deposited * index_diff) / scale
-                let user_reward_amount = (user_deposited * (index_diff as u256)) / (scale as u256);
-                let user_reward_u64 = ((user_reward_amount/ (scale as u256) as u64));
-                
-                let balance = fungible_asset::balance(incentive.storage);
-                if (user_reward_u64 > balance) {
-                    user_reward_u64 = balance;
-                };
-                
-                if (user_reward_u64 > 0) {
-                    let storage_address_string = non_user_storage_helper(&incentive.storage);
-                    let reward_fa = TokensCore::withdraw(storage_address_string, incentive.storage, user_reward_u64, chain);
-                    
-                    TokensCore::burn_fa(incentive.token, incentive.chain, reward_fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-                    incentive.accumulated_rewards = incentive.accumulated_rewards + user_reward_amount;
-
-                    Margin::add_rewards(
-                        shared,
-                        user,
-                        token, 
-                        chain, 
-                        provider, 
-                        user_reward_amount, 
-                        Margin::give_permission(&borrow_global<Permissions>(@dev).margin)
-                    );
-                };
-                
-                // Return the new global index so it can be saved as the user's checkpoint
-                return incentive.index
+            // User's reward = (user_deposited * index_diff) / (scale * upscale)
+            let user_reward_amount = (user_deposited * (index_diff as u256)) / scale;
+            
+            if (user_reward_amount > 0) {
+                // Directly allocate rewards as virtual credits in the Margin module
+                Margin::add_credit(shared,user,user_reward_amount, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             };
-            i = i + 1;
+            
+            // Return the new global index so it can be saved as the user's checkpoint
+            return vault.incentive.index
         };
         
         user_last_index
@@ -374,35 +390,27 @@ module dev::QiaraLiquidityV20 {
     public fun update(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        let current_epoch = (Genesis::return_epoch() as u64);
-        vault.last_update = timestamp::now_seconds();
-
-        // Process incentives and remove finished ones to reclaim storage after a grace period
-        let len = vector::length(&vault.incentives);
-        let i = len;
         
-        // Define a grace period in epochs to allow users to trigger an interaction and claim
-        let claim_grace_period = 5; 
+        let current_time = timestamp::now_seconds();
+        vault.last_update = current_time;
 
-        while (i > 0) {
-            let idx = i - 1;
-            let incentive = vector::borrow(&vault.incentives, idx);
-            
-            // Only sweep and remove the incentive if the claim grace period has elapsed
-            if (current_epoch >= incentive.epoch_end + claim_grace_period) {
-                let storage_address_string = non_user_storage_helper(&incentive.storage);
-                let balance = fungible_asset::balance(incentive.storage);
-                
-                // If there is any leftover asset inside, return it back to deployer's primary store
-                if (balance > 0) {
-                    let leftover_fa = TokensCore::withdraw(storage_address_string, incentive.storage, balance, chain);
-                    primary_fungible_store::deposit(incentive.deployer, leftover_fa);
+        // Reset the incentive back to default zero values if the grace period has passed
+        if (vault.incentive.period_finish > 0) {
+            // Define a claim grace period in seconds. 
+            // e.g., 30 days = 30 days * 86,400 seconds/day = 2,592,000 seconds
+            let claim_grace_period_seconds = 2592000; 
+
+            if (current_time >= vault.incentive.period_finish + claim_grace_period_seconds) {
+                // Return to clean zero state to enable subsequent campaigns later
+                vault.incentive = Incentive {
+                    deployer: @0x0,
+                    total_amount: 0,
+                    reward_rate: 0,
+                    period_finish: 0,
+                    last_update_time: 0,
+                    index: 0,
                 };
-                
-                // Safely remove the expired incentive
-                vector::swap_remove(&mut vault.incentives, idx);
             };
-            i = i - 1;
         };
     }
 
@@ -417,7 +425,6 @@ module dev::QiaraLiquidityV20 {
             provider_vault.w_tracker.amount = 0;
             provider_vault.w_tracker.limit = provider_vault.total_deposited * 1_000_000*100 / (TokensTiers::market_daily_withdraw_limit(TokensMetadata::get_coin_metadata_tier(&metadata)) as u256); // set limit for new day
         };
-        
     }
 
 // === PUBLIC VIEWS === //
@@ -432,19 +439,7 @@ module dev::QiaraLiquidityV20 {
     public fun return_raw_vault_incentive(token: String, chain: String,provider: String): (u64, u64, u256) acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
-        if (vector::is_empty(&vault.incentives)) {
-            return (0, 0, 0)
-        };
-
-        let incentive = vector::borrow(&vault.incentives, 0);
-        let duration = incentive.epoch_end - incentive.epoch_start;
-        let per_second = if (duration > 0) {
-            (fungible_asset::balance(incentive.storage) as u256) / (duration as u256)
-        } else {
-            0
-        };
-
-        return (incentive.epoch_start, incentive.epoch_end, per_second)
+        return (vault.incentive.period_finish, vault.incentive.last_update_time, vault.incentive.reward_rate)
     }
 
     #[view]
@@ -567,7 +562,14 @@ module dev::QiaraLiquidityV20 {
                 total_deposited: 1000000000000000000 * 1000000000,
                 w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
                 storage: vault_store,
-                incentives: vector::empty<Incentive>()
+                incentive: Incentive {
+                    deployer: @0x0,
+                    total_amount: 0,
+                    reward_rate: 0,
+                    period_finish: 0,
+                    last_update_time: 0,
+                    index: 0,
+                }
             });
         };
 

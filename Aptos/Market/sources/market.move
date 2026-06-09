@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV14 {
+module dev::QiaraVaultsV16 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV14 {
 
     use dev::QiaraGasV2::{Self as Gas};
 
-    use dev::QiaraLiquidityV20::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV20::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV22::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV22::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -834,7 +834,9 @@ module dev::QiaraVaultsV14 {
     public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256, u256, u256, u256, u256) acquires Permissions {
         
         // 1. FETCH CURRENT BALANCES AND GLOBAL VAULT STATES
-        let (user_deposited, user_borrowed, user_virtual_deposited, user_virtual_borrowed, user_staked, _, user_accumulated_rewards_index, _, user_accumulated_interest_index, _, user_last_interacted) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        // Mapping the 8th wildcard slot to 'user_incentive_index' to track your Credits Index checkpoint
+        let (user_deposited, user_borrowed, user_virtual_deposited, user_virtual_borrowed, user_staked, _, user_accumulated_rewards_index, user_incentive_index, user_accumulated_interest_index, _, user_last_interacted) = Margin::get_user_raw_balance(shared, token, chain, provider);
+
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         // Calculate utilization ratio using all 5 required parameters
@@ -855,6 +857,9 @@ module dev::QiaraVaultsV14 {
 
         // Sync global vault state first (releasing expired incentives, updating timestamp)
         Liquidity::update(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        // Sync the Global Virtual Credit Index using the newly created wrapper
+        Liquidity::update_incentive_index(token, chain, provider, total_deposited, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 4. ACCRUE GLOBAL POOL INTEREST & REWARDS SINCE LAST GLOBAL UPDATE
         // Accumulate native pool rewards over the time gap since the last global transaction
@@ -896,14 +901,20 @@ module dev::QiaraVaultsV14 {
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
+        // 6b. VIRTUAL CREDIT INCENTIVE DISTRIBUTION
+        // Calculates and deposits virtual credit rewards directly into the user's ledger, returning the updated index
+        let new_user_incentive_index = Liquidity::distribute_rewards(shared,user,token,chain,provider,total_deposited,user_deposited,(user_incentive_index as u128),Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
         let points_reward = calculate_deposit_points(user_deposited, user_last_interacted);
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
         
         // 8. UPDATE CHECKPOINT INDEXES FOR THE USER TO PREVENT DOUBLE-CLAIMING
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-        Margin::update_native_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+
+        // Update the user's personal virtual credit index checkpoint to the newly returned index
+        Margin::update_native_reward_index(shared, user, token, chain, provider, (new_user_incentive_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
 
         // Update the timestamp tracking the user's last interaction
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
