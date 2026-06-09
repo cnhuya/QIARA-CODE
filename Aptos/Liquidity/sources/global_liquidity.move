@@ -124,8 +124,8 @@ module dev::QiaraLiquidityV23 {
         return (storage_address_bytes)
     }
 
-    public entry fun add_incentive(signer: &signer, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
+    public entry fun add_incentive(signer: &signer, shared: String, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
@@ -140,7 +140,7 @@ module dev::QiaraLiquidityV23 {
             let reward_rate = credits / (duration_seconds as u256);
 
             vault.incentive = Incentive {
-                deployer,
+                deployer: signer::address_of(signer),
                 total_amount: credits,
                 reward_rate,
                 period_finish: current_time + duration_seconds,
@@ -188,7 +188,7 @@ module dev::QiaraLiquidityV23 {
             vault.incentive.period_finish = current_time + duration_seconds;
             vault.incentive.last_update_time = current_time;
             vault.incentive.total_amount = vault.incentive.total_amount + credits;
-            vault.incentive.deployer = deployer; 
+            vault.incentive.deployer = signer::address_of(signer); 
         };
     }
 
