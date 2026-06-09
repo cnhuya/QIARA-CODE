@@ -2,6 +2,7 @@ module dev::QiaraLiquidityV23 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
+    use std::bcs;
     use std::string::{Self as String, String, utf8};
     use std::table::{Self as table, Table};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
