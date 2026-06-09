@@ -46,6 +46,7 @@ module dev::QiaraTokensTiersV19{
         borrow_limit: u128,
         w_fee: u64,
         oracle_native_weight: u256,
+        market_scaling_factor: u64,
  }
 /// === INIT ===
     fun init_module(admin: &signer){
@@ -298,6 +299,18 @@ module dev::QiaraTokensTiersV19{
             
             //let market_base_rate_slashing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT")));
             let market_base_rate_slashing = 10_000_000;
+
+            return(1_000_000 * market_base_rate * tier_multiplier)/100/market_base_rate_slashing + market_base_rate
+        }
+
+        #[view]
+        public fun market_base_scailing(id: u8): u64 {
+            // formula: (storage_variables_scale * base_rate * tier_multiplier)/market_base_rate_slashing + base_rate 
+            // i.e (1_000_000 * 500_000 * 200)/100/5_000_000 + 500_000 -> 600_000 (0,7%) || id = 1
+
+            let market_base_rate = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
+
+            market_base_rate = market_base_rate - (id*1)
 
             return(1_000_000 * market_base_rate * tier_multiplier)/100/market_base_rate_slashing + market_base_rate
         }
