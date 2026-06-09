@@ -123,15 +123,7 @@ module dev::QiaraLiquidityV22 {
         return (storage_address_bytes)
     }
 
-    public fun add_incentive(
-        deployer: address, 
-        token: String, 
-        chain: String, 
-        provider: String, 
-        credits: u256, 
-        duration_seconds: u64, 
-        _cap: Permission
-    ) acquires GlobalVault {
+    public fun add_incentive(deployer: address, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64, _cap: Permission) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
 
@@ -323,13 +315,7 @@ module dev::QiaraLiquidityV22 {
         };
     }
 
-  public fun update_incentive_index(
-        token: String, 
-        chain: String, 
-        provider: String, 
-        total_deposited: u256, 
-        _cap: Permission
-    ) acquires GlobalVault {
+    public fun update_incentive_index(token: String, chain: String, provider: String, total_deposited: u256, _cap: Permission) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         
@@ -350,10 +336,9 @@ module dev::QiaraLiquidityV22 {
             let elapsed = last_applicable_time - vault.incentive.last_update_time;
             let rewards_accrued = vault.incentive.reward_rate * (elapsed as u256);
             let scale = 1000000000000000000;   // 1e18 scale factor
-            let upscale = 1000000000000000000; // 1e18 deposit upscale factor
             
             // Increase the global reward-per-share accumulator
-            let reward_per_share = (rewards_accrued * scale * upscale) / total_deposited;
+            let reward_per_share = (rewards_accrued * scale) / total_deposited;
             vault.incentive.index = vault.incentive.index + (reward_per_share as u128);
         };
         
