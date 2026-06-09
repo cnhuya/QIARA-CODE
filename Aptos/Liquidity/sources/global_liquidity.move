@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV22 {
+module dev::QiaraLiquidityV23 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -123,7 +123,9 @@ module dev::QiaraLiquidityV22 {
         return (storage_address_bytes)
     }
 
-    public entry fun add_incentive(deployer: address, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64, _cap: Permission) acquires GlobalVault {
+    public entry fun add_incentive(signer: &signer, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
+        
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
 
