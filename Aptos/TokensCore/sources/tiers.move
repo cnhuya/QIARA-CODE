@@ -293,9 +293,9 @@ module dev::QiaraTokensTiersV20{
 
             let market_scaling_factor = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
 
-            if (id = "255"){
+            if (id == 255){
                 id = 1;
-            } else if (id = "254"){
+            } else if (id == 254){
                 id = 2;
             }
 
