@@ -225,6 +225,14 @@ module dev::QiaraStorageV9 {
 
     }
 
+
+    public entry fun more5(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"CREDIT_SWAP_FEE"), 1_000_000, true, &give_permission(&give_access(admin))); // 1%  
+    
+
+    }
+
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         change_constant(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), bc::to_bytes(&100_000u64), &give_permission(&give_access(admin))); // 0.001%  
