@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV25{
+module dev::QiaraBridgeV26{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -21,15 +21,15 @@ module dev::QiaraBridgeV25{
 
     use dev::QiaraSharedV6::{Self as Shared};
 
-    use dev::QiaraTokensCoreV19::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV19::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV20::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV20::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV16::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV17::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV16::{Self as Margin};
+    use dev::QiaraMarginV17::{Self as Margin};
 
-    use dev::QiaraPayloadV25::{Self as Payload};
-    use dev::QiaraValidatorsV25::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV26::{Self as Payload};
+    use dev::QiaraValidatorsV26::{Self as Validators, Access as ValidatorsAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
