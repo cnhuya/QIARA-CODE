@@ -8,7 +8,7 @@ module dev::QiaraMarginV17{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV16::{Self as Ranks};
+    use dev::QiaraRanksV17::{Self as Ranks};
     use dev::QiaraTokensMetadataV20::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV20::{Self as TokensType};
     
