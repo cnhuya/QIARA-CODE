@@ -38,10 +38,8 @@ module dev::QiaraTokensTiersV19{
         efficiency: u16,
         multiplier: u16,
         market_daily_withdraw_limit: u64,
-        market_borrow_interest_multiplier: u64,
         market_base_lending_apr: u64,
         price_impact_penalty: u64,
-        bridge_fee: u128,
         deposit_limit: u128,
         borrow_limit: u128,
         w_fee: u64,
@@ -154,6 +152,7 @@ module dev::QiaraTokensTiersV19{
             borrow_limit: borrow_limit(id),
             w_fee: minimal_w_fee(id),
             oracle_native_weight: oracle_native_weight(id),
+            market_scaling_factor: market_scaling_factor(id),
         };
 
         return full_tier
@@ -276,18 +275,6 @@ module dev::QiaraTokensTiersV19{
 
             return(withdraw_limit * tier_efficiency)/10000 + withdraw_limit
         }
-        #[view]
-        public fun market_borrow_interest_multiplier(id: u8): u64 {
-            // formula: (borrow_interest_multiplier * tier_multiplier)/borrow_interest_multiplier_slashing + borrow_interest_multiplier
-            // i.e (100_000 * 9300)/10_000_000 + 100_000 -> 19_300_000 (19,3%) || id = 1
-
-            let tier_multiplier = tier_multiplier(id);
-            let borrow_interest_multiplier = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER")));
-            let borrow_interest_multiplier_slashing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER_SLASHING")));
-
-
-            return(10000 * borrow_interest_multiplier * tier_multiplier)/borrow_interest_multiplier_slashing + borrow_interest_multiplier
-        }
 
         #[view]
         public fun market_base_lending_apr(id: u8): u64 {
@@ -304,15 +291,13 @@ module dev::QiaraTokensTiersV19{
         }
 
         #[view]
-        public fun market_base_scailing(id: u8): u64 {
-            // formula: (storage_variables_scale * base_rate * tier_multiplier)/market_base_rate_slashing + base_rate 
-            // i.e (1_000_000 * 500_000 * 200)/100/5_000_000 + 500_000 -> 600_000 (0,7%) || id = 1
+        public fun market_scaling_factor(id: u8): u64 {
 
-            let market_base_rate = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
+            let market_scaling_factor = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
 
-            market_base_rate = market_base_rate - (id*1)
+            market_scaling_factor = market_scaling_factor - ((idas u64)*1_000_000);
 
-            return(1_000_000 * market_base_rate * tier_multiplier)/100/market_base_rate_slashing + market_base_rate
+            return market_scaling_factor
         }
 
         #[view]
@@ -322,14 +307,6 @@ module dev::QiaraTokensTiersV19{
 
             // 100 * (9000 * 10) + 100_000_000 -> 100 * 90000 + 100_000_000 -> 109_000_000
             return base*(tier_efficiency(id)*10)+(base*10_000)   
-        }
-
-        #[view]
-        public fun bridge_fee(id: u8): u128{
-            let tier = get_tier(id);
-            let base_fee = storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"FEE")));
-            let multiplier = (tier.multiplier as u64);
-            ((base_fee + ((base_fee * multiplier)/100) / 2) as u128) // the /100 is here because of multiplier scailing
         }
 
 

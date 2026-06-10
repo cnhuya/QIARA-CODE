@@ -149,8 +149,7 @@ module dev::QiaraStorageV9 {
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"W_CAP"), 500, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MARKET_PERCENTAGE_SCALE"), 5000, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), 100_000, true, &give_permission(&give_access(admin))); // 0.5%
-        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER"), 100_000, true, &give_permission(&give_access(admin))); // 0.1x
-        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"BORROW_INTEREST_MULTIPLIER_SLASHING"), 10_000_000, true, &give_permission(&give_access(admin))); // 10x
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR"), 10_00_000, true, &give_permission(&give_access(admin))); // 10x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT"), 5_000_000, true, &give_permission(&give_access(admin))); // 0.1x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_EFFICIENCY_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
