@@ -295,7 +295,7 @@ module dev::QiaraTokensTiersV20{
 
             let market_scaling_factor = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
 
-            market_scaling_factor = market_scaling_factor - ((id u64)*1_000_000);
+            market_scaling_factor = market_scaling_factor - ((id as u64)*1_000_000);
 
             return market_scaling_factor
         }
