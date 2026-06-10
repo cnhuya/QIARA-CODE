@@ -1,4 +1,4 @@
-module dev::QiaraTokensTiersV19{
+module dev::QiaraTokensTiersV20{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -295,7 +295,7 @@ module dev::QiaraTokensTiersV19{
 
             let market_scaling_factor = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR")));
 
-            market_scaling_factor = market_scaling_factor - ((idas u64)*1_000_000);
+            market_scaling_factor = market_scaling_factor - ((id u64)*1_000_000);
 
             return market_scaling_factor
         }
