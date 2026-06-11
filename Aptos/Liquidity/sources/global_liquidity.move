@@ -31,6 +31,7 @@ module dev::QiaraLiquidityV24 {
     const ERROR_EPOCH_MUST_BE_HIGHER_THAN_CURRENT: u64 = 3;
     const ERROR_EPOCH_MUST_BE_HIGHER_THAN_STARTING_EPOCH: u64 = 4;
     const ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO: u64 = 5;
+    const ERROR_INSUFFICIENT_BALANCE: u64 = 6;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -124,24 +125,33 @@ module dev::QiaraLiquidityV24 {
         return (storage_address_bytes)
     }
 
-    public entry fun add_incentive(signer: &signer, shared: String, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault {
+
+
+    public entry fun add_incentive(signer: &signer, shared: String, amount: u256, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        
+
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
 
+        let credit_value = TokensMetadata::getValue(token, credits);
+        let amount_u256 = credit_value*1000000000000000000;
+
+        let (deposited, borrowed, virtual_deposit, virtual_borrow, staked, rewards, reward_index_snapshot, interest, interest_index_snapshot, locked_fee, last_update) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        assert!(deposited > amount_u256, ERROR_INSUFFICIENT_BALANCE);
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
         let current_time = timestamp::now_seconds();
+
+        Margin::remove_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         if (vault.incentive.period_finish == 0) {
             // ==========================================
             // Scenario 1: Start a brand-new campaign
             // ==========================================
-            let reward_rate = credits / (duration_seconds as u256);
+            let reward_rate = amount_u256 / (duration_seconds as u256);
 
             vault.incentive = Incentive {
                 deployer: signer::address_of(signer),
-                total_amount: credits,
+                total_amount: amount_u256,
                 reward_rate,
                 period_finish: current_time + duration_seconds,
                 last_update_time: current_time,
@@ -181,13 +191,13 @@ module dev::QiaraLiquidityV24 {
 
             // Calculate any un-emitted credits from the active program
             let remaining_credits = vault.incentive.reward_rate * (remaining_time as u256);
-            let combined_credits = remaining_credits + credits;
+            let combined_credits = remaining_credits + amount_u256;
 
             // Re-evaluate parameters based on the new extended duration
             vault.incentive.reward_rate = combined_credits / (duration_seconds as u256);
             vault.incentive.period_finish = current_time + duration_seconds;
             vault.incentive.last_update_time = current_time;
-            vault.incentive.total_amount = vault.incentive.total_amount + credits;
+            vault.incentive.total_amount = vault.incentive.total_amount + amount_u256;
             vault.incentive.deployer = signer::address_of(signer); 
         };
     }

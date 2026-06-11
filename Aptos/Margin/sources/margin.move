@@ -90,6 +90,8 @@ module dev::QiaraMarginV17{
     }
 
 // === ENTRY FUN === //
+    
+    
     public fun update_global_l(amount: u64, leverage: u64, _cap: &Permission) acquires Leverage {
         let l = borrow_global_mut<Leverage>(@dev);
 
