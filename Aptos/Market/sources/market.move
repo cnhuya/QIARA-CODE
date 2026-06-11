@@ -451,6 +451,22 @@ module dev::QiaraVaultsV18 {
         Event::emit_market_event(utf8(b"Unstake"), data);
     }
 
+    public entry fun swap_credit_to(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u256) acquires Permissions {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        let token_amount = TokensMetadata::getValueByCoin(token, amount);
+        Liquidity::deposit_token(token, chain, provider, token_amount, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let data = vector[
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount)),
+        ];
+        Event::emit_market_event(utf8(b"Swap Credit to"), data);
+    }
+
+
     public entry fun deposit(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
