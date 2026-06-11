@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV18 {
+module dev::QiaraVaultsV19 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV18 {
 
     use dev::QiaraGasV2::{Self as Gas};
 
-    use dev::QiaraLiquidityV24::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV24::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV25::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV25::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -66,6 +66,7 @@ module dev::QiaraVaultsV18 {
     const ERROR_SENDER_DOESNT_MATCH_SIGNER: u64 = 20;
     const ERROR_WITHDRAW_LIMIT_EXCEEDED: u64 = 21;
     const ERROR_ARGUMENT_LENGHT_MISSMATCH: u64 = 22;
+    const ERROR_NOT_ENOUGH_CREDITS: u64 = 23;
 
 
     const ERROR_A: u64 = 101;
@@ -453,8 +454,13 @@ module dev::QiaraVaultsV18 {
 
     public entry fun swap_credit_to(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u256) acquires Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        let (user_credits, isPositive) = Margin::get_user_credit(shared);
+        assert!(isPositive, ERROR_NOT_ENOUGH_CREDITS);
+        assert!(user_credits >= amount, ERROR_NOT_ENOUGH_CREDITS);
         let token_amount = TokensMetadata::getValueByCoin(token, amount);
-        Liquidity::deposit_token(token, chain, provider, token_amount, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, token_amount, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::remove_credit(shared, bcs::to_bytes(&signer::address_of(signer)), amount, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
         let data = vector[
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
