@@ -127,6 +127,7 @@ module dev::QiaraLiquidityV25 {
 
 
 
+
     public entry fun add_incentive(signer: &signer, shared: String, amount: u256, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
 

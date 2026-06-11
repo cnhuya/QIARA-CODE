@@ -457,7 +457,20 @@ module dev::QiaraVaultsV19 {
         let (user_credits, isPositive) = Margin::get_user_credit(shared);
         assert!(isPositive, ERROR_NOT_ENOUGH_CREDITS);
         assert!(user_credits >= amount, ERROR_NOT_ENOUGH_CREDITS);
-        let token_amount = TokensMetadata::getValueByCoin(token, amount);
+  
+        // 1. Retrieve the swap fee (stored as 100 for 1%)
+        let credit_swap_fee = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"CREDIT_SWAP_FEE")));
+
+        // 2. Calculate the 1% fee amount (multiply first, then divide by 10000 to prevent precision loss)
+        let fee_amount = (amount * (credit_swap_fee as u256)) / 1_000_000;
+
+        // 3. Deduct the fee to get the post-tax amount
+        let taxed_amount = amount - fee_amount;
+
+        // 4. Calculate the token amount based on the post-tax amount
+        let token_amount = TokensMetadata::getValueByCoin(token, taxed_amount);
+
+        // 5. Deposit the post-tax amount, but remove the full initial amount of credit from the user
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, token_amount, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::remove_credit(shared, bcs::to_bytes(&signer::address_of(signer)), amount, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
