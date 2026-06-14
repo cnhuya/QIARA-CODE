@@ -1,0 +1,26 @@
+    [package]
+    name = "QiaraTPerpsV2"
+    version = "2.1.1"
+    authors = []
+
+    [addresses]
+    dev = "0x806dc4c24130e8be9a09ec67ecc53b39074ba0666e4cb2173926b6284490522a"
+    event = "0xe97f40d139c4e86c610236ab5eb8801222755c13b70d78c74ec91d89b3b80023"
+    aptos_framework = "0x1"
+    std = "0x1"
+    aptos_std = "0x1"
+    Extensions = "0x1"
+    [dev-addresses]
+
+    [dependencies.AptosStdlib]
+    git = "https://github.com/aptos-labs/aptos-core.git"
+    rev = "testnet"
+    subdir = "aptos-move/framework/aptos-stdlib"
+
+    [dependencies.AptosFramework]
+    git = "https://github.com/aptos-labs/aptos-core.git"
+    rev = "testnet"
+    subdir = "aptos-move/framework/aptos-framework"
+
+    
+    [dev-dependencies]

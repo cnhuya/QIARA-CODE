@@ -428,6 +428,13 @@ module dev::QiaraLiquidityV25 {
 
 // === PUBLIC VIEWS === //
     #[view]
+    public fun return_raw_data_vault(token: String, chain: String,provider: String): (u64,u64,u64,u64,u64) acquires GlobalVault{
+        let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
+        let data = get_vault_data(token, chain, provider, vault);
+        return (data.utilization, data.native_provider_apr, data.qiara_native_apr, data.final_lend_rate, data.final_borrow_rate)
+    }
+
+    #[view]
     public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
