@@ -391,6 +391,20 @@ module dev::QiaraSharedV7 {
         ownership_record.selected_validator = new_validator;
     }
 
+    public fun update_gas_index(name: String, new_gas_index: u256, _perm: Permission) acquires SharedStorage {
+        let shared = borrow_global_mut<SharedStorage>(@dev);
+        
+        if (!table::contains(&shared.storage, name)) {
+            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+        };
+
+        let ownership_record = table::borrow_mut(&mut shared.storage, name);
+        ownership_record.gas_index = new_gas_index;
+        ownership_record.last_updated = timestamp::now_seconds();
+
+    }
+
+
     // === VIEW FUNCTIONS === //
 
     /// Returns the unique FungibleStore object associated with an asset in a shared storage

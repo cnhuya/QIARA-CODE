@@ -39,15 +39,24 @@ module dev::QiaraGasV5{
         usd_deposits: u256,
         usd_withdrawals: u256,
         usd_borrows: u256,
-        gas: u256,
-        global_gas_index: u256, // Added to track cumulative interest index
+        gas: u256,               // Instantaneous fee rate
+        global_gas_index: u256,  // Cumulative global interest index
         last_update: u64,
     }
 
 /// === INIT ===
     fun init_module(admin: &signer){
         if (!exists<Gas>(@dev)) {
-            move_to(admin, Gas {usd_perps_volume: 0, avg_leverage: 0, usd_deposits: 0, usd_withdrawals: 0, usd_borrows: 0, gas: 0, global_gas_index: 0,last_update: timestamp::now_seconds() });
+            move_to(admin, Gas {
+                usd_perps_volume: 0, 
+                avg_leverage: 0, 
+                usd_deposits: 0, 
+                usd_withdrawals: 0, 
+                usd_borrows: 0, 
+                gas: 0, 
+                global_gas_index: 0, // Starts at 0
+                last_update: timestamp::now_seconds() 
+            });
         };
     }
 
@@ -101,6 +110,18 @@ module dev::QiaraGasV5{
         return gas_rate
     }
 
+    // Accrues the global state and returns the newly updated global_gas_index.
+    // The calling contract should store this returned value on the user's position as their snapshot index.
+    public fun accrue(token: String, borrow: u256, _user_last_interacted: u64, _cap: Permission): u256 acquires Gas {
+        let gas = borrow_global_mut<Gas>(@dev);
+        gas.usd_borrows = gas.usd_borrows + Oracle::convert_to_usd(token, borrow);
+        
+        // calculateGas automatically updates global_gas_index, gas.gas, and gas.last_update
+        calculateGas(gas, 0, 0);
+        
+        return gas.global_gas_index
+    }
+
     public entry fun dev_reset_gas(admin: &signer) acquires Gas {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
         let gas = borrow_global_mut<Gas>(@dev);
@@ -111,21 +132,6 @@ module dev::QiaraGasV5{
         gas.avg_leverage = 0;
         gas.global_gas_index = 0; // Reset index back to 0
         gas.last_update = timestamp::now_seconds();
-    }
-
-    #[view]
-    public fun calculateFunding(skewer: u256, avg_leverage: u256, base: u256, withdrawal_weight: u256, prev_deposits: u256, deposits: u256, prev_withdrawals: u256, withdrawals: u256, last_update_sec: u256): (u256,u256,u256,u256,u256,u256) {
-        let e6 = 1_000_000;
-        let previous_deposit_impact = prev_deposits-((prev_deposits*skewer*last_update_sec)/1_000_000);
-        let previous_withdrawal_impact = prev_withdrawals-((prev_withdrawals*skewer*last_update_sec)/1_000_000);
-
-        let new_deposits = deposits + previous_deposit_impact;
-        let new_withdrawals = withdrawals + previous_withdrawal_impact;
-
-        let ratio = ((new_withdrawals*withdrawal_weight))/new_deposits;
-
-        let total_fee = (base * ((ratio*ratio)/e6)/e6) + avg_leverage + base;
-        return (total_fee, previous_deposit_impact, previous_withdrawal_impact, new_deposits, new_withdrawals, ((ratio*ratio)/e6))
     }
 
     #[view]
@@ -174,7 +180,6 @@ module dev::QiaraGasV5{
         Event::emit_historical_event(utf8(b"Gas"), data);
         
         return (
-            
             total_fee, 
             previous_deposit_impact, 
             previous_withdrawal_impact, 
@@ -184,7 +189,7 @@ module dev::QiaraGasV5{
         )
     }
 
-    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256,u256, u256, u256, u256, u256, u256) {
+    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256, u256, u256, u256, u256, u256) {
         let base = 1_000_000u256;
         let withdrawal_weight = 5_000_000u256; 
         let e6 = 1_000_000u256;
@@ -195,6 +200,11 @@ module dev::QiaraGasV5{
 
         let last_update_sec = ((timestamp::now_seconds() - gas_ref.last_update) as u256);
 
+        // 1. UPDATE THE CUMULATIVE GLOBAL INDEX FIRST
+        // We accumulate using the rate that was active DURING this elapsed period (gas_ref.gas)
+        gas_ref.global_gas_index = gas_ref.global_gas_index + (gas_ref.gas * last_update_sec);
+
+        // 2. Standard decay logic with 100% scale division
         let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
             max_decay
         } else {
@@ -218,6 +228,7 @@ module dev::QiaraGasV5{
         let new_deposits = deposit + previous_deposit_impact;
         let new_withdrawals = withdrawal + previous_withdrawal_impact;
 
+        // Corrected logic: Ensure the denominator is at least 1
         let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
 
         let total_fee = (base * ((ratio * ratio) / e6) / e6) + (gas_ref.avg_leverage as u256) + base;
@@ -230,12 +241,11 @@ module dev::QiaraGasV5{
 
         Event::emit_historical_event(utf8(b"Gas"), data);
         
-        // Update cumulative interest/gas index before setting the new timestamp reference
-        gas_ref.global_gas_index = gas_ref.global_gas_index + (total_fee * last_update_sec);
-        
+        // 3. Save the new fee rate and update the timestamp reference for the NEXT period
+        gas_ref.gas = total_fee;
         gas_ref.last_update = timestamp::now_seconds();
+
         return (
-            gas_ref.global_gas_index
             total_fee, 
             previous_deposit_impact, 
             previous_withdrawal_impact, 
@@ -252,7 +262,6 @@ module dev::QiaraGasV5{
         return total_fee
     }
 
-    // View function to compute the exact accrued gas fee using the global index difference
     #[view]
     public fun calculate_gas_fee_from_index(user_last_index: u256, current_index: u256, amount: u256): u256 {
         if (current_index <= user_last_index) {

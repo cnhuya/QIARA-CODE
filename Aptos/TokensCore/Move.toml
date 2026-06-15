@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraTokensV20"
+    name = "QiaraTokensV21"
     version = "2.1.1"
     authors = []
 
@@ -22,12 +22,12 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTypesV20]
+    [dependencies.QiaraTypesV21]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraStoragesV20]
+    [dependencies.QiaraStoragesV21]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storages'
@@ -47,8 +47,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-
-    [dependencies.QiaraSharedV6]
+    [dependencies.QiaraSharedV7]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'

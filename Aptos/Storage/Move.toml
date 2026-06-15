@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraStorageV9"
+    name = "QiaraStorageV10"
     version = "1.0.0"
     authors = []
 
@@ -18,7 +18,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraSharedV6]
+    [dependencies.QiaraSharedV7]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'
