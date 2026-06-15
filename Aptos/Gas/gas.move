@@ -11,6 +11,7 @@ module dev::QiaraGasV5{
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraOracleV5::{Self as Oracle};
 
+
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_MARKET_ALREADY_EXISTS: u64 = 2;
@@ -40,18 +41,19 @@ module dev::QiaraGasV5{
         usd_withdrawals: u256,
         usd_borrows: u256,
         gas: u256,
-        global_gas_index: u256, // Added to track cumulative interest index
         last_update: u64,
     }
 
+
 /// === INIT ===
     fun init_module(admin: &signer){
+
         if (!exists<Gas>(@dev)) {
-            move_to(admin, Gas {usd_perps_volume: 0, avg_leverage: 0, usd_deposits: 0, usd_withdrawals: 0, usd_borrows: 0, gas: 0, global_gas_index: 0,last_update: timestamp::now_seconds() });
+            move_to(admin, Gas {usd_perps_volume: 0, avg_leverage: 0, usd_deposits: 0, usd_withdrawals: 0, usd_borrows: 0, gas: 0, last_update: timestamp::now_seconds() });
         };
     }
 
-    public fun add_leverage(_token: String, leverage: u64, volume: u256, _cap: Permission): u256 acquires Gas {
+    public fun add_leverage(_token: String, leverage: u64, volume: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         
         if (volume == 0) {
@@ -77,7 +79,8 @@ module dev::QiaraGasV5{
         return gas_rate
     }
 
-    public fun add_deposit(token: String, deposit: u256, _cap: Permission): u256 acquires Gas {
+
+    public fun add_deposit(token: String, deposit: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_deposits = gas.usd_deposits + Oracle::convert_to_usd(token, deposit);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, deposit, 0);
@@ -85,7 +88,8 @@ module dev::QiaraGasV5{
         return gas_rate
     }
 
-    public fun add_withdraw(token: String, withdraw: u256, _cap: Permission): u256 acquires Gas {
+
+    public fun add_withdraw(token: String,withdraw: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_withdrawals = gas.usd_withdrawals + Oracle::convert_to_usd(token, withdraw);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, withdraw);
@@ -93,7 +97,8 @@ module dev::QiaraGasV5{
         return gas_rate
     }
 
-    public fun add_borrow(token: String, borrow: u256, _cap: Permission): u256 acquires Gas {
+
+    public fun add_borrow(token: String,borrow: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_borrows = gas.usd_borrows + Oracle::convert_to_usd(token, borrow);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
@@ -107,14 +112,20 @@ module dev::QiaraGasV5{
         gas.usd_deposits = 0;
         gas.usd_withdrawals = 0;
         gas.usd_borrows = 0;
-        gas.usd_perps_volume = 0;
-        gas.avg_leverage = 0;
-        gas.global_gas_index = 0; // Reset index back to 0
         gas.last_update = timestamp::now_seconds();
     }
 
+    //supra move tool view --function-id 0xc536f11396d0510d90b021cbae973ab1f71155e8ff32c9d544bfb48212b11ac9::QiaraGasV1::calculateFunding --args u256:50 u256:1250000 u256:2500000 u256:1250000 u256:1522143811 u256:408101064 u256:784666762 u256:3481215007  u256:275
     #[view]
-    public fun calculateFunding(skewer: u256, avg_leverage: u256, base: u256, withdrawal_weight: u256, prev_deposits: u256, deposits: u256, prev_withdrawals: u256, withdrawals: u256, last_update_sec: u256): (u256,u256,u256,u256,u256,u256) {
+    public fun calculateFunding(skewer: u256, avg_leverage: u256, base: u256,withdrawal_weight: u256, prev_deposits: u256, deposits: u256, prev_withdrawals: u256, withdrawals: u256, last_update_sec: u256,): (u256,u256,u256,u256,u256,u256) {
+        // let base = 2_500_000 2_500_000
+        // let avg_leverage = 1_250_000 1_250_000 1_250_000
+        // let skewer = 500 (0,000050)
+        // let withdrawal_weight = 1_250_000
+        //7_760_369633536
+        //1_940_092.40838
+        // 7_760_369 * 2_500_000
+        let e18 = 1000000000000000000;
         let e6 = 1_000_000;
         let previous_deposit_impact = prev_deposits-((prev_deposits*skewer*last_update_sec)/1_000_000);
         let previous_withdrawal_impact = prev_withdrawals-((prev_withdrawals*skewer*last_update_sec)/1_000_000);
@@ -134,16 +145,19 @@ module dev::QiaraGasV5{
         let withdrawal_weight = 5_000_000;
         let e6 = 1_000_000;
         
+        // Fixed-point scaling where 100% is 100_000_000
         let e8 = 100_000_000u256;
-        let percentage_decay = 1_000u256; 
-        let max_decay = 25_000_000u256;   
+        let percentage_decay = 1_000u256; // 0.001% decay per second
+        let max_decay = 25_000_000u256;   // Max 25% decay
 
+        // Calculate the elapsed decay percentage and cap it at max_decay (25%)
         let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
             max_decay
         } else {
             percentage_decay * last_update_sec
         };
 
+        // Standard decay logic using input base deposits and withdrawals
         let deposit_decay = (deposits * decay_pct) / e8;
         let previous_deposit_impact = if (deposit_decay >= deposits) {
             0
@@ -158,14 +172,18 @@ module dev::QiaraGasV5{
             withdrawals - withdrawal_decay
         };
 
+        // Calculate active values after decay with new inputs
         let new_deposits = new_deposit + previous_deposit_impact;
         let new_withdrawals = new_withdrawal + previous_withdrawal_impact;
 
+        // Corrected logic: Ensure the denominator is at least 1
         let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
 
+        // Updated avg_leverage usage to match the 'leverage' input parameter
         let total_fee = (base * ((ratio * ratio) / e6) / e6) + leverage + base;
 
         let data = vector[
+            // Items from the event top-level fields
             Event::create_data_struct(utf8(b"gas"), utf8(b"u256"), bcs::to_bytes(&total_fee)),
             Event::create_data_struct(utf8(b"previous_deposit_impact"), utf8(b"u256"), bcs::to_bytes(&previous_deposit_impact)),
             Event::create_data_struct(utf8(b"previous_withdrawal_impact"), utf8(b"u256"), bcs::to_bytes(&previous_withdrawal_impact)),
@@ -174,7 +192,6 @@ module dev::QiaraGasV5{
         Event::emit_historical_event(utf8(b"Gas"), data);
         
         return (
-            
             total_fee, 
             previous_deposit_impact, 
             previous_withdrawal_impact, 
@@ -184,23 +201,26 @@ module dev::QiaraGasV5{
         )
     }
 
-    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256,u256, u256, u256, u256, u256, u256) {
+    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256, u256, u256, u256, u256, u256) {
         let base = 1_000_000u256;
-        let withdrawal_weight = 5_000_000u256; 
+        let withdrawal_weight = 5_000_000u256; // 5x
         let e6 = 1_000_000u256;
         
+        // Fixed-point scaling where 100% is 100_000_000
         let e8 = 100_000_000u256; 
-        let percentage_decay = 1_000u256; 
-        let max_decay = 25_000_000u256;   
+        let percentage_decay = 1_000u256; // 0.001% decay per second
+        let max_decay = 25_000_000u256;   // Max 25% decay
 
         let last_update_sec = ((timestamp::now_seconds() - gas_ref.last_update) as u256);
 
+        // Calculate the elapsed decay percentage and cap it at max_decay (25%)
         let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
             max_decay
         } else {
             percentage_decay * last_update_sec
         };
 
+        // Standard decay logic with 100% scale division
         let deposit_decay = (gas_ref.usd_deposits * decay_pct) / e8;
         let previous_deposit_impact = if (deposit_decay >= gas_ref.usd_deposits) {
             0
@@ -218,11 +238,13 @@ module dev::QiaraGasV5{
         let new_deposits = deposit + previous_deposit_impact;
         let new_withdrawals = withdrawal + previous_withdrawal_impact;
 
+        // Corrected logic: Ensure the denominator is at least 1
         let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
 
         let total_fee = (base * ((ratio * ratio) / e6) / e6) + (gas_ref.avg_leverage as u256) + base;
 
         let data = vector[
+            // Items from the event top-level fields
             Event::create_data_struct(utf8(b"gas"), utf8(b"u256"), bcs::to_bytes(&total_fee)),
             Event::create_data_struct(utf8(b"previous_deposit_impact"), utf8(b"u256"), bcs::to_bytes(&previous_deposit_impact)),
             Event::create_data_struct(utf8(b"previous_withdrawal_impact"), utf8(b"u256"), bcs::to_bytes(&previous_withdrawal_impact)),
@@ -230,12 +252,8 @@ module dev::QiaraGasV5{
 
         Event::emit_historical_event(utf8(b"Gas"), data);
         
-        // Update cumulative interest/gas index before setting the new timestamp reference
-        gas_ref.global_gas_index = gas_ref.global_gas_index + (total_fee * last_update_sec);
-        
         gas_ref.last_update = timestamp::now_seconds();
         return (
-            gas_ref.global_gas_index
             total_fee, 
             previous_deposit_impact, 
             previous_withdrawal_impact, 
@@ -248,19 +266,7 @@ module dev::QiaraGasV5{
     #[view]
     public fun calculate_gas_fee(time: u64, gas_fee: u256, amount: u256): u256 {
         let time_u256 = (time as u256);
-        let total_fee = (amount * gas_fee * time_u256) / 1_000_000 / 100; 
-        return total_fee
-    }
-
-    // View function to compute the exact accrued gas fee using the global index difference
-    #[view]
-    public fun calculate_gas_fee_from_index(user_last_index: u256, current_index: u256, amount: u256): u256 {
-        if (current_index <= user_last_index) {
-            return 0
-        };
-        let index_diff = current_index - user_last_index;
-        // Replicates your percentage conversion logic with the integrated index difference
-        let total_fee = (amount * index_diff) / 1_000_000 / 100;
+        let total_fee = (amount * gas_fee * time_u256) / 1_000_000 / 100; // the 100 is for percentage conversion
         return total_fee
     }
 
@@ -268,4 +274,5 @@ module dev::QiaraGasV5{
     public fun return_gas(): Gas acquires Gas{
         return *borrow_global<Gas>(@dev)
     }
+
 }

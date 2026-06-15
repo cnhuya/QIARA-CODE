@@ -1,14 +1,14 @@
-module dev::QiaraSharedV6 {
+module dev::QiaraSharedV7 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
     use std::bcs;
     use std::string::{String, utf8};
+    use std::timestamp;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use event::QiaraEventV1::{Self as Event};
-    
-    use aptos_framework::fungible_asset::{Self, FungibleStore, Metadata};
-    use aptos_framework::object::{Self, Object};
+
+
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
@@ -56,6 +56,8 @@ module dev::QiaraSharedV6 {
         ref_code_params: RefCodeParams,
         used_ref_code: String,
         users: vector<String>,
+        gas_index: u256,
+        last_updated: u64,
     }
 
     // STORAGE: owner -> allowed sub-owners
@@ -95,6 +97,8 @@ module dev::QiaraSharedV6 {
                 ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0 }, 
                 used_ref_code: utf8(b""),
                 users: vector::empty<String>(),
+                gas_index: 0,
+                last_updated: 0
             });
             table::add(&mut shared.storage_registry, non_user_key, vector::empty<String>());
         } else {
@@ -154,6 +158,8 @@ module dev::QiaraSharedV6 {
             ref_code_params: RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax },
             used_ref_code: used_ref_code,
             users: vector::empty<String>(),
+            gas_index: 0,
+            last_updated: timestamp::now_seconds(),
         });
 
         // 4. Ensure the user has a spot in the registry table
@@ -272,6 +278,8 @@ module dev::QiaraSharedV6 {
             ref_code_params: RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax },
             used_ref_code: used_ref_code,
             users: vector::empty<String>(),
+            gas_index: 0,
+            last_updated: timestamp::now_seconds(),
         });
 
         if (!table::contains(&shared.storage_registry, user)) {
@@ -522,6 +530,10 @@ module dev::QiaraSharedV6 {
 
     public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
         (ownership_record.ref_code_params.xp_tax, ownership_record.ref_code_params.fee_tax)
+    }
+
+    public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
+        (ownership_record.gas_index, ownership_record.last_updated)
     }
 
     public fun create_empty_raw_params(): RefCodeParams {
