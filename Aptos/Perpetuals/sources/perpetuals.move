@@ -17,6 +17,7 @@ module dev::QiaraPerpsV5 {
     use dev::QiaraVaultsV19::{Self as Market, Access as MarketAccess};
     use dev::QiaraLiquidityV25::{Self as Liquidity};
 
+    use dev::QiaraStorageV9::{Self as storage};
 
     use dev::QiaraChainTypesV20::{Self as ChainTypes};
     use dev::QiaraTokenTypesV20::{Self as TokensTypes};
@@ -28,6 +29,8 @@ module dev::QiaraPerpsV5 {
     const ERROR_SENDER_DOESNT_MATCH_SIGNER: u64 = 4;
     const ERROR_UNKNOWN_PERP_TYPE: u64 = 5;
     const ERROR_ZERO_SIZE: u64 = 7;
+    const ERROR_SIZE_TOO_SMALL: u64 = 8;
+    const ERROR_USD_SIZE_TOO_SMALL: u64 = 9;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -194,8 +197,7 @@ module dev::QiaraPerpsV5 {
     }
 
     public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
-        ChainTypes::ensure_valid_chain_name(reserve_chain);
-        TokensTypes::ensure_valid_token_nick_name(reserve_token);
+        ensure_safety(asset, size, reserve_chain, reserve_provider, reserve_token);
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(shared, copy user);
         assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
@@ -667,6 +669,24 @@ module dev::QiaraPerpsV5 {
         };
         
         result
+    }
+
+    #[view]
+     public fun min_usd_size(): u256 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MIN_USD_SIZE_PER_TRADE"))) as u256
+    }
+
+    #[view]
+     public fun min_token_size(): u256 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MIN_TOKEN_SIZE_PER_TRADE"))) as u256
+    }
+
+
+    fun ensure_safety(token: String, amount: u256, reserve_chain: String, reserve_provider: String, reserve_token: String) {
+        assert!(amount >= min_token_size(), ERROR_SIZE_TOO_SMALL);
+        assert!(TokensMetadata::getValue(token, amount) >= min_usd_size(), ERROR_USD_SIZE_TOO_SMALL);
+        ChainTypes::ensure_valid_chain_name(reserve_chain);
+        TokensTypes::ensure_valid_token_nick_name(reserve_token);
     }
 
     public fun estimate_pnl(position: &Position, current_price: u256): (u256, bool) {
