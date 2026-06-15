@@ -244,6 +244,14 @@ module dev::QiaraStorageV9 {
 
     }
 
+    public entry fun more7(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"XP_PER_ORACLE_PRICE_DIFF"), 100, true, &give_permission(&give_access(admin))); // 100 xp per 0.01% differnece
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"XP_PER_ORACLE_SECOND_DIFF"), 1, true, &give_permission(&give_access(admin))); // 1 xp per second
+
+    }
+
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         change_constant(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), bc::to_bytes(&100_000u64), &give_permission(&give_access(admin))); // 0.001%  

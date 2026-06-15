@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV5 {
+module dev::QiaraPerpsV6 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -10,7 +10,7 @@ module dev::QiaraPerpsV5 {
     use dev::QiaraMarginV17::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRIV17::{Self as RI};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV20::{Self as TokensMetadata, VMetadata};
+    use dev::QiaraTokensMetadataV20::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV6::{Self as Shared};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
@@ -18,9 +18,11 @@ module dev::QiaraPerpsV5 {
     use dev::QiaraLiquidityV25::{Self as Liquidity};
 
     use dev::QiaraStorageV9::{Self as storage};
-
+    use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraChainTypesV20::{Self as ChainTypes};
     use dev::QiaraTokenTypesV20::{Self as TokensTypes};
+
+    use dev::QiaraGasV5::{Self as Gas, Access as GasAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -49,7 +51,9 @@ module dev::QiaraPerpsV5 {
 
     struct Permissions has key {
         margin: MarginAccess,
+        metadata: TokensMetadataAccess,
         market: MarketAccess,
+        gas: GasAccess
     }
 
     struct Funding has store, key, drop, copy {
@@ -146,8 +150,10 @@ module dev::QiaraPerpsV5 {
         if (!exists<UserBook>(@dev)) { move_to(admin, UserBook { book: table::new<String, Map<String, Position>>() }); };
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { 
+                gas: Gas::give_access(admin),
                 margin: Margin::give_access(admin), 
                 market: Market::give_access(admin),
+                metadata: TokensMetadata::give_access(admin)
             });
         };
 
@@ -195,7 +201,6 @@ module dev::QiaraPerpsV5 {
     public entry fun accrue_interest(user: vector<u8>, shared: String, asset: String) acquires UserBook, AssetBook {
         accrue_interest_internal(user, shared, asset);
     }
-
     public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
         ensure_safety(asset, size, reserve_chain, reserve_provider, reserve_token);
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
@@ -205,7 +210,17 @@ module dev::QiaraPerpsV5 {
 
         // Pre-accrue without active global borrows
         accrue_interest_internal(copy user, copy shared, copy asset);
-        
+        let market = get_market(asset);
+        let (_, impact_fee) = TokensMetadata::impact(asset, size, market.shorts + market.longs, isPositive, utf8(b"Perps"), TokensMetadata::give_permission(&permissions.metadata));
+     
+        let usd_amount =  TokensMetadata::getValue(token, size);
+
+        let gas_rate = Gas::add_leverage(token, leverage, usd_amount, TokensMetadata::give_permission(&permissions.metadata));
+        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
+
+        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
+        if(amount_u256_taxed == 0) { return };
+
         let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
 
         // Borrows hold strictly scoped
@@ -213,10 +228,18 @@ module dev::QiaraPerpsV5 {
         let position = find_position(copy shared, copy asset, user_book);
         let asset_book = borrow_global_mut<AssetBook>(@dev);
         
-        let (size_diff_usd, is_profit) = calculate_position(@0x0, copy asset, copy shared, asset_book, position, size, leverage, isLong, (price as u128), user, reserve_chain, reserve_provider, reserve_token);
+        let (size_diff_usd, is_profit) = calculate_position(@0x0, copy asset,  user, copy shared, asset_book, position, size, leverage, isLong, (price as u128), user, reserve_chain, reserve_provider, reserve_token);
         
         handle_pnl(asset, size_diff_usd, is_profit, user, shared);
     }
+    public entry fun update_oracle_and_trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>) acquires UserBook, AssetBook, Permissions {
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
+        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+        oracle_store::update_price(signer, price_update_data, oracleID);
+        trade(signer, user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
+    }
+
+
 
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
@@ -256,7 +279,23 @@ module dev::QiaraPerpsV5 {
 
 // === HELPER FUNCTIONS ===
 
-    fun calculate_position(validator: address, assetName: String, shared: String, asset_book: &mut AssetBook, position: &mut Position, added_size: u256, leverage: u64, isLong: bool, oracle_price: u128, _user: vector<u8>, reserve_chain: String, reserve_provider: String, reserve_token: String): (u256, bool) {
+    // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
+    fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256, gas_fee: u256): (u256, u256) acquires Permissions{
+        let combined_fee = fee + gas_fee;
+        if (combined_fee < 1 * 1000000000000000000) {
+            combined_fee =  1 * 1000000000000000000;
+        };
+        
+        Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
+        
+        // Safety check to prevent negative amount if deposit amount is less than the minimum fee
+        let taxed_amount = if (amount > combined_fee) { amount - combined_fee } else { 0 };
+        
+        return (taxed_amount, combined_fee)
+    }
+
+    fun calculate_position(validator: address, assetName: String, user: vector<u8>, shared: String, asset_book: &mut AssetBook, position: &mut Position, added_size: u256, leverage: u64, isLong: bool, oracle_price: u128, _user: vector<u8>, reserve_chain: String, reserve_provider: String, reserve_token: String): (u256, bool) {
         let asset = map::borrow_mut(&mut asset_book.book, &assetName);
         let curr_size: u256 = (position.size as u256);
         let add_size: u256 = added_size;
@@ -283,7 +322,7 @@ module dev::QiaraPerpsV5 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"));
+            emit_position_event(validator,user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"));
             return (0, true);
         };
 
@@ -312,7 +351,7 @@ module dev::QiaraPerpsV5 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"));
+            emit_position_event(validator, user,shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"));
             
             return (paid_interest, false);
         };
@@ -345,7 +384,7 @@ module dev::QiaraPerpsV5 {
                 
                 // Add the new flipped exposure
                 update_asset_leverage(asset, remaining_size, leverage, perp_type, true);
-                emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"));
+                emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"));
             } else {
                 position.size = 0;
                 position.leverage = 0;
@@ -358,7 +397,7 @@ module dev::QiaraPerpsV5 {
                 position.reserve_provider = utf8(b"");
                 position.reserve_token = utf8(b"");
 
-                emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"));
+                emit_position_event(validator,user,  shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"));
             };
 
             return (final_pnl, final_is_profit)
@@ -374,7 +413,7 @@ module dev::QiaraPerpsV5 {
 
             // Remove only the closed portion from exposure
             update_asset_leverage(asset, add_size, leverage, old_perp_type, false);
-            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"));
+            emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"));
             
             return (final_pnl, final_is_profit)
         }
@@ -489,9 +528,10 @@ module dev::QiaraPerpsV5 {
         }
     }
 
-    fun emit_position_event(validator: address, shared: String, type: u8, size: u256, leverage: u64, assetName: String, price: u256, event_name: String) {
+    fun emit_position_event(validator: address, user:vector<u8>, shared: String, type: u8, size: u256, leverage: u64, assetName: String, price: u256, event_name: String) {
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&type)),
             Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),

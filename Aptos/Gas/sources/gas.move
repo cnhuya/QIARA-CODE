@@ -1,4 +1,4 @@
-module dev::QiaraGasV2{
+module dev::QiaraGasV5{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -36,6 +36,7 @@ module dev::QiaraGasV2{
 
     struct Gas has copy, key, store {
         avg_leverage: u64,
+        usd_perps_volume: u256,
         usd_deposits: u256,
         usd_withdrawals: u256,
         usd_borrows: u256,
@@ -48,19 +49,38 @@ module dev::QiaraGasV2{
     fun init_module(admin: &signer){
 
         if (!exists<Gas>(@dev)) {
-            move_to(admin, Gas { avg_leverage: 0, usd_deposits: 0, usd_withdrawals: 0, usd_borrows: 0, gas: 0, last_update: timestamp::now_seconds() });
+            move_to(admin, Gas {usd_perps_volume: 0, avg_leverage: 0, usd_deposits: 0, usd_withdrawals: 0, usd_borrows: 0, gas: 0, last_update: timestamp::now_seconds() });
         };
     }
 
-    public fun add_leverage(token: String,leverage: u64): u256 acquires Gas {
+    public fun add_leverage(_token: String, leverage: u64, volume: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
-        gas.avg_leverage = gas.avg_leverage + leverage;
+        
+        if (volume == 0) {
+            let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
+            return gas_rate
+        };
+
+        let old_volume = gas.usd_perps_volume;
+        let new_volume = old_volume + volume;
+
+        // Calculate running weighted leverage sum (scaled to u256 to prevent overflows)
+        let old_weighted_leverage = (gas.avg_leverage as u256) * old_volume;
+        let new_weighted_leverage = (leverage as u256) * volume;
+
+        // Calculate new weighted average leverage
+        let new_avg_leverage = (old_weighted_leverage + new_weighted_leverage) / new_volume;
+
+        // Update Gas state variables
+        gas.avg_leverage = (new_avg_leverage as u64);
+        gas.usd_perps_volume = new_volume;
+
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
         return gas_rate
     }
 
 
-    public fun add_deposit(token: String, deposit: u256): u256 acquires Gas {
+    public fun add_deposit(token: String, deposit: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_deposits = gas.usd_deposits + Oracle::convert_to_usd(token, deposit);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, deposit, 0);
@@ -69,7 +89,7 @@ module dev::QiaraGasV2{
     }
 
 
-    public fun add_withdraw(token: String,withdraw: u256): u256 acquires Gas {
+    public fun add_withdraw(token: String,withdraw: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_withdrawals = gas.usd_withdrawals + Oracle::convert_to_usd(token, withdraw);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, withdraw);
@@ -78,16 +98,13 @@ module dev::QiaraGasV2{
     }
 
 
-    public fun add_borrow(token: String,borrow: u256): u256 acquires Gas {
+    public fun add_borrow(token: String,borrow: u256, cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         gas.usd_borrows = gas.usd_borrows + Oracle::convert_to_usd(token, borrow);
         let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
         gas.gas = gas_rate;
         return gas_rate
     }
-
-
-
 
     public entry fun dev_reset_gas(admin: &signer) acquires Gas {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -122,15 +139,8 @@ module dev::QiaraGasV2{
         return (total_fee, previous_deposit_impact, previous_withdrawal_impact, new_deposits, new_withdrawals, ((ratio*ratio)/e6))
     }
 
-#[view]
-    public fun calculateGas_test(
-        deposits: u256, 
-        withdrawals: u256, 
-        new_deposit: u256, 
-        new_withdrawal: u256, 
-        leverage: u256, 
-        last_update_sec: u256
-    ): (u256, u256, u256, u256, u256, u256) {
+    #[view]
+    public fun calculateGas_test(deposits: u256, withdrawals: u256, new_deposit: u256, new_withdrawal: u256, leverage: u256, last_update_sec: u256): (u256, u256, u256, u256, u256, u256) {
         let base = 1_000_000;
         let withdrawal_weight = 5_000_000;
         let e6 = 1_000_000;
@@ -190,11 +200,8 @@ module dev::QiaraGasV2{
             ((ratio * ratio) / e6)
         )
     }
-public fun calculateGas(
-        gas_ref: &mut Gas, 
-        deposit: u256, 
-        withdrawal: u256
-    ): (u256, u256, u256, u256, u256, u256) {
+
+    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256, u256, u256, u256, u256, u256) {
         let base = 1_000_000u256;
         let withdrawal_weight = 5_000_000u256; // 5x
         let e6 = 1_000_000u256;
@@ -256,16 +263,16 @@ public fun calculateGas(
         )
     }
 
-        #[view]
-        public fun calculate_gas_fee(time: u64, gas_fee: u256, amount: u256): u256 {
-            let time_u256 = (time as u256);
-            let total_fee = (amount * gas_fee * time_u256) / 1_000_000 / 100; // the 100 is for percentage conversion
-            return total_fee
-        }
+    #[view]
+    public fun calculate_gas_fee(time: u64, gas_fee: u256, amount: u256): u256 {
+        let time_u256 = (time as u256);
+        let total_fee = (amount * gas_fee * time_u256) / 1_000_000 / 100; // the 100 is for percentage conversion
+        return total_fee
+    }
 
-       #[view]
-       public fun return_gas(): Gas acquires Gas{
-           return *borrow_global<Gas>(@dev)
-       }
+    #[view]
+    public fun return_gas(): Gas acquires Gas{
+        return *borrow_global<Gas>(@dev)
+    }
 
 }

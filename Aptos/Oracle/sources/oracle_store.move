@@ -32,7 +32,7 @@ module dev::QiaraOracleStoreV5 {
     }
 
     struct Prices has key, store {
-        prices: Map<vector<u8>, PriceStore>,   // ← change key type here
+        prices: Map<vector<u8>, PriceStore>,
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
@@ -40,9 +40,6 @@ module dev::QiaraOracleStoreV5 {
         move_to(admin, Prices { prices: map::new<vector<u8>, PriceStore>() });
     }
 
-    fun tttta(id: u64){
-        abort(id);
-    }
 
     // ── Update + cache ─────────────────────────────────────────────────────────
     public entry fun update_price(user: &signer,price_update_data: vector<vector<u8>>,feed_id_bytes: vector<u8>,) acquires Prices {
