@@ -211,6 +211,37 @@ module dev::QiaraPerpsV4 {
         handle_pnl(asset, size_diff_usd, is_profit, user, shared);
     }
 
+    public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+        Shared::assert_is_sub_owner(copy shared, copy user);
+
+        // IMPORTANT: We must accrue interest BEFORE changing the reserve.
+        // This ensures the debt is snapshotted using the OLD reserve's borrow rate.
+        accrue_interest_internal(copy user, copy shared, copy asset);
+
+        // Now update the position with the new reserve info
+        let user_book = borrow_global_mut<UserBook>(@dev);
+        let position = find_position(copy shared, copy asset, user_book);
+        
+        // Ensure there is actually an active position to change
+        assert!(position.size > 0, ERROR_ZERO_SIZE); 
+
+        position.reserve_chain = copy new_reserve_chain;
+        position.reserve_provider = copy new_reserve_provider;
+        position.reserve_token = copy new_reserve_token;
+
+        // Emit an event to index the change off-chain
+        let data = vector[
+            Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), copy user),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"new_reserve_chain"), utf8(b"string"), bcs::to_bytes(&new_reserve_chain)),
+            Event::create_data_struct(utf8(b"new_reserve_provider"), utf8(b"string"), bcs::to_bytes(&new_reserve_provider)),
+            Event::create_data_struct(utf8(b"new_reserve_token"), utf8(b"string"), bcs::to_bytes(&new_reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"Reserve Changed"), data);
+    }
+
 
 // === HELPER FUNCTIONS ===
 
