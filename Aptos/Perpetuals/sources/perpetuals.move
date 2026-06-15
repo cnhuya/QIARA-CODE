@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV4 {
+module dev::QiaraPerpsV5 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -13,10 +13,13 @@ module dev::QiaraPerpsV4 {
     use dev::QiaraTokensMetadataV20::{Self as TokensMetadata, VMetadata};
 
     use dev::QiaraSharedV6::{Self as Shared};
-    use dev::QiaraTokenTypesV20::{Self as TokensTypes};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV19::{Self as Market, Access as MarketAccess};
     use dev::QiaraLiquidityV25::{Self as Liquidity};
+
+
+    use dev::QiaraChainTypesV20::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV20::{Self as TokensTypes};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -191,6 +194,9 @@ module dev::QiaraPerpsV4 {
     }
 
     public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
+        ChainTypes::ensure_valid_chain_name(reserve_chain);
+        TokensTypes::ensure_valid_token_nick_name(reserve_token);
+        TokensTypes::ensure_token_supported_for_chain(reserve_token, reserve_chain);
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(shared, copy user);
         assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
@@ -212,6 +218,10 @@ module dev::QiaraPerpsV4 {
     }
 
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
+        ChainTypes::ensure_valid_chain_name(new_reserve_chain);
+        TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
+        TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);
+        
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(copy shared, copy user);
 
