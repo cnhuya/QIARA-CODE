@@ -159,6 +159,8 @@ module dev::QiaraStorageV9 {
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_POSITION"), 1_000_000, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"PROFIT_FEE"), 30_000, true, &give_permission(&give_access(admin))); // 0.03%
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"PERPS_PERCENTAGE_SCALE"), 75000, true, &give_permission(&give_access(admin)));
+        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MIN_USD_SIZE_PER_TRADE"), 1_000_000, true, &give_permission(&give_access(admin)));
+        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MIN_TOKEN_SIZE_PER_TRADE"), 1, true, &give_permission(&give_access(admin)));
 
 
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"BASE_UTIL_FEE"), 1_000_000, true, &give_permission(&give_access(admin))); // 1%
@@ -231,6 +233,14 @@ module dev::QiaraStorageV9 {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"CREDIT_SWAP_FEE"), 1_000_000, true, &give_permission(&give_access(admin))); // 1%  
     
+
+    }
+
+    public entry fun more6(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+
+        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MIN_USD_SIZE_PER_TRADE"), 1_000_000, true, &give_permission(&give_access(admin)));
+        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MIN_TOKEN_SIZE_PER_TRADE"), 1, true, &give_permission(&give_access(admin)));
 
     }
 

@@ -196,7 +196,6 @@ module dev::QiaraPerpsV5 {
     public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
         ChainTypes::ensure_valid_chain_name(reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(reserve_token);
-        TokensTypes::ensure_token_supported_for_chain(reserve_token, reserve_chain);
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(shared, copy user);
         assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
@@ -564,7 +563,7 @@ module dev::QiaraPerpsV5 {
             type_name: if (position.isLong) utf8(b"long") else utf8(b"short"),
             last_update: position.last_update,
             asset: asset,
-            used_margin: if (position.leverage > 0) (((position.size as u256) * (position.entry_price as u256)) / (position.leverage as u256)) else 0,
+            used_margin: if (position.leverage > 0) (((position.size as u256) * (position.entry_price as u256)) / (position.leverage as u256))*100 else 0,
             usd_size: (position.size as u256) * (position.entry_price as u256),
             size: position.size,
             entry_price: position.entry_price,
