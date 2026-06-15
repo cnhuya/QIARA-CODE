@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV1{
+module dev::QiaraPerpsV4 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -16,6 +16,7 @@ module dev::QiaraPerpsV1{
     use dev::QiaraTokenTypesV20::{Self as TokensTypes};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV19::{Self as Market, Access as MarketAccess};
+    use dev::QiaraLiquidityV25::{Self as Liquidity};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -23,6 +24,7 @@ module dev::QiaraPerpsV1{
     const ERROR_LEVERAGE_TOO_LOW: u64 = 3;
     const ERROR_SENDER_DOESNT_MATCH_SIGNER: u64 = 4;
     const ERROR_UNKNOWN_PERP_TYPE: u64 = 5;
+    const ERROR_ZERO_SIZE: u64 = 7;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -33,7 +35,7 @@ module dev::QiaraPerpsV1{
         Access {}
     }
 
-    public fun give_permission(access: &Access): Permission {
+    public fun give_permission(_access: &Access): Permission {
         Permission {}
     }
 
@@ -44,14 +46,15 @@ module dev::QiaraPerpsV1{
         market: MarketAccess,
     }
 
-    struct Funding has store, key, drop, copy{
+    struct Funding has store, key, drop, copy {
         rate: u128,
         previous_rate: u128,
         is_positive: bool
     }
 
-    struct Asset has store, key, drop{
+    struct Asset has store, key, drop {
         asset: String,
+        ema_price: u256,
         shorts: u256,
         longs: u256,
         long_interest_index: u128,
@@ -61,15 +64,17 @@ module dev::QiaraPerpsV1{
         leverage: u32,
         funding: Funding,
         last_trade: u64,
-        avg_long_entry: u128,                      // Added for global long health tracking
-        avg_short_entry: u128                       // Added for global short health tracking
+        avg_long_entry: u128,
+        avg_short_entry: u128,
+        last_ema_update: u64,
     }
     
-    struct ViewAsset has store, key{
+    struct ViewAsset has store, key {
         asset: String,
-        shorts: u128,
-        longs: u128,
-        oi: u128,
+        ema_price: u256,
+        shorts: u256,
+        longs: u256,
+        oi: u256,
         long_interest_index: u128,
         short_interest_index: u128,
         long_funding_index: u128,
@@ -82,7 +87,7 @@ module dev::QiaraPerpsV1{
         last_trade: u64
     }
 
-    struct Position has copy, drop, store, key {
+    struct Position has copy, drop, store {
         size: u64,
         entry_price: u128,
         isLong: bool,
@@ -91,7 +96,8 @@ module dev::QiaraPerpsV1{
         interest_index: u256,
         reserve_chain: String,
         reserve_provider: String,
-        reserve_token: String
+        reserve_token: String,
+        accrued_interest: u256,
     }
 
     struct ViewPosition has copy, drop, store, key {
@@ -108,7 +114,11 @@ module dev::QiaraPerpsV1{
         is_profit: bool,
         denom: u256,
         profit_fee: u64,
-        last_update: u64
+        last_update: u64,
+        accrued_interest: u256,
+        reserve_chain: String,
+        reserve_provider: String,
+        reserve_token: String,
     }
 
     struct AssetBook has key, store {
@@ -118,263 +128,120 @@ module dev::QiaraPerpsV1{
     struct UserBook has key, store {
         book: table::Table<String, Map<String, Position>>,
     }
-
-
-/// === INIT ===
-    fun init_module(admin: &signer) acquires Markets, AssetBook{
-
-        if (!exists<AssetBook>(@dev)) {
-            move_to(admin, AssetBook { book: map::new<String, Asset>()});
-        };
-
-        if (!exists<UserBook>(@dev)) {
-            move_to(admin, UserBook { book: table::new<String, Map<String, Position>>()});
-        };
-
-        if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { margin: Margin::give_access(admin), market: Market::give_access(admin),});
-        };
-
-        create_market(admin, utf8(b"Bitcoin"));
-        create_market(admin, utf8(b"Ethereum"));
-        create_market(admin, utf8(b"Sui"));
-        create_market(admin, utf8(b"Monad"));
-        create_market(admin, utf8(b"Virtuals"));
-        create_market(admin, utf8(b"Aptos"));
-        create_market(admin, utf8(b"Deepbook"));
-
+    
+    struct Markets has key, store {
+        list: vector<String>,
     }
 
+/// === INIT ===
+    fun init_module(admin: &signer) {
+        if (!exists<Markets>(@dev)) { move_to(admin, Markets { list: vector::empty<String>() }); };
+        if (!exists<AssetBook>(@dev)) { move_to(admin, AssetBook { book: map::new<String, Asset>() }); };
+        if (!exists<UserBook>(@dev)) { move_to(admin, UserBook { book: table::new<String, Map<String, Position>>() }); };
+        if (!exists<Permissions>(@dev)) {
+            move_to(admin, Permissions { 
+                margin: Margin::give_access(admin), 
+                market: Market::give_access(admin),
+            });
+        };
+
+        let initial_markets = vector[
+            utf8(b"Bitcoin"), utf8(b"Ethereum"), utf8(b"Sui"), utf8(b"Monad"), 
+            utf8(b"Virtuals"), utf8(b"Aptos"), utf8(b"Deepbook")
+        ];
+        
+        let i = 0;
+        while (i < vector::length(&initial_markets)) {
+            create_market(admin, *vector::borrow(&initial_markets, i));
+            i = i + 1;
+        };
+    }
 
 /// === ENTRY FUNCTIONS ===
-    public entry fun create_market(admin: &signer, name: String) acquires Markets, AssetBook{
+    public entry fun create_market(_admin: &signer, name: String) acquires Markets, AssetBook {
         TokensTypes::ensure_valid_token_nick_name(name);
 
         let asset_book = borrow_global_mut<AssetBook>(@dev);
+        let initial_price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(name));
 
         if (!map::contains_key(&asset_book.book, &name)) {
             map::upsert(&mut asset_book.book, name, Asset { 
                 asset: name,
-                shorts: 0,
-                longs: 0,
-                long_interest_index: 1000000000000, // Starts at 1.0 (1e12 scale)
-                short_interest_index: 1000000000000, // Starts at 1.0 (1e12 scale)
-                long_funding_index: 0,
-                short_funding_index: 0,
+                ema_price: (initial_price as u256),
+                shorts: 0, longs: 0,
+                long_interest_index: 1000000000000,
+                short_interest_index: 1000000000000,
+                long_funding_index: 0, short_funding_index: 0,
                 leverage: 0,
                 funding: Funding { rate: 0, previous_rate: 0, is_positive: true },
                 last_trade: timestamp::now_seconds(),
-                avg_long_entry: 0,
-                avg_short_entry: 0
+                avg_long_entry: 0, avg_short_entry: 0,
+                last_ema_update: timestamp::now_seconds(),
             });
         };
 
         let markets = borrow_global_mut<Markets>(@dev);
-        assert!(!vector::contains(&markets.list, &name),ERROR_MARKET_ALREADY_EXISTS);
-        vector::push_back(&mut markets.list, name);
-    }
-
-    fun find_position(shared: String, name:String, user_book: &mut UserBook): &mut Position {
-        if (!table::contains(&user_book.book, shared)) {
-            table::add(&mut user_book.book, shared, map::new<String, Position>());
-        };
-
-        let user_map = table::borrow_mut(&mut user_book.book, shared);
-        if(!map::contains_key(user_map, &name)){
-            map::upsert(user_map, name, Position {
-                size: 0,
-                entry_price: 0,
-                type: 0,
-                leverage: 0,
-                last_update: 0,
-                entry_interest_index: 0,
-                reserve_chain: utf8(b""),
-                reserve_provider: utf8(b""),
-                reserve_token: utf8(b"")
-            });
-        };
-
-        map::borrow_mut(user_map, &name)
-    }
-
-    fun find_asset(asset: String, asset_book: &mut AssetBook): &mut Asset {
-        map::borrow_mut(&mut asset_book.book, &asset)
-    }
-
-
-    // Native Interface
-        public entry fun trade_limit(signer: &signer, user: vector<u8>, desired_price: u256, shared: String, asset: String, size:u256, leverage: u64, type: u8) {
-            assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-            Shared::assert_is_sub_owner(shared, user);
-            assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
-
-            let nonce = Nonce::return_user_nonce_by_type(user, utf8(b"native"));
-            let identifier = Event::create_identifier(user, utf8(b"native"), bcs::to_bytes(&nonce));
-
-            let data = vector[
-                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
-                Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
-                Event::create_data_struct(utf8(b"desired_price"), utf8(b"u256"), bcs::to_bytes(&desired_price)),
-                Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-                Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"),identifier),
-            ];
-
-            Event::emit_automated_event(utf8(b"perps"), data);
-        }
-
-        public entry fun trade_util(signer: &signer, user: vector<u8>, shared: String, asset: String, size:u256, leverage: u64, type:String) acquires Permissions, AssetBook, UserBook{
-            assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-            Shared::assert_is_sub_owner(shared, user);
-            
-            let position = find_position(shared, asset, borrow_global_mut<UserBook>(@dev));
-            let asset_book = borrow_global_mut<AssetBook>(@dev);
-            let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset)); 
-
-            if(type == utf8(b"flip") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0,  asset, shared, asset_book,position, size*2, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"flip") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared, asset_book,position, size*2, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"close") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared, asset_book,position, size, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"close") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0,asset,shared, asset_book,position, size, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"double") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0,asset, shared,asset_book,position, size, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"double") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            };
-        }
-
-        public entry fun trade(signer: &signer, user: vector<u8>, reserve_chain: String, reserve_provider: String, reserve_token: String, shared: String, chain:String, provider: String, asset: String, size:u256, leverage: u64, type: u8) acquires UserBook, AssetBook, Permissions {
-            assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-            Shared::assert_is_sub_owner(shared, user);
-
-            let position = find_position(shared, asset, borrow_global_mut<UserBook>(@dev));
-            let asset_book = borrow_global_mut<AssetBook>(@dev);
-            let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset));
-            assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
-
-            let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared, asset_book,position, size, leverage, type, (price as u128), user);
-            handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-
-        }
-
-    // Permissionless Interface
-        public fun p_trade_limit(validator: &signer, user: vector<u8>, shared: String,  chain:String, provider: String, asset: String, size:u256, leverage: u64,type: u8, desired_price: u256, perm: Permission){
-            Shared::assert_is_sub_owner(shared, user);
-            assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
-
-            let data = vector[
-                Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),
-                Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
-                Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
-                Event::create_data_struct(utf8(b"desired_price"), utf8(b"u256"), bcs::to_bytes(&desired_price)),
-            ];
-
-            Event::emit_automated_event(utf8(b"perps"), data);
-        }
-
-        public fun p_trade_util(validator: &signer,user: vector<u8>, shared: String,  chain:String, provider: String, asset: String, size:u256, leverage: u64, type:String, perm: Permission) acquires Permissions, AssetBook, UserBook{
-            Shared::assert_is_sub_owner(shared, user);
-            
-            let position = find_position(shared, asset, borrow_global_mut<UserBook>(@dev));
-            let asset_book = borrow_global_mut<AssetBook>(@dev);
-            let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset)); 
-
-            if(type == utf8(b"flip") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size*2, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"flip") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size*2, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"close") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"close") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"double") && (position.type == 1)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size, leverage, 1, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            } else if(type == utf8(b"double") && (position.type == 2)){
-                let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared,asset_book,position, size, leverage, 2, (price as u128), user);
-                handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-            };
-        }
-
-        public fun p_trade(validator: &signer,user: vector<u8>, shared: String,  chain:String, provider: String, asset: String, size:u256, leverage: u64, limit: u256, type: u8, perm: Permission) acquires UserBook, AssetBook, Permissions {
-            Shared::assert_is_sub_owner(shared, user);
-
-            let position = find_position(shared, asset, borrow_global_mut<UserBook>(@dev));
-
-            let asset_book = borrow_global_mut<AssetBook>(@dev);
-            let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset));
-            assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
-
-            let (size_diff_usd, is_profit) = calculate_position(@0x0, asset, shared, asset_book,position, size, leverage, type, (price as u128), user);
-            handle_pnl(asset, size_diff_usd, is_profit, user,shared );
-
-        }
-
-
-/// === HELPER FUNCTIONS ===
-    fun handle_pnl(asset: String, pnl: u256, is_profit: bool, sub_owner: vector<u8>, shared: String) acquires Permissions {
-        if (pnl == 0) { 
-            return; 
-        };
-        if (is_profit) {
-            Margin::add_credit(shared,sub_owner, pnl, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        } else {
-            Margin::remove_credit(shared,sub_owner, pnl, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        if (!vector::contains(&markets.list, &name)) {
+            vector::push_back(&mut markets.list, name);
         };
     }
 
-    fun calculate_position(validator: address, assetName: String, shared: String, asset_book: &mut AssetBook,position: &mut Position,added_size: u256,leverage: u64,type: u8,oracle_price: u128, user: vector<u8>): (u256, bool)  {
-        let asset = find_asset(assetName, asset_book);
+    public entry fun accrue_interest(user: vector<u8>, shared: String, asset: String) acquires UserBook, AssetBook {
+        accrue_interest_internal(user, shared, asset);
+    }
+
+    public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+        Shared::assert_is_sub_owner(shared, copy user);
+        assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
+        assert!(size > 0, ERROR_ZERO_SIZE);
+
+        // Pre-accrue without active global borrows
+        accrue_interest_internal(copy user, copy shared, copy asset);
+        
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+
+        // Borrows hold strictly scoped
+        let user_book = borrow_global_mut<UserBook>(@dev);
+        let position = find_position(copy shared, copy asset, user_book);
+        let asset_book = borrow_global_mut<AssetBook>(@dev);
+        
+        let (size_diff_usd, is_profit) = calculate_position(@0x0, copy asset, copy shared, asset_book, position, size, leverage, isLong, (price as u128), user, reserve_chain, reserve_provider, reserve_token);
+        
+        handle_pnl(asset, size_diff_usd, is_profit, user, shared);
+    }
+
+
+// === HELPER FUNCTIONS ===
+
+    fun calculate_position(validator: address, assetName: String, shared: String, asset_book: &mut AssetBook, position: &mut Position, added_size: u256, leverage: u64, isLong: bool, oracle_price: u128, _user: vector<u8>, reserve_chain: String, reserve_provider: String, reserve_token: String): (u256, bool) {
+        let asset = map::borrow_mut(&mut asset_book.book, &assetName);
         let curr_size: u256 = (position.size as u256);
-        let add_size: u256 = (added_size as u256);
+        let add_size: u256 = added_size;
         let lev: u256 = (leverage as u256);
         let price: u256 = (oracle_price as u256);
+        let current_interest_index = if (isLong) { asset.long_interest_index } else { asset.short_interest_index };
         
-        // Case 1: No existing position - open new
+        // Convert the bool to the u8 type (1 = long, 2 = short) for the helper functions
+        let perp_type: u8 = if (isLong) { 1 } else { 2 };
+        
+        // Case 1: Open New
         if (position.size == 0) {
-            position.size = added_size;
-            position.leverage = leverage;
-            position.type = type;
-            position.entry_price = price;
-            
-            // Set entry index based on user's direction
-            let current_interest_index = if (type == 1) { asset.long_interest_index } else { asset.short_interest_index };
-            position.entry_interest_index = current_interest_index;
+            position.size = (added_size as u64);
+            position.leverage = (leverage as u32);
+            position.isLong = isLong;
+            position.entry_price = (price as u128);
+            position.interest_index = (current_interest_index as u256);
             position.last_update = timestamp::now_seconds();
-
-            // Update asset tracking (and dynamically update the global interest rate indices)
-            update_asset_leverage(asset, add_size, lev, type, true, price);
+            position.accrued_interest = 0;
             
-            let data = vector[
-                        Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
-                        Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                        Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                        Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&added_size)),
-                        Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                        Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((added_size/lev)*100))),
-                        Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
-                        Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
-                        Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
-                    ];
-            Event::emit_perps_event(utf8(b"Open Position"), data);
+            // Save newly supplied reserves info
+            position.reserve_chain = copy reserve_chain;
+            position.reserve_provider = copy reserve_provider;
+            position.reserve_token = copy reserve_token;
+
+            update_asset_leverage(asset, add_size, leverage, perp_type, true);
+            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"));
             return (0, true);
         };
 
@@ -383,456 +250,387 @@ module dev::QiaraPerpsV1{
         let weighted_curr_lev = curr_size * curr_lev;
         let weighted_curr_price = curr_size * curr_price;
 
-        // Case 2: Same direction - add exposure (Realize interest up to this point first)
-        if (position.type == type) {
+        // Case 2: Increase Size
+        if (position.isLong == isLong) {
             let weighted_new_lev = add_size * lev;
             let weighted_new_price = add_size * price;
-
             let new_size = curr_size + add_size;
-            let new_leverage = (weighted_curr_lev + weighted_new_lev) / new_size;
-            let new_price = (weighted_curr_price + weighted_new_price) / new_size;
 
-            // Compute accumulated interest on the existing portion before updating the position variables
-            let current_interest_index = if (type == 1) { asset.long_interest_index } else { asset.short_interest_index };
-            let (interest_pnl, is_profit) = calculate_and_deduct_interest(position, current_interest_index, 0, true, curr_size);
+            let (paid_interest, _) = settle_interest(position, 0, true, curr_size, curr_size);
 
-            position.size = new_size;
-            position.leverage = (new_leverage as u64);
-            position.entry_price = (new_price as u256);
-            
-            // Restart the interest index clock with the new snapshot
-            position.entry_interest_index = current_interest_index;
+            position.size = (new_size as u64);
+            position.leverage = ((weighted_curr_lev + weighted_new_lev) / new_size as u32);
+            position.entry_price = ((weighted_curr_price + weighted_new_price) / new_size as u128);
+            position.interest_index = (current_interest_index as u256);
             position.last_update = timestamp::now_seconds();
 
-            // Update asset tracking
-            update_asset_leverage(asset, add_size, lev, type, true, price);
+            // Update to latest reserve info
+            position.reserve_chain = copy reserve_chain;
+            position.reserve_provider = copy reserve_provider;
+            position.reserve_token = copy reserve_token;
+
+            update_asset_leverage(asset, add_size, leverage, perp_type, true);
+            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"));
             
-            let data = vector[
-                        Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
-                        Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                        Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                        Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&added_size)),
-                        Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                        Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((added_size/lev)*100))),
-                        Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
-                        Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
-                        Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
-                    ];
-            Event::emit_perps_event(utf8(b"Add Size"), data);
-            
-            // Realize interest deduction on the old size
-            return (interest_pnl, is_profit) 
+            return (paid_interest, false);
         };
 
-        // Case 3: Opposite direction - reduce or flip
-        if (add_size >= curr_size) {
-            // Closing entire position (and maybe flipping)
-            let closed_size = curr_size;
-            let (pnl, is_profit) = calculate_pnl(position.type, curr_price, price, closed_size);
-            
-            // Settle interest accrued on the entire closed position
-            let current_interest_index = if (position.type == 1) { asset.long_interest_index } else { asset.short_interest_index };
-            let (final_pnl, final_is_profit) = calculate_and_deduct_interest(position, current_interest_index, pnl, is_profit, closed_size);
+        // Helper to grab the OLD direction for removing size
+        let old_perp_type = if (position.isLong) { 1 } else { 2 };
 
-            // Remove entire old position from asset tracking
-            update_asset_leverage(asset, curr_size, curr_lev, position.type, false, price);
+        // Case 3: Flip / Fully Close
+        if (add_size >= curr_size) {
+            let (pnl, is_profit) = calculate_pnl(position.isLong, curr_price, price, curr_size);
+            let (final_pnl, final_is_profit) = settle_interest(position, pnl, is_profit, curr_size, curr_size);
+
+            // Remove the old position exposure
+            update_asset_leverage(asset, curr_size, leverage, old_perp_type, false);
             
-            // Now flip into new side if there's remaining size
             let remaining_size = add_size - curr_size;
             if (remaining_size > 0) {
-                position.size = remaining_size;
-                position.leverage = leverage;
-                position.type = type;
-                position.entry_price = price;
-                
-                // Track interest snapshot of the new flipped direction
-                let current_interest_index_new = if (type == 1) { asset.long_interest_index } else { asset.short_interest_index };
-                position.entry_interest_index = current_interest_index_new;
+                position.size = (remaining_size as u64);
+                position.leverage = (leverage as u32);
+                position.isLong = isLong;
+                position.entry_price = (price as u128);
+                position.interest_index = (current_interest_index as u256);
                 position.last_update = timestamp::now_seconds();
+                position.accrued_interest = 0; 
+
+                // Start new flipped position with latest reserve info
+                position.reserve_chain = copy reserve_chain;
+                position.reserve_provider = copy reserve_provider;
+                position.reserve_token = copy reserve_token;
                 
-                // Add new position to asset tracking
-                update_asset_leverage(asset, remaining_size, lev, type, true, price);
-                
-                let data = vector[
-                            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
-                            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                            Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                            Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&added_size)),
-                            Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                            Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((added_size/lev)*100))),
-                            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
-                            Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
-                            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
-                        ];
-                Event::emit_perps_event(utf8(b"Reduce & Flip Side"), data);
+                // Add the new flipped exposure
+                update_asset_leverage(asset, remaining_size, leverage, perp_type, true);
+                emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"));
             } else {
-                // Fully closed, no new position
                 position.size = 0;
                 position.leverage = 0;
                 position.entry_price = 0;
-                position.entry_interest_index = 0;
-                position.last_update = 0;
+                position.interest_index = 0;
+                position.accrued_interest = 0;
 
-                let data = vector[
-                            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
-                            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                            Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                            Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&added_size)),
-                            Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                            Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((added_size/lev)*100))),
-                            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
-                            Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
-                            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
-                        ];
-                Event::emit_perps_event(utf8(b"Close"), data);
+                // Reset reserve fields to empty
+                position.reserve_chain = utf8(b"");
+                position.reserve_provider = utf8(b"");
+                position.reserve_token = utf8(b"");
+
+                emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"));
             };
 
             return (final_pnl, final_is_profit)
         } else {
-            // Partial close
-            let closed_size = add_size;
-            let (pnl, is_profit) = calculate_pnl(position.type, curr_price, price, closed_size);
+            // Case 4: Partial Close
+            let (pnl, is_profit) = calculate_pnl(position.isLong, curr_price, price, add_size);
+            let (final_pnl, final_is_profit) = settle_interest(position, pnl, is_profit, add_size, curr_size);
 
-            // Compute and settle interest on the closed portion only
-            let current_interest_index = if (position.type == 1) { asset.long_interest_index } else { asset.short_interest_index };
-            let (final_pnl, final_is_profit) = calculate_and_deduct_interest(position, current_interest_index, pnl, is_profit, closed_size);
-
-            position.size = (curr_size - add_size);
+            position.size = ((curr_size - add_size) as u64);
             position.last_update = timestamp::now_seconds();
 
-            // Remove closed portion from asset tracking
-            update_asset_leverage(asset, closed_size, curr_lev, position.type, false, price);
+            // Note: intentionally leaving reserve details untouched here to keep the active margin state.
 
-            let data = vector[
-                        Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
-                        Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-                        Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&convert_perp_type_to_name(type))),
-                        Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&added_size)),
-                        Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-                        Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((added_size/lev)*100))),
-                        Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
-                        Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
-                        Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
-                    ];
-            Event::emit_perps_event(utf8(b"Partial Close"), data);
+            // Remove only the closed portion from exposure
+            update_asset_leverage(asset, add_size, leverage, old_perp_type, false);
+            emit_position_event(validator, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"));
             
             return (final_pnl, final_is_profit)
         }
-
     }
 
-    fun update_asset_leverage(asset: &mut Asset,size: u256,leverage: u256,type: u8,is_add: bool, price: u256) {
-        let now = timestamp::now_seconds();
+    fun settle_interest(position: &mut Position, pnl: u256, is_profit: bool, closed_size: u256, curr_size: u256): (u256, bool) {
+        if (position.accrued_interest == 0 || curr_size == 0 || closed_size == 0) return (pnl, is_profit);
+
+        let paid_interest = position.accrued_interest * closed_size / curr_size;
+        position.accrued_interest = position.accrued_interest - paid_interest;
+
+        if (is_profit) {
+            if (pnl >= paid_interest) { (pnl - paid_interest, true) } else { (paid_interest - pnl, false) }
+        } else {
+            (pnl + paid_interest, false)
+        }
+    }
+
+    fun calculate_user_interest(asset: &Asset, position: &Position, _current_price: u256, current_time: u64): (u128, u256) {
+        if (position.size == 0) return (0, 0);
+        let time_delta = (current_time - position.last_update) as u128;
+        if (time_delta == 0) return (0, 0);
         
-        // Dynamically update the continuous interest indexes using the elapsed time up to this trade
-        update_global_interest_indices(asset, (price as u128), now);
+        let ema_price = asset.ema_price;
+        let entry = (position.entry_price as u256);
+        if (entry == 0) return (0, ema_price);
 
-        if (type == 1) {
-            if (is_add) {
-                // Adding to longs: Update weighted leverage and global entry price
-                let current_weighted_lev = asset.longs * (asset.leverage as u256);
-                let new_weighted_lev = current_weighted_lev + (size * leverage);
-                
-                let current_weighted_entry = asset.longs * asset.avg_long_entry;
-                asset.longs = asset.longs + size;
-                asset.leverage = ((new_weighted_lev / asset.longs) as u64);
-                asset.avg_long_entry = (current_weighted_entry + (size * (price as u128))) / asset.longs;
+        let is_profitable = if (position.isLong) { ema_price >= entry } else { entry >= ema_price };
+        let drawdown_percent = if (!is_profitable) {
+            if (position.isLong) {
+                if (entry > ema_price) { ((entry - ema_price) * 10000 / entry) as u128 } else { 0 }
             } else {
-                // Removing from longs
-                let current_weighted_lev = asset.longs * (asset.leverage as u256);
-                let removed_weighted_lev = size * leverage;
-                
-                // Prevent underflow
-                if (asset.longs >= size) {
-                    asset.longs = asset.longs - size;
-                    if (asset.longs > 0) {
-                        asset.leverage = (((current_weighted_lev - removed_weighted_lev) / asset.longs) as u64);
-                    } else {
-                        asset.leverage = 0;
-                        asset.avg_long_entry = 0;
-                    }
-                };
+                if (ema_price > entry) { ((ema_price - entry) * 10000 / entry) as u128 } else { 0 }
             }
-        } else {
-            if (is_add) {
-                // Adding to shorts: Update weighted leverage and global entry price
-                let current_weighted_lev = asset.shorts * (asset.leverage as u256);
-                let new_weighted_lev = current_weighted_lev + (size * leverage);
-                
-                let current_weighted_entry = asset.shorts * asset.avg_short_entry;
-                asset.shorts = asset.shorts + size;
-                asset.leverage = ((new_weighted_lev / asset.shorts) as u64);
-                asset.avg_short_entry = (current_weighted_entry + (size * (price as u128))) / asset.shorts;
-            } else {
-                // Removing from shorts
-                let current_weighted_lev = asset.shorts * (asset.leverage as u256);
-                let removed_weighted_lev = size * leverage;
-                
-                // Prevent underflow
-                if (asset.shorts >= size) {
-                    asset.shorts = asset.shorts - size;
-                    if (asset.shorts > 0) {
-                        asset.leverage = (((current_weighted_lev - removed_weighted_lev) / asset.shorts) as u64);
-                    } else {
-                        asset.leverage = 0;
-                        asset.avg_short_entry = 0;
-                    }
-                };
-            }
-        };
+        } else { 0 };
+        
+        // Fetch dynamic borrow rate from Liquidity module
+        let (_, _, _, _, final_borrow_rate) = Liquidity::return_raw_data_vault(position.reserve_token, position.reserve_chain, position.reserve_provider);
 
-        let new_funding = calculate_funding(asset.longs, asset.shorts, 0, ((now - asset.last_trade) as u256), asset.funding.rate);
-        asset.funding = new_funding;
-    }
-
-    fun calculate_pnl(type: u8, entry_price: u256, exit_price: u256, size: u256): (u256, bool) {
-        if (type == 1) {
-            if (exit_price >= entry_price) {
-                ((exit_price - entry_price) * size, true)
-            } else {
-                ((entry_price - exit_price) * size, false)
-            }
-        } else {
-            if (entry_price >= exit_price) {
-                ((entry_price - exit_price) * size, true)
-            } else {
-                ((exit_price - entry_price) * size, false)
-            }
-        }
-    }
-
-    public fun estimate_pnl(position: &Position, current_price: u256): (u256, bool) {
-        if (position.size == 0) {
-            return (0, true)
-        };
-
-        let entry_price: u256 = (position.entry_price as u256);
-        let size: u256 = (position.size as u256);
-
-        if (position.type == 1) {
-            if (current_price >= entry_price) {
-                ((current_price - entry_price) * size, true)
-            } else {
-                ((entry_price - current_price) * size, false)
-            }
-        } else {
-            if (entry_price >= current_price) {
-                ((entry_price - current_price) * size, true)
-            } else {
-                ((current_price - entry_price) * size, false)
-            }
-        }
-    }
-
-/// === VIEW FUNCTIONS ===
-    #[view]
-    public fun get_positions(shared: String): Map<String, ViewPosition> acquires UserBook {
-        let user_book = borrow_global_mut<UserBook>(@dev);
-        let vect = map::new<String, ViewPosition>();
-
-        if (!table::contains(&user_book.book, shared)) {
-            return vect
-        };
-
-        let user_map = table::borrow_mut(&mut user_book.book, shared);
-        let assets = map::keys(user_map);
-        let len = vector::length(&assets);
-        let i = 0;
-
-        while (i < len) {
-            let asset = vector::borrow(&assets, i);
-            let position = get_position(*asset, shared);
-            map::upsert(&mut vect, *asset, position);
+        // Convert the 1_000_000 scale to the 1_000_000_000_000 (1e12) scale
+        let base_rate: u128 = (final_borrow_rate as u128) * 1000000; 
+        
+        let x = drawdown_percent;
+        let exp_multiplier = (10000 + x + (x * x / 20000) + (x * x * x / 600000000));
+        let annual_rate = base_rate * exp_multiplier / 10000;
+        
+        let position_value = (position.size as u128) * (position.entry_price as u128);
+        let year_seconds: u128 = 365 * 24 * 3600;
+        let interest = position_value * annual_rate * time_delta / (year_seconds * 1000000000000);
+        
+        let current_index = if (position.isLong) { asset.long_interest_index } else { asset.short_interest_index };
+        let index_interest = if (position.interest_index > 0) {
+            let cur_idx_u128 = current_index as u128;
+            let pos_idx_u128 = position.interest_index as u128;
             
-            i = i + 1;
-        };
+            // Manual saturating subtraction (Move has no native saturating_sub)
+            let index_diff = if (cur_idx_u128 > pos_idx_u128) { cur_idx_u128 - pos_idx_u128 } else { 0 };
+            position_value * index_diff / 1000000000000
+        } else { 0 };
+        
+        (interest + index_interest, ema_price)
+    }
 
-        return vect
+    fun update_ema(asset: &mut Asset, spot_price: u256) {
+        let now = timestamp::now_seconds();
+        let time_passed = now - asset.last_ema_update;
+        if (time_passed < 60) return;
+        
+        let periods = time_passed / 60;
+        let computed_alpha = 1000 * periods; 
+        let alpha = if (computed_alpha > 10000) 10000 else computed_alpha;
+        let denominator = 10000;
+        
+        asset.ema_price = ((alpha as u256) * spot_price + ((denominator - alpha) as u256) * asset.ema_price) / (denominator as u256);
+        asset.last_ema_update = now - (time_passed % 60); // Prevents time tracking drift
+    }
+
+    fun update_asset_leverage(asset: &mut Asset, size_delta: u256, leverage: u64, perp_type: u8, is_increase: bool) {
+        let is_long = perp_type == 1;
+        if (is_increase) {
+            if (is_long) { asset.longs = asset.longs + size_delta; } 
+            else { asset.shorts = asset.shorts + size_delta; };
+        } else {
+            if (is_long) { 
+                asset.longs = if (asset.longs > size_delta) asset.longs - size_delta else 0; 
+            } else { 
+                asset.shorts = if (asset.shorts > size_delta) asset.shorts - size_delta else 0; 
+            };
+        };
+        if (leverage > 0) asset.leverage = (leverage as u32);
+    }
+
+    fun find_position(shared: String, name: String, user_book: &mut UserBook): &mut Position {
+        if (!table::contains(&user_book.book, shared)) table::add(&mut user_book.book, copy shared, map::new<String, Position>());
+        let user_map = table::borrow_mut(&mut user_book.book, shared);
+        
+        if (!map::contains_key(user_map, &name)) {
+            map::upsert(user_map, copy name, Position {
+                size: 0, entry_price: 0, isLong: false, leverage: 0, last_update: 0,
+                interest_index: 0, reserve_chain: utf8(b""), reserve_provider: utf8(b""),
+                reserve_token: utf8(b""), accrued_interest: 0,
+            });
+        };
+        map::borrow_mut(user_map, &name)
+    }
+
+    fun calculate_pnl(is_long: bool, entry_price: u256, exit_price: u256, size: u256): (u256, bool) {
+        if (is_long) {
+            if (exit_price >= entry_price) ((exit_price - entry_price) * size, true) else ((entry_price - exit_price) * size, false)
+        } else {
+            if (entry_price >= exit_price) ((entry_price - exit_price) * size, true) else ((exit_price - entry_price) * size, false)
+        }
+    }
+
+    fun emit_position_event(validator: address, shared: String, type: u8, size: u256, leverage: u64, assetName: String, price: u256, event_name: String) {
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&type)),
+            Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
+            Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
+            Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((size / (leverage as u256)) * 100))),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
+            Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
+            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
+        ];
+        Event::emit_perps_event(event_name, data);
+    }
+
+    fun accrue_interest_internal(user: vector<u8>, shared: String, asset: String) acquires UserBook, AssetBook {
+        let user_book = borrow_global_mut<UserBook>(@dev);
+        let position = find_position(shared, copy asset, user_book);
+        if (position.size == 0) return;
+        
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        let asset_book = borrow_global_mut<AssetBook>(@dev);
+        let asset_ref = map::borrow_mut(&mut asset_book.book, &asset);
+        
+        update_ema(asset_ref, (price as u256));
+        
+        let current_time = timestamp::now_seconds();
+        let (interest, _) = calculate_user_interest(asset_ref, position, (price as u256), current_time);
+        
+        position.accrued_interest = position.accrued_interest + (interest as u256);
+        let current_index = if (position.isLong) { asset_ref.long_interest_index } else { asset_ref.short_interest_index };
+        position.interest_index = (current_index as u256);
+        position.last_update = current_time;
+        
+        let data = vector[
+            Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"interest"), utf8(b"u256"), bcs::to_bytes(&(interest as u256))),
+        ];
+        Event::emit_perps_event(utf8(b"Interest Accrued"), data);
+    }
+
+    fun handle_pnl(_asset: String, pnl: u256, is_profit: bool, sub_owner: vector<u8>, shared: String) acquires Permissions {
+        if (pnl == 0) return; 
+        
+        let permissions = borrow_global<Permissions>(@dev);
+        if (is_profit) {
+            Margin::add_credit(shared, sub_owner, pnl, Margin::give_permission(&permissions.margin));
+        } else {
+            Margin::remove_credit(shared, sub_owner, pnl, Margin::give_permission(&permissions.margin));
+        };
+    }
+
+
+// === VIEW FUNCTIONS ===
+
+    fun empty_view_position(asset: String, price: u128, denom: u128): ViewPosition {
+        ViewPosition {
+            type_name: utf8(b""), last_update: 0, asset: asset, used_margin: 0, usd_size: 0, 
+            size: 0, entry_price: 0, price: (price as u256), isLong: false, leverage: 0, 
+            pnl: 0, is_profit: false, denom: (denom as u256), profit_fee: 0, accrued_interest: 0, reserve_chain: utf8(b""), reserve_provider: utf8(b""), reserve_token: utf8(b"")
+        }
+    }
+
+    fun build_view_position(asset: String, position: &Position, asset_ref: &Asset): ViewPosition {
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        let denom = TokensMetadata::get_coin_metadata_denom(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        
+        let (pnl, is_profit) = estimate_pnl(position, (price as u256));
+        let (pending_interest, _) = calculate_user_interest(asset_ref, position, (price as u256), timestamp::now_seconds());
+        
+        ViewPosition {
+            type_name: if (position.isLong) utf8(b"long") else utf8(b"short"),
+            last_update: position.last_update,
+            asset: asset,
+            used_margin: if (position.leverage > 0) (((position.size as u256) * (position.entry_price as u256)) / (position.leverage as u256)) else 0,
+            usd_size: (position.size as u256) * (position.entry_price as u256),
+            size: position.size,
+            entry_price: position.entry_price,
+            price: (price as u256),
+            isLong: position.isLong,
+            leverage: position.leverage,
+            pnl: pnl,
+            is_profit: is_profit,
+            denom: (denom as u256),
+            profit_fee: 0,
+            accrued_interest: position.accrued_interest + (pending_interest as u256),
+            reserve_chain: position.reserve_chain,
+            reserve_provider: position.reserve_provider,
+            reserve_token: position.reserve_token,
+        }
+    }
+
+    fun build_view_market(asset: String, asset_ref: &Asset): ViewAsset {
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        let denom = TokensMetadata::get_coin_metadata_denom(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        
+        ViewAsset { 
+            last_trade: asset_ref.last_trade, funding: asset_ref.funding, asset: asset_ref.asset, ema_price: asset_ref.ema_price,
+            shorts: asset_ref.shorts, longs: asset_ref.longs, 
+            long_interest_index: asset_ref.long_interest_index, short_interest_index: asset_ref.short_interest_index,
+            long_funding_index: asset_ref.long_funding_index, short_funding_index: asset_ref.short_funding_index,
+            oi: (asset_ref.shorts + asset_ref.longs) * (price as u256), leverage: asset_ref.leverage, utilization: 0, 
+            price: (price as u128), denom: (denom as u128),
+        }
     }
 
     #[view]
-    public fun get_position(asset:String, shared: String): ViewPosition acquires UserBook {
-        let user_book = borrow_global_mut<UserBook>(@dev);
+    public fun get_position(asset: String, shared: String): ViewPosition acquires UserBook, AssetBook {
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        let denom = TokensMetadata::get_coin_metadata_denom(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        let user_book = borrow_global<UserBook>(@dev);
+        
+        if (!table::contains(&user_book.book, copy shared)) return empty_view_position(copy asset, (price as u128), (denom as u128));
+        let user_map = table::borrow(&user_book.book, shared);
+        if (!map::contains_key(user_map, &asset)) return empty_view_position(copy asset, (price as u128), (denom as u128));
 
-        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset));
-        let denom = TokensMetadata::get_coin_metadata_denom(&TokensMetadata::get_coin_metadata_by_symbol(asset));
-
-        if (!table::contains(&user_book.book, shared)) {
-            return ViewPosition {type_name: utf8(b""), last_update: 0, asset: asset, used_margin: 0, usd_size: 0, size:0, entry_price:0, price: price, type:0, leverage:0, pnl: 0, is_profit: false, denom: denom, profit_fee: 0};
-        };
-
-        let user_map = table::borrow_mut(&mut user_book.book, shared);
-        if(!map::contains_key(user_map, &asset)){
-            return ViewPosition {type_name: utf8(b""), last_update: 0, asset: asset, used_margin: 0, usd_size: 0, size:0, entry_price:0, price: price, type:0, leverage:0, pnl: 0, is_profit: false, denom: denom, profit_fee: 0};
-        };
-
-        let position = map::borrow_mut(user_map, &asset);
-
-        let (pnl, is_profit) = estimate_pnl(position, (price as u256));
-        if(position.leverage == 0){
-            position.leverage = 100;
-        };
-        ViewPosition {type_name: convert_perp_type_to_name(position.type), last_update: position.last_update, asset:asset, used_margin: ((position.size as u256)*(position.entry_price as u256) / (position.leverage as u256)), usd_size: (position.size as u256)*(position.entry_price as u256),  size: position.size , entry_price: position.entry_price, price: price, type:position.type, leverage:position.leverage, pnl: pnl, is_profit: is_profit, denom: denom, profit_fee: 0}
+        let position = map::borrow(user_map, &asset);
+        
+        let asset_book = borrow_global<AssetBook>(@dev);
+        let asset_ref = map::borrow(&asset_book.book, &asset);
+        
+        build_view_position(asset, position, asset_ref)
     }
 
     #[view]
     public fun get_market(asset: String): ViewAsset acquires AssetBook {
-        let t = find_asset(asset, borrow_global_mut<AssetBook>(@dev));
-        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(asset));
-        let denom = TokensMetadata::get_coin_metadata_denom(&TokensMetadata::get_coin_metadata_by_symbol(asset));
+        let asset_book = borrow_global<AssetBook>(@dev);
+        let asset_ref = map::borrow(&asset_book.book, &asset);
         
-        // Fixed: neutrophils placeholder compile error
-        let oi = (t.shorts + t.longs) * price;
-        ViewAsset { 
-            last_trade: t.last_trade, 
-            funding: t.funding, 
-            asset: t.asset, 
-            shorts: (t.shorts as u128), 
-            longs: (t.longs as u128), 
-            long_interest_index: t.long_interest_index,
-            short_interest_index: t.short_interest_index,
-            long_funding_index: t.long_funding_index,
-            short_funding_index: t.short_funding_index,
-            oi: (oi as u128), 
-            leverage: t.leverage, 
-            utilization: 0, 
-            price: price, 
-            denom: denom 
-        }
+        build_view_market(asset, asset_ref)
+    }
+
+    #[view]
+    public fun get_all_positions(shared: String): vector<ViewPosition> acquires Markets, UserBook, AssetBook {
+        let markets = borrow_global<Markets>(@dev);
+        let user_book = borrow_global<UserBook>(@dev);
+        let asset_book = borrow_global<AssetBook>(@dev);
+        let result = vector::empty<ViewPosition>();
+        
+        if (!table::contains(&user_book.book, copy shared)) {
+            return result
+        };
+        
+        let user_map = table::borrow(&user_book.book, shared);
+        
+        let i = 0;
+        let len = vector::length(&markets.list);
+        while (i < len) {
+            let asset = *vector::borrow(&markets.list, i);
+            if (map::contains_key(user_map, &asset)) {
+                let position = map::borrow(user_map, &asset);
+                if (position.size > 0) {
+                    let asset_ref = map::borrow(&asset_book.book, &asset);
+                    vector::push_back(&mut result, build_view_position(asset, position, asset_ref));
+                }
+            };
+            i = i + 1;
+        };
+        
+        result
     }
 
     #[view]
     public fun get_all_markets(): vector<ViewAsset> acquires Markets, AssetBook {
         let markets = borrow_global<Markets>(@dev);
+        let asset_book = borrow_global<AssetBook>(@dev);
+        let result = vector::empty<ViewAsset>();
+        
+        let i = 0;
         let len = vector::length(&markets.list);
-        let vect = vector::empty<ViewAsset>();
-        while(len>0){
-            let market = vector::borrow(&markets.list, len-1);
-            vector::push_back(&mut vect, get_market(*market));
-            len=len-1;
+        while (i < len) {
+            let asset = *vector::borrow(&markets.list, i);
+            let asset_ref = map::borrow(&asset_book.book, &asset);
+            vector::push_back(&mut result, build_view_market(asset, asset_ref));
+            i = i + 1;
         };
-        vect
+        
+        result
     }
 
-    #[view]
-    public fun calculateFunding(longs: u256, shorts: u256, neutrals: u256, last_update_sec: u256, previous_funding: u256): (Funding,u256,u256,u256,u256,u256) {
-        let e18 = 1000000000000000000;
-        let skewer = 900000;
-        let scaler = 50;
-        let weight = 200000000000;
-
-        let is_positive = false;
-        let gamma = 0;
-
-        let longs_e18 = longs * e18;
-        let shorts_e18 = shorts * e18;
-        let neutrals_e18 = neutrals * e18;
-
-        if(longs_e18 > shorts_e18){
-            is_positive = true;
-            gamma = (longs_e18 - shorts_e18);
-        } else {
-            is_positive = false;
-            gamma = (shorts_e18 - longs_e18);
-        };
-
-
-        let previous_funding_e18 = previous_funding / 1000000;
-
-        let total_liquidity_e18 = longs_e18 + shorts_e18 + neutrals_e18;
-
-        let x = previous_funding_e18 * skewer;
-        let y = gamma*e18 / total_liquidity_e18;
-        let z = scaler * (weight + last_update_sec*1000000);
-
-        let result = x + y * z;
-        let funding = Funding { rate: result, previous_rate: previous_funding_e18, is_positive: is_positive };
-        return (funding, x, y, z, 0,total_liquidity_e18)
-    }
-    
-// === INTERNAL HELPER FUNCTIONS ===
-    fun calculate_funding(longs: u256, shorts: u256, neutrals: u256, last_update_sec: u256, previous_funding: u256): Funding{
-        let (funding,_,_,_,_,_) = calculateFunding(longs, shorts, neutrals, last_update_sec, previous_funding);
-        return funding
-    }
-
-    /// Dynamically updates the global compounding interest indices based on direction and pool health.
-    fun update_global_interest_indices(asset: &mut Asset, current_price: u128, now: u64) {
-        let dt = now - asset.last_trade;
-        if (dt > 0) {
-            let base_rate: u128 = 250000000000; // 25% base borrow interest rate (1e12 scale)
-            let long_rate = base_rate;
-            let short_rate = base_rate;
-
-            // If longs are collectively underwater (negative PnL): spike the long rate
-            if (asset.avg_long_entry > 0 && current_price < asset.avg_long_entry) {
-                let deviation = ((asset.avg_long_entry - current_price) as u128) * 1000000000000 / asset.avg_long_entry;
-                long_rate = base_rate + deviation;
-            };
-
-            // If shorts are collectively underwater (negative PnL): spike the short rate
-            if (asset.avg_short_entry > 0 && current_price > asset.avg_short_entry) {
-                let deviation = ((current_price - asset.avg_short_entry) as u128) * 1000000000000 / asset.avg_short_entry;
-                short_rate = base_rate + deviation;
-            };
-
-            // Accrue global indices
-            let long_accrued = (long_rate / 31536000) * (dt as u128);
-            let long_delta = (asset.long_interest_index * long_accrued) / 1000000000000;
-            asset.long_interest_index = asset.long_interest_index + long_delta;
-
-            let short_accrued = (short_rate / 31536000) * (dt as u128);
-            let short_delta = (asset.short_interest_index * short_accrued) / 1000000000000;
-            asset.short_interest_index = asset.short_interest_index + short_delta;
-
-            asset.last_trade = now;
-        };
-    }
-
-    /// Calculates and deducts the accrued interest on closed portion from the trade's profit/loss.
-    fun calculate_and_deduct_interest(
-        position: &Position, 
-        current_interest_index: u128, 
-        pnl: u256, 
-        is_profit: bool, 
-        closed_size: u256
-    ): (u256, bool) {
-        let entry_index = position.entry_interest_index;
-        if (entry_index == 0) {
-            entry_index = 1000000000000;
-        };
-
-        if (current_interest_index <= entry_index) {
-            return (pnl, is_profit)
-        };
-
-        // Collateral (Used Margin) = Size * EntryPrice / Leverage
-        let closed_collateral = (closed_size * (position.entry_price as u256)) / (position.leverage as u256);
-
-        // Interest fee = Collateral * (CurrentIndex - EntryIndex) / EntryIndex
-        let index_diff = current_interest_index - entry_index;
-        let interest_fee = (closed_collateral * (index_diff as u256)) / (entry_index as u256);
-
-        if (is_profit) {
-            if (pnl >= interest_fee) {
-                (pnl - interest_fee, true)
-            } else {
-                (interest_fee - pnl, false)
-            }
-        } else {
-            (pnl + interest_fee, false)
-        }
-    }
-
-    fun convert_perp_type_to_name(perp_type: u8): String {
-        if (perp_type == 0) {
-            return utf8(b"neutral")
-        } else if (perp_type == 1) {
-            return utf8(b"long")
-        } else if (perp_type == 2) {
-            return utf8(b"short")
-        } else {
-            abort ERROR_UNKNOWN_PERP_TYPE
-        }
+    public fun estimate_pnl(position: &Position, current_price: u256): (u256, bool) {
+        if (position.size == 0) return (0, true);
+        calculate_pnl(position.isLong, (position.entry_price as u256), current_price, (position.size as u256))
     }
 }
