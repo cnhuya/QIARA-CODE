@@ -14,8 +14,8 @@ module dev::QiaraTokensQiaraV21 {
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
 
-    use dev::QiaraCapabilitiesV9::{Self as capabilities};
-    use dev::QiaraStorageV9::{Self as storage};
+    use dev::QiaraCapabilitiesV10::{Self as capabilities};
+    use dev::QiaraStorageV10::{Self as storage};
 
     use dev::QiaraTokenTypesV21::{Self as TokensType};
 
