@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV21 {
+module dev::QiaraVaultsV22 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -96,7 +96,7 @@ module dev::QiaraVaultsV21 {
         tokens_metadata: TokensMetadataAccess,
         storage: StorageAccess,
         capabilities: CapabilitiesAccess,
-        gas: GasAccess
+        gas: GasAccess,
         shared: SharedAccess
     }
 

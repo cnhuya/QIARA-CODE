@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV7 {
+module dev::QiaraPerpsV8 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,9 +12,9 @@ module dev::QiaraPerpsV7 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV21::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
-    use dev::QiaraSharedV7::{Self as Shared};
+    use dev::QiaraSharedV7::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV21::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV22::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV26::{Self as Liquidity};
     use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -24,7 +24,7 @@ module dev::QiaraPerpsV7 {
     use dev::QiaraChainTypesV21::{Self as ChainTypes};
     use dev::QiaraTokenTypesV21::{Self as TokensTypes};
 
-    use dev::QiaraGasV8::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -56,7 +56,8 @@ module dev::QiaraPerpsV7 {
         metadata: TokensMetadataAccess,
         market: MarketAccess,
         gas: GasAccess,
-        token_vaults: TokenVaultsAccess
+        token_vaults: TokenVaultsAccess,
+        shared: SharedAccess
     }
 
     struct Funding has store, key, drop, copy {
@@ -157,7 +158,8 @@ module dev::QiaraPerpsV7 {
                 margin: Margin::give_access(admin), 
                 market: Market::give_access(admin),
                 metadata: TokensMetadata::give_access(admin),
-                token_vaults: TokenVaults::give_access(admin)
+                token_vaults: TokenVaults::give_access(admin),
+                shared: Shared::give_access(admin)
             });
         };
 
@@ -283,8 +285,9 @@ module dev::QiaraPerpsV7 {
     fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
         let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
-        let gas_fee = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
+        let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
+        Shared::update_gas_index(shared, gas_index, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         Margin::remove_credit(shared, user, gas_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
         return gas_fee
