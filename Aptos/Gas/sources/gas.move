@@ -1,4 +1,4 @@
-module dev::QiaraGasV6{
+module dev::QiaraGasV7{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -263,7 +263,8 @@ module dev::QiaraGasV6{
     }
 
     #[view]
-    public fun calculate_gas_fee_from_index(user_last_index: u256, current_index: u256, amount: u256): u256 {
+    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): u256 acquires Gas{
+        let current_index = self.return_gas().global_gas_index;
         if (current_index <= user_last_index) {
             return 0
         };

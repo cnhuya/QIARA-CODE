@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV19 {
+module dev::QiaraVaultsV20 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -15,30 +15,29 @@ module dev::QiaraVaultsV19 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV20::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV20::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensRatesV20::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV20::{Self as TokensTiers};
-    use dev::QiaraTokensOmnichainV20::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV17::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV17::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV17::{Self as RI};
-    use dev::QiaraBurnedQiaraV17::{Self as BurnedQiara};
-    //use dev::QiaraAutomationV1::{Self as auto, Access as AutoAccess};
+    use dev::QiaraTokensCoreV21::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV21::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensRatesV21::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV21::{Self as TokensTiers};
+    use dev::QiaraTokensOmnichainV21::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraMarginV18::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV18::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV18::{Self as RI};
+    use dev::QiaraBurnedQiaraV18::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV20::{Self as TokensTypes};
-    use dev::QiaraChainTypesV20::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV20::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV21::{Self as TokensTypes};
+    use dev::QiaraChainTypesV21::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV21::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV9::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV9::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV10::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV10::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV6::{Self as Shared};
+    use dev::QiaraSharedV7::{Self as Shared};
 
-    use dev::QiaraGasV2::{Self as Gas};
+    use dev::QiaraGasV6::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV25::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV25::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV26::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -97,7 +96,7 @@ module dev::QiaraVaultsV19 {
         tokens_metadata: TokensMetadataAccess,
         storage: StorageAccess,
         capabilities: CapabilitiesAccess,
- //       auto: AutoAccess,
+        gas: GasAccess
     }
 
 // === STRUCTS === //
@@ -105,7 +104,7 @@ module dev::QiaraVaultsV19 {
 // === FUNCTIONS === //
     fun init_module(admin: &signer){
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
+            move_to(admin, Permissions {gas: Gas::give_access(admin), token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
         };
     //    init_all_vaults(admin);
 
@@ -123,7 +122,7 @@ module dev::QiaraVaultsV19 {
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-        let gas_rate = Gas::add_deposit(token, amount_u256);
+        let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
 
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
@@ -179,7 +178,7 @@ module dev::QiaraVaultsV19 {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-        let gas_rate = Gas::add_deposit(token, amount_u256);
+        let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
 
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
