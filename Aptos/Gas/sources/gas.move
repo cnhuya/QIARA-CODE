@@ -1,4 +1,4 @@
-module dev::QiaraGasV5{
+module dev::QiaraGasV6{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -41,6 +41,7 @@ module dev::QiaraGasV5{
         usd_borrows: u256,
         gas: u256,               // Instantaneous fee rate
         global_gas_index: u256,  // Cumulative global interest index
+        last_index_update: u64,
         last_update: u64,
     }
 
@@ -55,6 +56,7 @@ module dev::QiaraGasV5{
                 usd_borrows: 0, 
                 gas: 0, 
                 global_gas_index: 0, // Starts at 0
+                last_index_update: timestamp::now_seconds(),
                 last_update: timestamp::now_seconds() 
             });
         };
@@ -110,16 +112,14 @@ module dev::QiaraGasV5{
         return gas_rate
     }
 
-    // Accrues the global state and returns the newly updated global_gas_index.
-    // The calling contract should store this returned value on the user's position as their snapshot index.
-    public fun accrue(token: String, borrow: u256, _user_last_interacted: u64, _cap: Permission): u256 acquires Gas {
+    public fun accrue(token: String, index: u256, _cap: Permission) acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
-        gas.usd_borrows = gas.usd_borrows + Oracle::convert_to_usd(token, borrow);
         
         // calculateGas automatically updates global_gas_index, gas.gas, and gas.last_update
         calculateGas(gas, 0, 0);
-        
-        return gas.global_gas_index
+
+        gas.global_gas_index = gas.global_gas_index + index;
+        gas.last_index_update = timestamp::now_seconds();
     }
 
     public entry fun dev_reset_gas(admin: &signer) acquires Gas {

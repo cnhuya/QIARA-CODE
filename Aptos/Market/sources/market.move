@@ -498,7 +498,7 @@ module dev::QiaraVaultsV19 {
 
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
         if(amount_u256_taxed == 0) { return };
-        //tttta(0);
+
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
@@ -506,9 +506,9 @@ module dev::QiaraVaultsV19 {
 
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-            //   tttta(0);
+ 
         Margin::add_locked_fee(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, ((fee-1000000000000000000)*99)/100, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-       // tttta(10);
+
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
