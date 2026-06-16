@@ -1,4 +1,4 @@
-module dev::QiaraGasV7{
+module dev::QiaraGasV8{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -41,7 +41,6 @@ module dev::QiaraGasV7{
         usd_borrows: u256,
         gas: u256,               // Instantaneous fee rate
         global_gas_index: u256,  // Cumulative global interest index
-        last_index_update: u64,
         last_update: u64,
     }
 
@@ -56,7 +55,6 @@ module dev::QiaraGasV7{
                 usd_borrows: 0, 
                 gas: 0, 
                 global_gas_index: 0, // Starts at 0
-                last_index_update: timestamp::now_seconds(),
                 last_update: timestamp::now_seconds() 
             });
         };
@@ -112,15 +110,6 @@ module dev::QiaraGasV7{
         return gas_rate
     }
 
-    public fun accrue(token: String, index: u256, _cap: Permission) acquires Gas {
-        let gas = borrow_global_mut<Gas>(@dev);
-        
-        // calculateGas automatically updates global_gas_index, gas.gas, and gas.last_update
-        calculateGas(gas, 0, 0);
-
-        gas.global_gas_index = gas.global_gas_index + index;
-        gas.last_index_update = timestamp::now_seconds();
-    }
 
     public entry fun dev_reset_gas(admin: &signer) acquires Gas {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -263,13 +252,28 @@ module dev::QiaraGasV7{
     }
 
     #[view]
-    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): u256 acquires Gas{
-        let current_index = borrow_global<Gas>(@dev).global_gas_index;
+    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): u256 acquires Gas {
+        let gas_state = borrow_global<Gas>(@dev);
+        let now = timestamp::now_seconds();
+        
+        // 1. Calculate time passed since the last on-chain global update
+        let elapsed = if (now > gas_state.last_update) {
+            ((now - gas_state.last_update) as u256)
+        } else {
+            0
+        };
+        
+        // 2. Project the live, up-to-the-second global index 
+        // by adding the pending interest generated during the elapsed time
+        let current_index = gas_state.global_gas_index + (gas_state.gas * elapsed);
+        
         if (current_index <= user_last_index) {
             return 0
         };
+        
         let index_diff = current_index - user_last_index;
-        // Replicates your percentage conversion logic with the integrated index difference
+        
+        // 3. Compute the final fee
         let total_fee = (amount * index_diff) / 1_000_000 / 100;
         return total_fee
     }

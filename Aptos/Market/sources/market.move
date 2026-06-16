@@ -34,7 +34,7 @@ module dev::QiaraVaultsV20 {
 
     use dev::QiaraSharedV7::{Self as Shared};
 
-    use dev::QiaraGasV6::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV8::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraLiquidityV26::{Self as Liquidity, Access as LiquidityAccess};
     use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -121,9 +121,10 @@ module dev::QiaraVaultsV20 {
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         
+        let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership(shared));
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
+        let gas_fee = Gas::calculate_gas_fee_from_index(user_gas_index, amount_u256);
 
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
         if(amount_u256_taxed == 0) { return };
