@@ -264,7 +264,7 @@ module dev::QiaraGasV7{
 
     #[view]
     public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): u256 acquires Gas{
-        let current_index = return_gas().global_gas_index;
+        let current_index = borrow_global<Gas>(@dev).global_gas_index;
         if (current_index <= user_last_index) {
             return 0
         };
