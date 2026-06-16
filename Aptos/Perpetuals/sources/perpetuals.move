@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV6 {
+module dev::QiaraPerpsV7 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -7,20 +7,20 @@ module dev::QiaraPerpsV6 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV17::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV17::{Self as RI};
+    use dev::QiaraMarginV18::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV18::{Self as RI};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV20::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV21::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV6::{Self as Shared};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV19::{Self as Market, Access as MarketAccess};
-    use dev::QiaraLiquidityV25::{Self as Liquidity};
+    use dev::QiaraVaultsV20::{Self as Market, Access as MarketAccess};
+    use dev::QiaraLiquidityV26::{Self as Liquidity};
 
-    use dev::QiaraStorageV9::{Self as storage};
+    use dev::QiaraStorageV10::{Self as storage};
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
-    use dev::QiaraChainTypesV20::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV20::{Self as TokensTypes};
+    use dev::QiaraChainTypesV21::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV21::{Self as TokensTypes};
 
     use dev::QiaraGasV5::{Self as Gas, Access as GasAccess};
 

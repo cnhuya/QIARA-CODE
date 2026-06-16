@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV20 {
+module dev::QiaraVaultsV21 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -123,7 +123,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -180,7 +180,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -239,7 +239,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -399,6 +399,7 @@ module dev::QiaraVaultsV20 {
 // === NATIVE INTERFACE === //
 
     public entry fun stake(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
@@ -407,7 +408,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -432,7 +433,7 @@ module dev::QiaraVaultsV20 {
 
     public entry fun unstake(signer: &signer, shared: String, token: vector<String>, chain: vector<String>, provider: vector<String>, amount: vector<u64>) acquires Permissions {
         assert!(vector::length(&token) == vector::length(&chain), ERROR_ARGUMENT_LENGHT_MISSMATCH);
-
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let vect_amnt = vector::empty<u256>();
 
         let len = vector::length(&token);
@@ -447,7 +448,7 @@ module dev::QiaraVaultsV20 {
             let (_, _fee) = TokensMetadata::impact(_token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
             let gas_rate = Gas::add_withdraw(_token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-            handle_gas_fee(shared,_token);
+            handle_gas_fee(shared,sender, _token);
             
             let (amount_u256_taxed,fee) = assert_minimal_fee(_token, _chain, _provider,  amount_u256, _fee);
             if(amount_u256_taxed == 0) { return };
@@ -512,6 +513,7 @@ module dev::QiaraVaultsV20 {
 
 
     public entry fun deposit(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -519,7 +521,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared,token);
+        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -566,6 +568,7 @@ module dev::QiaraVaultsV20 {
     }
 
     public entry fun withdraw(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -573,7 +576,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared,token);
+        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -619,6 +622,7 @@ module dev::QiaraVaultsV20 {
     }
 
     public entry fun borrow(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -626,7 +630,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared,token);
+        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -672,6 +676,7 @@ module dev::QiaraVaultsV20 {
     }
 
     public entry fun virtual_borrow(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -679,7 +684,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -718,6 +723,7 @@ module dev::QiaraVaultsV20 {
     }
 
     public entry fun virtual_deposit(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -725,7 +731,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -763,6 +769,7 @@ module dev::QiaraVaultsV20 {
     }
 
     public entry fun virtual_repay(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
+        let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -770,7 +777,7 @@ module dev::QiaraVaultsV20 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared,token);
+        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -1047,11 +1054,12 @@ module dev::QiaraVaultsV20 {
         return (taxed_amount, combined_fee)
     }
 
-    fun handle_gas_fee(shared: String, token: String): u256 acquires Permissions{
+    fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
         let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
         let gas_fee = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
-       
+
+        Margin::remove_credit(shared, user, gas_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
         return gas_fee
     }
