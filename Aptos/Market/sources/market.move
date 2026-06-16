@@ -105,7 +105,7 @@ module dev::QiaraVaultsV22 {
 // === FUNCTIONS === //
     fun init_module(admin: &signer){
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {gas: Gas::give_access(admin), token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
+            move_to(admin, Permissions {shared: Shared::give_access(admin), gas: Gas::give_access(admin), token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
         };
     //    init_all_vaults(admin);
 
