@@ -12,17 +12,19 @@ module dev::QiaraPerpsV7 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV21::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
-    use dev::QiaraSharedV6::{Self as Shared};
+    use dev::QiaraSharedV7::{Self as Shared};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV20::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV21::{Self as Market, Access as MarketAccess};
+
     use dev::QiaraLiquidityV26::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV10::{Self as storage};
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraChainTypesV21::{Self as ChainTypes};
     use dev::QiaraTokenTypesV21::{Self as TokensTypes};
 
-    use dev::QiaraGasV5::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV8::{Self as Gas, Access as GasAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -53,7 +55,8 @@ module dev::QiaraPerpsV7 {
         margin: MarginAccess,
         metadata: TokensMetadataAccess,
         market: MarketAccess,
-        gas: GasAccess
+        gas: GasAccess,
+        token_vaults: TokenVaultsAccess
     }
 
     struct Funding has store, key, drop, copy {
@@ -153,7 +156,8 @@ module dev::QiaraPerpsV7 {
                 gas: Gas::give_access(admin),
                 margin: Margin::give_access(admin), 
                 market: Market::give_access(admin),
-                metadata: TokensMetadata::give_access(admin)
+                metadata: TokensMetadata::give_access(admin),
+                token_vaults: TokenVaults::give_access(admin)
             });
         };
 
@@ -197,7 +201,6 @@ module dev::QiaraPerpsV7 {
             vector::push_back(&mut markets.list, name);
         };
     }
-
     public entry fun accrue_interest(user: vector<u8>, shared: String, asset: String) acquires UserBook, AssetBook {
         accrue_interest_internal(user, shared, asset);
     }
@@ -209,17 +212,15 @@ module dev::QiaraPerpsV7 {
         assert!(size > 0, ERROR_ZERO_SIZE);
 
         // Pre-accrue without active global borrows
+        let usd_amount =  TokensMetadata::getValue(token, size);
+        let gas_rate = Gas::add_leverage(token, leverage, usd_amount, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+
         accrue_interest_internal(copy user, copy shared, copy asset);
+
         let market = get_market(asset);
         let (_, impact_fee) = TokensMetadata::impact(asset, size, market.shorts + market.longs, isPositive, utf8(b"Perps"), TokensMetadata::give_permission(&permissions.metadata));
      
-        let usd_amount =  TokensMetadata::getValue(token, size);
-
-        let gas_rate = Gas::add_leverage(token, leverage, usd_amount, TokensMetadata::give_permission(&permissions.metadata));
-        let gas_fee = Gas::calculate_gas_fee(timestamp::now_seconds() - last_update, gas_rate, amount_u256);
-
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee, gas_fee);
-        if(amount_u256_taxed == 0) { return };
+        handle_gas_fee(shared, user, asset);
 
         let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
 
@@ -279,20 +280,14 @@ module dev::QiaraPerpsV7 {
 
 // === HELPER FUNCTIONS ===
 
-    // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
-    fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256, gas_fee: u256): (u256, u256) acquires Permissions{
-        let combined_fee = fee + gas_fee;
-        if (combined_fee < 1 * 1000000000000000000) {
-            combined_fee =  1 * 1000000000000000000;
-        };
-        
-        Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
+        let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
+        let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
+        let gas_fee = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
+
+        Margin::remove_credit(shared, user, gas_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
-        
-        // Safety check to prevent negative amount if deposit amount is less than the minimum fee
-        let taxed_amount = if (amount > combined_fee) { amount - combined_fee } else { 0 };
-        
-        return (taxed_amount, combined_fee)
+        return gas_fee
     }
 
     fun calculate_position(validator: address, assetName: String, user: vector<u8>, shared: String, asset_book: &mut AssetBook, position: &mut Position, added_size: u256, leverage: u64, isLong: bool, oracle_price: u128, _user: vector<u8>, reserve_chain: String, reserve_provider: String, reserve_token: String): (u256, bool) {

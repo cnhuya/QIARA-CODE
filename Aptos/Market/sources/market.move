@@ -32,9 +32,9 @@ module dev::QiaraVaultsV21 {
     use dev::QiaraStorageV10::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV10::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV7::{Self as Shared};
+    use dev::QiaraSharedV7::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraGasV8::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraLiquidityV26::{Self as Liquidity, Access as LiquidityAccess};
     use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -97,6 +97,7 @@ module dev::QiaraVaultsV21 {
         storage: StorageAccess,
         capabilities: CapabilitiesAccess,
         gas: GasAccess
+        shared: SharedAccess
     }
 
 // === STRUCTS === //
@@ -1057,8 +1058,9 @@ module dev::QiaraVaultsV21 {
     fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
         let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
-        let gas_fee = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
+        let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
+        Shared::update_gas_index(shared, gas_index, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         Margin::remove_credit(shared, user, gas_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
         return gas_fee

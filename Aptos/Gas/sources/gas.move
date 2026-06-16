@@ -1,4 +1,4 @@
-module dev::QiaraGasV8{
+module dev::QiaraGasV9{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -252,7 +252,7 @@ module dev::QiaraGasV8{
     }
 
     #[view]
-    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): u256 acquires Gas {
+    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): (u256, u256) acquires Gas {
         let gas_state = borrow_global<Gas>(@dev);
         let now = timestamp::now_seconds();
         
@@ -268,14 +268,14 @@ module dev::QiaraGasV8{
         let current_index = gas_state.global_gas_index + (gas_state.gas * elapsed);
         
         if (current_index <= user_last_index) {
-            return 0
+            return (0,0)
         };
         
         let index_diff = current_index - user_last_index;
         
         // 3. Compute the final fee
         let total_fee = (amount * index_diff) / 1_000_000 / 100;
-        return total_fee
+        return (total_fee, current_index)
     }
 
     #[view]

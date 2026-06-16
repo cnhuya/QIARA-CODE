@@ -57,7 +57,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV20]
+    [dependencies.QiaraVaultsV21]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
@@ -72,7 +72,7 @@
     rev = 'main'
     subdir = 'Aptos/Oracle'
 
-    [dependencies.QiaraGasV5]
+    [dependencies.QiaraGasV8]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Gas'
