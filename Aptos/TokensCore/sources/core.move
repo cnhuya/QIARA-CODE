@@ -23,8 +23,6 @@ module dev::QiaraTokensCoreV21{
     use dev::QiaraTokensTiersV21::{Self as TokensTiers};
     use dev::QiaraTokensRatesV21::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensQiaraV21::{Self as TokensQiara,  Access as TokensQiaraAccess};
-    //use dev::QiaraTokensBurnedQiaraV6::{Self as TokensBurnedQiara};
-
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV7::{Self as Shared};
@@ -43,19 +41,7 @@ module dev::QiaraTokensCoreV21{
     const ERROR_ACCOUNT_DOES_NOT_EXISTS: u64 = 3;
     const ERROR_SUFFICIENT_BALANCE: u64 = 4;
 
-//40_000_000_000
-//2_000_000_000_000 
-//2000000
-//4_000_000_000_000
-//40_000_000_000
-    //100_000_000
 
-    //1_000_000 = 1%
-    //100 = 0.0001%
-
-    //18_446_744_073_709_551_615
-    //1_000_000_000_000_000_000_000_000
-    //1_000_000_000_000_000_000
     const INIT_SUPPLY: u64 = 1_000_000_000_000; // i.e 1 mil. init. supply
     const DECIMALS_N: u64 = 1_000_000;    
 
