@@ -69,13 +69,22 @@ module dev::QiaraCapabilitiesV10 {
         };
 
         
-        //create_capability(admin, signer::address_of(admin), utf8(b"QiaraToken"), utf8(b"TOKEN_CLAIM_CAPABILITY"), true, &give_permission(&give_access(admin)));
-        //create_capability(admin, @0x281d0fce12a353b1f6e8bb6d1ae040a6deba248484cf8e9173a5b428a6fb74e7, utf8(b"QiaraGovernance"), utf8(b"BLACKLIST"), true, &give_permission(&give_access(admin)));
-        //create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraAuto"), utf8(b"EXECUTE_AUTO_DELETIONS"), true, &give_permission(&give_access(admin)));
-        //create_capability(admin, @0xad4689eb401dbd7cff34d47ce1f2c236375ae7481cdaca884a0c2cdb35b339b0, utf8(b"QiaraVerifiedTokens"), utf8(b"AUTHORIZED_MODULE_OWNER"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraToken"), utf8(b"TOKEN_CLAIM_CAPABILITY"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraGovernance"), utf8(b"BLACKLIST"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraAuto"), utf8(b"EXECUTE_AUTO_DELETIONS"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraVerifiedTokens"), utf8(b"AUTHORIZED_MODULE_OWNER"), true, &give_permission(&give_access(admin)));
 
     }
 
+
+    public entry fun init_caps(admin: &signer) acquires Capabilities, KeyRegistry{
+        create_capability(utf8(b"huya"), utf8(b"QiaraToken"), utf8(b"TOKEN_CLAIM_CAPABILITY"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraGovernance"), utf8(b"BLACKLIST"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraAuto"), utf8(b"EXECUTE_AUTO_DELETIONS"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraVerifiedTokens"), utf8(b"AUTHORIZED_MODULE_OWNER"), true, &give_permission(&give_access(admin)));
+        create_capability(utf8(b"huya"), utf8(b"QiaraPerps"), utf8(b"ORDER_EXECUTION"), true, &give_permission(&give_access(admin)));
+
+    }
 
 
     public fun create_capability_multi(shared: vector<String>, header: vector<String>, constant_name: vector<String>, removable: vector<bool>, permission: &Permission) acquires Capabilities, KeyRegistry{

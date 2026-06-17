@@ -20,11 +20,15 @@ module dev::QiaraPerpsV8 {
     use dev::QiaraTokenVaultsV26::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV10::{Self as storage};
+    use dev::QiaraCapabilitiesV10::{Self as capabilities};
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraChainTypesV21::{Self as ChainTypes};
     use dev::QiaraTokenTypesV21::{Self as TokensTypes};
 
     use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
+
+    use dev::QiaraPerpsOrdersV2::{Self as Orders};
+
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -35,6 +39,8 @@ module dev::QiaraPerpsV8 {
     const ERROR_ZERO_SIZE: u64 = 7;
     const ERROR_SIZE_TOO_SMALL: u64 = 8;
     const ERROR_USD_SIZE_TOO_SMALL: u64 = 9;
+    const ERROR_NOT_AUTHORIZED_FOR_ORDER_EXECUTION: u64 = 10;
+    const ERROR_PRICE_NOT_SETTLED: u64 = 11;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -83,7 +89,7 @@ module dev::QiaraPerpsV8 {
         last_ema_update: u64,
     }
     
-    struct ViewAsset has store, key {
+    struct ViewAsset has store, key, drop {
         asset: String,
         ema_price: u256,
         shorts: u256,
@@ -175,6 +181,23 @@ module dev::QiaraPerpsV8 {
         };
     }
 
+/// === CAPABILITY FUNCTIONS ===
+    public entry fun execute_order(signer: &signer, shared: String, id: u64) acquires UserBook, AssetBook, Permissions {
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraPerps"), utf8(b"ORDER_EXECUTION")), ERROR_NOT_AUTHORIZED_FOR_ORDER_EXECUTION);
+        let (shared,user,asset,size,desired_price,isLong,leverage,reserve_chain,reserve_provider,reserve_token) = Orders::get_limit_order_deconstructed(id);
+        
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+        
+        if(isLong) {
+            assert!((price as u128) <= desired_price, ERROR_PRICE_NOT_SETTLED);
+        } else {
+            assert!((price  as u128) >= desired_price, ERROR_PRICE_NOT_SETTLED);
+        };
+
+        execute_trade(user, shared, asset, (size as u256), (leverage as u64), isLong, reserve_chain, reserve_provider, reserve_token);
+    }
+
 /// === ENTRY FUNCTIONS ===
     public entry fun create_market(_admin: &signer, name: String) acquires Markets, AssetBook {
         TokensTypes::ensure_valid_token_nick_name(name);
@@ -207,49 +230,21 @@ module dev::QiaraPerpsV8 {
         accrue_interest_internal(user, shared, asset);
     }
     public entry fun trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
-        ensure_safety(asset, size, reserve_chain, reserve_provider, reserve_token);
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-        Shared::assert_is_sub_owner(shared, copy user);
-        assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
-        assert!(size > 0, ERROR_ZERO_SIZE);
-
-        // Pre-accrue without active global borrows
-        let usd_amount =  TokensMetadata::getValue(token, size);
-        let gas_rate = Gas::add_leverage(token, leverage, usd_amount, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-
-        accrue_interest_internal(copy user, copy shared, copy asset);
-
-        let market = get_market(asset);
-        let (_, impact_fee) = TokensMetadata::impact(asset, size, market.shorts + market.longs, isPositive, utf8(b"Perps"), TokensMetadata::give_permission(&permissions.metadata));
-     
-        handle_gas_fee(shared, user, asset);
-
-        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
-
-        // Borrows hold strictly scoped
-        let user_book = borrow_global_mut<UserBook>(@dev);
-        let position = find_position(copy shared, copy asset, user_book);
-        let asset_book = borrow_global_mut<AssetBook>(@dev);
-        
-        let (size_diff_usd, is_profit) = calculate_position(@0x0, copy asset,  user, copy shared, asset_book, position, size, leverage, isLong, (price as u128), user, reserve_chain, reserve_provider, reserve_token);
-        
-        handle_pnl(asset, size_diff_usd, is_profit, user, shared);
+        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
     public entry fun update_oracle_and_trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>) acquires UserBook, AssetBook, Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
         let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
         oracle_store::update_price(signer, price_update_data, oracleID);
-        trade(signer, user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
+        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
-
-
-
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
         TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);
         
-        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(copy shared, copy user);
 
         // IMPORTANT: We must accrue interest BEFORE changing the reserve.
@@ -281,6 +276,35 @@ module dev::QiaraPerpsV8 {
 
 
 // === HELPER FUNCTIONS ===
+
+    fun execute_trade( user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
+        ensure_safety(asset, size, reserve_chain, reserve_provider, reserve_token);
+        Shared::assert_is_sub_owner(shared, copy user);
+        assert!(leverage >= 100, ERROR_LEVERAGE_TOO_LOW);
+        assert!(size > 0, ERROR_ZERO_SIZE);
+
+        // Pre-accrue without active global borrows
+        let usd_amount =  TokensMetadata::getValue(asset, size);
+        let gas_rate = Gas::add_leverage(asset, leverage, usd_amount, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+
+        accrue_interest_internal(copy user, copy shared, copy asset);
+
+        let market = get_market(asset);
+        let (_, impact_fee) = TokensMetadata::impact(asset, size, market.shorts + market.longs, isLong, utf8(b"Perps"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).metadata));
+     
+        handle_gas_fee(shared, user, asset);
+
+        let price = TokensMetadata::get_coin_metadata_price(&TokensMetadata::get_coin_metadata_by_symbol(copy asset));
+
+        // Borrows hold strictly scoped
+        let user_book = borrow_global_mut<UserBook>(@dev);
+        let position = find_position(copy shared, copy asset, user_book);
+        let asset_book = borrow_global_mut<AssetBook>(@dev);
+        
+        let (size_diff_usd, is_profit) = calculate_position(@0x0, copy asset,  user, copy shared, asset_book, position, size, leverage, isLong, (price as u128), user, reserve_chain, reserve_provider, reserve_token);
+        
+        handle_pnl(asset, size_diff_usd, is_profit, user, shared);
+    }
 
     fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
         let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
@@ -534,7 +558,7 @@ module dev::QiaraPerpsV8 {
             Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&type)),
             Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
             Event::create_data_struct(utf8(b"leverage"), utf8(b"u64"), bcs::to_bytes(&leverage)),
-            Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&((size / (leverage as u256)) * 100))),
+            Event::create_data_struct(utf8(b"used_margin"), utf8(b"u64"), bcs::to_bytes(&(((size*price) / (leverage as u256)) * 100))),
             Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
             Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
