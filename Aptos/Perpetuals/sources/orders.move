@@ -1,10 +1,11 @@
-module dev::QiaraPerpsOrdersV2 {
+module dev::QiaraPerpsOrdersV9 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::table::{Self, Table};
     use std::vector;
+    use aptos_std::bcs;
     use std::timestamp;
-
+    use event::QiaraEventV1::{Self as Event};
     // === ERRORS === //
     const ERROR_ID_OUT_OF_BOUNDS: u64 = 1;
     const ERROR_REQUEST_WITH_THIS_ID_DOESNT_EXIST: u64 = 2;
@@ -78,6 +79,22 @@ module dev::QiaraPerpsOrdersV2 {
 
         table::add(&mut orders.limit_orders, counter.counter, order);
 
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&utf8(b""))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
+            Event::create_data_struct(utf8(b"leverage"), utf8(b"u256"), bcs::to_bytes(&leverage)),
+            Event::create_data_struct(utf8(b"isLong"), utf8(b"bool"), bcs::to_bytes(&isLong)),
+            Event::create_data_struct(utf8(b"desired_price"), utf8(b"u256"), bcs::to_bytes(&desired_price)),
+            Event::create_data_struct(utf8(b"reserve_chain"), utf8(b"string"), bcs::to_bytes(&reserve_chain)),
+            Event::create_data_struct(utf8(b"reserve_provider"), utf8(b"string"), bcs::to_bytes(&reserve_provider)),
+            Event::create_data_struct(utf8(b"reserve_token"), utf8(b"string"), bcs::to_bytes(&reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"Limit Order Created"), data);
+
         counter.counter = counter.counter + 1;
     }
     public entry fun create_twap_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, periods: vector<u64>, sizes: vector<u64>, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
@@ -100,6 +117,22 @@ module dev::QiaraPerpsOrdersV2 {
 
         table::add(&mut orders.twap_orders, counter.counter, order);
 
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&utf8(b""))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"leverage"), utf8(b"u256"), bcs::to_bytes(&leverage)),
+            Event::create_data_struct(utf8(b"isLong"), utf8(b"bool"), bcs::to_bytes(&isLong)),
+            Event::create_data_struct(utf8(b"periods"), utf8(b"vector<u64>"), bcs::to_bytes(&periods)),
+            Event::create_data_struct(utf8(b"sizes"), utf8(b"vector<u64>"), bcs::to_bytes(&sizes)),
+            Event::create_data_struct(utf8(b"reserve_chain"), utf8(b"string"), bcs::to_bytes(&reserve_chain)),
+            Event::create_data_struct(utf8(b"reserve_provider"), utf8(b"string"), bcs::to_bytes(&reserve_provider)),
+            Event::create_data_struct(utf8(b"reserve_token"), utf8(b"string"), bcs::to_bytes(&reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"TWAP Order Created"), data);
+
         counter.counter = counter.counter + 1;
     }
 
@@ -113,6 +146,14 @@ module dev::QiaraPerpsOrdersV2 {
         // Validate that the request matches the user and shared fields to prevent arbitrary deletion
         let order = table::borrow(&orders.limit_orders, id);
         assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&utf8(b""))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        ];
+        Event::emit_perps_event(utf8(b"Limit Order Deleted"), data);
 
         table::remove(&mut orders.limit_orders, id);
     }
@@ -128,8 +169,18 @@ module dev::QiaraPerpsOrdersV2 {
         let order = table::borrow(&orders.twap_orders, id);
         assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
 
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&utf8(b""))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        ];
+        Event::emit_perps_event(utf8(b"TWAP Order Deleted"), data);
+
         table::remove(&mut orders.twap_orders, id);
     }
+
+
 
    // Permissionless Interface
 /// === VIEW FUNCTIONS ===

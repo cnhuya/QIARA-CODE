@@ -49,13 +49,7 @@ module dev::QiaraOracleV5 {
         };
     }
 
-    public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
-
-        let prices_storage = borrow_global_mut<Prices>(@dev);
-        let price = ensure_price(prices_storage, name, oracleID);
-        
-        // Capture old state for the event
-        let old_price_state = *price;
+public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
 
         let (supra_oracle_price, _,) = oracle_store::get_raw_price(oracleID);
         
@@ -63,44 +57,66 @@ module dev::QiaraOracleV5 {
         let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
         if (scaled_impact == 0) { return 0 };
 
-        if (isPositive) {
-            if (price.isPositive) {
-                price.value = price.value + scaled_impact;
-            } else {
-                if (scaled_impact >= price.value) {
-                    price.value = scaled_impact - price.value;
-                    price.isPositive = true;
+        // Declare variables to hold values extracted from the borrow scope
+        let old_price_state;
+        let new_price_state;
+        let final_price_value;
+        let final_price_is_positive;
+
+        // Isolate the mutable borrow scope
+        {
+            let prices_storage = borrow_global_mut<Prices>(@dev);
+            let price = ensure_price(prices_storage, name, oracleID);
+            
+            // Capture old state for the event
+            old_price_state = *price;
+
+            if (isPositive) {
+                if (price.isPositive) {
+                    price.value = price.value + scaled_impact;
                 } else {
-                    price.value = price.value - scaled_impact;
-                };
-            }
-        } else {
-            // Handle Negative Impact
-            if (price.isPositive) {
-                if (scaled_impact >= price.value) {
-                    price.value = scaled_impact - price.value;
-                    price.isPositive = false;
-                } else {
-                    price.value = price.value - scaled_impact;
-                };
+                    if (scaled_impact >= price.value) {
+                        price.value = scaled_impact - price.value;
+                        price.isPositive = true;
+                    } else {
+                        price.value = price.value - scaled_impact;
+                    };
+                }
             } else {
-                price.value = price.value + scaled_impact;
-            }
-        };
+                // Handle Negative Impact
+                if (price.isPositive) {
+                    if (scaled_impact >= price.value) {
+                        price.value = scaled_impact - price.value;
+                        price.isPositive = false;
+                    } else {
+                        price.value = price.value - scaled_impact;
+                    };
+                } else {
+                    price.value = price.value + scaled_impact;
+                }
+            };
+
+            // Copy out data and dereference price before releasing the borrow
+            new_price_state = *price;
+            final_price_value = price.value;
+            final_price_is_positive = price.isPositive;
+        }; // <-- The mutable borrow of `Prices` is completely released here
+
+        // Now you can safely call viewPrice because Prices is no longer borrowed
+        let updated_view_price = viewPrice(name);
 
         let data = vector[
+            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&oracleID)),
             Event::create_data_struct(utf8(b"old_price_impact"), utf8(b"u64"), bcs::to_bytes(&old_price_state)),
-            Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(price)),
+            Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
+            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&updated_view_price)),
         ];
         Event::emit_oracle_event(utf8(b"Qiara Oracle Impact Update"), data);
 
+        let a = calculate_impact_percentage((supra_oracle_price as u256), final_price_value, final_price_is_positive);
 
-        // You need to decide if return value is % or the new absolute impact
-        let a =  calculate_impact_percentage((supra_oracle_price as u256), price.value, price.isPositive);
-        //tttta(9);
-
-        return a/1_000_000
+        return a / 1_000_000
     }
 
     fun ensure_price(prices: &mut Prices, name: String, oracleID: vector<u8>): &mut Integer{
