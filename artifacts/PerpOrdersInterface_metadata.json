@@ -8,34 +8,190 @@
 			{
 				"inputs": [
 					{
+						"internalType": "address",
+						"name": "_events",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "events",
+				"outputs": [
+					{
+						"internalType": "contract IEvents",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
 						"internalType": "string",
-						"name": "action",
+						"name": "shared",
 						"type": "string"
 					},
 					{
-						"components": [
-							{
-								"internalType": "string",
-								"name": "name",
-								"type": "string"
-							},
-							{
-								"internalType": "string",
-								"name": "typeName",
-								"type": "string"
-							},
-							{
-								"internalType": "bytes",
-								"name": "value",
-								"type": "bytes"
-							}
-						],
-						"internalType": "struct IEvents.Data[]",
-						"name": "data",
-						"type": "tuple[]"
+						"internalType": "string",
+						"name": "asset",
+						"type": "string"
+					},
+					{
+						"internalType": "uint64",
+						"name": "size",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint128",
+						"name": "desired_price",
+						"type": "uint128"
+					},
+					{
+						"internalType": "bool",
+						"name": "isLong",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint32",
+						"name": "leverage",
+						"type": "uint32"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_chain",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_provider",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_token",
+						"type": "string"
 					}
 				],
-				"name": "emitVaultEvent",
+				"name": "p_create_limit_order",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "asset",
+						"type": "string"
+					},
+					{
+						"internalType": "uint64[]",
+						"name": "periods",
+						"type": "uint64[]"
+					},
+					{
+						"internalType": "uint64[]",
+						"name": "sizes",
+						"type": "uint64[]"
+					},
+					{
+						"internalType": "uint128",
+						"name": "desired_price",
+						"type": "uint128"
+					},
+					{
+						"internalType": "bool",
+						"name": "isLong",
+						"type": "bool"
+					},
+					{
+						"internalType": "uint32",
+						"name": "leverage",
+						"type": "uint32"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_chain",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_provider",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_token",
+						"type": "string"
+					}
+				],
+				"name": "p_create_twap_order",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "uint64",
+						"name": "id",
+						"type": "uint64"
+					}
+				],
+				"name": "p_remove_limit_order",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "uint64",
+						"name": "id",
+						"type": "uint64"
+					}
+				],
+				"name": "p_remove_twap_order",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -54,7 +210,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/perp_oders.sol": "IEvents"
+			"Evm/interfaces/perp_oders.sol": "PerpOrdersInterface"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
