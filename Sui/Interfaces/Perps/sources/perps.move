@@ -1,4 +1,4 @@
-module 0x0::QiaraBluefinPerpsInterfaceV1 {
+module 0x0::QiaraPerpsInterfaceV1 {
     use sui::tx_context::{Self, TxContext};
     use std::string::{Self, String};
     use sui::bcs;
