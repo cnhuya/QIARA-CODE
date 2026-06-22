@@ -1,0 +1,14 @@
+[package]
+name = "ModularPerps"
+edition = "2024.beta"
+
+[addresses]
+std = "0x1"
+
+
+[dependencies.Qiara]
+git = "https://github.com/cnhuya/QIARA-CODE.git"
+subdir = "Sui/Qiara"
+rev = "main"
+
+    

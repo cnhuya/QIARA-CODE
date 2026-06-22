@@ -275,6 +275,65 @@ module dev::QiaraPerpsV9 {
     }
 
 
+/// === PERMISSIONELESS INTERFACE ===
+
+    public entry fun p_accrue_interest(validator: &signer, user: vector<u8>, shared: String, asset: String, perm: Permission) acquires UserBook, AssetBook {
+        accrue_interest_internal(user, shared, asset);
+    
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+        ];
+        Event::emit_perps_event(utf8(b"Interest Accrued"), data);
+
+    }
+    public entry fun p_trade(validator: &signer,signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires UserBook, AssetBook, Permissions {
+        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
+    }
+    public entry fun p_update_oracle_and_trade(validator: &signer,signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires UserBook, AssetBook, Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
+        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+        oracle_store::update_price(signer, price_update_data, oracleID);
+        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
+    }
+    public entry fun p_change_reserve(validator: &signer, signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, perm: Permission) acquires UserBook, AssetBook {
+        ChainTypes::ensure_valid_chain_name(new_reserve_chain);
+        TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
+        TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);
+        
+        Shared::assert_is_sub_owner(copy shared, copy user);
+
+        // IMPORTANT: We must accrue interest BEFORE changing the reserve.
+        // This ensures the debt is snapshotted using the OLD reserve's borrow rate.
+        accrue_interest_internal(copy user, copy shared, copy asset);
+
+        // Now update the position with the new reserve info
+        let user_book = borrow_global_mut<UserBook>(@dev);
+        let position = find_position(copy shared, copy asset, user_book);
+        
+        // Ensure there is actually an active position to change
+        assert!(position.size > 0, ERROR_ZERO_SIZE); 
+
+        position.reserve_chain = copy new_reserve_chain;
+        position.reserve_provider = copy new_reserve_provider;
+        position.reserve_token = copy new_reserve_token;
+
+        // Emit an event to index the change off-chain
+        let data = vector[
+            Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), copy user),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"new_reserve_chain"), utf8(b"string"), bcs::to_bytes(&new_reserve_chain)),
+            Event::create_data_struct(utf8(b"new_reserve_provider"), utf8(b"string"), bcs::to_bytes(&new_reserve_provider)),
+            Event::create_data_struct(utf8(b"new_reserve_token"), utf8(b"string"), bcs::to_bytes(&new_reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"Reserve Changed"), data);
+    }
+
 // === HELPER FUNCTIONS ===
 
     fun execute_trade( user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {
