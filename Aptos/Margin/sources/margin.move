@@ -9,13 +9,13 @@ module dev::QiaraMarginV18{
     use std::bcs;
 
     use dev::QiaraRanksV18::{Self as Ranks};
-    use dev::QiaraTokensMetadataV21::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV21::{Self as TokensType};
+    use dev::QiaraTokensMetadataV22::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV22::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
-    use dev::QiaraStorageV10::{Self as storage, Access as StorageAccess};
-    use dev::QiaraSharedV7::{Self as Shared};
+    use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
+    use dev::QiaraSharedV8::{Self as Shared};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

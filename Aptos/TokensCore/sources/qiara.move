@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV21 {
+module dev::QiaraTokensQiaraV22 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -14,10 +14,10 @@ module dev::QiaraTokensQiaraV21 {
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
 
-    use dev::QiaraCapabilitiesV10::{Self as capabilities};
-    use dev::QiaraStorageV10::{Self as storage};
+    use dev::QiaraCapabilitiesV11::{Self as capabilities};
+    use dev::QiaraStorageV11::{Self as storage};
 
-    use dev::QiaraTokenTypesV21::{Self as TokensType};
+    use dev::QiaraTokenTypesV22::{Self as TokensType};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
 

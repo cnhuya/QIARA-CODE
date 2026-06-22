@@ -5,12 +5,12 @@ module dev::QiaraRanksV18{
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV21::{Self as TokensType};
-    use dev::QiaraChainTypesV21::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV22::{Self as TokensType};
+    use dev::QiaraChainTypesV22::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraStorageV10::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV7::{Self as Shared, Ownership, RefCodeParams};
+    use dev::QiaraSharedV8::{Self as Shared, Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
