@@ -150,7 +150,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "SharedInterface"
+			"Evm/interfaces/perps.sol": "PerpInterface"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -229,12 +229,12 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
-			"keccak256": "0xfe1fa9d51a8bbd12a9b1a4f7f5309ffcd7c6f5222bb1290887b3de04aa87000c",
+		"Evm/interfaces/perps.sol": {
+			"keccak256": "0x3f4ddc0e8191fa2cbbdf9ede7743fc661a0c1ac98a99e576becbd75930b6addf",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://ad3a004355b660eeb3de6d8c2203bd832ceee827ee2f82a83f8abd56d0c45546",
-				"dweb:/ipfs/QmejV81benMAXhqVeY4H3hEA1TATjhWmTTbTBJfcphiuo4"
+				"bzz-raw://02d5be19316ec2edab7cf66464d34a94820a645d996f74c48550258a560199f8",
+				"dweb:/ipfs/QmYvJkgnsAuu5hte4dcaaVvH72kYXeT1Lb8qaTitnFkYnT"
 			]
 		}
 	},

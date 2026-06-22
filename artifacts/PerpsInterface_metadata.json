@@ -32,106 +32,171 @@
 			{
 				"inputs": [
 					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
 						"internalType": "string",
-						"name": "name",
+						"name": "shared",
 						"type": "string"
 					},
 					{
 						"internalType": "string",
-						"name": "ref_code",
+						"name": "asset",
 						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "used_ref_code",
-						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "selected_validator",
-						"type": "string"
-					},
-					{
-						"internalType": "uint64",
-						"name": "xp_tax",
-						"type": "uint64"
-					},
-					{
-						"internalType": "uint64",
-						"name": "fee_tax",
-						"type": "uint64"
 					}
 				],
-				"name": "m_create_shared_storage",
+				"name": "p_accrue_interest",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
 				"inputs": [
-					{
-						"internalType": "string",
-						"name": "name",
-						"type": "string"
-					},
 					{
 						"internalType": "bytes",
 						"name": "user",
 						"type": "bytes"
 					},
 					{
-						"internalType": "bytes",
-						"name": "sub_owner",
-						"type": "bytes"
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "asset",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "new_reserve_chain",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "new_reserve_provider",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "new_reserve_token",
+						"type": "string"
 					}
 				],
-				"name": "p_allow_sub_owner",
+				"name": "p_change_reserve",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
 				"inputs": [
-					{
-						"internalType": "string",
-						"name": "name",
-						"type": "string"
-					},
-					{
-						"internalType": "bytes",
-						"name": "sub_owner",
-						"type": "bytes"
-					},
-					{
-						"internalType": "string",
-						"name": "new_used_ref_code",
-						"type": "string"
-					}
-				],
-				"name": "p_change_used_ref_code",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "string",
-						"name": "name",
-						"type": "string"
-					},
 					{
 						"internalType": "bytes",
 						"name": "user",
 						"type": "bytes"
 					},
 					{
-						"internalType": "bytes",
-						"name": "sub_owner",
-						"type": "bytes"
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "asset",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "size",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint64",
+						"name": "leverage",
+						"type": "uint64"
+					},
+					{
+						"internalType": "bool",
+						"name": "isLong",
+						"type": "bool"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_chain",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_provider",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_token",
+						"type": "string"
 					}
 				],
-				"name": "p_remove_sub_owner",
+				"name": "p_trade",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes",
+						"name": "user",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string",
+						"name": "shared",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "asset",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "size",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint64",
+						"name": "leverage",
+						"type": "uint64"
+					},
+					{
+						"internalType": "bool",
+						"name": "isLong",
+						"type": "bool"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_chain",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_provider",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "reserve_token",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes[]",
+						"name": "price_update_data",
+						"type": "bytes[]"
+					}
+				],
+				"name": "p_update_oracle_and_trade",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -150,7 +215,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "SharedInterface"
+			"Evm/interfaces/perps.sol": "PerpsInterface"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -158,11 +223,10 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
-		"remappings": [],
-		"viaIR": true
+		"remappings": []
 	},
 	"sources": {
 		"@openzeppelin/contracts/access/Ownable.sol": {
@@ -229,12 +293,12 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
-			"keccak256": "0xfe1fa9d51a8bbd12a9b1a4f7f5309ffcd7c6f5222bb1290887b3de04aa87000c",
+		"Evm/interfaces/perps.sol": {
+			"keccak256": "0x44ea70705780e6c74b9701e341e0bdcd6d1ea505c5989579f9cdc4b82488e2c6",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://ad3a004355b660eeb3de6d8c2203bd832ceee827ee2f82a83f8abd56d0c45546",
-				"dweb:/ipfs/QmejV81benMAXhqVeY4H3hEA1TATjhWmTTbTBJfcphiuo4"
+				"bzz-raw://7da0ce94ccb0f4e2ff9cabce28177b3bb1584f95292f476b00dbd55d67636988",
+				"dweb:/ipfs/QmbDqLZfKaFiCteDiMwcrfNh3utrbgC1CAHXV8TvzzmWVh"
 			]
 		}
 	},

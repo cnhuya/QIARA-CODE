@@ -34,24 +34,26 @@ contract SharedInterface  {
 
     // The sub_owner is intentionally bytes type, because if it is address, only EVM addresses are allowed,
     // which would result in this modular interface to not work on Aptos/Sui wallets or other different standards.
-    function p_allow_sub_owner(string calldata name, bytes calldata sub_owner) external { 
-        IEvents.Data[] memory eventData = new IEvents.Data[](3);
+    function p_allow_sub_owner(string calldata name, bytes calldata user, bytes calldata sub_owner) external { 
+        IEvents.Data[] memory eventData = new IEvents.Data[](4);
         
         eventData[0] = IEvents.Data("sender", "address", abi.encode(msg.sender));
-        eventData[1] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
-        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("user", "bytes", abi.encode(user));
+        eventData[2] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
+        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Added", eventData);
     }
 
     // The sub_owner is intentionally bytes type, because if it is address, only EVM addresses are allowed,
     // which would result in this modular interface to not work on Aptos/Sui wallets or other different standards.
-    function p_remove_sub_owner(string calldata name, bytes calldata sub_owner) external { 
-        IEvents.Data[] memory eventData = new IEvents.Data[](3);
+    function p_remove_sub_owner(string calldata name, bytes calldata user , bytes calldata sub_owner) external { 
+        IEvents.Data[] memory eventData = new IEvents.Data[](4);
         
         eventData[0] = IEvents.Data("sender", "address", abi.encode(msg.sender));
-        eventData[1] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
-        eventData[2] = IEvents.Data("name", "string", abi.encode(name));
+        eventData[1] = IEvents.Data("user", "bytes", abi.encode(user));
+        eventData[2] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
+        eventData[3] = IEvents.Data("name", "string", abi.encode(name));
         
         events.emitVaultEvent("Modular Storage Sub Owner Removed", eventData);
     }
@@ -61,7 +63,7 @@ contract SharedInterface  {
         IEvents.Data[] memory eventData = new IEvents.Data[](4);
         
         eventData[0] = IEvents.Data("sender", "address", abi.encode(msg.sender));
-        eventData[1] = IEvents.Data("sub_owner", "bytes", abi.encode(sub_owner));
+        eventData[1] = IEvents.Data("user", "bytes", abi.encode(sub_owner));
         eventData[2] = IEvents.Data("name", "string", abi.encode(name));
         eventData[3] = IEvents.Data("new_used_ref_code", "string", abi.encode(new_used_ref_code));
         

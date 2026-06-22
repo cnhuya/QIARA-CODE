@@ -54,7 +54,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"Evm/interfaces/shared.sol": "IEvents"
+			"Evm/interfaces/perps.sol": "IEvents"
 		},
 		"evmVersion": "osaka",
 		"libraries": {},
@@ -132,12 +132,12 @@
 				"dweb:/ipfs/QmadRjHbkicwqwwh61raUEapaVEtaLMcYbQZWs9gUkgj3u"
 			]
 		},
-		"Evm/interfaces/shared.sol": {
-			"keccak256": "0xada9163abd2aeaf27b0f997c2e461a340f15bd1b295e7cc528e0907ff9cf659e",
+		"Evm/interfaces/perps.sol": {
+			"keccak256": "0x44ea70705780e6c74b9701e341e0bdcd6d1ea505c5989579f9cdc4b82488e2c6",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://7f206fcad84cd725ae496403374a68ae9840f2ae83ee1729ddf17460c734db5a",
-				"dweb:/ipfs/QmPHd2xRRrz2c2aSLvq2jZ9wjbPZTpXBofMYRhLLNDxQWn"
+				"bzz-raw://7da0ce94ccb0f4e2ff9cabce28177b3bb1584f95292f476b00dbd55d67636988",
+				"dweb:/ipfs/QmbDqLZfKaFiCteDiMwcrfNh3utrbgC1CAHXV8TvzzmWVh"
 			]
 		}
 	},
