@@ -60,6 +60,7 @@ module dev::QiaraPerpsOrdersV9 {
         };
     }
 
+// Native Interface
     public entry fun create_limit_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, size: u64, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
@@ -180,9 +181,129 @@ module dev::QiaraPerpsOrdersV9 {
         table::remove(&mut orders.twap_orders, id);
     }
 
+// Permissionless Interface
+    public entry fun p_create_limit_order(validator: &signer, shared: String, user: vector<u8>, asset: String, size: u64, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+        let counter = borrow_global_mut<OrdersCounter>(@dev);
+        let orders = borrow_global_mut<Orders>(@dev);
+
+        let order = LimitRequest {
+            shared: shared,
+            user: user,
+            asset: asset,
+            size: size,
+            desired_price: desired_price,
+            isLong: isLong,
+            leverage: leverage,
+            reserve_chain: reserve_chain,
+            reserve_provider: reserve_provider,
+            reserve_token: reserve_token,
+        };
+
+        table::add(&mut orders.limit_orders, counter.counter, order);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"size"), utf8(b"u256"), bcs::to_bytes(&size)),
+            Event::create_data_struct(utf8(b"leverage"), utf8(b"u256"), bcs::to_bytes(&leverage)),
+            Event::create_data_struct(utf8(b"isLong"), utf8(b"bool"), bcs::to_bytes(&isLong)),
+            Event::create_data_struct(utf8(b"desired_price"), utf8(b"u256"), bcs::to_bytes(&desired_price)),
+            Event::create_data_struct(utf8(b"reserve_chain"), utf8(b"string"), bcs::to_bytes(&reserve_chain)),
+            Event::create_data_struct(utf8(b"reserve_provider"), utf8(b"string"), bcs::to_bytes(&reserve_provider)),
+            Event::create_data_struct(utf8(b"reserve_token"), utf8(b"string"), bcs::to_bytes(&reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"Limit Order Created"), data);
+
+        counter.counter = counter.counter + 1;
+    }
+    public entry fun p_create_twap_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, periods: vector<u64>, sizes: vector<u64>, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+        let counter = borrow_global_mut<OrdersCounter>(@dev);
+        let orders = borrow_global_mut<Orders>(@dev);
+
+        let order = TwapRequest {
+            shared: shared,
+            user: user,
+            asset: asset,
+            periods: periods,
+            sizes: sizes,
+            isLong: isLong,
+            leverage: leverage,
+            reserve_chain: reserve_chain,
+            reserve_provider: reserve_provider,
+            reserve_token: reserve_token,
+            created_at: timestamp::now_seconds(),
+        };
+
+        table::add(&mut orders.twap_orders, counter.counter, order);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"leverage"), utf8(b"u256"), bcs::to_bytes(&leverage)),
+            Event::create_data_struct(utf8(b"isLong"), utf8(b"bool"), bcs::to_bytes(&isLong)),
+            Event::create_data_struct(utf8(b"periods"), utf8(b"vector<u64>"), bcs::to_bytes(&periods)),
+            Event::create_data_struct(utf8(b"sizes"), utf8(b"vector<u64>"), bcs::to_bytes(&sizes)),
+            Event::create_data_struct(utf8(b"reserve_chain"), utf8(b"string"), bcs::to_bytes(&reserve_chain)),
+            Event::create_data_struct(utf8(b"reserve_provider"), utf8(b"string"), bcs::to_bytes(&reserve_provider)),
+            Event::create_data_struct(utf8(b"reserve_token"), utf8(b"string"), bcs::to_bytes(&reserve_token)),
+        ];
+        Event::emit_perps_event(utf8(b"TWAP Order Created"), data);
+
+        counter.counter = counter.counter + 1;
+    }
+
+    public entry fun p_remove_limit_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+        let counter = borrow_global_mut<OrdersCounter>(@dev);
+        let orders = borrow_global_mut<Orders>(@dev);
+
+        assert!(id < counter.counter, ERROR_ID_OUT_OF_BOUNDS);
+        assert!(table::contains(&orders.limit_orders, id), ERROR_REQUEST_WITH_THIS_ID_DOESNT_EXIST);
+
+        // Validate that the request matches the user and shared fields to prevent arbitrary deletion
+        let order = table::borrow(&orders.limit_orders, id);
+        assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        ];
+        Event::emit_perps_event(utf8(b"Limit Order Deleted"), data);
+
+        table::remove(&mut orders.limit_orders, id);
+    }
+
+    public entry fun p_remove_twap_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+        let counter = borrow_global_mut<OrdersCounter>(@dev);
+        let orders = borrow_global_mut<Orders>(@dev);
+
+        assert!(id < counter.counter, ERROR_ID_OUT_OF_BOUNDS);
+        assert!(table::contains(&orders.twap_orders, id), ERROR_REQUEST_WITH_THIS_ID_DOESNT_EXIST);
+
+        // Validate that the request matches the user and shared fields to prevent arbitrary deletion
+        let order = table::borrow(&orders.twap_orders, id);
+        assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
+            Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        ];
+        Event::emit_perps_event(utf8(b"TWAP Order Deleted"), data);
+
+        table::remove(&mut orders.twap_orders, id);
+    }
 
 
-   // Permissionless Interface
+
 /// === VIEW FUNCTIONS ===
     /// === TWAP VIEW FUNCTIONS ===
         #[view]
