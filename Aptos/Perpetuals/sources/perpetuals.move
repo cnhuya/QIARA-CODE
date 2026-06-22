@@ -7,8 +7,8 @@ module dev::QiaraPerpsV13 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV18::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV18::{Self as RI};
+    use dev::QiaraMarginV19::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV19::{Self as RI};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV22::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 

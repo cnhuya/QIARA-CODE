@@ -19,7 +19,7 @@ module dev::QiaraBridgeV27{
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStorageV11::{Self as storage};
 
-    use dev::QiaraSharedV8::{Self as Shared};
+    use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraTokensCoreV22::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV22::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
@@ -81,6 +81,7 @@ module dev::QiaraBridgeV27{
         validators: ValidatorsAccess,
         perps: PerpAccess,
         perps_orders: PerpOrdersAccess,
+        shared : SharedAccess,
     }
 
 
@@ -753,20 +754,20 @@ module dev::QiaraBridgeV27{
                 TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
-                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax);
+                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
                 Validators::acrue_modularity_fee(name,user);
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Shared::p_allow_sub_owner(signer, user, name, sub_owner)
+                Shared::p_allow_sub_owner(signer, user, name, sub_owner, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Storage Sub Owner Removed")) {
                 let (name, user, sub_owner) = Payload::prepare_p_remove_sub_owner(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Shared::p_remove_sub_owner(signer, user, name, sub_owner)
+                Shared::p_remove_sub_owner(signer, user, name, sub_owner, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Storage Used Ref Code Updated")) {
                 let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code)
+                Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Interest Accrue")) {
                 let (name, user, asset) = Payload::prepare_p_accrue_interest(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
@@ -774,31 +775,31 @@ module dev::QiaraBridgeV27{
             }  else if (event_type == utf8(b"Modular Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_trade(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Perps::p_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+                Perps::p_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Perps::p_update_oracle_and_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+                Perps::p_update_oracle_and_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Reserve Changed")) {
                 let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                Perps::p_change_reserve(signer, user, name, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+                Perps::p_change_reserve(signer, user, name, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Limit Order Created")) {
                 let (name, user, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_limit_order(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                PerpOrders::p_create_limit_order(signer, user, name, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+                PerpOrders::p_create_limit_order(signer, user, name, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular TWAP Order Created")) {
                 let (name, user, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_twap_order(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                PerpOrders::p_create_twap_order(signer, user, name, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+                PerpOrders::p_create_twap_order(signer, user, name, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular Limit Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_limit_order(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                PerpOrders::p_remove_limit_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+                PerpOrders::p_remove_limit_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular TWAP Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_twap_order(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
-                PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+                PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else {
                 abort(ERROR_INVALID_MESSAGE);
             };
