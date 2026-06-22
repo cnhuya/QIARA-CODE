@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV9 {
+module dev::QiaraPerpsV12 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -27,7 +27,7 @@ module dev::QiaraPerpsV9 {
 
     use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV9::{Self as Orders};
+    use dev::QiaraPerpsOrdersV12::{Self as Orders};
 
 
 // === ERRORS === //
@@ -277,7 +277,7 @@ module dev::QiaraPerpsV9 {
 
 /// === PERMISSIONELESS INTERFACE ===
 
-    public entry fun p_accrue_interest(validator: &signer, user: vector<u8>, shared: String, asset: String, perm: Permission) acquires UserBook, AssetBook {
+    public fun p_accrue_interest(validator: &signer, user: vector<u8>, shared: String, asset: String, perm: Permission) acquires UserBook, AssetBook {
         accrue_interest_internal(user, shared, asset);
     
         let data = vector[
@@ -290,17 +290,16 @@ module dev::QiaraPerpsV9 {
         Event::emit_perps_event(utf8(b"Interest Accrued"), data);
 
     }
-    public entry fun p_trade(validator: &signer,signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires UserBook, AssetBook, Permissions {
+    public fun p_trade(validator: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires UserBook, AssetBook, Permissions {
         execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
-    public entry fun p_update_oracle_and_trade(validator: &signer,signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires UserBook, AssetBook, Permissions {
-        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+    public fun p_update_oracle_and_trade(validator: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires UserBook, AssetBook, Permissions {
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
         let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-        oracle_store::update_price(signer, price_update_data, oracleID);
+        oracle_store::update_price(validator, price_update_data, oracleID);
         execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
-    public entry fun p_change_reserve(validator: &signer, signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, perm: Permission) acquires UserBook, AssetBook {
+    public  fun p_change_reserve(validator: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, perm: Permission) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
         TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);

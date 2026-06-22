@@ -1,4 +1,4 @@
-module dev::QiaraPerpsOrdersV9 {
+module dev::QiaraPerpsOrdersV12 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::table::{Self, Table};
@@ -6,10 +6,27 @@ module dev::QiaraPerpsOrdersV9 {
     use aptos_std::bcs;
     use std::timestamp;
     use event::QiaraEventV1::{Self as Event};
+    use dev::QiaraSharedV7::{Self as Shared, Access as SharedAccess};
     // === ERRORS === //
+    const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_ID_OUT_OF_BOUNDS: u64 = 1;
     const ERROR_REQUEST_WITH_THIS_ID_DOESNT_EXIST: u64 = 2;
     const ERROR_SHARED_MISMATCH: u64 = 3;
+    const ERROR_SIGNER_DOESNT_MATCH_USER: u64 = 4;
+
+// === ACCESS === //
+    struct Access has store, key, drop {}
+    struct Permission has key, drop {}
+
+    public fun give_access(s: &signer): Access {
+        assert!(signer::address_of(s) == @dev, ERROR_NOT_ADMIN);
+        Access {}
+    }
+
+    public fun give_permission(_access: &Access): Permission {
+        Permission {}
+    }
+
 
     struct OrdersCounter has key {
         counter: u64
@@ -62,6 +79,9 @@ module dev::QiaraPerpsOrdersV9 {
 
 // Native Interface
     public entry fun create_limit_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, size: u64, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+        assert!(bcs::to_bytes(&signer::address_of(_signer)) == user, ERROR_SIGNER_DOESNT_MATCH_USER);
+        Shared::assert_is_sub_owner(shared, user);
+        
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -99,6 +119,9 @@ module dev::QiaraPerpsOrdersV9 {
         counter.counter = counter.counter + 1;
     }
     public entry fun create_twap_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, periods: vector<u64>, sizes: vector<u64>, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+        assert!(bcs::to_bytes(&signer::address_of(_signer)) == user, ERROR_SIGNER_DOESNT_MATCH_USER);
+        Shared::assert_is_sub_owner(shared, user);
+       
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -136,8 +159,10 @@ module dev::QiaraPerpsOrdersV9 {
 
         counter.counter = counter.counter + 1;
     }
-
     public entry fun remove_limit_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+        assert!(bcs::to_bytes(&signer::address_of(_signer)) == user, ERROR_SIGNER_DOESNT_MATCH_USER);
+        Shared::assert_is_sub_owner(shared, user);
+        
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -158,8 +183,10 @@ module dev::QiaraPerpsOrdersV9 {
 
         table::remove(&mut orders.limit_orders, id);
     }
-
     public entry fun remove_twap_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+        assert!(bcs::to_bytes(&signer::address_of(_signer)) == user, ERROR_SIGNER_DOESNT_MATCH_USER);
+        Shared::assert_is_sub_owner(shared, user);
+
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -182,7 +209,9 @@ module dev::QiaraPerpsOrdersV9 {
     }
 
 // Permissionless Interface
-    public entry fun p_create_limit_order(validator: &signer, shared: String, user: vector<u8>, asset: String, size: u64, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+    public fun p_create_limit_order(validator: &signer, shared: String, user: vector<u8>, asset: String, size: u64, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires Orders, OrdersCounter {
+        Shared::assert_is_sub_owner(shared, user);
+        
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -202,7 +231,7 @@ module dev::QiaraPerpsOrdersV9 {
         table::add(&mut orders.limit_orders, counter.counter, order);
 
         let data = vector[
-            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
             Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
             Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -219,7 +248,9 @@ module dev::QiaraPerpsOrdersV9 {
 
         counter.counter = counter.counter + 1;
     }
-    public entry fun p_create_twap_order(_signer: &signer, shared: String, user: vector<u8>, asset: String, periods: vector<u64>, sizes: vector<u64>, desired_price: u128, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires Orders, OrdersCounter {
+    public fun p_create_twap_order(validator: &signer, shared: String, user: vector<u8>, asset: String, periods: vector<u64>, sizes: vector<u64>, isLong: bool, leverage: u32, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires Orders, OrdersCounter {
+        Shared::assert_is_sub_owner(shared, user);
+        
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -240,7 +271,7 @@ module dev::QiaraPerpsOrdersV9 {
         table::add(&mut orders.twap_orders, counter.counter, order);
 
         let data = vector[
-            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
             Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&counter.counter)),
             Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -258,7 +289,9 @@ module dev::QiaraPerpsOrdersV9 {
         counter.counter = counter.counter + 1;
     }
 
-    public entry fun p_remove_limit_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+    public fun p_remove_limit_order(validator: &signer, shared: String, user: vector<u8>, id: u64, perm: Permission) acquires OrdersCounter, Orders {
+        Shared::assert_is_sub_owner(shared, user);
+        
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -270,7 +303,7 @@ module dev::QiaraPerpsOrdersV9 {
         assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
 
         let data = vector[
-            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
             Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
             Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -280,7 +313,9 @@ module dev::QiaraPerpsOrdersV9 {
         table::remove(&mut orders.limit_orders, id);
     }
 
-    public entry fun p_remove_twap_order(_signer: &signer, shared: String, user: vector<u8>, id: u64) acquires OrdersCounter, Orders {
+    public fun p_remove_twap_order(validator: &signer, shared: String, user: vector<u8>, id: u64, perm: Permission) acquires OrdersCounter, Orders {
+        Shared::assert_is_sub_owner(shared, user);
+
         let counter = borrow_global_mut<OrdersCounter>(@dev);
         let orders = borrow_global_mut<Orders>(@dev);
 
@@ -292,7 +327,7 @@ module dev::QiaraPerpsOrdersV9 {
         assert!(order.shared == shared, ERROR_SHARED_MISMATCH);
 
         let data = vector[
-            Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
             Event::create_data_struct(utf8(b"id"), utf8(b"u256"), bcs::to_bytes(&id)),
             Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),

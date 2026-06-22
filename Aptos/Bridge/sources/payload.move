@@ -224,6 +224,212 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         return (name, user_bytes, new_used_ref_code)
     }
 
+public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset)
+    }
+
+    public fun prepare_p_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u256, u64, bool, String, String, String) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+        let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
+        let (_, leverage_raw) = find_payload_value(utf8(b"leverage"), type_names, payload);
+        let (_, is_long_raw) = find_payload_value(utf8(b"isLong"), type_names, payload);
+        let (_, reserve_chain_raw) = find_payload_value(utf8(b"reserve_chain"), type_names, payload);
+        let (_, reserve_provider_raw) = find_payload_value(utf8(b"reserve_provider"), type_names, payload);
+        let (_, reserve_token_raw) = find_payload_value(utf8(b"reserve_token"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+        let size = bcs_stream::deserialize_u256(&mut bcs_stream::new(size_raw));
+        let leverage = bcs_stream::deserialize_u64(&mut bcs_stream::new(leverage_raw));
+        let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
+        let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_chain_raw));
+        let reserve_provider = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_provider_raw));
+        let reserve_token = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_token_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token)
+    }
+
+    public fun prepare_p_update_oracle_and_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u256, u64, bool, String, String, String, vector<vector<u8>>) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+        let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
+        let (_, leverage_raw) = find_payload_value(utf8(b"leverage"), type_names, payload);
+        let (_, is_long_raw) = find_payload_value(utf8(b"isLong"), type_names, payload);
+        let (_, reserve_chain_raw) = find_payload_value(utf8(b"reserve_chain"), type_names, payload);
+        let (_, reserve_provider_raw) = find_payload_value(utf8(b"reserve_provider"), type_names, payload);
+        let (_, reserve_token_raw) = find_payload_value(utf8(b"reserve_token"), type_names, payload);
+        let (_, price_update_raw) = find_payload_value(utf8(b"price_update_data"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+        let size = bcs_stream::deserialize_u256(&mut bcs_stream::new(size_raw));
+        let leverage = bcs_stream::deserialize_u64(&mut bcs_stream::new(leverage_raw));
+        let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
+        let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_chain_raw));
+        let reserve_provider = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_provider_raw));
+        let reserve_token = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_token_raw));
+
+        let price_update_stream = &mut bcs_stream::new(price_update_raw);
+        let price_update_data = bcs_stream::deserialize_vector(price_update_stream, |s| {
+            bcs_stream::deserialize_vector(s, |inner_s| bcs_stream::deserialize_u8(inner_s))
+        });
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data)
+    }
+
+    public fun prepare_p_change_reserve(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, String, String, String) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+        let (_, chain_raw) = find_payload_value(utf8(b"new_reserve_chain"), type_names, payload);
+        let (_, provider_raw) = find_payload_value(utf8(b"new_reserve_provider"), type_names, payload);
+        let (_, token_raw) = find_payload_value(utf8(b"new_reserve_token"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+        let new_reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+        let new_reserve_provider = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+        let new_reserve_token = bcs_stream::deserialize_string(&mut bcs_stream::new(token_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset, new_reserve_chain, new_reserve_provider, new_reserve_token)
+    }
+
+public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u64, u128, bool, u32, String, String, String) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+        let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
+        let (_, price_raw) = find_payload_value(utf8(b"desired_price"), type_names, payload);
+        let (_, is_long_raw) = find_payload_value(utf8(b"isLong"), type_names, payload);
+        let (_, leverage_raw) = find_payload_value(utf8(b"leverage"), type_names, payload);
+        let (_, chain_raw) = find_payload_value(utf8(b"reserve_chain"), type_names, payload);
+        let (_, provider_raw) = find_payload_value(utf8(b"reserve_provider"), type_names, payload);
+        let (_, token_raw) = find_payload_value(utf8(b"reserve_token"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+        let size = bcs_stream::deserialize_u64(&mut bcs_stream::new(size_raw));
+        let desired_price = bcs_stream::deserialize_u128(&mut bcs_stream::new(price_raw));
+        let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
+        let leverage = bcs_stream::deserialize_u32(&mut bcs_stream::new(leverage_raw));
+        let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+        let reserve_provider = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+        let reserve_token = bcs_stream::deserialize_string(&mut bcs_stream::new(token_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token)
+    }
+
+    public fun prepare_p_create_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, vector<u64>, vector<u64>, u128, u32, String, String, String) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
+        let (_, periods_raw) = find_payload_value(utf8(b"periods"), type_names, payload);
+        let (_, sizes_raw) = find_payload_value(utf8(b"sizes"), type_names, payload);
+        let (_, price_raw) = find_payload_value(utf8(b"desired_price"), type_names, payload);
+        let (_, is_long_raw) = find_payload_value(utf8(b"isLong"), type_names, payload);
+        let (_, leverage_raw) = find_payload_value(utf8(b"leverage"), type_names, payload);
+        let (_, chain_raw) = find_payload_value(utf8(b"reserve_chain"), type_names, payload);
+        let (_, provider_raw) = find_payload_value(utf8(b"reserve_provider"), type_names, payload);
+        let (_, token_raw) = find_payload_value(utf8(b"reserve_token"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
+
+        let periods_stream = &mut bcs_stream::new(periods_raw);
+        let periods = bcs_stream::deserialize_vector(periods_stream, |s| bcs_stream::deserialize_u64(s));
+
+        let sizes_stream = &mut bcs_stream::new(sizes_raw);
+        let sizes = bcs_stream::deserialize_vector(sizes_stream, |s| bcs_stream::deserialize_u64(s));
+
+        let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
+        let leverage = bcs_stream::deserialize_u32(&mut bcs_stream::new(leverage_raw));
+        let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+        let reserve_provider = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+        let reserve_token = bcs_stream::deserialize_string(&mut bcs_stream::new(token_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token)
+    }
+
+    public fun prepare_p_remove_limit_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, u64) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, id_raw) = find_payload_value(utf8(b"id"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let id = bcs_stream::deserialize_u64(&mut bcs_stream::new(id_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, id)
+    }
+
+    public fun prepare_p_remove_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, u64) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, id_raw) = find_payload_value(utf8(b"id"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let id = bcs_stream::deserialize_u64(&mut bcs_stream::new(id_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, id)
+    }
+
     public fun prepare_modular_withdraw(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,  String, String, String, u64, vector<u8>)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);

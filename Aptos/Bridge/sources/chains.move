@@ -31,6 +31,9 @@ module dev::QiaraBridgeV26{
     use dev::QiaraPayloadV26::{Self as Payload};
     use dev::QiaraValidatorsV26::{Self as Validators, Access as ValidatorsAccess};
 
+    use dev::QiaraPerpsOrdersV12::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV12::{Self as Perps, Access as PerpAccess};
+
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
     const STORAGE: address = @dev;
@@ -76,27 +79,11 @@ module dev::QiaraBridgeV26{
         tokens_core: TokensCoreAccess,
         tokens_omnichain: TokensOmnichainAccess,
         validators: ValidatorsAccess,
+        perps: PerpAccess,
+        perps_orders: PerpOrdersAccess,
     }
 
-// === STRUCTS === //
-   // [DEPRECATED]
-   // struct DepositEvent has store, key {}
-   // struct RequestUnlockEvent has store, key {}
-   // struct UnlockEvent has store, key {}
 
-    /// In the future implement a more complext structure for storage,
-    /// Making it generic for epoch (1 day for example) and adding epoch key to events, to make it
-    /// so that event from epoch (ex. 14797) cant be stored/registered/validated in epoch (ex. 14798)
-    /// This way we can avoid double spending attacks on other chains and also reduce storage space 
-    /// which would mean more efficiency and lower gas fees by around 30-40%.
-
-   /// counting how many times the message was "validated"
-   /// If lets say it was "validated" total of 5 times succesfully, the 6th times will mote if from here
-   /// to chain storage
-   /// 
-   /// <message> <vector<Aux>>
-   /// <message> <validators, weight>
-   /// <message> <validator adress, validator weight, <weight>>
    
 // === Pending Struct Methology === //
     struct Pending has key {
@@ -179,7 +166,7 @@ module dev::QiaraBridgeV26{
 // === INIT === //
     fun init_module(admin: &signer) {
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {market: Market::give_access(admin), tokens_core: TokensCore::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), validators: Validators::give_access(admin)});
+            move_to(admin, Permissions {perps: Perps::give_access(admin), perps_orders: PerpOrders::give_access(admin), market: Market::give_access(admin), tokens_core: TokensCore::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), validators: Validators::give_access(admin)});
         };
         if (!exists<Pending>(@dev)) {
             move_to(admin, Pending {main: table::new<vector<u8>, MainVotes>(), zk: table::new<vector<u8>, ZkVotes>(), proof: table::new<vector<u8>, ProofVotes>(), omnichain: table::new<vector<u8>, OmniVotes>()});
@@ -780,7 +767,39 @@ module dev::QiaraBridgeV26{
                 let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
                 Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code)
-            } else {
+            } else if (event_type == utf8(b"Modular Interest Accrue")) {
+                let (name, user, asset) = Payload::prepare_p_accrue_interest(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                Perps::p_accrue_interest(signer, user, name, asset, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+            }  else if (event_type == utf8(b"Modular Trade")) {
+                let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_trade(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                Perps::p_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+            }  else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
+                let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                Perps::p_update_oracle_and_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+            }  else if (event_type == utf8(b"Modular Reserve Changed")) {
+                let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                Perps::p_change_reserve(signer, user, name, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+            }  else if (event_type == utf8(b"Modular Limit Order Created")) {
+                let (name, user, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_limit_order(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                PerpOrders::p_create_limit_order(signer, user, name, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+            }  else if (event_type == utf8(b"Modular TWAP Order Created")) {
+                let (name, user, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_twap_order(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                PerpOrders::p_create_twap_order(signer, user, name, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+            }  else if (event_type == utf8(b"Modular Limit Order Deleted")) {
+                let (name, user, id) = Payload::prepare_p_remove_limit_order(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                PerpOrders::p_remove_limit_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+            }  else if (event_type == utf8(b"Modular TWAP Order Deleted")) {
+                let (name, user, id) = Payload::prepare_p_remove_twap_order(type_names, payload);
+                Validators::acrue_modularity_fee(name,user);
+                PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).PerpOrders));
+            }  else {
                 abort(ERROR_INVALID_MESSAGE);
             };
             

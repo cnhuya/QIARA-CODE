@@ -21,7 +21,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"consensus_type"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"main"))),
             Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
@@ -36,7 +35,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"consensus_type"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"main"))),
             Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
@@ -57,7 +55,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"consensus_type"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"main"))),
             Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
@@ -79,7 +76,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"consensus_type"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"main"))),
             Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),

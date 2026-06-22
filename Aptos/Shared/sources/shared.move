@@ -1,4 +1,4 @@
-module dev::QiaraSharedV7 {
+module dev::QiaraSharedV8 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -184,7 +184,6 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
     }
-
     public entry fun allow_sub_owner(signer: &signer, name: String, sub_owner: vector<u8>) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         let sender_addr = signer::address_of(signer);
@@ -216,7 +215,6 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Sub Owner Added"), data);
     }
-
     public entry fun remove_sub_owner(signer: &signer, name: String, sub_owner: vector<u8>) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
@@ -237,7 +235,6 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Sub Owner Removed"), data);
     }
-
     public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner: vector<u8>, new_used_ref_code: String) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         let sender_addr = signer::address_of(signer);
@@ -260,7 +257,7 @@ module dev::QiaraSharedV7 {
     }
 
     // PERMISSIONLESS INTERFACE
-    public entry fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64 ) acquires SharedStorage {
+    public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64, perm: Permission ) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
 
         if (table::contains(&shared.storage, name)) {
@@ -302,8 +299,7 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
     }
-
-    public entry fun p_allow_sub_owner(validator: &signer, user: vector<u8>, name: String, sub_owner: vector<u8>) acquires SharedStorage {
+    public fun p_allow_sub_owner(validator: &signer, user: vector<u8>, name: String, sub_owner: vector<u8>, perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
 
@@ -333,8 +329,7 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Sub Owner Added"), data);
     }
-
-    public entry fun p_remove_sub_owner(validator: &signer, user: vector<u8>, name: String, sub_owner: vector<u8>) acquires SharedStorage {
+    public fun p_remove_sub_owner(validator: &signer, user: vector<u8>, name: String, sub_owner: vector<u8>, perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
 
@@ -355,8 +350,7 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Sub Owner Removed"), data);
     }
-
-    public entry fun p_change_used_ref_code(validator: &signer, user: vector<u8>, name: String, _sub_owner: vector<u8>, new_used_ref_code: String) acquires SharedStorage {
+    public fun p_change_used_ref_code(validator: &signer, user: vector<u8>, name: String, _sub_owner: vector<u8>, new_used_ref_code: String, perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
 
@@ -375,8 +369,6 @@ module dev::QiaraSharedV7 {
         ];
         Event::emit_shared_storage_event(utf8(b"Used Ref Code Updated"), data);
     }
-
-
     // === EXTERNAL CONTRACTS PUBLIC INTERFACE === //
 
     // Public function requiring Permission capability to change the selected validator
