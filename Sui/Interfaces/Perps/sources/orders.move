@@ -14,9 +14,8 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
     // --- Order Interface Functions ---
 
-    public entry fun create_limit_order(
+    public entry fun p_create_limit_order(
         shared: String, 
-        user: vector<u8>, 
         asset: String, 
         size: u64, 
         desired_price: u128, 
@@ -25,7 +24,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
         reserve_chain: String, 
         reserve_provider: String, 
         reserve_token: String, 
-        order_id: u64, 
         clock: &Clock, 
         _ctx: &mut TxContext
     ) {
@@ -34,15 +32,14 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
         };
 
         // Explicitly cast parameters to matching event type lengths (u256)
-        let id_u256 = (order_id as u256);
         let size_u256 = (size as u256);
         let leverage_u256 = (leverage as u256);
         let desired_price_u256 = (desired_price as u256);
 
+        let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b""))),
-            Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
-            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
             Event::create_data_struct(string::utf8(b"size"), string::utf8(b"u256"), bcs::to_bytes(&size_u256)),
@@ -57,9 +54,8 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
         Event::emit_event(clock, string::utf8(b"Limit Order Created"), data);
     }
 
-    public entry fun create_twap_order(
+    public entry fun p_create_twap_order(
         shared: String, 
-        user: vector<u8>, 
         asset: String, 
         periods: vector<u64>, 
         sizes: vector<u64>, 
@@ -68,7 +64,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
         reserve_chain: String, 
         reserve_provider: String, 
         reserve_token: String, 
-        order_id: u64, 
         clock: &Clock, 
         _ctx: &mut TxContext
     ) {
@@ -76,13 +71,12 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
             abort ERROR_SHARED_NAME_CANT_BE_EMPTY
         };
 
-        let id_u256 = (order_id as u256);
         let leverage_u256 = (leverage as u256);
 
+        let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b""))),
-            Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
-            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"string"), bcs::to_bytes(&user)),
+            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
             Event::create_data_struct(string::utf8(b"leverage"), string::utf8(b"u256"), bcs::to_bytes(&leverage_u256)),
@@ -97,9 +91,8 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
         Event::emit_event(clock, string::utf8(b"Modular TWAP Order Created"), data);
     }
 
-    public entry fun remove_limit_order(
+    public entry fun p_remove_limit_order(
         shared: String, 
-        user: vector<u8>, 
         id: u64, 
         clock: &Clock, 
         _ctx: &mut TxContext
@@ -110,19 +103,19 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let id_u256 = (id as u256);
 
+        let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b""))),
+            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
-            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
         ];
 
         Event::emit_event(clock, string::utf8(b"Modular Limit Order Deleted"), data);
     }
 
-    public entry fun remove_twap_order(
+    public entry fun p_remove_twap_order(
         shared: String, 
-        user: vector<u8>, 
         id: u64, 
         clock: &Clock, 
         _ctx: &mut TxContext
@@ -133,10 +126,11 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let id_u256 = (id as u256);
 
+        let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b""))),
+            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
-            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"string"), bcs::to_bytes(&user)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
         ];
 

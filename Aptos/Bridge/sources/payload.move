@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV27{
+module dev::QiaraPayloadV29{
     use std::signer;
     use std::vector;
     use std::string::{Self as string, String, utf8};
@@ -241,7 +241,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
         return (user_bytes, shared, asset)
     }
 
-    public fun prepare_p_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u256, u64, bool, String, String, String) acquires Permissions {
+    public fun prepare_p_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u64, u64, bool, String, String, String) acquires Permissions {
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
@@ -256,7 +256,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
         let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
         let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
-        let size = bcs_stream::deserialize_u256(&mut bcs_stream::new(size_raw));
+        let size = bcs_stream::deserialize_u64(&mut bcs_stream::new(size_raw));
         let leverage = bcs_stream::deserialize_u64(&mut bcs_stream::new(leverage_raw));
         let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
         let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_chain_raw));
@@ -270,7 +270,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
         return (user_bytes, shared, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token)
     }
 
-    public fun prepare_p_update_oracle_and_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u256, u64, bool, String, String, String, vector<vector<u8>>) acquires Permissions {
+    public fun prepare_p_update_oracle_and_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u64, u64, bool, String, String, String, vector<vector<u8>>) acquires Permissions {
         let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
@@ -286,7 +286,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
         let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
         let asset = bcs_stream::deserialize_string(&mut bcs_stream::new(asset_raw));
-        let size = bcs_stream::deserialize_u256(&mut bcs_stream::new(size_raw));
+        let size = bcs_stream::deserialize_u64(&mut bcs_stream::new(size_raw));
         let leverage = bcs_stream::deserialize_u64(&mut bcs_stream::new(leverage_raw));
         let is_long = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_long_raw));
         let reserve_chain = bcs_stream::deserialize_string(&mut bcs_stream::new(reserve_chain_raw));

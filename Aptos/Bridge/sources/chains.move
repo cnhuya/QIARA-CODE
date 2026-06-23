@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV27{
+module dev::QiaraBridgeV29{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -28,11 +28,11 @@ module dev::QiaraBridgeV27{
 
     use dev::QiaraMarginV19::{Self as Margin};
 
-    use dev::QiaraPayloadV27::{Self as Payload};
-    use dev::QiaraValidatorsV27::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV29::{Self as Payload};
+    use dev::QiaraValidatorsV29::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV13::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV13::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV14::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV14::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -775,11 +775,11 @@ module dev::QiaraBridgeV27{
             }  else if (event_type == utf8(b"Modular Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_trade(type_names, payload);
                 Validators::acrue_modularity_fee(user,name);
-                Perps::p_trade(signer, name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
+                Perps::p_trade(signer, name, user, asset, (size as u256), leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
                 Validators::acrue_modularity_fee(user,name);
-                Perps::p_update_oracle_and_trade(signer, name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
+                Perps::p_update_oracle_and_trade(signer, name, user, asset, (size as u256), leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Reserve Change")) {
                 let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
                 Validators::acrue_modularity_fee(user,name);
