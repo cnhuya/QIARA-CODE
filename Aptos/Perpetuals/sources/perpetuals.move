@@ -243,7 +243,6 @@ module dev::QiaraPerpsV14 {
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
-        TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);
         
         Shared::assert_is_sub_owner(copy shared, copy user);
 
@@ -302,7 +301,6 @@ module dev::QiaraPerpsV14 {
     public  fun p_change_reserve(validator: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, perm: Permission) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
-        TokensTypes::ensure_token_supported_for_chain(new_reserve_token, new_reserve_chain);
         
         Shared::assert_is_sub_owner(copy shared, copy user);
 

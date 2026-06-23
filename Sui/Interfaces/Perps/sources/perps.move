@@ -21,7 +21,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
@@ -30,16 +29,15 @@ module 0x0::QiaraPerpsInterfaceV1 {
         Event::emit_event(clock, string::utf8(b"Modular Interest Accrue"), data);
     }
 
-    public entry fun p_trade(shared: String, asset: String, size: u256, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, clock: &Clock, ctx: &mut TxContext) {
+    public entry fun p_trade(shared: String, asset: String, size: u64, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, clock: &Clock, ctx: &mut TxContext) {
         safety_check(shared, asset);
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
-            Event::create_data_struct(string::utf8(b"size"), string::utf8(b"u256"), bcs::to_bytes(&size)),
+            Event::create_data_struct(string::utf8(b"size"), string::utf8(b"u64"), bcs::to_bytes(&size)),
             Event::create_data_struct(string::utf8(b"leverage"), string::utf8(b"u64"), bcs::to_bytes(&leverage)),
             Event::create_data_struct(string::utf8(b"is_long"), string::utf8(b"bool"), bcs::to_bytes(&is_long)),
             Event::create_data_struct(string::utf8(b"reserve_chain"), string::utf8(b"string"), bcs::to_bytes(&reserve_chain)),
@@ -50,16 +48,15 @@ module 0x0::QiaraPerpsInterfaceV1 {
         Event::emit_event(clock, string::utf8(b"Modular Trade"), data);
     }
 
-    public entry fun p_update_oracle_and_trade(shared: String, asset: String, size: u256, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, clock: &Clock, ctx: &mut TxContext) {
+    public entry fun p_update_oracle_and_trade(shared: String, asset: String, size: u64, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, clock: &Clock, ctx: &mut TxContext) {
         safety_check(shared, asset);
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
-            Event::create_data_struct(string::utf8(b"size"), string::utf8(b"u256"), bcs::to_bytes(&size)),
+            Event::create_data_struct(string::utf8(b"size"), string::utf8(b"u64"), bcs::to_bytes(&size)),
             Event::create_data_struct(string::utf8(b"leverage"), string::utf8(b"u64"), bcs::to_bytes(&leverage)),
             Event::create_data_struct(string::utf8(b"is_long"), string::utf8(b"bool"), bcs::to_bytes(&is_long)),
             Event::create_data_struct(string::utf8(b"reserve_chain"), string::utf8(b"string"), bcs::to_bytes(&reserve_chain)),
@@ -76,7 +73,6 @@ module 0x0::QiaraPerpsInterfaceV1 {
 
         let sender = tx_context::sender(ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),

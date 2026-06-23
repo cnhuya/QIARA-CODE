@@ -38,7 +38,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
@@ -75,7 +74,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
@@ -105,7 +103,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
@@ -128,7 +125,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
 
         let sender = tx_context::sender(_ctx);
         let data = vector[
-            Event::create_data_struct(string::utf8(b"validator"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"id"), string::utf8(b"u256"), bcs::to_bytes(&id_u256)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),

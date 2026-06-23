@@ -225,7 +225,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
     }
 
 public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
 
@@ -271,7 +271,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
     }
 
     public fun prepare_p_update_oracle_and_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u64, u64, bool, String, String, String, vector<vector<u8>>) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
         let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
@@ -306,7 +306,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
     }
 
     public fun prepare_p_change_reserve(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, String, String, String) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
         let (_, chain_raw) = find_payload_value(utf8(b"new_reserve_chain"), type_names, payload);
@@ -329,7 +329,7 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
     }
 
 public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u64, u128, bool, u32, String, String, String) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
         let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
@@ -360,7 +360,7 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
     }
 
     public fun prepare_p_create_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, vector<u64>, vector<u64>, bool, u32, String, String, String) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
         let (_, periods_raw) = find_payload_value(utf8(b"periods"), type_names, payload);
@@ -397,7 +397,7 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
     }
 
     public fun prepare_p_remove_limit_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, u64) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, id_raw) = find_payload_value(utf8(b"id"), type_names, payload);
 
@@ -414,7 +414,7 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
     }
 
     public fun prepare_p_remove_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, u64) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, id_raw) = find_payload_value(utf8(b"id"), type_names, payload);
 
