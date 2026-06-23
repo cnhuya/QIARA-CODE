@@ -94,7 +94,7 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
             Event::create_data_struct(string::utf8(b"reserve_token"), string::utf8(b"string"), bcs::to_bytes(&reserve_token)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"TWAP Order Created"), data);
+        Event::emit_event(clock, string::utf8(b"Modular TWAP Order Created"), data);
     }
 
     public entry fun remove_limit_order(
@@ -117,7 +117,7 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"Limit Order Deleted"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Limit Order Deleted"), data);
     }
 
     public entry fun remove_twap_order(
@@ -140,6 +140,6 @@ module 0x0::QiaraPerpOrdersInterfaceV1 {
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"TWAP Order Deleted"), data);
+        Event::emit_event(clock, string::utf8(b"Modular TWAP Order Deleted"), data);
     }
 }

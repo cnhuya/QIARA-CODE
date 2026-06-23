@@ -780,7 +780,7 @@ module dev::QiaraBridgeV27{
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
                 Validators::acrue_modularity_fee(user,name);
                 Perps::p_update_oracle_and_trade(signer, name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
-            }  else if (event_type == utf8(b"Modular Reserve Changed")) {
+            }  else if (event_type == utf8(b"Modular Reserve Change")) {
                 let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
                 Validators::acrue_modularity_fee(user,name);
                 Perps::p_change_reserve(signer, name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));

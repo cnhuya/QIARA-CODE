@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV13 {
+module dev::QiaraPerpsV14 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -27,7 +27,7 @@ module dev::QiaraPerpsV13 {
 
     use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV13::{Self as Orders};
+    use dev::QiaraPerpsOrdersV14::{Self as Orders};
 
 
 // === ERRORS === //
@@ -108,7 +108,7 @@ module dev::QiaraPerpsV13 {
     }
 
     struct Position has copy, drop, store {
-        size: u64,
+        size: u128,
         entry_price: u128,
         isLong: bool,
         leverage: u32,
@@ -124,7 +124,7 @@ module dev::QiaraPerpsV13 {
         asset: String,
         used_margin: u256,
         usd_size: u256,
-        size: u64,
+        size: u128,
         entry_price: u128,
         price: u256,
         isLong: bool,
@@ -388,7 +388,7 @@ module dev::QiaraPerpsV13 {
         
         // Case 1: Open New
         if (position.size == 0) {
-            position.size = (added_size as u64);
+            position.size = (added_size as u128);
             position.leverage = (leverage as u32);
             position.isLong = isLong;
             position.entry_price = (price as u128);
@@ -419,7 +419,7 @@ module dev::QiaraPerpsV13 {
 
             let (paid_interest, _) = settle_interest(position, 0, true, curr_size, curr_size);
 
-            position.size = (new_size as u64);
+            position.size = (new_size as u128);
             position.leverage = ((weighted_curr_lev + weighted_new_lev) / new_size as u32);
             position.entry_price = ((weighted_curr_price + weighted_new_price) / new_size as u128);
             position.interest_index = (current_interest_index as u256);
@@ -449,7 +449,7 @@ module dev::QiaraPerpsV13 {
             
             let remaining_size = add_size - curr_size;
             if (remaining_size > 0) {
-                position.size = (remaining_size as u64);
+                position.size = (remaining_size as u128);
                 position.leverage = (leverage as u32);
                 position.isLong = isLong;
                 position.entry_price = (price as u128);
@@ -486,7 +486,7 @@ module dev::QiaraPerpsV13 {
             let (pnl, is_profit) = calculate_pnl(position.isLong, curr_price, price, add_size);
             let (final_pnl, final_is_profit) = settle_interest(position, pnl, is_profit, add_size, curr_size);
 
-            position.size = ((curr_size - add_size) as u64);
+            position.size = ((curr_size - add_size) as u128);
             position.last_update = timestamp::now_seconds();
 
             // Note: intentionally leaving reserve details untouched here to keep the active margin state.

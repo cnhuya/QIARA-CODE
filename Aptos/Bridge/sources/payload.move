@@ -242,12 +242,12 @@ public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector
     }
 
     public fun prepare_p_trade(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, u256, u64, bool, String, String, String) acquires Permissions {
-        let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);
         let (_, size_raw) = find_payload_value(utf8(b"size"), type_names, payload);
         let (_, leverage_raw) = find_payload_value(utf8(b"leverage"), type_names, payload);
-        let (_, is_long_raw) = find_payload_value(utf8(b"isLong"), type_names, payload);
+        let (_, is_long_raw) = find_payload_value(utf8(b"is_long"), type_names, payload);
         let (_, reserve_chain_raw) = find_payload_value(utf8(b"reserve_chain"), type_names, payload);
         let (_, reserve_provider_raw) = find_payload_value(utf8(b"reserve_provider"), type_names, payload);
         let (_, reserve_token_raw) = find_payload_value(utf8(b"reserve_token"), type_names, payload);

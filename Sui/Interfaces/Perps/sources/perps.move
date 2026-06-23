@@ -27,7 +27,7 @@ module 0x0::QiaraPerpsInterfaceV1 {
             Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"Interest Accrued"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Interest Accrue"), data);
     }
 
     public entry fun p_trade(shared: String, asset: String, size: u256, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, clock: &Clock, ctx: &mut TxContext) {
@@ -47,7 +47,7 @@ module 0x0::QiaraPerpsInterfaceV1 {
             Event::create_data_struct(string::utf8(b"reserve_token"), string::utf8(b"string"), bcs::to_bytes(&reserve_token)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"Trade Executed"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Trade"), data);
     }
 
     public entry fun p_update_oracle_and_trade(shared: String, asset: String, size: u256, leverage: u64, is_long: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, clock: &Clock, ctx: &mut TxContext) {
@@ -68,7 +68,7 @@ module 0x0::QiaraPerpsInterfaceV1 {
             Event::create_data_struct(string::utf8(b"price_update_data"), string::utf8(b"vector<vector<u8>>"), bcs::to_bytes(&price_update_data)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"Oracle Updated and Trade Executed"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Oracle Updated and Trade"), data);
     }
 
     public entry fun p_change_reserve(shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, clock: &Clock, ctx: &mut TxContext) {
@@ -85,7 +85,7 @@ module 0x0::QiaraPerpsInterfaceV1 {
             Event::create_data_struct(string::utf8(b"new_reserve_token"), string::utf8(b"string"), bcs::to_bytes(&new_reserve_token)),
         ];
 
-        Event::emit_event(clock, string::utf8(b"Reserve Changed"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Reserve Change"), data);
     }
 
     // Helper validation checks
