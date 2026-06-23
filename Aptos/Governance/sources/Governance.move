@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV {
+module dev::QiaraGovernanceV8 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -10,12 +10,12 @@ module dev::QiaraGovernanceV {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV6::{Self as Margin};
+    use dev::QiaraMarginV19::{Self as Margin};
 
-    use dev::QiaraStorageV3::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV3::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV3::{Self as functions, Access as FunctionAccess};
-    use dev::QiaraSharedV1::{Self as TokensShared};
+    use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV11::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV11::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraSharedV8::{Self as TokensShared};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
     const OWNER: address = @dev;

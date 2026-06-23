@@ -359,7 +359,7 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
         return (user_bytes, shared, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token)
     }
 
-    public fun prepare_p_create_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, vector<u64>, vector<u64>, u128, u32, String, String, String) acquires Permissions {
+    public fun prepare_p_create_twap_order(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String, vector<u64>, vector<u64>, bool, u32, String, String, String) acquires Permissions {
         let (_, user_raw) = find_payload_value(utf8(b"user"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, asset_raw) = find_payload_value(utf8(b"asset"), type_names, payload);

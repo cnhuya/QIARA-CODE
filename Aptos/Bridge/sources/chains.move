@@ -167,7 +167,7 @@ module dev::QiaraBridgeV27{
 // === INIT === //
     fun init_module(admin: &signer) {
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {perps: Perps::give_access(admin), perps_orders: PerpOrders::give_access(admin), market: Market::give_access(admin), tokens_core: TokensCore::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), validators: Validators::give_access(admin)});
+            move_to(admin, Permissions {shared: Shared::give_access(admin), perps: Perps::give_access(admin), perps_orders: PerpOrders::give_access(admin), market: Market::give_access(admin), tokens_core: TokensCore::give_access(admin), tokens_omnichain: TokensOmnichain::give_access(admin), validators: Validators::give_access(admin)});
         };
         if (!exists<Pending>(@dev)) {
             move_to(admin, Pending {main: table::new<vector<u8>, MainVotes>(), zk: table::new<vector<u8>, ZkVotes>(), proof: table::new<vector<u8>, ProofVotes>(), omnichain: table::new<vector<u8>, OmniVotes>()});
@@ -770,35 +770,35 @@ module dev::QiaraBridgeV27{
                 Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Interest Accrue")) {
                 let (name, user, asset) = Payload::prepare_p_accrue_interest(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
-                Perps::p_accrue_interest(signer, user, name, asset, Perps::give_permission(&borrow_global<Permissions>(@dev).Perps));
+                Validators::acrue_modularity_fee(user,name);
+                Perps::p_accrue_interest(signer, name, user, asset, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_trade(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
-                Perps::p_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
+                Validators::acrue_modularity_fee(user,name);
+                Perps::p_trade(signer, name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
-                Perps::p_update_oracle_and_trade(signer, user, name, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
+                Validators::acrue_modularity_fee(user,name);
+                Perps::p_update_oracle_and_trade(signer, name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Reserve Changed")) {
                 let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
-                Perps::p_change_reserve(signer, user, name, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
+                Validators::acrue_modularity_fee(user,name);
+                Perps::p_change_reserve(signer, name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
             }  else if (event_type == utf8(b"Modular Limit Order Created")) {
                 let (name, user, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_limit_order(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(user,name);
                 PerpOrders::p_create_limit_order(signer, user, name, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular TWAP Order Created")) {
                 let (name, user, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_twap_order(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(user,name);
                 PerpOrders::p_create_twap_order(signer, user, name, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular Limit Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_limit_order(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(user,name);
                 PerpOrders::p_remove_limit_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else if (event_type == utf8(b"Modular TWAP Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_twap_order(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(user,name);
                 PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             }  else {
                 abort(ERROR_INVALID_MESSAGE);
