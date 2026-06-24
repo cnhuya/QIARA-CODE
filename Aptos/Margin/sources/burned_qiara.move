@@ -18,7 +18,7 @@ module dev::QiaraBurnedQiaraV20 {
     use dev::QiaraSharedV8::{Self as Shared};
     use dev::QiaraTokensCoreV23::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV11::{Self as storage};
-    use dev::QiaraRanksV19::{Self as Ranks};
+    use dev::QiaraRanksV20::{Self as Ranks};
 // === CONSTANTS === //
     const ADMIN: address = @dev;
     const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
