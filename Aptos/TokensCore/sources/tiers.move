@@ -45,6 +45,9 @@ module dev::QiaraTokensTiersV22{
         w_fee: u64,
         oracle_native_weight: u256,
         market_scaling_factor: u64,
+        perps_max_leverage: u64,
+        perps_profit_fee: u64,
+        perps_max_position_size: u128,
  }
 /// === INIT ===
     fun init_module(admin: &signer){
@@ -151,6 +154,9 @@ module dev::QiaraTokensTiersV22{
             w_fee: minimal_w_fee(id),
             oracle_native_weight: oracle_native_weight(id),
             market_scaling_factor: market_scaling_factor(id),
+            perps_max_leverage: perps_max_leverage(id),
+            perps_profit_fee: profit_fee(id),
+            perps_max_position_size: max_position(id),
         };
 
         return full_tier
@@ -300,7 +306,7 @@ module dev::QiaraTokensTiersV22{
             }
 
 
-            market_scaling_factor = market_scaling_factor - ((id as u64)*1_000_000);
+            market_scaling_factor = market_scaling_factor - ((id as u64)*100_000);
 
             return market_scaling_factor
         }

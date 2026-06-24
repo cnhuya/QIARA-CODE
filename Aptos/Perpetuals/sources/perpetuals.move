@@ -9,6 +9,7 @@ module dev::QiaraPerpsV14 {
 
     use dev::QiaraMarginV19::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRIV19::{Self as RI};
+    use dev::QiaraRanksV19::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV22::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
@@ -63,7 +64,8 @@ module dev::QiaraPerpsV14 {
         market: MarketAccess,
         gas: GasAccess,
         token_vaults: TokenVaultsAccess,
-        shared: SharedAccess
+        shared: SharedAccess,
+        ranks: RanksAccess
     }
 
     struct Funding has store, key, drop, copy {
@@ -160,6 +162,7 @@ module dev::QiaraPerpsV14 {
         if (!exists<UserBook>(@dev)) { move_to(admin, UserBook { book: table::new<String, Map<String, Position>>() }); };
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { 
+                ranks: Ranks::give_access(admin),
                 gas: Gas::give_access(admin),
                 margin: Margin::give_access(admin), 
                 market: Market::give_access(admin),
