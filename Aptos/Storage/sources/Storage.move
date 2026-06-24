@@ -190,7 +190,7 @@ module dev::QiaraStorageV11 {
 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT"), 1_000_000, true, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT_SLASHING"), 10_000_000, true, &give_permission(&give_access(admin))); // 10
-        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), 1_000_000, true, &give_permission(&give_access(admin))); // 1x
+        register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), 5_000_000, true, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE_SLASHING"), 2_000_000, true, &give_permission(&give_access(admin))); // 25x
         register_constant<u64>(admin, utf8(b"QiaraValidator"), utf8(b"VALIDATOR_COMPUTATION_FEE"), 1_000, true, &give_permission(&give_access(admin))); // 0.001%
 
@@ -231,7 +231,7 @@ module dev::QiaraStorageV11 {
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        change_constant(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), bc::to_bytes(&100_000u64), &give_permission(&give_access(admin))); // 0.001%  
+        change_constant(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), bc::to_bytes(&5_000_000u64), &give_permission(&give_access(admin))); // 0.001%  
 
     }
 

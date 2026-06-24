@@ -358,7 +358,8 @@ module dev::QiaraTokensTiersV23{
             let effective_multiplier = tier_multiplier(max_tier_id-id+1); // +1 is here so that if id is 7, then it returns multiplier for tier 1 which is intended
 
             // in the future change the max leverage to 1_000_000 (1) and add MAX_LEVERAGE_SLASHING to 2_000_000 (2)
-            storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"))) * effective_multiplier / 25_000_000 / 2 
+            //5_000_000*5_000/20/10_000
+            (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE")))) * effective_multiplier / 20 / 10000 
         }
 
 
