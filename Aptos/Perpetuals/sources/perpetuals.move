@@ -802,6 +802,11 @@ module dev::QiaraPerpsV14 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MIN_TOKEN_SIZE_PER_TRADE"))) as u256
     }
 
+    #[view]
+     public fun experience_for_action(): u256 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"POINTS_PER_PERP_ACTION"))) as u256
+    }
+
 
     fun ensure_safety(token: String, amount: u256, reserve_chain: String, reserve_provider: String, reserve_token: String) {
         assert!(amount >= min_token_size(), ERROR_SIZE_TOO_SMALL);
