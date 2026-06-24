@@ -1,4 +1,4 @@
-module dev::QiaraMarginV19{
+module dev::QiaraMarginV20{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,8 +9,8 @@ module dev::QiaraMarginV19{
     use std::bcs;
 
     use dev::QiaraRanksV19::{Self as Ranks};
-    use dev::QiaraTokensMetadataV22::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV22::{Self as TokensType};
+    use dev::QiaraTokensMetadataV23::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV23::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
