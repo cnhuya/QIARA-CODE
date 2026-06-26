@@ -84,6 +84,45 @@ module 0x0::QiaraPerpsInterfaceV1 {
         Event::emit_event(clock, string::utf8(b"Modular Reserve Change"), data);
     }
 
+    public entry fun p_update_oracle_with_reward(shared: String, asset: String, price_update_data: vector<vector<u8>>, clock: &Clock, ctx: &mut TxContext) {
+        safety_check(shared, asset);
+
+        let sender = tx_context::sender(ctx);
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(string::utf8(b"price_update_data"), string::utf8(b"vector<vector<u8>>"), bcs::to_bytes(&price_update_data)),
+        ];
+
+        Event::emit_event(clock, string::utf8(b"Modular Oracle Updated with Reward"), data);
+    }
+
+    public entry fun p_batch_update_oracle_with_reward(shared: String, asset: vector<String>, price_update_data: vector<vector<vector<u8>>>, clock: &Clock, ctx: &mut TxContext) {
+        if (shared == string::utf8(b"")) {
+            abort ERROR_SHARED_NAME_CANT_BE_EMPTY
+        };
+        let len = vector::length(&asset);
+        let mut i = 0;
+        while (i < len) {
+            let item = vector::borrow(&asset, i);
+            if (*item == string::utf8(b"")) {
+                abort ERROR_ASSET_CANT_BE_EMPTY
+            };
+            i = i + 1;
+        };
+
+        let sender = tx_context::sender(ctx);
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared_storage"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"asset"), string::utf8(b"vector<string>"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(string::utf8(b"price_update_data"), string::utf8(b"vector<vector<vector<u8>>>"), bcs::to_bytes(&price_update_data)),
+        ];
+
+        Event::emit_event(clock, string::utf8(b"Modular Batch Oracle Updated with Reward"), data);
+    }
+
     // Helper validation checks
     fun safety_check(shared: String, asset: String) {
         if (shared == string::utf8(b"")) {

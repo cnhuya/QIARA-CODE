@@ -243,6 +243,37 @@ module dev::QiaraPerpsV15 {
         oracle_store::update_price(signer, price_update_data, oracleID);
         execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
+    public entry fun update_oracle_with_reward(signer: &signer, user: vector<u8>, shared: String, asset: String, price_update_data: vector<vector<u8>>) acquires  Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
+        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+
+        oracle_store::update_price(signer, price_update_data, oracleID);
+        Ranks::add_experience(shared, experience_for_action(), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
+
+    }
+    public entry fun batch_update_oracle_with_reward(signer: &signer, user: vector<u8>, shared: String, asset: vector<String>, price_update_data: vector<vector<vector<u8>>>) acquires  Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        
+
+        let ids = vector::empty();
+        let len = vector::length(&asset);
+        while(len>0){
+            let asset = vector::borrow(&asset, len-1);
+            let metadata = TokensMetadata::get_coin_metadata_by_symbol(*asset);
+            let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+            vector::push_back(&mut ids, oracleID);
+            len = len-1;
+        }
+
+        oracle_store::batch_update_price(signer, price_update_data, ids);
+        Ranks::add_experience(shared, experience_for_action()*(len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
+
+    }
+
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
@@ -332,6 +363,34 @@ module dev::QiaraPerpsV15 {
             Event::create_data_struct(utf8(b"new_reserve_token"), utf8(b"string"), bcs::to_bytes(&new_reserve_token)),
         ];
         Event::emit_perps_event(utf8(b"Reserve Changed"), data);
+    }
+
+    public fun p_update_oracle_with_reward(validator: &signer, user: vector<u8>, shared: String, asset: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires  Permissions {
+        Shared::assert_is_sub_owner(copy shared, copy user);
+        
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
+        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+
+        oracle_store::update_price(validator, price_update_data, oracleID);
+        Ranks::add_experience(shared, experience_for_action(), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
+
+    }
+    public fun p_batch_update_oracle_with_reward(validator: &signer, user: vector<u8>, shared: String, asset: vector<String>, price_update_data: vector<vector<vector<u8>>>, perm: Permission) acquires  Permissions {
+        Shared::assert_is_sub_owner(copy shared, copy user);
+
+        let ids = vector::empty();
+        let len = vector::length(&asset);
+        while(len>0){
+            let asset = vector::borrow(&asset, len-1);
+            let metadata = TokensMetadata::get_coin_metadata_by_symbol(*asset);
+            let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
+            vector::push_back(&mut ids, oracleID);
+            len = len-1;
+        }
+
+        oracle_store::batch_update_price(validator, price_update_data, ids);
+        Ranks::add_experience(shared, experience_for_action()*(len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
+
     }
 
 // === HELPER FUNCTIONS ===
@@ -804,7 +863,7 @@ module dev::QiaraPerpsV15 {
 
     #[view]
      public fun experience_for_action(): u256 {
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"POINTS_PER_PERP_ACTION"))) as u256
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"POINTS_PER_PERP_ACTION"))) as u256
     }
 
 

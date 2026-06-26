@@ -359,7 +359,9 @@ module dev::QiaraTokensTiersV23{
 
             // in the future change the max leverage to 1_000_000 (1) and add MAX_LEVERAGE_SLASHING to 2_000_000 (2)
             //5_000_000*5_000/20/10_000
-            (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"))) * effective_multiplier) / 20 / 10000 
+           // (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"))) * effective_multiplier) / 20 / 10000 
+                  (5_000_000 * effective_multiplier) / 20 / 10000 
+
         }
 
 
