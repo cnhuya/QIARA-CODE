@@ -62,7 +62,7 @@ module dev::QiaraTokensMetadataV23{
         creation: u64,
         listed: u64,
         penalty_expiry: u64,
-        credit: u256,
+        credit: Credit,
         tokenomics: Tokenomics,
     }
 
@@ -74,11 +74,17 @@ module dev::QiaraTokensMetadataV23{
         creation: u64,
         listed: u64,
         penalty_expiry: u64,
-        credit: u256,
+        credit: Credit,
         price: Price,
         market: Market,
         tokenomics: Tokenomics,
         full_tier: Tier,
+    }
+
+    struct Credit has key, store, copy,drop {
+        credit: u256,
+        needed_to_next: u256,
+        name_next: String,
     }
 
     struct Tier has key, store, copy,drop {
@@ -178,6 +184,12 @@ public entry fun create_metadata(
         let (calc_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, creation, oracleID);
         credit = calc_credit;
         tier = associate_tier(calc_credit, stable);
+    };
+
+    let credit = Credit { 
+        credit, 
+        needed_credit(tier-1), 
+        convert_tier_to_string(needed_credit(tier-1)) 
     };
 
     // 4. SINGLE POINT OF CREATION
@@ -502,6 +514,26 @@ public entry fun create_metadata(
         }
     }
 
+    fun needed_credit(id: u256): u256{
+
+
+        if (id == 1){
+            return 10000000000000
+        } else if (id == 2){
+            return 1000000000000
+        } else if (id == 3){
+            return 250000000000
+        } else if (id == 4){
+            return 100000000000
+        } else if (id == 5){
+            return 50000000000
+        } else if (id == 6){
+            return 25000000000
+        } else {
+            return 0
+        }
+    }
+
 // === VIEW FUNCTIONS === //
     // === GET COIN METADATA === //
 
@@ -592,9 +624,21 @@ public entry fun create_metadata(
         public fun get_coin_metadata_listed(metadata: &VMetadata): u64 {
             metadata.listed
         }
-
-        public fun get_coin_metadata_credit(metadata: &VMetadata): u256 {
+    // CREDIT
+        public fun get_coin_metadata_full_credit(metadata: &VMetadata): Credit {
             metadata.credit
+        }
+
+        public fun get_coin_credit_credit(metadata: &VMetadata): u256 {
+            (metadata.credit.credit as u256)
+        }
+
+        public fun get_coin_metadata_needed_credit_for_next_tier(metadata: &VMetadata): u256 {
+            (metadata.credit.needed_to_next as u256)
+        }
+
+        public fun get_coin_metadata_next_tier_name(metadata: &VMetadata): String {
+            metadata.name_next
         }
 
     // PRICE

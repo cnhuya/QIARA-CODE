@@ -140,7 +140,14 @@ module dev::QiaraTokensTiersV23{
 
     fun view_full_tier(id: u8): FullTier{
         let tier = view_tier(id);
-
+        
+            let max_tier_id = 7;
+        let profit_fee;
+            if(id == 255 || id == 254){
+                profit_fee = 0;
+            } else {
+                profit_fee = profit_fee(max_tier_id-id+1);
+            }
 
             let max_tier_id = 7;
 
@@ -158,7 +165,7 @@ module dev::QiaraTokensTiersV23{
             oracle_native_weight: oracle_native_weight(id),
             market_scaling_factor: market_scaling_factor(id),
             perps_max_leverage: perps_max_leverage(id),
-            perps_profit_fee: profit_fee(max_tier_id-id+1),
+            perps_profit_fee: profit_fee,
             perps_max_position_size: max_position(id),
         };
 
