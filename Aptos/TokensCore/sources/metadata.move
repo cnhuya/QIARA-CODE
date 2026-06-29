@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV24{
+module dev::QiaraTokensMetadataV25{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV24{
     use dev::QiaraStorageV11::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensRatesV24::{Self as rates};
-    use dev::QiaraTokensTiersV24::{Self as tier};
+    use dev::QiaraTokensRatesV25::{Self as rates};
+    use dev::QiaraTokensTiersV25::{Self as tier};
 
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
     use dev::QiaraOracleV5::{Self as oracle, Access as OracleAccess};
@@ -187,9 +187,9 @@ public entry fun create_metadata(
     };
 
     let credit = Credit { 
-        credit, 
-        needed_credit(tier-1), 
-        convert_tier_to_string(needed_credit(tier-1)) 
+        credit: credit, 
+        needed_to_next: needed_credit((tier as u256)-1), 
+        name_next: tier::convert_tier_to_string(associate_tier( needed_credit((tier as u256)-1), stable))
     };
 
     // 4. SINGLE POINT OF CREATION
@@ -229,7 +229,7 @@ public entry fun create_metadata(
                     };
 
                     let (calculated_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, metadat.creation, metadat.oracleID);
-                    metadat.credit = calculated_credit;
+                    metadat.credit.credit = calculated_credit;
                     metadat.tier = associate_tier(calculated_credit, metadat.tier);
                 } else {
                     len = len - 1;
@@ -638,7 +638,7 @@ public entry fun create_metadata(
         }
 
         public fun get_coin_metadata_next_tier_name(metadata: &VMetadata): String {
-            metadata.name_next
+            metadata.credit.name_next
         }
 
     // PRICE

@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV24 {
+module dev::QiaraVaultsV25 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -15,19 +15,19 @@ module dev::QiaraVaultsV24 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV23::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV23::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensRatesV23::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV23::{Self as TokensTiers};
-    use dev::QiaraTokensOmnichainV23::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV20::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV20::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV20::{Self as RI};
-    use dev::QiaraBurnedQiaraV20::{Self as BurnedQiara};
+    use dev::QiaraTokensCoreV24::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV24::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensRatesV24::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV24::{Self as TokensTiers};
+    use dev::QiaraTokensOmnichainV24::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraMarginV21::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV21::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV21::{Self as RI};
+    use dev::QiaraBurnedQiaraV21::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV23::{Self as TokensTypes};
-    use dev::QiaraChainTypesV23::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV23::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV24::{Self as TokensTypes};
+    use dev::QiaraChainTypesV24::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV24::{Self as ProviderTypes};
 
     use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV11::{Self as capabilities, Access as CapabilitiesAccess};
@@ -36,8 +36,8 @@ module dev::QiaraVaultsV24 {
 
     use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV28::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV28::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV29::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV29::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
