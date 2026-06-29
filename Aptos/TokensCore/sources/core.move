@@ -140,7 +140,7 @@ module dev::QiaraTokensCoreV25{
         init_token(admin, utf8(b"Sui"), utf8(b"QSUI"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/sui.webp"), 1_683_062_400, x"50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266", 10_000_000_000, 4_029_196_852, 10_000_000_000, 1);
    //     tttta(99);
         //     tttta(2);
-        init_token(admin, utf8(b"Virtuals"), utf8(b"QVIRTUALS"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/virtuals.webp"), 1_614_556_800, x"0c6c5da309db3296d7e08c3e28b24fb259dca5aa46fb34be4b44ecccfeead6fe", 1_000_000_000, 657_085_334,, 1_000_000_000, 1);
+        init_token(admin, utf8(b"Virtuals"), utf8(b"QVIRTUALS"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/virtuals.webp"), 1_614_556_800, x"0c6c5da309db3296d7e08c3e28b24fb259dca5aa46fb34be4b44ecccfeead6fe", 1_000_000_000, 657_085_334, 1_000_000_000, 1);
         init_token(admin, utf8(b"Aptos"), utf8(b"QAPT"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/aptos.webp"), 1_665_532_800, x"44a93dddd8effa54ea51076c4e851b6cbbfd938e82eb90197de38fe8876bb66e", 2_100_000_000, 832_543_225, 1_204_912_773, 1);
         init_token(admin, utf8(b"USDT"), utf8(b"QUSDT"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdt.webp"), 0, x"1fc18861232290221461220bd4e2acd1dcdfbc89c84092c93c18bdc7756c1588", 185_977_352_465, 185_977_352_465, 185_977_352_465, 255);
         init_token(admin, utf8(b"USDC"), utf8(b"QUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdc.webp"), 0, x"41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722", 76_235_696_160, 76_235_696_160, 76_235_696_160, 255);   
