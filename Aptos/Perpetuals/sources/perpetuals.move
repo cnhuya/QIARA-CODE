@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV15 {
+module dev::QiaraPerpsV16 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -7,28 +7,28 @@ module dev::QiaraPerpsV15 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV20::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV20::{Self as RI};
-    use dev::QiaraRanksV20::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV21::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV21::{Self as RI};
+    use dev::QiaraRanksV21::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV23::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV25::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV24::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV25::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV28::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV28::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV29::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV29::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV11::{Self as storage};
     use dev::QiaraCapabilitiesV11::{Self as capabilities};
     use dev::QiaraOracleStoreV5::{Self as oracle_store};
-    use dev::QiaraChainTypesV23::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV23::{Self as TokensTypes};
+    use dev::QiaraChainTypesV25::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV25::{Self as TokensTypes};
 
     use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV15::{Self as Orders};
+    use dev::QiaraPerpsOrdersV16::{Self as Orders};
 
 
 // === ERRORS === //
