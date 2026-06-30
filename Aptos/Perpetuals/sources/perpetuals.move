@@ -462,7 +462,7 @@ module dev::QiaraPerpsV16 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator,user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"), reserve_chain, reserve_provider, reserve_token);
+            emit_position_event(validator,user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"), reserve_chain, reserve_provider, reserve_token, isLong);
             return (0, true);
         };
 
@@ -491,7 +491,7 @@ module dev::QiaraPerpsV16 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator, user,shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"), reserve_chain, reserve_provider, reserve_token);
+            emit_position_event(validator, user,shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"), reserve_chain, reserve_provider, reserve_token, isLong);
             
             return (paid_interest, false);
         };
@@ -524,7 +524,7 @@ module dev::QiaraPerpsV16 {
                 
                 // Add the new flipped exposure
                 update_asset_leverage(asset, remaining_size, leverage, perp_type, true);
-                emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"), reserve_chain, reserve_provider, reserve_token);
+                emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"), reserve_chain, reserve_provider, reserve_token, isLong);
             } else {
                 position.size = 0;
                 position.leverage = 0;
@@ -537,7 +537,7 @@ module dev::QiaraPerpsV16 {
                 position.reserve_provider = utf8(b"");
                 position.reserve_token = utf8(b"");
 
-                emit_position_event(validator,user,  shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"), reserve_chain, reserve_provider, reserve_token);
+                emit_position_event(validator,user,  shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"), reserve_chain, reserve_provider, reserve_token, isLong);
             };
 
             return (final_pnl, final_is_profit)
@@ -553,7 +553,7 @@ module dev::QiaraPerpsV16 {
 
             // Remove only the closed portion from exposure
             update_asset_leverage(asset, add_size, leverage, old_perp_type, false);
-            emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"), reserve_chain, reserve_provider, reserve_token);
+            emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"), reserve_chain, reserve_provider, reserve_token, isLong);
             
             return (final_pnl, final_is_profit)
         }

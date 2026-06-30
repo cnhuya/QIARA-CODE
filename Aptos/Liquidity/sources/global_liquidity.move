@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV29 {
+module dev::QiaraLiquidityV30 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -453,6 +453,46 @@ module dev::QiaraLiquidityV29 {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         return vault.storage
     }
+
+#[view]
+public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vector<String>, vector<String>) acquires GlobalVault {
+    let vaults = borrow_global<GlobalVault>(@dev);
+    let all_tokens = vector::empty<String>();
+    let all_chains = vector::empty<String>();
+    let all_providers = vector::empty<String>();
+
+    let len = vector::length(&tokens);
+    let token_idx = 0;
+
+    while (token_idx < len) {
+        let token = *vector::borrow(&tokens, token_idx);
+        if (table::contains(&vaults.balances, token)) {
+            // 1. Store the active token
+            vector::push_back(&mut all_tokens, token);
+            
+            let token_table = table::borrow(&vaults.balances, token);
+            let chains = map::keys(token_table);
+            
+            // 2. Append all chains for this token at once
+            vector::append(&mut all_chains, chains);
+            
+            let num_chains = vector::length(&chains);
+            let chain_idx = 0;
+            while (chain_idx < num_chains) {
+                let chain = *vector::borrow(&chains, chain_idx);
+                let providers_map = map::borrow(token_table, &chain);
+                
+                // 3. Append all providers for this chain at once (no inner loop needed)
+                vector::append(&mut all_providers, map::keys(providers_map));
+                
+                chain_idx = chain_idx + 1;
+            };
+        };
+        token_idx = token_idx + 1;
+    };
+
+    (all_tokens, all_chains, all_providers)
+}
 
     #[view]
     public fun return_vaults(tokens: vector<String>): Map<String, Map<String, Map<String, FullVault>>> acquires GlobalVault {
