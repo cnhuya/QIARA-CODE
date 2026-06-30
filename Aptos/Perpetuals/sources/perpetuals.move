@@ -462,7 +462,7 @@ module dev::QiaraPerpsV16 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator,user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"));
+            emit_position_event(validator,user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Open Position"), reserve_chain, reserve_provider, reserve_token);
             return (0, true);
         };
 
@@ -491,7 +491,7 @@ module dev::QiaraPerpsV16 {
             position.reserve_token = copy reserve_token;
 
             update_asset_leverage(asset, add_size, leverage, perp_type, true);
-            emit_position_event(validator, user,shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"));
+            emit_position_event(validator, user,shared, perp_type, added_size, leverage, assetName, price, utf8(b"Add Size"), reserve_chain, reserve_provider, reserve_token);
             
             return (paid_interest, false);
         };
@@ -524,7 +524,7 @@ module dev::QiaraPerpsV16 {
                 
                 // Add the new flipped exposure
                 update_asset_leverage(asset, remaining_size, leverage, perp_type, true);
-                emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"));
+                emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Reduce & Flip Side"), reserve_chain, reserve_provider, reserve_token);
             } else {
                 position.size = 0;
                 position.leverage = 0;
@@ -537,7 +537,7 @@ module dev::QiaraPerpsV16 {
                 position.reserve_provider = utf8(b"");
                 position.reserve_token = utf8(b"");
 
-                emit_position_event(validator,user,  shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"));
+                emit_position_event(validator,user,  shared, perp_type, added_size, leverage, assetName, price, utf8(b"Close"), reserve_chain, reserve_provider, reserve_token);
             };
 
             return (final_pnl, final_is_profit)
@@ -553,7 +553,7 @@ module dev::QiaraPerpsV16 {
 
             // Remove only the closed portion from exposure
             update_asset_leverage(asset, add_size, leverage, old_perp_type, false);
-            emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"));
+            emit_position_event(validator, user, shared, perp_type, added_size, leverage, assetName, price, utf8(b"Partial Close"), reserve_chain, reserve_provider, reserve_token);
             
             return (final_pnl, final_is_profit)
         }
@@ -668,7 +668,7 @@ module dev::QiaraPerpsV16 {
         }
     }
 
-    fun emit_position_event(validator: address, user:vector<u8>, shared: String, type: u8, size: u256, leverage: u64, assetName: String, price: u256, event_name: String) {
+    fun emit_position_event(validator: address, user:vector<u8>, shared: String, type: u8, size: u256, leverage: u64, assetName: String, price: u256, event_name: String, reserve_chain: String, reserve_provider: String, reserve_token: String, is_long: bool) {
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
             Event::create_data_struct(utf8(b"user"), utf8(b"string"), bcs::to_bytes(&user)),
@@ -680,6 +680,10 @@ module dev::QiaraPerpsV16 {
             Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&assetName)),
             Event::create_data_struct(utf8(b"entry_price"), utf8(b"u256"), bcs::to_bytes(&price)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&0)),
+            Event::create_data_struct(utf8(b"reserve_chain"), utf8(b"string"), bcs::to_bytes(&reserve_chain)),
+            Event::create_data_struct(utf8(b"reserve_provider"), utf8(b"string"), bcs::to_bytes(&reserve_provider)),
+            Event::create_data_struct(utf8(b"reserve_token"), utf8(b"string"), bcs::to_bytes(&reserve_token)),
+            Event::create_data_struct(utf8(b"is_long"), utf8(b"bool"), bcs::to_bytes(&is_long)),
         ];
         Event::emit_perps_event(event_name, data);
     }
