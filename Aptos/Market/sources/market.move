@@ -1057,7 +1057,7 @@ module dev::QiaraVaultsV29 {
             user_interest, 
             user_interest_reward, 
             points_reward,
-            qiara_base_apr,
+            total_apr,
             borrow_apr,
         )
     }

@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV32 {
+module dev::QiaraLiquidityV33 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -90,11 +90,11 @@ module dev::QiaraLiquidityV32 {
     }
 
     struct Data has key, store, copy, drop {
-        utilization: u64,
-        native_provider_apr: u64,
-        qiara_native_apr: u64,
-        final_lend_rate: u64,
-        final_borrow_rate: u64
+        utilization: u256,
+        native_provider_apr: u256,
+        qiara_native_apr: u256,
+        final_lend_rate: u256,
+        final_borrow_rate: u256
     }
 
     struct GlobalVault has key {
@@ -567,9 +567,9 @@ public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vecto
             slashing = slashing - 100_000_000 - ((id as u256) * 100_000_000);
         };
 
-        let x = (qiara_base_apr * utilx5) / 1_000_000;
+        let x = (qiara_base_apr * (utilx5)) / 1_000_000;
         let final_apr = (x / slashing) + qiara_base_apr;
-        let borrow_apr = (final_apr * (utilization / 50)) / 100 + final_apr;
+        let borrow_apr = (final_apr * ((utilization) / 50)) / 100 + final_apr;
         return (qiara_base_apr, provider_native_apr, final_apr, borrow_apr)
     }
 
@@ -645,11 +645,11 @@ public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vecto
         );
         
         Data {
-            utilization: (utilization as u64),
+            utilization: (utilization),
             native_provider_apr: native_chain_lend_apr,
-            qiara_native_apr: (qiara_base_apr as u64),
-            final_lend_rate: (final_lend_rate as u64),
-            final_borrow_rate: (final_borrow_rate as u64)
+            qiara_native_apr: (qiara_base_apr),
+            final_lend_rate: (final_lend_rate),
+            final_borrow_rate: (final_borrow_rate)
         }
     }
 }
