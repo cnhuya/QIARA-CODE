@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV30 {
+module dev::QiaraLiquidityV31 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -208,7 +208,7 @@ module dev::QiaraLiquidityV30 {
         let storage_address_string = non_user_storage_helper(&vault.storage);
 
         vault.total_deposited = vault.total_deposited - amount*1000000000000000000;
-        internal_daily_withdraw_limit(token, vault, amount*1000000000000000000);
+        //internal_daily_withdraw_limit(token, vault, amount*1000000000000000000);
         TokensCore::withdraw(storage_address_string, vault.storage, (amount as u64), chain)
     }
 
