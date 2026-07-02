@@ -15,7 +15,6 @@ module dev::QiaraTokensMetadataV27{
     use dev::QiaraTokensRatesV27::{Self as rates};
     use dev::QiaraTokensTiersV27::{Self as tier};
 
-    use dev::QiaraOracleStoreV6::{Self as oracle};
     use dev::QiaraOracleV6::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
