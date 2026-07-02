@@ -361,7 +361,7 @@ public entry fun create_metadata(
 
         // Standardize the result to 6 decimal places (1,000,000 = 100%)
         let impact = ((valueUSD * 1000000000000000000) / liquidityUSD);
-        let result = if (isDeposit) {
+        let result = if (isLong) {
             (price*impact)/1_000_000_000_000_000_000
         } else {
             ((price*impact)/1_000_000_000_000_000_000)*101/100
