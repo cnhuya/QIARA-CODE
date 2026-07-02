@@ -321,14 +321,14 @@ public entry fun create_metadata(
 
     #[view]
     public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256): (u256) acquires Tokens{
+        let metadata = get_coin_metadata_by_symbol(token);
         let valueUSD = getValue(token, value*1000000000000000000);
         let liquidityUSD = getValue(token, liquidity*1000000000000000000);
         let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000);
 
         liquidityUSD = liquidityUSD + fdvUSD/100; // 1% of FDV
 
-        let valued_price_impact_penalty = (valueUSD*100_000_000  / liquidityUSD)*penalty; // percentage
-        let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD)-valued_price_impact_penalty;
+        let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD);
         let current_price = oracle::viewPrice(token);
         let impact = impact_percentage*current_price;
 
