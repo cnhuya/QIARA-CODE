@@ -90,11 +90,7 @@ module dev::QiaraOracleV6 {
 // === UPDATE METHODS === //
 
     // Updates the Pyth price cache and emits the old and new full combined prices (taking impact into account)
-    public entry fun update_price(
-        user: &signer,
-        price_update_data: vector<vector<u8>>,
-        feed_id_bytes: vector<u8>,
-    ) acquires Prices {
+    public entry fun update_price(user: &signer,price_update_data: vector<vector<u8>>,feed_id_bytes: vector<u8>,) acquires Prices {
         assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
 
@@ -186,11 +182,7 @@ module dev::QiaraOracleV6 {
         Event::emit_oracle_event(utf8(b"Price Update"), data);
     }
 
-    public entry fun batch_update_price(
-        user: &signer,
-        price_update_data: vector<vector<vector<u8>>>,
-        feed_id_bytes: vector<vector<u8>>,
-    ) acquires Prices {
+    public entry fun batch_update_price(user: &signer,price_update_data: vector<vector<vector<u8>>>,feed_id_bytes: vector<vector<u8>>,) acquires Prices {
         let len = vector::length(&price_update_data);
         while(len > 0){
             update_price(user, price_update_data[len-1], feed_id_bytes[len-1]);
@@ -198,14 +190,7 @@ module dev::QiaraOracleV6 {
         };
     }
 
-    public fun impact_price(
-        name: String, 
-        oracleID: vector<u8>, 
-        impact: u256, 
-        isPositive: bool, 
-        native_oracle_weight: u256, 
-        perm: Permission
-    ): u256 acquires Prices {
+    public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
 
         let (supra_oracle_price, _,) = get_raw_price(oracleID);
         
