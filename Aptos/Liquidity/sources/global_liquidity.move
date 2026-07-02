@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV34 {
+module dev::QiaraLiquidityV35 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -18,8 +18,8 @@ module dev::QiaraLiquidityV34 {
     use dev::QiaraTokensRatesV27::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV27::{Self as TokensTiers};
 
-    use dev::QiaraMarginV22::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV22::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV23::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV23::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV8::{Self as Shared};
     use dev::QiaraChainTypesV27::{Self as ChainTypes};

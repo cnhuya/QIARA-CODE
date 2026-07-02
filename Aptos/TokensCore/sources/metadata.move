@@ -15,7 +15,7 @@ module dev::QiaraTokensMetadataV27{
     use dev::QiaraTokensRatesV27::{Self as rates};
     use dev::QiaraTokensTiersV27::{Self as tier};
 
-    use dev::QiaraOracleStoreV6::{Self as oracle_store};
+    use dev::QiaraOracleStoreV6::{Self as oracle};
     use dev::QiaraOracleV6::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -285,7 +285,7 @@ public entry fun create_metadata(
 // === HELPER FUNCTIONS === //
 
     fun calculate_market(info: &Metadata): Market {
-        let (price, price_decimals, ) = oracle_store::get_raw_price(info.oracleID);
+        let (price, price_decimals, ) = oracle::get_raw_price(info.oracleID);
         let denom = Math::pow10_u256((price_decimals as u8));
         let mc = (info.tokenomics.circulating_supply as u128) * (price as u128) / (denom as u128);
         let fdv = (info.tokenomics.max_supply as u128) * (price as u128) / (denom as u128);
@@ -301,7 +301,7 @@ public entry fun create_metadata(
             days = (now - creation) / 86400 ;
         };
 
-        let (price, price_decimals) = oracle_store::get_raw_price(oracleID);
+        let (price, price_decimals) = oracle::get_raw_price(oracleID);
         let denom_u256 = Math::pow10_u256((price_decimals as u8));
 
 
@@ -511,7 +511,7 @@ public entry fun create_metadata(
             while (i < len) {
                 let metadat = vector::borrow(&vault_list.list, i);
                 if (metadat.symbol == symbol) {
-                    let (price, price_decimals,) = oracle_store::get_raw_price(metadat.oracleID);
+                    let (price, price_decimals,) = oracle::get_raw_price(metadat.oracleID);
                     let denom = Math::pow10_u256((price_decimals as u8));
 
                     let tier;
@@ -667,7 +667,7 @@ public entry fun create_metadata(
     #[view]
     public fun getValue(symbol: String, amount: u256): u256 acquires Tokens{
         let metadata = get_coin_metadata_by_symbol(symbol);
-        let (price, price_decimals) = oracle_store::get_raw_price(get_coin_metadata_oracleID(&metadata));
+        let (price, price_decimals) = oracle::get_raw_price(get_coin_metadata_oracleID(&metadata));
         return ((amount as u256) * (price as u256)) / get_coin_metadata_denom(&metadata)
     }
 
@@ -675,7 +675,7 @@ public entry fun create_metadata(
     #[view]
     public fun getValueByCoin(symbol: String, amount: u256): u256 acquires Tokens{
         let metadata = get_coin_metadata_by_symbol(symbol);
-        let (price, price_decimals) = oracle_store::get_raw_price(get_coin_metadata_oracleID(&metadata));
+        let (price, price_decimals) = oracle::get_raw_price(get_coin_metadata_oracleID(&metadata));
         return (((amount as u256)* get_coin_metadata_denom(&metadata)) / (price as u256))
     }
 
@@ -735,7 +735,7 @@ public entry fun create_metadata(
                         price = 0;
                         denom = 0;
                     } else {
-                        let (_, price_decimals) = oracle_store::get_raw_price(metadat.oracleID);
+                        let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                         price = (oracle::viewPrice(metadat.symbol) as u64);
                         denom = Math::pow10_u256((price_decimals as u8));
                     };
