@@ -329,10 +329,10 @@ public entry fun create_metadata(
         liquidityUSD = liquidityUSD + fdvUSD/100; // 1% of FDV
 
         let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD);
-        let current_price = oracle::viewPrice(token);
-        let impact = impact_percentage*current_price;
-
-        return(impact/1_000_000_000_000_000_000)
+        let price = oracle::viewPrice(token);
+        
+        let impact = ((valueUSD * 1000000000000000000) / liquidityUSD);
+        return (price*impact)/1_000_000_000_000_000_000
     }
 
     #[view]
