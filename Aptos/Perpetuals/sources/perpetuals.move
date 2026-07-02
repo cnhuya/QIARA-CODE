@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV17 {
+module dev::QiaraPerpsV18 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -11,24 +11,24 @@ module dev::QiaraPerpsV17 {
     use dev::QiaraRIV23::{Self as RI};
     use dev::QiaraRanksV23::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV26::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV27::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV31::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV32::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV34::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV34::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV35::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV35::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV11::{Self as storage};
     use dev::QiaraCapabilitiesV11::{Self as capabilities};
     use dev::QiaraOracleStoreV6::{Self as oracle_store};
-    use dev::QiaraChainTypesV26::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV26::{Self as TokensTypes};
+    use dev::QiaraChainTypesV27::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV27::{Self as TokensTypes};
 
-    use dev::QiaraGasV9::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV10::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV17::{Self as Orders};
+    use dev::QiaraPerpsOrdersV18::{Self as Orders};
 
 
 // === ERRORS === //

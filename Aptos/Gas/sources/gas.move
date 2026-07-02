@@ -1,4 +1,4 @@
-module dev::QiaraGasV9{
+module dev::QiaraGasV10{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,7 +9,7 @@ module dev::QiaraGasV9{
     use aptos_std::math128 ::{Self as math128};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraOracleV5::{Self as Oracle};
+    use dev::QiaraOracleV6::{Self as Oracle};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
