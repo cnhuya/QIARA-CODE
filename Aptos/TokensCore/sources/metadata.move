@@ -325,6 +325,10 @@ public entry fun create_metadata(
         let liquidityUSD = getValue(token, liquidity*1000000000000000000);
         let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000);
 
+        if (liqudityUSD == 0) {
+            liqudityUSD = 1;
+        };
+
         liquidityUSD = liquidityUSD + fdvUSD/100; // 1% of FDV
 
         let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD);
@@ -347,6 +351,10 @@ public entry fun create_metadata(
         let valueUSD = getValue(token, value*1000000000000000000);
         let additional_liquidityUSD = getValue(token, additional_liquidity*1000000000000000000);
         let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000*10_000_000);
+
+        if (liqudityUSD == 0) {
+            liqudityUSD = 1;
+        };
 
         let base_liquidity = fdvUSD/100; // 1%
         let liquidityUSD = base_liquidity + additional_liquidityUSD;
