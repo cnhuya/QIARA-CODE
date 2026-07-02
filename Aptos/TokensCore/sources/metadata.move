@@ -337,7 +337,7 @@ public entry fun create_metadata(
             (price*impact)/1_000_000_000_000_000_000
         } else {
             ((price*impact)/1_000_000_000_000_000_000)*110/100
-        }
+        };
         return result
     }
 
@@ -366,7 +366,7 @@ public entry fun create_metadata(
             (price*impact)/1_000_000_000_000_000_000
         } else {
             ((price*impact)/1_000_000_000_000_000_000)*101/100
-        }
+        };
         return result
     }
 
