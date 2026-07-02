@@ -352,8 +352,8 @@ public entry fun create_metadata(
         let additional_liquidityUSD = getValue(token, additional_liquidity*1000000000000000000);
         let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000*10_000_000);
 
-        if (liquidityUSD == 0) {
-            liquidityUSD = 1;
+        if (additional_liquidityUSD == 0) {
+            additional_liquidityUSD = 1;
         };
 
         let base_liquidity = fdvUSD/100; // 1%
