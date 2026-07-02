@@ -89,8 +89,12 @@ module dev::QiaraOracleV6 {
 
 // === UPDATE METHODS === //
 
-    // Updates the Pyth price cache and emits the new Pyth price alongside the combined (Impact + Pyth) price
-    public entry fun update_price(user: &signer,price_update_data: vector<vector<u8>>,feed_id_bytes: vector<u8>,) acquires Prices {
+    // Updates the Pyth price cache and emits the old and new full combined prices (taking impact into account)
+    public entry fun update_price(
+        user: &signer,
+        price_update_data: vector<vector<u8>>,
+        feed_id_bytes: vector<u8>,
+    ) acquires Prices {
         assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
 
@@ -106,53 +110,87 @@ module dev::QiaraOracleV6 {
         let raw = price::get_price(&p);
         assert!(!i64::get_is_negative(&raw), E_NEGATIVE_PRICE);
 
-        let prices = borrow_global_mut<Prices>(@dev);
         let new_store = PriceStore {
             price: raw,
             expo: price::get_expo(&p),
             publish_time: price::get_timestamp(&p),
         };
 
-        let old_price = i64::get_magnitude_if_positive(&old_price_store.price);
-        let new_price = i64::get_magnitude_if_positive(&new_store.price);
+        let token_name;
+        let found;
+        let old_raw_price;
+        let new_raw_price;
+        let qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
 
-        // Update the cached Pyth price inside our unified prices map
-        if (map::contains_key(&prices.prices, &feed_id_bytes)) {
-            *map::borrow_mut(&mut prices.prices, &feed_id_bytes) = new_store;
-        } else {
-            map::add(&mut prices.prices, feed_id_bytes, new_store);
-        };
+        // Isolate the mutable borrow of Prices to prevent any acquires conflicts
+        {
+            let prices = borrow_global_mut<Prices>(@dev);
+            
+            old_raw_price = i64::get_magnitude_if_positive(&old_price_store.price);
+            new_raw_price = i64::get_magnitude_if_positive(&new_store.price);
 
-        // Determine if this feed is associated with any token to calculate the combined price
-        let (found, token_name) = find_token_name_by_oracle_id(prices, &feed_id_bytes);
-        let combined_price: u256 = 0;
+            // Update the cached Pyth price inside our unified prices map
+            if (map::contains_key(&prices.prices, &feed_id_bytes)) {
+                *map::borrow_mut(&mut prices.prices, &feed_id_bytes) = new_store;
+            } else {
+                map::add(&mut prices.prices, feed_id_bytes, new_store);
+            };
+
+            // Determine if this feed is associated with any token to calculate the combined price
+            let (f, name) = find_token_name_by_oracle_id(prices, &feed_id_bytes);
+            found = f;
+            token_name = name;
+
+            if (f) {
+                // Copy the Integer struct out of global storage using the dereference operator (*)
+                qiara_impact = *map::borrow(&prices.map, &token_name);
+            };
+        }; // <-- The borrow on `Prices` is completely released here
+
+        // Initialize old and new combined prices with their raw Pyth values
+        let old_combined_price: u256 = (old_raw_price as u256);
+        let new_combined_price: u256 = (new_raw_price as u256);
+
+        // If the oracle feed is bound to an active token symbol, integrate the stored impact [2]
         if (found) {
             if (token_name != utf8(b"Qiara")) {
-                let qiara_impact = map::borrow(&prices.map, &token_name);
-                let supra_oracle_price = (new_price as u256);
-
+                // Calculate old combined price
                 if (qiara_impact.isPositive) {
-                    combined_price = supra_oracle_price + qiara_impact.value;
+                    old_combined_price = (old_raw_price as u256) + qiara_impact.value;
                 } else {
-                    if (qiara_impact.value >= supra_oracle_price) {
-                        combined_price = 1; // Minimum baseline price
+                    if (qiara_impact.value >= (old_raw_price as u256)) {
+                        old_combined_price = 1;
                     } else {
-                        combined_price = supra_oracle_price - qiara_impact.value;
+                        old_combined_price = (old_raw_price as u256) - qiara_impact.value;
                     }
-                }
+                };
+
+                // Calculate new combined price
+                if (qiara_impact.isPositive) {
+                    new_combined_price = (new_raw_price as u256) + qiara_impact.value;
+                } else {
+                    if (qiara_impact.value >= (new_raw_price as u256)) {
+                        new_combined_price = 1;
+                    } else {
+                        new_combined_price = (new_raw_price as u256) - qiara_impact.value;
+                    }
+                };
             }
         };
 
         let data = vector[
             Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&feed_id_bytes)),
-            Event::create_data_struct(utf8(b"old_price"), utf8(b"u64"), bcs::to_bytes(&old_price)),
-            Event::create_data_struct(utf8(b"new_price"), utf8(b"u64"), bcs::to_bytes(&new_price)),
-            Event::create_data_struct(utf8(b"combined_price"), utf8(b"u256"), bcs::to_bytes(&combined_price)),
+            Event::create_data_struct(utf8(b"old_price"), utf8(b"u256"), bcs::to_bytes(&old_combined_price)),
+            Event::create_data_struct(utf8(b"new_price"), utf8(b"u256"), bcs::to_bytes(&new_combined_price)),
         ];
         Event::emit_oracle_event(utf8(b"Price Update"), data);
     }
 
-    public entry fun batch_update_price(user: &signer,price_update_data: vector<vector<vector<u8>>>,feed_id_bytes: vector<vector<u8>>,) acquires Prices {
+    public entry fun batch_update_price(
+        user: &signer,
+        price_update_data: vector<vector<vector<u8>>>,
+        feed_id_bytes: vector<vector<u8>>,
+    ) acquires Prices {
         let len = vector::length(&price_update_data);
         while(len > 0){
             update_price(user, price_update_data[len-1], feed_id_bytes[len-1]);
