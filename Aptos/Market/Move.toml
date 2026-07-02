@@ -27,17 +27,17 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraTokensV26]
+    [dependencies.QiaraTokensV27]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV26]
+    [dependencies.QiaraTypesV27]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV22]
+    [dependencies.QiaraMarginV23]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'

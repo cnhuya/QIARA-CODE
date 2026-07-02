@@ -15,8 +15,8 @@ module dev::QiaraTokensMetadataV27{
     use dev::QiaraTokensRatesV27::{Self as rates};
     use dev::QiaraTokensTiersV27::{Self as tier};
 
-    use dev::QiaraOracleStoreV5::{Self as oracle_store};
-    use dev::QiaraOracleV5::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraOracleStoreV6::{Self as oracle_store};
+    use dev::QiaraOracleV6::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

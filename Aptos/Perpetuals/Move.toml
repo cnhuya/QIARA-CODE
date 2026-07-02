@@ -39,7 +39,7 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV22]
+    [dependencies.QiaraMarginV23]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
@@ -69,7 +69,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraOracleV5]
+    [dependencies.QiaraOracleV6]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Oracle'

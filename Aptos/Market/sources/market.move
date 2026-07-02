@@ -15,19 +15,19 @@ module dev::QiaraVaultsV31 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV26::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV26::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensRatesV26::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensTiersV26::{Self as TokensTiers};
-    use dev::QiaraTokensOmnichainV26::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV22::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV22::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV22::{Self as RI};
-    use dev::QiaraBurnedQiaraV22::{Self as BurnedQiara};
+    use dev::QiaraTokensCoreV27::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV27::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensRatesV27::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensTiersV27::{Self as TokensTiers};
+    use dev::QiaraTokensOmnichainV27::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraMarginV23::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV23::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV23::{Self as RI};
+    use dev::QiaraBurnedQiaraV23::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV26::{Self as TokensTypes};
-    use dev::QiaraChainTypesV26::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV26::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV27::{Self as TokensTypes};
+    use dev::QiaraChainTypesV27::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV27::{Self as ProviderTypes};
 
     use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV11::{Self as capabilities, Access as CapabilitiesAccess};
