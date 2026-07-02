@@ -39,7 +39,6 @@ module dev::QiaraTokensTiersV25{
         multiplier: u16,
         market_daily_withdraw_limit: u64,
         market_base_lending_apr: u64,
-        price_impact_penalty: u64,
         deposit_limit: u128,
         borrow_limit: u128,
         w_fee: u64,
@@ -158,7 +157,6 @@ module dev::QiaraTokensTiersV25{
             multiplier: tier.multiplier,
             market_daily_withdraw_limit: market_daily_withdraw_limit(id),
             market_base_lending_apr: market_base_lending_apr(id),
-            price_impact_penalty: price_impact_penalty(id),
             deposit_limit: deposit_limit(id),
             borrow_limit: borrow_limit(id),
             w_fee: minimal_w_fee(id),
@@ -319,15 +317,6 @@ module dev::QiaraTokensTiersV25{
             market_scaling_factor = market_scaling_factor - ((id as u64)*100_000);
 
             return market_scaling_factor
-        }
-
-        #[view]
-        public fun price_impact_penalty(id: u8): u64 {
-
-            let base = 100;
-
-            // 100 * (9000 * 10) + 100_000_000 -> 100 * 90000 + 100_000_000 -> 109_000_000
-            return base*(tier_efficiency(id)*10)+(base*10_000)   
         }
 
 

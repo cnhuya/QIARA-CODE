@@ -41,10 +41,6 @@ module dev::QiaraTokensMetadataV25{
     }
 
 // === STRUCTS === //
-    // Registry of all listed chains and supported tokens on that chain
-    //struct Registry has key, store, copy{
-    //    list: Map<String, vector<String>>,
-   // }
 
     struct Permissions has key {
         oracle_access: OracleAccess,
@@ -60,7 +56,6 @@ module dev::QiaraTokensMetadataV25{
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
-        listed: u64,
         penalty_expiry: u64,
         credit: Credit,
         tokenomics: Tokenomics,
@@ -72,7 +67,6 @@ module dev::QiaraTokensMetadataV25{
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
-        listed: u64,
         penalty_expiry: u64,
         credit: Credit,
         price: Price,
@@ -199,7 +193,6 @@ public entry fun create_metadata(
         decimals: 8,
         oracleID,
         creation,
-        listed: now,
         penalty_expiry: now + penalty_duration,
         credit,
         tokenomics
@@ -327,33 +320,18 @@ public entry fun create_metadata(
 
 
     #[view]
-    public fun calculate_price_impact_spot(token:String,penalty_deductor: u256, hours: u256, value: u256, liquidity: u256): (u256) acquires Tokens{
-        let base_penalty = 100*100_000_000;
-
+    public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256): (u256) acquires Tokens{
         let valueUSD = getValue(token, value*1000000000000000000);
         let liquidityUSD = getValue(token, liquidity*1000000000000000000);
+        let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000);
 
-        if(liquidityUSD == 0){
-            liquidityUSD = 1;
-        };
-
-        let penalty = 0;
-        if((hours)*(hours)*(penalty_deductor) < base_penalty){
-            penalty = base_penalty-((hours)*(hours)*(penalty_deductor));
-        };
+        liquidityUSD = liquidityUSD + fdvUSD/100; // 1% of FDV
 
         let valued_price_impact_penalty = (valueUSD*100_000_000  / liquidityUSD)*penalty; // percentage
         let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD)-valued_price_impact_penalty;
         let current_price = oracle::viewPrice(token);
         let impact = impact_percentage*current_price;
 
-        //1_000_000_000_000_000_000
-
-
-        //100000000
-        //50000000
-
-        //1_000_000
         return(impact/1_000_000_000_000_000_000)
     }
 
@@ -381,32 +359,6 @@ public entry fun create_metadata(
         return (price*impact)/1_000_000_000_000_000_000
     }
 
-    #[view]
-    public fun calculate_price_impact_perp2(token: String, additional_liquidity: u256, value: u256): (u256,u256,u256,u256,u256,u256) acquires Tokens{
-
-        let metadata = get_coin_metadata_by_symbol(token);
-        let valueUSD = getValue(token, value*1000000000000000000);
-        let additional_liquidityUSD = getValue(token, additional_liquidity*1000000000000000000);
-        let fdvUSD = ((get_coin_metadata_fdv(&metadata) as u256)*1000000000000000000);
-
-        let base_liquidity = fdvUSD; // 1%
-        let liquidityUSD = (base_liquidity + additional_liquidityUSD*2);
-        let price = getValue(token, 1*1000000000000000000);
-
-        //assert!(valueUSD < fdvUSD/10, ERROR_SIZE_TOO_BIG_COMAPRED_TO_DV); // essentially Value cant be higher than 10% of FDV
-        assert!(valueUSD >= 1000000000000000000, ERROR_MINIMUM_VALUE_NOT_MET); 
-
-        //let denominator = ((fdvUSD / 100) - valueUSD + (liquidityUSD * 2) - valueUSD);
-
-        //(1402450*100_000_000_000_000)/1402449997195100
-
-        // Standardize the result to 6 decimal places (1,000,000 = 100%)
-        let impact = ((valueUSD * 1000000000000000000) / liquidityUSD);
-        let final = (price*impact)/1_000_000_000_000_000_000;
-        return(price, final,impact,liquidityUSD,fdvUSD,base_liquidity)
-    }
-
-
 
     #[view]
     public fun calculate_impact_fee(token: String, size: u256, fee_percentage: u256): u256{
@@ -422,13 +374,11 @@ public entry fun create_metadata(
     }
 
     #[view]
-    public fun test_impact_view(token: String, size: u256, liquidity: u256, isPositive: bool, type: String): (u256,u256,u256,u256,u256,u256) acquires Permissions, Tokens{
+    public fun test_impact_view(token: String, size: u256, liquidity: u256, isPositive: bool, type: String): (u256,u256,u256,u256,u256) acquires Permissions, Tokens{
 
         let metadata = get_coin_metadata_by_symbol(token);
         let oracleID = get_coin_metadata_oracleID(&metadata);
         let tierID = get_coin_metadata_tier(&metadata);
-
-        let vault_listed = get_coin_metadata_listed(&metadata);
 
         let oracle_native_weight = tier::oracle_native_weight(tierID);
         let percentage_impact = 0;
@@ -444,19 +394,18 @@ public entry fun create_metadata(
         if(type == utf8(b"perps")){
             (impact) = calculate_price_impact_perp(token, liquidity, size);
         } else if (type == utf8(b"spot")){
-            (impact) = calculate_price_impact_spot(token,(tier::price_impact_penalty(tierID) as u256),((vault_listed/3600) as u256), size, liquidity);
+            (impact) = calculate_price_impact_spot(token, liquidity, size);
         };
   
         let fee = percentage_impact*size;
         //oracle::impact_price(token, (oracleID as u64), impact, isPositive, oracle::give_permission(&borrow_global<Permissions>(@dev).oracle_access));            
-        return(percentage_impact, current_price, impact,fee,0, (vault_listed as u256))
+        return(percentage_impact, current_price, impact,fee,0)
     }
 
     public fun impact(token: String, size: u256, liquidity: u256, isPositive: bool, type: String, perm:Permission): (u256,u256) acquires Permissions, Tokens {
         let metadata = get_coin_metadata_by_symbol(token);
         let oracleID = get_coin_metadata_oracleID(&metadata);
         let tierID = get_coin_metadata_tier(&metadata);
-        let vault_listed = get_coin_metadata_listed(&metadata);
         let oracle_native_weight = tier::oracle_native_weight(tierID);
 
         let impact_value = 0;
@@ -464,7 +413,7 @@ public entry fun create_metadata(
         if (type == utf8(b"perps")) {
             impact_value = calculate_price_impact_perp(token, liquidity, size);
         } else if (type == utf8(b"spot")) {
-            impact_value = calculate_price_impact_spot(token, (tier::price_impact_penalty(tierID) as u256), ((vault_listed/3600) as u256), size, liquidity);
+            impact_value = calculate_price_impact_spot(token, liquidity, size);
         };
 
         // atomic call: impact_price already calls ensure_price internally
@@ -572,7 +521,6 @@ public entry fun create_metadata(
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
-                        listed: metadat.listed,
                         penalty_expiry: metadat.penalty_expiry,
                         credit: metadat.credit,
                         price: Price { price: price, denom: (denom as u64) },
@@ -621,9 +569,6 @@ public entry fun create_metadata(
             metadata.creation
         }
 
-        public fun get_coin_metadata_listed(metadata: &VMetadata): u64 {
-            metadata.listed
-        }
     // CREDIT
         public fun get_coin_metadata_full_credit(metadata: &VMetadata): Credit {
             metadata.credit
@@ -800,7 +745,6 @@ public entry fun create_metadata(
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
-                        listed: metadat.listed,
                         penalty_expiry: metadat.penalty_expiry,
                         credit: metadat.credit,
                         price: Price { price: price, denom: (denom as u64) },

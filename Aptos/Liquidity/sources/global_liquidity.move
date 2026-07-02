@@ -556,6 +556,7 @@ public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vecto
 
     #[view]
     public fun calculate_minimal_apr(id: u8, utilization: u256, provider_native_apr: u256): (u256, u256, u256, u256) {
+        utilization = utilization / 10000;
         let utilx5 = (utilization * utilization * utilization * utilization);
         let qiara_base_apr = (TokensTiers::market_base_lending_apr(id) as u256) + provider_native_apr;
         let slashing = 1_000_000_000;
