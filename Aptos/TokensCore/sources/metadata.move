@@ -320,7 +320,7 @@ public entry fun create_metadata(
 
 
     #[view]
-    public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256): (u256) acquires Tokens{
+    public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256, isDeposit: bool): (u256) acquires Tokens{
         let metadata = get_coin_metadata_by_symbol(token);
         let valueUSD = getValue(token, value*1000000000000000000);
         let liquidityUSD = getValue(token, liquidity*1000000000000000000);
@@ -332,11 +332,17 @@ public entry fun create_metadata(
         let price = oracle::viewPrice(token);
         
         let impact = ((valueUSD * 1000000000000000000) / liquidityUSD);
-        return (price*impact)/1_000_000_000_000_000_000
+
+        let result = if (isDeposit) {
+            (price*impact)/1_000_000_000_000_000_000
+        } else {
+            ((price*impact)/1_000_000_000_000_000_000)*110/100
+        }
+        return result
     }
 
     #[view]
-    public fun calculate_price_impact_perp(token: String, additional_liquidity: u256, value: u256): (u256) acquires Tokens{
+    public fun calculate_price_impact_perp(token: String, additional_liquidity: u256, value: u256, isLong: bool): (u256) acquires Tokens{
 
         let metadata = get_coin_metadata_by_symbol(token);
         let valueUSD = getValue(token, value*1000000000000000000);
@@ -356,7 +362,12 @@ public entry fun create_metadata(
 
         // Standardize the result to 6 decimal places (1,000,000 = 100%)
         let impact = ((valueUSD * 1000000000000000000) / liquidityUSD);
-        return (price*impact)/1_000_000_000_000_000_000
+        let result = if (isDeposit) {
+            (price*impact)/1_000_000_000_000_000_000
+        } else {
+            ((price*impact)/1_000_000_000_000_000_000)*101/100
+        }
+        return result
     }
 
 
@@ -374,7 +385,7 @@ public entry fun create_metadata(
     }
 
     #[view]
-    public fun test_impact_view(token: String, size: u256, liquidity: u256, isPositive: bool, type: String): (u256,u256,u256,u256,u256) acquires Permissions, Tokens{
+    public fun test_impact_view(token: String, size: u256, liquidity: u256, isPositive: bool, type: String, isLong: bool): (u256,u256,u256,u256,u256) acquires Permissions, Tokens{
 
         let metadata = get_coin_metadata_by_symbol(token);
         let oracleID = get_coin_metadata_oracleID(&metadata);
@@ -392,9 +403,9 @@ public entry fun create_metadata(
         let impact = 0;
 
         if(type == utf8(b"perps")){
-            (impact) = calculate_price_impact_perp(token, liquidity, size);
+            (impact) = calculate_price_impact_perp(token, liquidity, size, isLong);
         } else if (type == utf8(b"spot")){
-            (impact) = calculate_price_impact_spot(token, liquidity, size);
+            (impact) = calculate_price_impact_spot(token, liquidity, size, isLong);
         };
   
         let fee = percentage_impact*size;
@@ -411,9 +422,9 @@ public entry fun create_metadata(
         let impact_value = 0;
 
         if (type == utf8(b"perps")) {
-            impact_value = calculate_price_impact_perp(token, liquidity, size);
+            impact_value = calculate_price_impact_perp(token, liquidity, size, isPositive);
         } else if (type == utf8(b"spot")) {
-            impact_value = calculate_price_impact_spot(token, liquidity, size);
+            impact_value = calculate_price_impact_spot(token, liquidity, size, isPositive);
         };
 
         // atomic call: impact_price already calls ensure_price internally
