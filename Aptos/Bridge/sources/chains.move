@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV32{
+module dev::QiaraBridgeV34{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -21,18 +21,18 @@ module dev::QiaraBridgeV32{
 
     use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraTokensCoreV26::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV26::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV27::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV27::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV31::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV32::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV22::{Self as Margin};
+    use dev::QiaraMarginV23::{Self as Margin};
 
-    use dev::QiaraPayloadV32::{Self as Payload};
-    use dev::QiaraValidatorsV32::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV34::{Self as Payload};
+    use dev::QiaraValidatorsV34::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV17::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV17::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV18::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV18::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
