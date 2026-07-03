@@ -190,22 +190,28 @@ module dev::QiaraOracleV6 {
         };
     }
 
-    public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
+    fun tttta(id: u64){
+        abort(id);
+    }
 
+    public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
+   // tttta(0);
         let (supra_oracle_price, _,) = get_raw_price(oracleID);
-        
+        let price;
+        {
+            let prices_storage = borrow_global_mut<Prices>(@dev);
+            price = ensure_price(prices_storage, name, oracleID);
+        }
+
         // Scaling impact
         let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
         if (scaled_impact == 0) { return 0 };
-
         let old_price_state;
         let new_price_state;
         let final_price_value;
         let final_price_is_positive;
 
         {
-            let prices_storage = borrow_global_mut<Prices>(@dev);
-            let price = ensure_price(prices_storage, name, oracleID);
             
             old_price_state = *price;
 

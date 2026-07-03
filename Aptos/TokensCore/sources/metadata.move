@@ -329,7 +329,7 @@ public entry fun create_metadata(
             liquidityUSD = 1;
         };
 
-        liquidityUSD = liquidityUSD + fdvUSD/100; // 1% of FDV
+        liquidityUSD = liquidityUSD + (fdvUSD*1_000_000)/100; // 1% of FDV (the 1_000_000 is here to standarize the scale to match token value and liquidity because 1 milinon is actually 1 token and FDV is without ddecimals.)
 
         let impact_percentage = (valueUSD*1000000000000000000 / liquidityUSD);
         let price = oracle::viewPrice(token);
@@ -356,7 +356,7 @@ public entry fun create_metadata(
             additional_liquidityUSD = 1;
         };
 
-        let base_liquidity = fdvUSD/100; // 1%
+        let base_liquidity = (fdvUSD*1_000_000)/100/100; // 1%
         let liquidityUSD = base_liquidity + additional_liquidityUSD;
         let price = getValue(token, 1*1000000000000000000);
 
