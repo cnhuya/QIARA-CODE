@@ -1,4 +1,4 @@
-module dev::QiaraSharedV9 {
+module dev::QiaraSharedV10 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -406,12 +406,7 @@ module dev::QiaraSharedV9 {
         ownership_record.last_updated = timestamp::now_seconds();
     }
 
-    // ----------------------------------------------------------------
-    // === NEW: FULLY NON-CUSTODIAL FUNGIBLE ASSET LOGIC ===
-    // ----------------------------------------------------------------
-
-    // NEW: Function to create a vault for a specific token under a shared storage name
-    public entry fun create_shared_vault(admin: &signer,shared_name: String, asset_metadata: Object<Metadata>) acquires SharedStorage {
+    public fun create_shared_vault(admin: &signer,shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         
         if (!table::contains(&shared.fungible_stores, shared_name)) {
@@ -426,7 +421,6 @@ module dev::QiaraSharedV9 {
             table::add(token_map, asset_metadata, vault_store);
         };
     }
-
 
     // ----------------------------------------------------------------
     // === VIEW FUNCTIONS === //

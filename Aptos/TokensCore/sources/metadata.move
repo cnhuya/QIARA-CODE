@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV27{
+module dev::QiaraTokensMetadataV28{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV27{
     use dev::QiaraStorageV11::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensRatesV27::{Self as rates};
-    use dev::QiaraTokensTiersV27::{Self as tier};
+    use dev::QiaraTokensRatesV28::{Self as rates};
+    use dev::QiaraTokensTiersV28::{Self as tier};
 
     use dev::QiaraOracleV6::{Self as oracle, Access as OracleAccess};
 

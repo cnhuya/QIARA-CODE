@@ -229,6 +229,12 @@ module dev::QiaraStorageV12 {
     }
 
 
+    public entry fun more3(admin: &signer) acquires ConstantDatabase{
+        assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
+        change_constant(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), bc::to_bytes(&5_000_000u64), &give_permission(&give_access(admin))); // 0.001%  
+
+    }
+
 
 
     fun register_constant<T: drop>(address: &signer, header: String, constant_name: String, value: T, editable: bool, permission: &Permission) acquires ConstantCounter, ConstantDatabase, KeyRegistry {
