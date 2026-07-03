@@ -13,7 +13,7 @@ module dev::QiaraTokensOmnichainV30{
     use aptos_framework::event;
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraSharedV14::{Self as Shared};
+    use dev::QiaraSharedV11::{Self as Shared};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;

@@ -27,12 +27,12 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraTokensV27]
+    [dependencies.QiaraTokensV30]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV27]
+    [dependencies.QiaraTypesV30]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
@@ -47,7 +47,7 @@
     rev = 'main'
     subdir = 'Aptos/Liquidity'
 
-    [dependencies.QiaraSharedV8]
+    [dependencies.QiaraSharedV11]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'

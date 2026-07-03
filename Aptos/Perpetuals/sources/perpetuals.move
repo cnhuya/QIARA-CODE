@@ -11,20 +11,20 @@ module dev::QiaraPerpsV18 {
     use dev::QiaraRIV23::{Self as RI};
     use dev::QiaraRanksV23::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV27::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV30::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
-    use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV11::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV32::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV35::{Self as Liquidity};
     use dev::QiaraTokenVaultsV35::{Self as TokenVaults, Access as TokenVaultsAccess};
 
-    use dev::QiaraStorageV11::{Self as storage};
-    use dev::QiaraCapabilitiesV11::{Self as capabilities};
+    use dev::QiaraStorageV14::{Self as storage};
+    use dev::QiaraCapabilitiesV14::{Self as capabilities};
     use dev::QiaraOracleV6::{Self as oracle};
-    use dev::QiaraChainTypesV27::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV27::{Self as TokensTypes};
+    use dev::QiaraChainTypesV30::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV30::{Self as TokensTypes};
 
     use dev::QiaraGasV10::{Self as Gas, Access as GasAccess};
 

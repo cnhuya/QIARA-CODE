@@ -4,10 +4,14 @@ module dev::QiaraTokensFaucetV30 {
     use std::signer;
     use std::table::{Self as table, Table};
     use std::timestamp;
-
+    use std::bcs;
+    use std::vector;
     use dev::QiaraChainTypesV30::{Self as ChainTypes};
     use dev::QiaraTokenTypesV30::{Self as TokensType};
 
+    use dev::QiaraTokensCoreV30::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV30::{Self as TokensMetadata};
+    use dev::QiaraSharedV11::{Self as Shared};
     use dev::QiaraStorageV14::{Self as storage};
 
 // === ERRORS === //
@@ -50,22 +54,22 @@ module dev::QiaraTokensFaucetV30 {
 
 
 // === HELPER FUNCTIONS === //
-    public entry fun faucet(addr: &signer, shared: String, user: vector<u8>) acquires FaucetTracker {
-        assert!(signer::address_of(addr) == user, ERROR_SENDER_ADDR_DOESNT_MATCH_SIGNER);
+    public entry fun faucet(signer: &signer, shared: String, user: vector<u8>) acquires FaucetTracker, Permissions {
+        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_ADDR_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         let today  = timestamp::now_seconds() / 86400;
 
         let x = borrow_global_mut<FaucetTracker>(@dev);
 
         if (!table::contains(&x.claimed, today)) {
-            table::add(&mut x.claimed, today, vector::new<String>());
+            table::add(&mut x.claimed, today, vector::empty<String>());
         };
 
         let vect = table::borrow_mut(&mut x.claimed, today);
-        if (!vector::contains(vect, shared)) {
+        if (!vector::contains(vect, &shared)) {
             vector::push_back(vect, shared);
 
-            internal_faucet(signer::address_of(addr), shared, utf8(b"Qiara"), utf8(b"Sui"));
+            internal_faucet(shared, utf8(b"Qiara"), utf8(b"Sui"));
 
         } else {
             abort ERROR_ALREADY_CLAIMED_THIS_PERIOD;
@@ -74,10 +78,12 @@ module dev::QiaraTokensFaucetV30 {
     }
 
 
-    fun internal_faucet(address, shared: String, token: String, chain: String) acquires Permissions{
+    fun internal_faucet(shared: String, token: String, chain: String) acquires Permissions{
         ensure_safety(token, chain);
-        let amount = TokensMetadata::getValueByCoin(token, return_claim_usd_value());
-        TokensCore::mint_to(address, shared, token, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        let store = Shared::return_fungible_store(shared, TokensCore::get_metadata(token));
+        let amount = TokensMetadata::getValueByCoin(token, (return_claim_usd_value() as u256));
+        let fa = TokensCore::mint(token, chain, (amount as u64), TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        TokensCore::deposit(shared, store, fa, chain);
     }
 
     fun ensure_safety(token: String, chain: String){
@@ -94,15 +100,15 @@ module dev::QiaraTokensFaucetV30 {
 
         let x = borrow_global_mut<FaucetTracker>(@dev);
         if (!table::contains(&x.claimed, today)) {
-            return false;
+            return false
         } else {
-            let vect = (table::borrow_mut(&mut x.claimed, today);
-            if (vector::contains(vect, shared)) {
-                return true;
+            let vect = table::borrow_mut(&mut x.claimed, today);
+            if (vector::contains(vect, &shared)) {
+                return true
             } else {
-                return false;
-            };
-        };
+                return false
+            }
+        }
     }
 
 

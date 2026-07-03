@@ -25,7 +25,7 @@ module dev::QiaraTokensCoreV30{
     use dev::QiaraTokensQiaraV30::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
-    use dev::QiaraSharedV14::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV11::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStoragesV30::{Self as Storages};
@@ -127,7 +127,7 @@ module dev::QiaraTokensCoreV30{
     fun init_module(admin: &signer){
 
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { tokens_rates_access: TokensRates::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
+            move_to(admin, Permissions { shared_access: Shared::give_access(admin), tokens_rates_access: TokensRates::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
         };
     }
 
@@ -508,7 +508,7 @@ module dev::QiaraTokensCoreV30{
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
 
         let store = Shared::return_fungible_store(shared, get_metadata(symbol));
-        let fa = mint(shared, symbol, chain, amount, perm);
+        let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
         
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
