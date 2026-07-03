@@ -7,7 +7,7 @@ module dev::QiaraValidatorsV35 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV24::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV25::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV11::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV14::{Self as storage};

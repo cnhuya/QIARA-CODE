@@ -20,10 +20,10 @@ module dev::QiaraVaultsV33 {
     use dev::QiaraTokensRatesV31::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV31::{Self as TokensTiers};
     use dev::QiaraTokensOmnichainV31::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV24::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV24::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV24::{Self as RI};
-    use dev::QiaraBurnedQiaraV24::{Self as BurnedQiara};
+    use dev::QiaraMarginV25::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV25::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV25::{Self as RI};
+    use dev::QiaraBurnedQiaraV25::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV31::{Self as TokensTypes};
     use dev::QiaraChainTypesV31::{Self as ChainTypes};
