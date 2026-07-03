@@ -1,4 +1,4 @@
-module dev::QiaraSharedV10 {
+module dev::QiaraSharedV11{
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -406,9 +406,9 @@ module dev::QiaraSharedV10 {
         ownership_record.last_updated = timestamp::now_seconds();
     }
 
-    public fun create_shared_vault(admin: &signer,shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
+    public fun create_shared_vault(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
-        
+        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
         if (!table::contains(&shared.fungible_stores, shared_name)) {
             table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
         };

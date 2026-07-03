@@ -1,4 +1,4 @@
-module dev::QiaraTokensTiersV28{
+module dev::QiaraTokensTiersV29{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,6 +9,7 @@ module dev::QiaraTokensTiersV28{
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_TIER_NOT_FOUND: u64 = 2;
+    
 
 // === ACCESS === //
     struct Access has store, key, drop {}

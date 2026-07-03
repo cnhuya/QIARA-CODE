@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV28{
+module dev::QiaraTokensCoreV29{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,21 +18,21 @@ module dev::QiaraTokensCoreV28{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV28::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV28::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV28::{Self as TokensTiers};
-    use dev::QiaraTokensRatesV28::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensQiaraV28::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV29::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV29::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV29::{Self as TokensTiers};
+    use dev::QiaraTokensRatesV29::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensQiaraV29::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
-    use dev::QiaraSharedV9::{Self as Shared};
+    use dev::QiaraSharedV10::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV28::{Self as Storages};
+    use dev::QiaraStoragesV29::{Self as Storages};
 
-    use dev::QiaraChainTypesV28::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV28::{Self as TokensType};
-    use dev::QiaraProviderTypesV28::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV29::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV29::{Self as TokensType};
+    use dev::QiaraProviderTypesV29::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -63,6 +63,7 @@ module dev::QiaraTokensCoreV28{
         tokens_omnichain_access: TokensOmnichainAccess,
         tokens_qiara_access: TokensQiaraAccess,
         tokens_rates_access: TokensRatesAccess,
+        shared_access: Shared::Access,
     }
 
     struct ManagedFungibleAsset has key {
@@ -252,12 +253,12 @@ module dev::QiaraTokensCoreV28{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV28"),
+            string::utf8(b"QiaraTokensCoreV29"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV28"),
+            string::utf8(b"QiaraTokensCoreV29"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -337,6 +338,90 @@ module dev::QiaraTokensCoreV28{
     }
 
 // === TOKENOMICS FUNCTIONS === //
+    
+// 1. Wrapper to create a vault (calls the Shared module)
+    public entry fun create_token_vault(user: &signer, shared_name: String, symbol: String) acquires Permissions {
+        TokensType::ensure_valid_token_nick_name(symbol);
+        let asset = get_metadata(symbol);
+        Shared::create_shared_vault(user, shared_name, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+    }
+
+    // 2. Deposit personal tokens into the shared vault
+    public entry fun deposit_to_shared_vault(
+        signer: &signer, 
+        shared_name: String, 
+        symbol: String, 
+        chain: String, 
+        amount: u64
+    ) acquires ManagedFungibleAsset, Permissions {
+        // SECURITY: Verify signer is a sub-owner
+        Shared::assert_is_sub_owner(shared_name, bcs::to_bytes(&signer::address_of(signer)));
+        ensure_safety(symbol, chain);
+
+        let asset = get_metadata(symbol);
+        let managed = authorized_borrow_refs(symbol);
+        
+        let user_store = primary_fungible_store::primary_store(signer::address_of(signer), asset);
+        
+        // Ask the Shared module where the vault is
+        let vault_store = Shared::get_shared_vault(shared_name, asset);
+
+        // Use your existing internal logic to move funds
+        let fa = internal_withdraw(shared_name, user_store, amount, chain, managed);
+        internal_deposit(shared_name, vault_store, fa, chain, managed);
+    }
+
+    // 3. Withdraw from shared vault to personal wallet
+    public entry fun withdraw_from_shared_vault(
+        signer: &signer, 
+        shared_name: String, 
+        symbol: String, 
+        chain: String, 
+        amount: u64
+    ) acquires ManagedFungibleAsset, Permissions {
+        // SECURITY: Verify signer is a sub-owner
+        Shared::assert_is_sub_owner(shared_name, bcs::to_bytes(&signer::address_of(signer)));
+        ensure_safety(symbol, chain);
+
+        let asset = get_metadata(symbol);
+        let managed = authorized_borrow_refs(symbol);
+        
+        let user_store = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer), asset);
+        
+        // Ask the Shared module where the vault is
+        let vault_store = Shared::get_shared_vault(shared_name, asset);
+
+        // Use your existing internal logic to move funds
+        let fa = internal_withdraw(shared_name, vault_store, amount, chain, managed);
+        internal_deposit(shared_name, user_store, fa, chain, managed);
+    }
+
+    // 4. Transfer directly between two shared vaults
+    public entry fun shared_vault_to_shared_vault(
+        signer: &signer, 
+        from_shared: String, 
+        to_shared: String, 
+        symbol: String, 
+        chain: String, 
+        amount: u64
+    ) acquires ManagedFungibleAsset, Permissions {
+        // SECURITY: Signer must be a sub-owner of BOTH shared storages
+        Shared::assert_is_sub_owner(from_shared, bcs::to_bytes(&signer::address_of(signer)));
+        Shared::assert_is_sub_owner(to_shared, bcs::to_bytes(&signer::address_of(signer)));
+        ensure_safety(symbol, chain);
+
+        let asset = get_metadata(symbol);
+        let managed = authorized_borrow_refs(symbol);
+        
+        // Ask the Shared module for both vaults
+        let from_vault = Shared::get_shared_vault(from_shared, asset);
+        let to_vault = Shared::get_shared_vault(to_shared, asset);
+
+        // Execute transfer via your secure internal logic
+        let fa = internal_withdraw(from_shared, from_vault, amount, chain, managed);
+        internal_deposit(to_shared, to_vault, fa, chain, managed);
+    }
+    
     /// Anyone can call this to burn their own tokens.
     public entry fun burn(signer: &signer, shared: String, symbol: String, chain: String, amount: u64) acquires Permissions, ManagedFungibleAsset {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));

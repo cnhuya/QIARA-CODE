@@ -1,4 +1,4 @@
-module dev::QiaraTokensOmnichainV28{
+module dev::QiaraTokensOmnichainV29{
     use std::signer;
     use std::bcs;
     use std::timestamp;
@@ -13,7 +13,7 @@ module dev::QiaraTokensOmnichainV28{
     use aptos_framework::event;
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraSharedV9::{Self as Shared};
+    use dev::QiaraSharedV10::{Self as Shared};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
