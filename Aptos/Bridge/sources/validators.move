@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV34 {
+module dev::QiaraValidatorsV35 {
     use std::signer;
     use std::vector;
     use std::bcs;
