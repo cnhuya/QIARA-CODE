@@ -26,7 +26,7 @@ module dev::QiaraBridgeV34{
     
     use dev::QiaraVaultsV32::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV23::{Self as Margin};
+    use dev::QiaraMarginV24::{Self as Margin};
 
     use dev::QiaraPayloadV34::{Self as Payload};
     use dev::QiaraValidatorsV34::{Self as Validators, Access as ValidatorsAccess};
