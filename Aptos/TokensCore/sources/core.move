@@ -145,7 +145,7 @@ module dev::QiaraTokensCoreV30{
         init_token(admin, utf8(b"Aptos"), utf8(b"QAPT"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/aptos.webp"), 1_665_532_800, x"44a93dddd8effa54ea51076c4e851b6cbbfd938e82eb90197de38fe8876bb66e", 2_100_000_000, 832_543_225, 1_204_912_773, 1);
         init_token(admin, utf8(b"USDT"), utf8(b"QUSDT"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdt.webp"), 0, x"1fc18861232290221461220bd4e2acd1dcdfbc89c84092c93c18bdc7756c1588", 185_977_352_465, 185_977_352_465, 185_977_352_465, 255);
         init_token(admin, utf8(b"USDC"), utf8(b"QUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdc.webp"), 0, x"41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722", 76_235_696_160, 76_235_696_160, 76_235_696_160, 255);   
-       // init_token(admin, utf8(b"Qiara"), utf8(b"QIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/qiara.webp"), 0, (b""), 0, 0, 0, 1);   
+       // init_token(admin, utf8(b"Qiara"), utf8(b"QIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/qiara.webp"), 0, (b""), 0, 0, 0, 1);   41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722
 
         init_token(admin, utf8(b"AUSD"), utf8(b"QAUSD"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ausd.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 175_036_043, 175_036_043, 175_036_043, 255);
         init_token(admin, utf8(b"earnAUSD"), utf8(b"QearnAUSD"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/earnAUSD.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 0, 0, 0, 254);
@@ -207,7 +207,7 @@ module dev::QiaraTokensCoreV30{
         let fa = internal_mint(token, chain, INIT_SUPPLY, authorized_borrow_refs(token));
         let asset = get_metadata(token);
 
-        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         deposit(shared, store, fa, chain);
     }
 
@@ -265,6 +265,7 @@ module dev::QiaraTokensCoreV30{
             option::none(),
         );
    
+        Oracle::ensure_pyth_feed(oracleID);
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
         if(symbol == utf8(b"QIARA")){
@@ -495,7 +496,7 @@ module dev::QiaraTokensCoreV30{
 
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
 
-        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
         
@@ -536,7 +537,7 @@ module dev::QiaraTokensCoreV30{
      
         let asset = get_metadata(symbol);
         let fa = internal_mint(symbol, chain, amount, managed);
-        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, store, fa, chain, managed);
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
     

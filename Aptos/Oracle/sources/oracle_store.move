@@ -89,6 +89,14 @@ module dev::QiaraOracleV6 {
 
 // === UPDATE METHODS === //
 
+    public entry fun ensure_pyth_feed(feed_id_bytes: vector<u8>) acquires Prices {
+        let prices = borrow_global_mut<Prices>(@dev);
+        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
+            map::upsert(&mut prices.prices, feed_id_bytes, PriceStore { price: i64::new(0, false), expo: i64::new(0, false), publish_time: 0 });
+        };
+    }
+
     // Updates the Pyth price cache and emits the old and new full combined prices (taking impact into account)
     public entry fun update_price(user: &signer,price_update_data: vector<vector<u8>>,feed_id_bytes: vector<u8>,) acquires Prices {
         assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
@@ -409,9 +417,9 @@ module dev::QiaraOracleV6 {
             };
         }; // <-- The borrow on `Prices` is completely released here
 
-        if (!has_key) {
-            return 0
-        };
+        //if (!has_key) {
+        //    return 0
+        //};
 
         // Now we can safely call get_raw_price()
         let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
@@ -422,6 +430,41 @@ module dev::QiaraOracleV6 {
             let s_price = (supra_oracle_price as u256);
             if (qiara_impact.value >= s_price) { return 1 };
             return s_price - qiara_impact.value
+        }
+    }
+
+    #[view]
+    public fun viewPriceWithDecimals(name: String): (u256, u64) acquires Prices {
+        if (name == utf8(b"Qiara")) { return (0, 0) };
+        assert!(exists<Prices>(@dev), 404);
+
+        let has_key;
+        let qiara_impact;
+
+        // Isolate the immutable borrow scope of Prices
+        {
+            let prices = borrow_global<Prices>(@dev);
+            has_key = map::contains_key(&prices.map, &name);
+            if (has_key) {
+                // Copy the Integer struct out of global storage using the dereference operator (*)
+                qiara_impact = *map::borrow(&prices.map, &name);
+            } else {
+                qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
+            };
+        }; // <-- The borrow on `Prices` is completely released here
+
+        //if (!has_key) {
+        //    return (0, 0);
+        //};
+
+        // Now we can safely call get_raw_price()
+        let (supra_oracle_price, decimals) = get_raw_price(qiara_impact.oracleID);
+        if (qiara_impact.isPositive) {
+            return ((supra_oracle_price as u256) + qiara_impact.value, decimals)
+        } else {
+            let s_price = (supra_oracle_price as u256);
+            if (qiara_impact.value >= s_price) { return (1, decimals) };
+            return (s_price - qiara_impact.value, decimals)
         }
     }
 

@@ -8,6 +8,8 @@ module dev::QiaraTokensFaucetV30 {
     use std::vector;
     use dev::QiaraChainTypesV30::{Self as ChainTypes};
     use dev::QiaraTokenTypesV30::{Self as TokensType};
+    use aptos_std::simple_map::{Self as simple_map, SimpleMap as Map};
+use dev::QiaraProviderTypesV30::{Self as ProviderTypes};
 
     use dev::QiaraTokensCoreV30::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensMetadataV30::{Self as TokensMetadata};
@@ -54,7 +56,8 @@ module dev::QiaraTokensFaucetV30 {
 
 
 // === HELPER FUNCTIONS === //
-    public entry fun faucet(signer: &signer, shared: String, user: vector<u8>) acquires FaucetTracker, Permissions {
+
+    public entry fun faucet(signer: &signer, shared: String, chain: String, user: vector<u8>) acquires FaucetTracker, Permissions {
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_ADDR_DOESNT_MATCH_SIGNER);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         let today  = timestamp::now_seconds() / 86400;
@@ -65,18 +68,54 @@ module dev::QiaraTokensFaucetV30 {
             table::add(&mut x.claimed, today, vector::empty<String>());
         };
 
-        let vect = table::borrow_mut(&mut x.claimed, today);
-        if (!vector::contains(vect, &shared)) {
-            vector::push_back(vect, shared);
+        // Combine shared and chain to allow claiming once per day per chain
+        let claim_id = copy shared;
+        string::append(&mut claim_id, copy chain);
 
-            internal_faucet(shared, utf8(b"Qiara"), utf8(b"Sui"));
+        let vect = table::borrow_mut(&mut x.claimed, today);
+        if (!vector::contains(vect, &claim_id)) {
+            vector::push_back(vect, claim_id);
+
+            // Fetch the nested providers map dynamically
+            let providers_map = ProviderTypes::return_all_providers();
+            let provider_keys = simple_map::keys(&providers_map);
+            let i = 0;
+            let num_providers = vector::length(&provider_keys);
+
+            while (i < num_providers) {
+                let provider_key = vector::borrow(&provider_keys, i);
+                let chains_map = simple_map::borrow(&providers_map, provider_key);
+                
+                // Only process the specific chain requested if the provider has it
+                if (simple_map::contains_key(chains_map, &chain)) {
+                    // Use your working Option B getter function
+                    let tokens = ProviderTypes::get_tokens(*provider_key, copy chain);
+
+                    let k = 0;
+                    let num_tokens = vector::length(&tokens);
+                    while (k < num_tokens) {
+                        let token_name = vector::borrow(&tokens, k);
+                        
+                        // Ignore checklist for "Burned Qiara", "BQiara", "Deepbook", "QDEEP"
+                        if (*token_name != utf8(b"Burned Qiara") && 
+                            *token_name != utf8(b"BQiara") && 
+                            *token_name != utf8(b"BQIARA") && 
+                            *token_name != utf8(b"Deepbook") && 
+                            *token_name != utf8(b"QDEEP")) {
+                            
+                            // Dynamically trigger the internal faucet for the specific chain
+                            internal_faucet(copy shared, *token_name, copy chain);
+                        };
+                        k = k + 1;
+                    };
+                };
+                i = i + 1;
+            };
 
         } else {
             abort ERROR_ALREADY_CLAIMED_THIS_PERIOD;
         }
-
     }
-
 
     fun internal_faucet(shared: String, token: String, chain: String) acquires Permissions{
         ensure_safety(token, chain);
