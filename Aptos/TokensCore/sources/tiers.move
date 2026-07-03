@@ -1,15 +1,15 @@
-module dev::QiaraTokensTiersV29{
+module dev::QiaraTokensTiersV30{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::type_info::{Self, TypeInfo};
-    use dev::QiaraStorageV11::{Self as storage};
+    use dev::QiaraStorageV14::{Self as storage};
 
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_TIER_NOT_FOUND: u64 = 2;
-    
+
 
 // === ACCESS === //
     struct Access has store, key, drop {}

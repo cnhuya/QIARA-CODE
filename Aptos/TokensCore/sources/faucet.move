@@ -1,14 +1,14 @@
-module dev::QiaraTokensFaucetV29 {
+module dev::QiaraTokensFaucetV30 {
     use std::string::{Self as string, String, utf8};
     use std::type_info::{Self, TypeInfo};
     use std::signer;
     use std::table::{Self as table, Table};
     use std::timestamp;
 
-    use dev::QiaraChainTypesV29::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV29::{Self as TokensType};
+    use dev::QiaraChainTypesV30::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV30::{Self as TokensType};
 
-    use dev::QiaraStorageV11::{Self as storage};
+    use dev::QiaraStorageV14::{Self as storage};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

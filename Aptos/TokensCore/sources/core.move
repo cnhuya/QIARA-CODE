@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV29{
+module dev::QiaraTokensCoreV30{
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,21 +18,21 @@ module dev::QiaraTokensCoreV29{
     use aptos_std::string_utils ::{Self as string_utils};
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV29::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV29::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV29::{Self as TokensTiers};
-    use dev::QiaraTokensRatesV29::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensQiaraV29::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV30::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV30::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV30::{Self as TokensTiers};
+    use dev::QiaraTokensRatesV30::{Self as TokensRates, Access as TokensRatesAccess};
+    use dev::QiaraTokensQiaraV30::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
-    use dev::QiaraSharedV10::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV14::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV29::{Self as Storages};
+    use dev::QiaraStoragesV30::{Self as Storages};
 
-    use dev::QiaraChainTypesV29::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV29::{Self as TokensType};
-    use dev::QiaraProviderTypesV29::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV30::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV30::{Self as TokensType};
+    use dev::QiaraProviderTypesV30::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -253,12 +253,12 @@ module dev::QiaraTokensCoreV29{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV29"),
+            string::utf8(b"QiaraTokensCoreV30"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV29"),
+            string::utf8(b"QiaraTokensCoreV30"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -340,88 +340,12 @@ module dev::QiaraTokensCoreV29{
 // === TOKENOMICS FUNCTIONS === //
     
 // 1. Wrapper to create a vault (calls the Shared module)
-    public entry fun create_token_vault(user: &signer, shared_name: String, symbol: String) acquires Permissions {
+    public entry fun create_token_vault(user: &signer, shared: String, symbol: String) acquires Permissions {
         TokensType::ensure_valid_token_nick_name(symbol);
         let asset = get_metadata(symbol);
-        Shared::create_shared_vault(user, shared_name, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        Shared::create_shared_vault(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
     }
 
-    // 2. Deposit personal tokens into the shared vault
-    public entry fun deposit_to_shared_vault(
-        signer: &signer, 
-        shared_name: String, 
-        symbol: String, 
-        chain: String, 
-        amount: u64
-    ) acquires ManagedFungibleAsset, Permissions {
-        // SECURITY: Verify signer is a sub-owner
-        Shared::assert_is_sub_owner(shared_name, bcs::to_bytes(&signer::address_of(signer)));
-        ensure_safety(symbol, chain);
-
-        let asset = get_metadata(symbol);
-        let managed = authorized_borrow_refs(symbol);
-        
-        let user_store = primary_fungible_store::primary_store(signer::address_of(signer), asset);
-        
-        // Ask the Shared module where the vault is
-        let vault_store = Shared::get_shared_vault(shared_name, asset);
-
-        // Use your existing internal logic to move funds
-        let fa = internal_withdraw(shared_name, user_store, amount, chain, managed);
-        internal_deposit(shared_name, vault_store, fa, chain, managed);
-    }
-
-    // 3. Withdraw from shared vault to personal wallet
-    public entry fun withdraw_from_shared_vault(
-        signer: &signer, 
-        shared_name: String, 
-        symbol: String, 
-        chain: String, 
-        amount: u64
-    ) acquires ManagedFungibleAsset, Permissions {
-        // SECURITY: Verify signer is a sub-owner
-        Shared::assert_is_sub_owner(shared_name, bcs::to_bytes(&signer::address_of(signer)));
-        ensure_safety(symbol, chain);
-
-        let asset = get_metadata(symbol);
-        let managed = authorized_borrow_refs(symbol);
-        
-        let user_store = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer), asset);
-        
-        // Ask the Shared module where the vault is
-        let vault_store = Shared::get_shared_vault(shared_name, asset);
-
-        // Use your existing internal logic to move funds
-        let fa = internal_withdraw(shared_name, vault_store, amount, chain, managed);
-        internal_deposit(shared_name, user_store, fa, chain, managed);
-    }
-
-    // 4. Transfer directly between two shared vaults
-    public entry fun shared_vault_to_shared_vault(
-        signer: &signer, 
-        from_shared: String, 
-        to_shared: String, 
-        symbol: String, 
-        chain: String, 
-        amount: u64
-    ) acquires ManagedFungibleAsset, Permissions {
-        // SECURITY: Signer must be a sub-owner of BOTH shared storages
-        Shared::assert_is_sub_owner(from_shared, bcs::to_bytes(&signer::address_of(signer)));
-        Shared::assert_is_sub_owner(to_shared, bcs::to_bytes(&signer::address_of(signer)));
-        ensure_safety(symbol, chain);
-
-        let asset = get_metadata(symbol);
-        let managed = authorized_borrow_refs(symbol);
-        
-        // Ask the Shared module for both vaults
-        let from_vault = Shared::get_shared_vault(from_shared, asset);
-        let to_vault = Shared::get_shared_vault(to_shared, asset);
-
-        // Execute transfer via your secure internal logic
-        let fa = internal_withdraw(from_shared, from_vault, amount, chain, managed);
-        internal_deposit(to_shared, to_vault, fa, chain, managed);
-    }
-    
     /// Anyone can call this to burn their own tokens.
     public entry fun burn(signer: &signer, shared: String, symbol: String, chain: String, amount: u64) acquires Permissions, ManagedFungibleAsset {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
@@ -439,20 +363,6 @@ module dev::QiaraTokensCoreV29{
     // in this scenario we allow only the module bridge_handler to be able to call this function.
     public fun mint(symbol: String, chain: String, amount: u64, cap: Permission): FungibleAsset acquires Permissions, ManagedFungibleAsset {
         internal_mint(symbol, chain, amount, authorized_borrow_refs(symbol))
-    }
-
-    public fun mint_to(address: address, shared: String, symbol: String, chain: String, amount: u64, cap: Permission) acquires Permissions, ManagedFungibleAsset {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&address));
-        let asset = get_metadata(symbol); 
-        let managed = authorized_borrow_refs(symbol);
-
-        if(!account::exists_at(address)){
-            TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            return
-        };
-        let fa = internal_mint(symbol, chain, amount, managed);
-        let to = primary_fungible_store::ensure_primary_store_exists(address,asset);
-        internal_deposit(shared, to, fa, chain, managed);
     }
 
     public entry fun transfer(sender:&signer, sender_shared: String, to: address, to_shared: String, symbol: String, chain: String, amount: u64) acquires ManagedFungibleAsset,Permissions {
@@ -529,7 +439,6 @@ module dev::QiaraTokensCoreV29{
 
     }
 
-
     // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
     // Later implement function to claim locked tokens if the bridge tx fails
     public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) acquires Permissions{
@@ -563,42 +472,6 @@ module dev::QiaraTokensCoreV29{
         Event::emit_consensus_event(utf8(b"Request Bridge"), data);
 
     }
-
-    /*    
-    public fun bridged(validator: &signer, user: address, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
-        ensure_safety(symbol, chain);
-
-        if(!account::exists_at(user)){
-            TokensOmnichain::change_UserTokenSupply(symbol, chain, bcs::to_bytes(&user), amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            TokensOmnichain::change_TokenSupply(symbol, chain,amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
-            
-            event::emit(BridgedEvent {
-                address: bcs::to_bytes(&user),
-                token: symbol,
-                chain: chain,
-                amount: amount,
-                time: timestamp::now_seconds() 
-            });
-            return
-        };
-     
-        let asset = get_metadata(symbol);
-        let managed = authorized_borrow_refs(symbol);
-        let fa = internal_mint(symbol, chain, amount, managed);
-
-        let store = primary_fungible_store::ensure_primary_store_exists(user,asset);
-        internal_deposit(store, fa, chain, managed);
-    
-        event::emit(BridgedEvent {
-            address: bcs::to_bytes(&user),
-            token: symbol,
-            chain: chain,
-            amount: amount,
-            time: timestamp::now_seconds() 
-        });
-    
-    }
-    */
 // === CONSENSUS FUNCTIONS === //
     public fun c_finalize_bridge(validator: &signer, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
         ensure_safety(symbol, chain);
@@ -629,27 +502,17 @@ module dev::QiaraTokensCoreV29{
     }
 
     public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, rate: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
-        //tttta(0);
-        
         Shared::assert_is_sub_owner(shared, user);
-        //tttta(1);
         ensure_safety(symbol, chain);
 
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
 
+        let store = Shared::return_fungible_store(shared, get_metadata(symbol));
+        let fa = mint(shared, symbol, chain, amount, perm);
+        deposit(shared, store, fa, chain);
+        
+        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
-        if(vector::length(&user) == 33){
-             if(account::exists_at(from_bcs::to_address(user))){
-                 mint_to(from_bcs::to_address(user), shared, symbol, chain, amount, perm);
-                 // the token supply change & user token supply change is already implemented in mint_to
-             };
-        } else {
-            TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            TokensOmnichain::change_TokenSupply(symbol, chain, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
-        };
-
-        //TokensOmnichain::increment_UserInflow(bcs::to_bytes(&user), TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
-    
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),
             Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), bcs::to_bytes(&user)),
@@ -742,59 +605,7 @@ module dev::QiaraTokensCoreV29{
 
     }
 
-/*
-
-    #[view]
-    public fun ensure_fees(validator: address, symbol: String, chain: String, amount: u256): (u256, u256){ // change to u256 for security overflows
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(symbol);
-        let tier = TokensMetadata::get_coin_metadata_tier(&metadata);
-        let flat_fee = TokensTiers::flat_usd_fee(tier); // 0.0002$ -> zmenit na tak 0.001$
-        let transfer_fee = TokensTiers::transfer_fee(tier); // 0.00030% > zmenit na tak 0.00005%
-
-        //27500000000 - transfer_fee // with 1$ size
-        //10004001600 - flat fee // with 1$ size
-        //105530009002
-        let token_value = TokensMetadata::getValueByCoin(symbol, (flat_fee as u256)*100_000_000);
-
-        let total = (((transfer_fee as u256) * (amount*100))) + token_value;
-        if(total > amount*100_000_000){
-            return (amount, amount) // to ensure fee doesnt overfload the actuall amount which would cause abort errors later on.
-        };
-
-        // the +1 is here to avoid bad overall debt, because malicious users could create new permisioneless account, do some action,
-        // because of the % fee, the rewards are messuered in different scale (*100_000_000)
-        // so essentially the results would be (1000, 100036119502) for 1111 inputed amount, which would mean
-        // that the validator actually gets higher reward than the actuall fee is which could lead to debt of unified liquidity
-        // eventually creates extremely small/non-noticable deflationary pressure for the token
-        return (((total/100_000_000)+1), total) 
-    }
-
-    public fun ensure_accrue_fees(validator: address, symbol: String, chain: String, amount: u256): u256{
-        let (fee, validator_reward) = ensure_fees(validator, symbol, chain, amount);
-        return (amount-fee)
-    }*/
-/*    #[view]
-    public fun calculate_qiara_fees(amount: u64): u64 {
-        // 500 + 100*0 = 500
-        let burn_fee_bps = TokensQiara::get_burn_fee() + TokensQiara::get_burn_fee_increase() * TokensQiara::get_month();
-
-        // scale denominator = 100_000_000 (because 1% = 1_000_000, so 100% = 100_000_000)
-        let scale = 100_000_000;
-
-        
-        let burn_amount = (amount * burn_fee_bps) / scale;
-        if(burn_amount == 0){
-            if(TokensQiara::get_minimal_fee() > amount){
-                return amount;
-            } else {
-            return TokensQiara::get_minimal_fee();                
-            };
-        };
-        return burn_amount
-    }
-*/
-
-// === HELPFER FUNCTIONS === //
+// === HELPER FUNCTIONS === //
 
     fun ensure_safety(token: String, chain: String){
         ChainTypes::ensure_valid_chain_name(chain);
