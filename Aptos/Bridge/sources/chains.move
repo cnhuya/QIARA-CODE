@@ -24,15 +24,15 @@ module dev::QiaraBridgeV36{
     use dev::QiaraTokensCoreV32::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV32::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV34::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV35::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV26::{Self as Margin};
 
     use dev::QiaraPayloadV36::{Self as Payload};
     use dev::QiaraValidatorsV36::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV20::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV20::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV21::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV21::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
