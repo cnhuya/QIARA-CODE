@@ -89,7 +89,15 @@ module dev::QiaraOracleV6 {
 
 // === UPDATE METHODS === //
 
-    public entry fun ensure_pyth_feed(feed_id_bytes: vector<u8>) acquires Prices {
+    public entry fun ensure_pyth_feed_new(token: String, feed_id_bytes: vector<u8>) acquires Prices {
+        let prices = borrow_global_mut<Prices>(@dev);
+        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        if (!map::contains_key(&prices.map, &token)) {
+            map::upsert(&mut prices.map, token, Integer { oracleID: feed_id_bytes, value: 0, isPositive: true });
+        };
+    }
+
+    public entry fun ensure_pyth_feed( feed_id_bytes: vector<u8>) acquires Prices {
         let prices = borrow_global_mut<Prices>(@dev);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
         if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
@@ -309,6 +317,12 @@ module dev::QiaraOracleV6 {
     public fun viewAllPrices(name: String): Map<String, Integer> acquires Prices{
         *&borrow_global<Prices>(@dev).map
     }
+
+    #[view]
+    public fun viewAllAllPrices(): Map<vector<u8>, PriceStore> acquires Prices{
+        *&borrow_global<Prices>(@dev).prices
+    }
+
 
     #[view]
     public fun get_price(feed_id_bytes: vector<u8>): PriceStore acquires Prices {
