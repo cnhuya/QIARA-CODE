@@ -8,9 +8,9 @@ module dev::QiaraValidatorsV35 {
 
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraMarginV24::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraSharedV8::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV11::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
-    use dev::QiaraStorageV11::{Self as storage};
+    use dev::QiaraStorageV14::{Self as storage};
     use dev::QiaraTokensQiaraV27::{Self as TokensQiara};
     use dev::QiaraTokensCoreV27::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
