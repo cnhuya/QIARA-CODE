@@ -24,7 +24,7 @@ module dev::QiaraBridgeV34{
     use dev::QiaraTokensCoreV27::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV27::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV32::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV33::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV24::{Self as Margin};
 
