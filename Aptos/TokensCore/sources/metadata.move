@@ -197,6 +197,8 @@ public entry fun create_metadata(
         tokenomics
     };
 
+        oracle::ensure_pyth_feed(oracleID);
+
     vector::push_back(&mut vault_list.list, metadata);
 }
 

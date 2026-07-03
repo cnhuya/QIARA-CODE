@@ -17,6 +17,7 @@ module dev::QiaraTokensCoreV31{
 
     use aptos_std::string_utils ::{Self as string_utils};
 
+
     use dev::QiaraMathV2::{Self as Math};
     use dev::QiaraTokensMetadataV31::{Self as TokensMetadata};
     use dev::QiaraTokensOmnichainV31::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
@@ -265,7 +266,6 @@ module dev::QiaraTokensCoreV31{
             option::none(),
         );
    
-        Oracle::ensure_pyth_feed(oracleID);
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
         TokensMetadata::create_metadata(admin, name, creation, oracleID, max_supply, circulating_supply, total_supply, stable);
         if(symbol == utf8(b"QIARA")){
