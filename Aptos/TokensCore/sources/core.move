@@ -207,7 +207,7 @@ module dev::QiaraTokensCoreV30{
         let fa = internal_mint(token, chain, INIT_SUPPLY, authorized_borrow_refs(token));
         let asset = get_metadata(token);
 
-        let store = Shared::ensure_shared_fungible_storage(shared, asset);
+        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         deposit(shared, store, fa, chain);
     }
 
@@ -369,7 +369,7 @@ module dev::QiaraTokensCoreV30{
         let managed = authorized_borrow_refs(symbol);
 
         let from = Shared::return_fungible_store(sender_shared, get_metadata(symbol));
-        let to = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol));
+        let to = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         
         let fa = internal_withdraw(sender_shared, from, amount, chain, managed);
         internal_deposit(to_shared, to, fa, chain, managed);
@@ -495,7 +495,7 @@ module dev::QiaraTokensCoreV30{
 
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
 
-        let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol));
+        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
         
@@ -536,7 +536,7 @@ module dev::QiaraTokensCoreV30{
      
         let asset = get_metadata(symbol);
         let fa = internal_mint(symbol, chain, amount, managed);
-        let store = Shared::ensure_shared_fungible_storage(shared, asset);
+        let store = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, store, fa, chain, managed);
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
     
@@ -555,7 +555,7 @@ module dev::QiaraTokensCoreV30{
         let fa = internal_mint(symbol, chain, amount, managed);
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         
-        let wallet = Shared::ensure_shared_fungible_storage(shared, asset);
+        let wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, wallet, fa, chain, managed);
     }
     
@@ -569,7 +569,7 @@ module dev::QiaraTokensCoreV30{
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),(claimable_amount as u64), managed);
 
-        let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset);
+        let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
     }
@@ -581,7 +581,7 @@ module dev::QiaraTokensCoreV30{
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
 
-        let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset);
+        let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
     }
