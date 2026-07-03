@@ -406,6 +406,7 @@ module dev::QiaraSharedV11{
         ownership_record.last_updated = timestamp::now_seconds();
     }
 
+    // deprecated remove in future
     public fun create_shared_vault(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
@@ -420,6 +421,24 @@ module dev::QiaraSharedV11{
             let vault_store = primary_fungible_store::ensure_primary_store_exists(@dev, asset_metadata);
             table::add(token_map, asset_metadata, vault_store);
         };
+    }
+
+    public fun ensure_shared_fungible_storage(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission): Object<FungibleStore> acquires SharedStorage {
+        let shared = borrow_global_mut<SharedStorage>(@dev);
+        assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+        if (!table::contains(&shared.fungible_stores, shared_name)) {
+            table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
+        };
+        
+        let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
+        if (!table::contains(token_map, asset_metadata)) {
+            // The vault is just a primary store owned by @dev.
+            // It doesn't need TransferRef here because TokensCore handles the transfers.
+            let vault_store = primary_fungible_store::ensure_primary_store_exists(@dev, asset_metadata);
+            table::add(token_map, asset_metadata, vault_store);
+        };
+
+        *table::borrow(token_map, asset_metadata)
     }
 
     // ----------------------------------------------------------------
