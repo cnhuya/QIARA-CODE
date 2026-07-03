@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraStoragesV27"
+    name = "QiaraStoragesV28"
     version = "2.1.1"
     authors = []
 
@@ -21,7 +21,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTypesV27]
+    [dependencies.QiaraTypesV28]
     git = 'https://github.com/cnhuya/QIARA-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
