@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV31 {
+module dev::QiaraTokensQiaraV32 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -17,7 +17,7 @@ module dev::QiaraTokensQiaraV31 {
     use dev::QiaraCapabilitiesV14::{Self as capabilities};
     use dev::QiaraStorageV14::{Self as storage};
 
-    use dev::QiaraTokenTypesV31::{Self as TokensType};
+    use dev::QiaraTokenTypesV32::{Self as TokensType};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
 
