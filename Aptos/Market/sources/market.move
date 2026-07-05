@@ -1131,7 +1131,7 @@ module dev::QiaraVaultsV37 {
             combined_fee =  1 * 1000000000000000000;
         };
         
-        Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::add_accumulated_rewards(token, chain, provider, combined_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         // Safety check to prevent negative amount if deposit amount is less than the minimum fee
         let taxed_amount = if (amount > combined_fee) { amount - combined_fee } else { 0 };
         

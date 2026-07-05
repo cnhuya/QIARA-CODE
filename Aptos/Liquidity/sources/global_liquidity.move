@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV38 {
+module dev::QiaraLiquidityV39 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -606,7 +606,7 @@ public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vecto
                 virtual_deposited: 0,
                 virtual_borrowed: 0,
                 total_borrowed: 0,
-                total_deposited: 1000000000000000000 * 1000000000,
+                total_deposited: 0,
                 w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
                 storage: vault_store,
                 incentive: Incentive {
