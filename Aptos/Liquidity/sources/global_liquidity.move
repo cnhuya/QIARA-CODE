@@ -127,9 +127,9 @@ module dev::QiaraLiquidityV41 {
 
 
 
-    fun assert_liquidity(total_deposited: u256, total_borrowed: u256, total_staked: u256, virtual_deposit: u256, virtual_borrow: u256){
-        let positive_liquidity = (total_deposited + virtual_deposit + total_staked);
-        let negative_liquidity = (total_borrowed + virtual_borrow);
+    fun assert_liquidity(total_deposited: u256, total_borrowed: u256, total_staked: u256, virtual_deposited: u256, virtual_borrowed: u256){
+        let positive_liquidity = (total_deposited + virtual_deposited + total_staked);
+        let negative_liquidity = (total_borrowed + virtual_borrowed);
         assert!(positive_liquidity >= negative_liquidity, ERROR_INSUFFICIENT_BALANCE);
     }
 
@@ -210,7 +210,7 @@ module dev::QiaraLiquidityV41 {
 
     public fun withdraw_token(token: String, chain: String,provider: String, amount:u256, cap: Permission): FungibleAsset acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-        assert_liquidity(vault.total_deposited, vault.total_borrowed, vault.total_staked, vault.virtual_deposit, vault.virtual_borrow);
+        assert_liquidity(vault.total_deposited, vault.total_borrowed, vault.total_staked, vault.virtual_deposited, vault.virtual_borrowed);
         
         let storage_address_string = non_user_storage_helper(&vault.storage);
 
