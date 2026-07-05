@@ -634,7 +634,7 @@ public fun return_all_vault_keys(tokens: vector<String>): (vector<String>, vecto
             vault.virtual_deposited,
             vault.total_borrowed,
             vault.virtual_borrowed,
-            vault.total_staked
+            0 // dont count total staked bcs its already accounted in total deposited...
         );
         
         let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
