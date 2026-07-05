@@ -15,10 +15,10 @@ module dev::QiaraPerpsV22 {
 
     use dev::QiaraSharedV11::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV38::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV40::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV39::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV39::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV41::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV41::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV14::{Self as storage};
     use dev::QiaraCapabilitiesV14::{Self as capabilities};

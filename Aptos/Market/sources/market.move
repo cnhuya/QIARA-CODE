@@ -36,8 +36,8 @@ module dev::QiaraVaultsV40 {
 
     use dev::QiaraGasV10::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV39::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV39::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV41::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV41::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -1030,6 +1030,7 @@ module dev::QiaraVaultsV40 {
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let (
+            total_liquidity,
             total_borrowed, 
             total_deposited, 
             total_staked, 
