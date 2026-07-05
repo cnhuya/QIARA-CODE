@@ -488,10 +488,10 @@ module dev::QiaraVaultsV38 {
             handle_gas_fee(shared,sender, _token);
             
         
-            let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
+            let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(_token, _chain, _provider,  amount_u256);
             if(amount_u256_w_fee_taxed == 0) { return };
 
-            let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
+            let (amount_u256_taxed,fee) = assert_minimal_fee(_token, _chain, _provider,  amount_u256_w_fee_taxed, _fee);
             if(amount_u256_taxed == 0) { return };
 
 
