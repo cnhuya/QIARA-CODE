@@ -487,7 +487,11 @@ module dev::QiaraVaultsV38 {
             let gas_rate = Gas::add_withdraw(_token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
             handle_gas_fee(shared,sender, _token);
             
-            let (amount_u256_taxed,fee) = assert_minimal_fee(_token, _chain, _provider,  amount_u256, _fee);
+        
+            let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
+            if(amount_u256_w_fee_taxed == 0) { return };
+
+            let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
             if(amount_u256_taxed == 0) { return };
 
 
@@ -495,9 +499,9 @@ module dev::QiaraVaultsV38 {
 
             let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token));
 
-            let fa = Liquidity::withdraw_token(_token, _chain, _provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            let fa = Liquidity::withdraw_token(_token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token)), fa, _chain);
-            vector::push_back(&mut vect_amnt, amount_u256);
+            vector::push_back(&mut vect_amnt, amount_u256_taxed);
             Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), _token, _chain, _provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         };
 
