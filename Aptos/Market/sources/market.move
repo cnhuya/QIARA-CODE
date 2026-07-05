@@ -617,13 +617,16 @@ module dev::QiaraVaultsV38 {
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         let gas_fee = handle_gas_fee(shared, sender, token);
         
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
+        let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
+        if(amount_u256_w_fee_taxed == 0) { return };
+
+        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
         if(amount_u256_taxed == 0) { return };
 
 
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
-        let fa = Liquidity::withdraw_token(token, chain, provider, (amount_u256-fee)/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let fa = Liquidity::withdraw_token(token, chain, provider, (amount_u256_taxed-fee)/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         TokensCore::deposit(shared, obj, fa, chain);
 
@@ -675,16 +678,19 @@ module dev::QiaraVaultsV38 {
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         let gas_fee = handle_gas_fee(shared, sender, token);
         
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
+        let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
+        if(amount_u256_w_fee_taxed == 0) { return };
+
+        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
         if(amount_u256_taxed == 0) { return };
 
 
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
-        let fa = Liquidity::withdraw_token(token, chain, provider, (amount_u256-fee)/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let fa = Liquidity::withdraw_token(token, chain, provider, (amount_u256_taxed-fee)/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         TokensCore::deposit(shared, obj, fa, chain);
 
-        Liquidity::add_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::add_borrow(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
@@ -1136,6 +1142,23 @@ module dev::QiaraVaultsV38 {
         let taxed_amount = if (amount > combined_fee) { amount - combined_fee } else { 0 };
         
         return (taxed_amount, combined_fee)
+    }
+
+    // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
+    fun handle_withdrawal_fee(token: String, chain: String, provider: String, amount: u256): (u256, u256) acquires Permissions{
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+        let w_fee = TokensMetadata::get_coin_metadata_market_w_fee(&metadata);
+        // (1000000000000000000*10000)
+        let fee = (amount*(w_fee as u256))/1_000_000;
+        if (fee < 1 * 1000000000000000000) {
+            fee =  1 * 1000000000000000000;
+        };
+        
+        Liquidity::add_accumulated_rewards(token, chain, provider, fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        // Safety check to prevent negative amount if deposit amount is less than the minimum fee
+        let taxed_amount = if (amount > fee) { amount - fee } else { 0 };
+        
+        return (taxed_amount, fee)
     }
 
     fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{

@@ -234,7 +234,8 @@ module dev::QiaraTokensTiersV32{
         #[view]
         public fun minimal_w_fee(id: u8): u64 {
             let tier = get_tier(id);
-            ((tier.multiplier as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE"))))
+            // formula: ((100/5) * 2500)/100 = 50 0 (0,05%)
+            (((tier.multiplier as u64)/5) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE"))))/100 + storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE")))
         }
 
         #[view]
