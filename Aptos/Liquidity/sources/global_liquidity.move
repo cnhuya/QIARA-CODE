@@ -127,11 +127,6 @@ module dev::QiaraLiquidityV41 {
 
 
 
-    fun assert_liquidity(total_deposited: u256, total_borrowed: u256, total_staked: u256, virtual_deposited: u256, virtual_borrowed: u256){
-        let positive_liquidity = (total_deposited + virtual_deposited + total_staked);
-        let negative_liquidity = (total_borrowed + virtual_borrowed);
-        assert!(positive_liquidity >= negative_liquidity, ERROR_INSUFFICIENT_BALANCE);
-    }
 
     public entry fun add_incentive(signer: &signer, shared: String, amount: u256, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64) acquires GlobalVault, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
@@ -210,11 +205,11 @@ module dev::QiaraLiquidityV41 {
 
     public fun withdraw_token(token: String, chain: String,provider: String, amount:u256, cap: Permission): FungibleAsset acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-        assert_liquidity(vault.total_deposited, vault.total_borrowed, vault.total_staked, vault.virtual_deposited, vault.virtual_borrowed);
-        
         let storage_address_string = non_user_storage_helper(&vault.storage);
 
         //internal_daily_withdraw_limit(token, vault, amount*1000000000000000000);
+
+        vault.total_deposited = vault.total_deposited - amount;
         TokensCore::withdraw(storage_address_string, vault.storage, (amount as u64), chain)
     }
 
@@ -222,7 +217,7 @@ module dev::QiaraLiquidityV41 {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         let storage_address_string = non_user_storage_helper(&vault.storage);
 
-        //vault.total_deposited = vault.total_deposited + ((fungible_asset::amount(&fa) as u256)*1000000000000000000);
+        vault.total_deposited = vault.total_deposited + ((fungible_asset::amount(&fa) as u256)*1000000000000000000);
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
     }
 
@@ -265,7 +260,6 @@ module dev::QiaraLiquidityV41 {
     public fun add_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault{
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-        assert_liquidity(vault.total_deposited, vault.total_borrowed, vault.total_staked, vault.virtual_deposited, vault.virtual_borrowed);
             vault.virtual_borrowed = vault.virtual_borrowed + value;
         };
     }
@@ -445,7 +439,7 @@ module dev::QiaraLiquidityV41 {
     public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256, u256, u256, u256,u256, u64) acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
-        return (((vault.total_deposited + vault.virtual_deposited + vault.total_staked) - (vault.total_borrowed + vault.virtual_borrowed)), vault.total_borrowed, vault.total_deposited, vault.total_staked, vault.total_accumulated_rewards, vault.total_accumulated_interest, vault.virtual_borrowed, vault.virtual_deposited, vault.last_update)
+        return (((vault.total_deposited + vault.virtual_deposited) - (vault.total_borrowed + vault.virtual_borrowed)), vault.total_borrowed, vault.total_deposited, vault.total_staked, vault.total_accumulated_rewards, vault.total_accumulated_interest, vault.virtual_borrowed, vault.virtual_deposited, vault.last_update)
     }
 
     #[view]
