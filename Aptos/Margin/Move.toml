@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraMarginV26"
+    name = "QiaraMarginV27"
     version = "2.1.1"
     authors = []
 
@@ -31,7 +31,7 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraStorageV14]
+    [dependencies.QiaraStorageV15]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'
@@ -41,7 +41,7 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraSharedV11]
+    [dependencies.QiaraSharedV12]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'
