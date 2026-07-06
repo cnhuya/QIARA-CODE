@@ -246,7 +246,7 @@ module dev::QiaraBurnedQiaraV28 {
 
     #[view]
     public fun calculate_increased_reward_rate(increase: u64): (u64) {
-        let base_reward_rate = get_reward_rate();
+        let base_reward_rate = get_rewar d_rate();
         let scale = 1_000_000;
         // e.g., (10_000_000 * 50_000_000) / 100_000_000 / 100
         // (500_000_000_000_000 / 100_000_000 )/ 100

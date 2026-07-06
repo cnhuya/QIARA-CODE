@@ -15,6 +15,20 @@ module dev::QiaraGenesisV2 {
         move_to(admin, Genesis {genesis: (timestamp::now_seconds() as u256)});
     }
 
+    // === ADMIN ACTIONS === //
+    
+    /// Resets the genesis timestamp to the current block timestamp.
+    /// Can only be called by the admin (@dev) account.
+    public entry fun reset_genesis(admin: &signer) acquires Genesis {
+        let admin_addr = signer::address_of(admin);
+        assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
+        
+        let val = borrow_global_mut<Genesis>(@dev);
+        val.genesis = (timestamp::now_seconds() as u256);
+    }
+
+    // === VIEWS === //
+
     #[view]
     public fun return_epoch(): u256 acquires Genesis {
         let val = borrow_global<Genesis>(@dev);
