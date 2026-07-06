@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV32{
+module dev::QiaraTokensMetadataV33{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -9,13 +9,13 @@ module dev::QiaraTokensMetadataV32{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
 
-    use dev::QiaraStorageV14::{Self as storage};
+    use dev::QiaraStorageV15::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensRatesV32::{Self as rates};
-    use dev::QiaraTokensTiersV32::{Self as tier};
+    use dev::QiaraTokensRatesV33::{Self as rates};
+    use dev::QiaraTokensTiersV33::{Self as tier};
 
-    use dev::QiaraOracleV6::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraOracleV7::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
