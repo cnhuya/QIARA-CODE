@@ -109,20 +109,13 @@ module dev::QiaraTokensQiaraV35 {
 // === VIEW FUNCTIONS === //
     #[view]
     public fun get_qiara_data(): QiaraData acquires Timers {
-        let inflation_debt = get_inflation_debt();
-        let save_inflation;
-        if( inflation_debt > get_inflation() ) {
-            save_inflation = get_minimal_inflation();
-        } else {
-            save_inflation = get_inflation() - inflation_debt;
-        };
         let timers = borrow_global<Timers>(@dev);
         let (burned_qiara, qiara_supply, ratio) = get_ratio();
         QiaraData {
             timers: *timers,
             epoch: get_epoch(),
             inflation: get_inflation(),
-            actual_inflation: save_inflation,
+            actual_inflation: get_actual_inflation(),
             inflation_minimal: get_minimal_inflation(),
             inflation_debt: get_inflation_debt(),
             burn_fee: get_burn_fee(),
@@ -137,6 +130,19 @@ module dev::QiaraTokensQiaraV35 {
             burned_qiara: burned_qiara,
             ratio: ratio,
         }
+    }
+
+
+    #[view]
+    public fun get_actual_inflation(): (u64)  {
+        let inflation_debt = get_inflation_debt();
+        let save_inflation;
+        if( inflation_debt > get_inflation() ) {
+            save_inflation = get_minimal_inflation();
+        } else {
+            save_inflation = get_inflation() - inflation_debt;
+        };
+        (save_inflation)
     }
 
     #[view]

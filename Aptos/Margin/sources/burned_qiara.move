@@ -115,7 +115,7 @@ module dev::QiaraBurnedQiaraV31 {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         
         // 1. Fetch total_burned FIRST while global resource is not mutably borrowed
-        let (qiara_supply, total_burned, _) = TokensQiara::get_ratio();
+        let (total_burned, qiara_supply, _) = TokensQiara::get_ratio();
         
         // 2. Now mutably borrow BurnedQiara safely
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
@@ -161,21 +161,8 @@ module dev::QiaraBurnedQiaraV31 {
             TokensCore::deposit(shared, obj, reward_fa, utf8(b"Aptos"));
         };
 
-        let data = vector[
-            // Items from the event top-level fields
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(sender))),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        TokensQiara::emit_qiara_events();
 
-            // Original items from the data vector
-            Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&qiara_supply)),
-            Event::create_data_struct(utf8(b"total_burned"), utf8(b"u64"), bcs::to_bytes(&total_burned)),
-            Event::create_data_struct(utf8(b"base_reward_rate"), utf8(b"u64"), bcs::to_bytes(&base_reward_rate)),
-            Event::create_data_struct(utf8(b"user_dedicated_reward_rate"), utf8(b"u64"), bcs::to_bytes(&user_dedicated_reward_rate)),
-
-            Event::create_data_struct(utf8(b"last_claim"), utf8(b"u64"), bcs::to_bytes(&last_claim)),
-            Event::create_data_struct(utf8(b"reward"), utf8(b"u64"), bcs::to_bytes(&reward)),
-        ];
-        Event::emit_qiara_burn_event(data);
     
     }
 
