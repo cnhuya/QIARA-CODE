@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV29 {
+module dev::QiaraBurnedQiaraV30 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -18,7 +18,9 @@ module dev::QiaraBurnedQiaraV29 {
     use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV34::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV15::{Self as storage};
-    use dev::QiaraRanksV29::{Self as Ranks};
+    use dev::QiaraRanksV30::{Self as Ranks};
+
+    use event::QiaraEventV1::{Self as Event};
 // === CONSTANTS === //
     const ADMIN: address = @dev;
     const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
@@ -111,9 +113,12 @@ module dev::QiaraBurnedQiaraV29 {
     public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         
+        // 1. Fetch total_burned FIRST while global resource is not mutably borrowed
+        let total_burned = get_total_burned();
+        
+        // 2. Now mutably borrow BurnedQiara safely
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
         let current_time = timestamp::now_seconds();
-        let sender_addr = signer::address_of(sender);
         
         // Get burned amount for this shared name
         let burned_amount = if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
@@ -139,8 +144,8 @@ module dev::QiaraBurnedQiaraV29 {
         let time_elapsed = current_time - last_claim;
         let view_user_rank = Ranks::return_shared_rank(shared);
         let user_increased_reward_rate = Ranks::extract_gas_fee_reduction(view_user_rank);
-        let reward_rate = calculate_increased_reward_rate((user_increased_reward_rate as u64));
-        let reward = calculate_reward(burned_amount, reward_rate, time_elapsed);
+        let (user_dedicated_reward_rate, base_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
+        let reward = calculate_reward(burned_amount, user_dedicated_reward_rate, time_elapsed);
         
         // Update last claim timestamp
         if (smart_table::contains(&burn_qiara.user_claims, shared)) {
@@ -150,43 +155,25 @@ module dev::QiaraBurnedQiaraV29 {
         
         // Mint and deposit rewards if any
         if (reward > 0) {
-            let reward_metadata = TokensCore::get_metadata(utf8(b"Qiara")); // Reward token
-            let obj = primary_fungible_store::ensure_primary_store_exists(sender_addr, reward_metadata);
-            let reward_fa = TokensCore::mint(
-                utf8(b"Qiara"), 
-                utf8(b"Aptos"), 
-                reward, 
-                TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core)
-            );
+            let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
+            let reward_fa = TokensCore::mint(utf8(b"Qiara"), utf8(b"Aptos"), reward, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
             TokensCore::deposit(shared, obj, reward_fa, utf8(b"Aptos"));
         };
 
         let data = vector[
             // Items from the event top-level fields
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(sender))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
 
             // Original items from the data vector
-            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
-            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
-            Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
-            Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+            Event::create_data_struct(utf8(b"total_burned"), utf8(b"u64"), bcs::to_bytes(&total_burned)),
+            Event::create_data_struct(utf8(b"base_reward_rate"), utf8(b"u64"), bcs::to_bytes(&base_reward_rate)),
+            Event::create_data_struct(utf8(b"user_dedicated_reward_rate"), utf8(b"u64"), bcs::to_bytes(&user_dedicated_reward_rate)),
 
-            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
-            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
-            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
-            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
-            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
-
-            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&(total_deposited+amount_u256_taxed))),
-            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
-            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
-            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+            Event::create_data_struct(utf8(b"last_claim"), utf8(b"u64"), bcs::to_bytes(&last_claim)),
+            Event::create_data_struct(utf8(b"reward"), utf8(b"u64"), bcs::to_bytes(&reward)),
         ];
-        Event::emit_market_event(utf8(b"Bridge Lend"), data);
+        Event::emit_qiara_burn_event(data);
     
     }
 
@@ -211,23 +198,25 @@ module dev::QiaraBurnedQiaraV29 {
     public fun get_user_burn_summary(shared_name: String): UserBurnSummary acquires BurnedQiara {
         let burn_qiara = borrow_global<BurnedQiara>(@dev);
         
-        // Get burned amount
-        let burned_amount = if (smart_table::contains(&burn_qiara.tracked_amounts, shared_name)) {
-            *smart_table::borrow(&burn_qiara.tracked_amounts, shared_name)
-        } else {
-            0
-        };
+        // 1. Optimize tracked_amounts to a single lookup using borrow_with_default
+        let default_amount = 0;
+        let burned_amount = *smart_table::borrow_with_default(
+            &burn_qiara.tracked_amounts, 
+            shared_name, 
+            &default_amount
+        );
         
-        // Get last claim timestamp
-        let last_claim = if (smart_table::contains(&burn_qiara.user_claims, shared_name)) {
-            smart_table::borrow(&burn_qiara.user_claims, shared_name).last_claim_timestamp
+        // 2. Optimize user_claims lookup from 4 operations down to 1-2, and fix the copy-paste bug
+        let (last_claim_timestamp) = if (smart_table::contains(&burn_qiara.user_claims, shared_name)) {
+            let claim = smart_table::borrow(&burn_qiara.user_claims, shared_name);
+            (claim.last_claim_timestamp)
         } else {
-            0  // Never claimed
+            (0) // Never claimed
         };
         
         UserBurnSummary {
             burned_amount,
-            last_claim_timestamp: last_claim,
+            last_claim_timestamp,
         }
     }
 
