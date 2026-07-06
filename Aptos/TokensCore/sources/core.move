@@ -569,7 +569,7 @@ module dev::QiaraTokensCoreV34{
         let delta_seconds = timestamp::now_seconds() - TokensQiara::get_last_claimed();
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),(claimable_amount as u64), managed);
-
+        TokensQiara::accrue_minted_tokens(claimable_amount, TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
         let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
@@ -581,6 +581,7 @@ module dev::QiaraTokensCoreV34{
         let managed = authorized_borrow_refs(utf8(b"Qiara"));
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
+        TokensQiara::accrue_minted_tokens((amount as u128), TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
 
         let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);

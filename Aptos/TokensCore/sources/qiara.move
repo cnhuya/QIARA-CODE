@@ -14,6 +14,8 @@ module dev::QiaraTokensQiaraV34 {
     use aptos_framework::event;
     use std::string::{Self as string, String, utf8};
 
+    use event::QiaraEventV1::{Self as Event};
+
     use dev::QiaraCapabilitiesV15::{Self as capabilities};
     use dev::QiaraStorageV15::{Self as storage};
 
@@ -45,11 +47,6 @@ module dev::QiaraTokensQiaraV34 {
         last_claimed: u64,
     }
 
-    struct Tokenomics has copy,key{
-        burned: u128,
-        minted: u128,
-        initial_supply: u128,
-    }
 
     struct QiaraData has copy {
         timers: Timers,
@@ -64,10 +61,10 @@ module dev::QiaraTokensQiaraV34 {
         burn_fee_minimal: u64,
         validator_emissions_rate: u64,
         validator_emissions: u64,
-        locked_qiara_rate: u64,
-        tokenomics: Tokenomics,
-        current_supply: u128,
-        locked_qiara: u128,
+        base_burned_qiara_rate: u64,
+        burned_qiara_rate: u64,
+        qiara_supply: u256,
+        burned_qiara: u256,
     }
 
 // === ENTRY FUNCTIONS === //
@@ -83,24 +80,24 @@ module dev::QiaraTokensQiaraV34 {
         if (!exists<Timers>(@dev)) {
             move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds()});
         };
-        if (!exists<Tokenomics>(@dev)) {
-            move_to(admin, Tokenomics { burned: 0, minted: 0, initial_supply:  option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0),});
-        };
     }
 
 
 // === HELPER FUNCTIONS === //
 
-    public fun accrue_burned_tokens(amount: u128, perm: Permission) acquires Tokenomics {
-        let tokenomics = borrow_global_mut<Tokenomics>(@dev);
-        tokenomics.burned = tokenomics.burned + amount;
-    }
+    public fun emit_qiara_events() acquires Timers {
+        let qiara_data = get_qiara_data();
 
-    public fun accrue_minted_tokens(amount: u128, perm: Permission) acquires Tokenomics {
-        let tokenomics = borrow_global_mut<Tokenomics>(@dev);
-        tokenomics.minted = tokenomics.minted + amount;
-    }
+        let data = vector[
+            Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&qiara_data.qiara_supply)),
+            Event::create_data_struct(utf8(b"total_burned"), utf8(b"u256"), bcs::to_bytes(&qiara_data.burned_qiara)),
+            Event::create_data_struct(utf8(b"inflation"), utf8(b"u64"), bcs::to_bytes(&qiara_data.actual_inflation)),
+            Event::create_data_struct(utf8(b"burned_qiara_rate"), utf8(b"u64"), bcs::to_bytes(&qiara_data.burned_qiara_rate)),
 
+        ];
+        Event::emit_qiara_burn_event(data);
+
+    }
     #[view]
     /// Return the address of the managed fungible asset that's created when this module is deployed.
     public fun get_metadata(symbol:String): Object<Metadata> {
@@ -109,9 +106,8 @@ module dev::QiaraTokensQiaraV34 {
     }
 
 // === VIEW FUNCTIONS === //
-#[view]
-    public fun get_qiara_data(): QiaraData acquires Timers, Tokenomics {
-        let tokenomics = borrow_global<Tokenomics>(@dev);
+    #[view]
+    public fun get_qiara_data(): QiaraData acquires Timers {
         let inflation_debt = get_inflation_debt();
         let save_inflation;
         if( inflation_debt > get_inflation() ) {
@@ -120,6 +116,7 @@ module dev::QiaraTokensQiaraV34 {
             save_inflation = get_inflation() - inflation_debt;
         };
         let timers = borrow_global<Timers>(@dev);
+        let (burned_qiara, qiara_supply, ratio) = get_ratio();
         QiaraData {
             timers: *timers,
             epoch: get_epoch(),
@@ -133,11 +130,31 @@ module dev::QiaraTokensQiaraV34 {
             burn_fee_minimal: get_burn_fee_minimal(),
             validator_emissions_rate: get_emissions_validators(),
             validator_emissions: calculate_emissions(),
-            locked_qiara_rate: get_locked_qiara_rate(),
-            tokenomics: *tokenomics,
-            current_supply: 2000000000000 + tokenomics.initial_supply + tokenomics.minted - tokenomics.burned,
-            locked_qiara: option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Burned Qiara"))), 0), // Safely unwraps Option<u128>
+            base_burned_qiara_rate: get_locked_qiara_rate(),
+            burned_qiara_rate: get_burned_qiara_rate(),
+            qiara_supply: qiara_supply,
+            burned_qiara: burned_qiara,
+            ratio: ratio,
         }
+    }
+
+    #[view]
+    public fun get_ratio(): (u128,u128,u128)  {
+        let burned_qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
+        let burned_qiara_supply =std::option::destroy_some(burned_qiara_supply_opt);
+
+        let qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Qiara")));
+        let qiara_supply =std::option::destroy_some(qiara_supply_opt);
+
+        ((burned_qiara_supply as u256), (qiara_supply as u256), (burned_qiara_supply*1_000_000*100 / qiara_supply) as u256)
+    }
+
+    #[view]
+    public fun get_burned_qiara_rate(): u64 {
+        let base_reward_rate = get_locked_qiara_rate();
+        let (_,_, ratio) = get_ratio();
+        base_reward_rate + (ratio as u64)/10;
+
     }
 
     #[view]
@@ -235,9 +252,5 @@ module dev::QiaraTokensQiaraV34 {
         return (emissions * (current_supply as u64)) / 1_000_000 / 100
     }
 
-    #[view]
-    public fun return_qiara_supply(): (u128) {
-        option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0)
-    }
 }
 

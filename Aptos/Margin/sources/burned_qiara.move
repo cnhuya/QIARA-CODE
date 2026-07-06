@@ -17,6 +17,7 @@ module dev::QiaraBurnedQiaraV30 {
 
     use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV34::{Self as TokensCore, Access as TokensCoreAccess};
+     use dev::QiaraTokensQiaraV34::{Self as TokensQiara, Access as TokensCoreAccess};
     use dev::QiaraStorageV15::{Self as storage};
     use dev::QiaraRanksV30::{Self as Ranks};
 
@@ -114,7 +115,7 @@ module dev::QiaraBurnedQiaraV30 {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         
         // 1. Fetch total_burned FIRST while global resource is not mutably borrowed
-        let total_burned = get_total_burned();
+        let (qiara_supply, total_burned, _) = TokensQiara::get_ratio();
         
         // 2. Now mutably borrow BurnedQiara safely
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
@@ -144,7 +145,7 @@ module dev::QiaraBurnedQiaraV30 {
         let time_elapsed = current_time - last_claim;
         let view_user_rank = Ranks::return_shared_rank(shared);
         let user_increased_reward_rate = Ranks::extract_gas_fee_reduction(view_user_rank);
-        let (user_dedicated_reward_rate, base_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
+        let (user_dedicated_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
         let reward = calculate_reward(burned_amount, user_dedicated_reward_rate, time_elapsed);
         
         // Update last claim timestamp
@@ -166,6 +167,7 @@ module dev::QiaraBurnedQiaraV30 {
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
 
             // Original items from the data vector
+            Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&qiara_supply)),
             Event::create_data_struct(utf8(b"total_burned"), utf8(b"u64"), bcs::to_bytes(&total_burned)),
             Event::create_data_struct(utf8(b"base_reward_rate"), utf8(b"u64"), bcs::to_bytes(&base_reward_rate)),
             Event::create_data_struct(utf8(b"user_dedicated_reward_rate"), utf8(b"u64"), bcs::to_bytes(&user_dedicated_reward_rate)),
@@ -174,6 +176,7 @@ module dev::QiaraBurnedQiaraV30 {
             Event::create_data_struct(utf8(b"reward"), utf8(b"u64"), bcs::to_bytes(&reward)),
         ];
         Event::emit_qiara_burn_event(data);
+;
     
     }
 
@@ -220,23 +223,6 @@ module dev::QiaraBurnedQiaraV30 {
         }
     }
 
-    #[view]
-    public fun get_total_burned(): u128 acquires BurnedQiara {
-        let burn_qiara = borrow_global<BurnedQiara>(@dev);
-        let supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
-        std::option::destroy_some(supply_opt)
-    }
-
-    #[view]
-    public fun get_ratio(): (u128,u128,u128)  {
-        let burned_qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
-        let burned_qiara_supply =std::option::destroy_some(burned_qiara_supply_opt);
-
-        let qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Qiara")));
-        let qiara_supply =std::option::destroy_some(qiara_supply_opt);
-
-        (burned_qiara_supply, qiara_supply, burned_qiara_supply*1_000_000*100 / qiara_supply)
-    }
 
     #[view]
     public fun get_reward_rate(): u64 {
@@ -249,18 +235,16 @@ module dev::QiaraBurnedQiaraV30 {
     }
 
     #[view]
-    public fun calculate_increased_reward_rate(increase: u64): (u64, u64) {
-        let base_reward_rate = get_reward_rate();
+    public fun calculate_increased_reward_rate(increase: u64): (u64) {
+        let reward_rate = TokensQiara::get_burned_qiara_rate();
         let (_,_, ratio) = get_ratio();
-        base_reward_rate = base_reward_rate + (ratio as u64)/10;
         let scale = 100_000_000;
         // 25_000_000 + 554 092 = 25 554 092
         // e.g., (25 554 092 * 50_000_000) / 100_000_000
         // (1 277 704 600 000 000 / 100_000_000 )
         // 12 777 046, which equals 12,77% (correct)
-        let actual_user_dedicated_reward_rate = (base_reward_rate * increase) / scale;
+       (reward_rate * increase) / scale;
 
-        (actual_user_dedicated_reward_rate + base_reward_rate, base_reward_rate)
 
     }
 
