@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV28 {
+module dev::QiaraBurnedQiaraV29 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -15,10 +15,10 @@ module dev::QiaraBurnedQiaraV28 {
     use std::string::{Self as string, String, utf8};
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraSharedV12::{Self as Shared};
+    use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV34::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraStorageV15::{Self as storage};
-    use dev::QiaraRanksV28::{Self as Ranks};
+    use dev::QiaraRanksV29::{Self as Ranks};
 // === CONSTANTS === //
     const ADMIN: address = @dev;
     const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
@@ -54,13 +54,13 @@ module dev::QiaraBurnedQiaraV28 {
 
     /// Stores the secure custom fee store and tracks balance updates per shared name
     struct BurnedQiara has key {
-        balances: Object<FungibleStore>,
         tracked_amounts: SmartTable<String, u64>,
         user_claims: SmartTable<String, UserClaimState>,  // NEW: track claim history
     }
 
     struct Permissions has key {
         token_core: TokensCoreAccess,
+        shared: SharedAccess
     }
 
 // === INIT === //
@@ -69,26 +69,17 @@ module dev::QiaraBurnedQiaraV28 {
         let deploy_addr = signer::address_of(admin);
 
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { token_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions { shared: Shared::give_access(admin), token_core: TokensCore::give_access(admin)});
         };
-    }
-
-    public entry fun init_burned_qiara(admin: &signer){
-        let deploy_addr = signer::address_of(admin);
 
         if (!exists<BurnedQiara>(@dev)) {
-            let constructor_ref = &object::create_sticky_object(signer::address_of(admin));
-            let metadata = TokensCore::get_metadata(utf8(b"Qiara"));
-            let store = fungible_asset::create_store(constructor_ref, metadata);
-            
             move_to(admin, BurnedQiara {
-                balances: store,
                 tracked_amounts: smart_table::new<String, u64>(),
                 user_claims: smart_table::new<String, UserClaimState>(),  // Initialize new table
             });
         };
-    }
 
+    }
 
 // === ENTRY FUNCTIONS === //
 
@@ -97,16 +88,11 @@ module dev::QiaraBurnedQiaraV28 {
     public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
-        let to_store = burn_qiara.balances;
-        
-        // Get the metadata of your token from our custom store
-        let metadata = fungible_asset::store_metadata(to_store);
-        let sender_addr = signer::address_of(sender);
-        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(sender),metadata);
+
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         let fa = TokensCore::withdraw(shared, obj, amount, utf8(b"Aptos"));
         TokensCore::burn_fa(utf8(b"Qiara"), utf8(b"Aptos"), fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
         
-
         // Record the transferred amount in our tracking table per shared name
         if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
             let current_amount = smart_table::borrow_mut(&mut burn_qiara.tracked_amounts, shared);
@@ -114,11 +100,13 @@ module dev::QiaraBurnedQiaraV28 {
         } else {
             smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
         };
-        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(sender),TokensCore::get_metadata(utf8(b"Burned Qiara")));
+
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Burned Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
-                claim_rewards(sender, shared);
+        claim_rewards(sender, shared);
         TokensCore::deposit(shared, obj, new_fa, utf8(b"Aptos"));
     }
+
     /// Claims accumulated rewards based on burned amount and time since last claim
     public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
@@ -172,13 +160,40 @@ module dev::QiaraBurnedQiaraV28 {
             );
             TokensCore::deposit(shared, obj, reward_fa, utf8(b"Aptos"));
         };
+
+        let data = vector[
+            // Items from the event top-level fields
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+
+            // Original items from the data vector
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
+            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
+            Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
+            Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
+            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
+            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
+            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
+            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&(total_deposited+amount_u256_taxed))),
+            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
+            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+        ];
+        Event::emit_market_event(utf8(b"Bridge Lend"), data);
+    
     }
 
 
 // === HELPER FUNCTIONS === //
    
     /// Calculates reward: (burned * rate * elapsed) / (PRECISION * SECONDS_PER_YEAR)
-    /// Uses u128 intermediates to prevent overflow
     #[view]
     public fun calculate_reward(burned_amount: u64, reward_rate: u64, time_elapsed: u64): u64 {
         if (burned_amount == 0 || time_elapsed == 0 || reward_rate == 0) {
@@ -216,22 +231,22 @@ module dev::QiaraBurnedQiaraV28 {
         }
     }
 
-    /// View function to query the total tracked deposited amount for a specific shared name.
     #[view]
-    public fun get_tracked_burned_amount(shared_name: String): u64 acquires BurnedQiara {
+    public fun get_total_burned(): u128 acquires BurnedQiara {
         let burn_qiara = borrow_global<BurnedQiara>(@dev);
-        if (smart_table::contains(&burn_qiara.tracked_amounts, shared_name)) {
-            *smart_table::borrow(&burn_qiara.tracked_amounts, shared_name)
-        } else {
-            0
-        }
+        let supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
+        std::option::destroy_some(supply_opt)
     }
 
-    /// View function to query the metadata of the token that this store tracks.
     #[view]
-    public fun get_tracked_token_metadata(): Object<Metadata> acquires BurnedQiara {
-        let burn_qiara = borrow_global<BurnedQiara>(@dev);
-        fungible_asset::store_metadata(burn_qiara.balances)
+    public fun get_ratio(): (u128,u128,u128)  {
+        let burned_qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
+        let burned_qiara_supply =std::option::destroy_some(burned_qiara_supply_opt);
+
+        let qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Qiara")));
+        let qiara_supply =std::option::destroy_some(qiara_supply_opt);
+
+        (burned_qiara_supply, qiara_supply, burned_qiara_supply*1_000_000*100 / qiara_supply)
     }
 
     #[view]
@@ -245,33 +260,18 @@ module dev::QiaraBurnedQiaraV28 {
     }
 
     #[view]
-    public fun calculate_increased_reward_rate(increase: u64): (u64) {
-        let base_reward_rate = get_rewar d_rate();
-        let scale = 1_000_000;
-        // e.g., (10_000_000 * 50_000_000) / 100_000_000 / 100
-        // (500_000_000_000_000 / 100_000_000 )/ 100
-        // (500_000_000 / 100)
-        // 5_000_000, which equals 5% (correct)
-        let actual_user_dedicated_reward_rate = (base_reward_rate * increase) / scale / 100;
+    public fun calculate_increased_reward_rate(increase: u64): (u64, u64) {
+        let base_reward_rate = get_reward_rate();
+        let (_,_, ratio) = get_ratio();
+        base_reward_rate = base_reward_rate + (ratio as u64)/10;
+        let scale = 100_000_000;
+        // 25_000_000 + 554 092 = 25 554 092
+        // e.g., (25 554 092 * 50_000_000) / 100_000_000
+        // (1 277 704 600 000 000 / 100_000_000 )
+        // 12 777 046, which equals 12,77% (correct)
+        let actual_user_dedicated_reward_rate = (base_reward_rate * increase) / scale;
 
-        actual_user_dedicated_reward_rate
-
-    }
-
-    #[view]
-    public fun calculate_required_locked_tokens(shared_name: String, dolars: u64): (u64, u64, bool) {
-        let conversion_rate = get_required_conversion_rate();
-        let scale = 1_000_000;
-        let user_burn_summary = get_user_burn_summary(shared_name);
-        if(user_burn_summary.burned_amount == 0){
-            return (0, 0, true);
-        };
-        // e.g., (10_000_000 / 1_000
-        let actual_user_dedicated_reward_rate = (dolars/1000000000000000000) / conversion_rate;
-        if ( user_burn_summary.burned_amount >= actual_user_dedicated_reward_rate) {
-            return (actual_user_dedicated_reward_rate, user_burn_summary.burned_amount, true);
-        };
-        (actual_user_dedicated_reward_rate, user_burn_summary.burned_amount, false)
+        (actual_user_dedicated_reward_rate + base_reward_rate, base_reward_rate)
 
     }
 

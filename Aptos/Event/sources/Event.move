@@ -84,6 +84,10 @@ module event::QiaraEventV1 {
         aux: vector<Data>,
     }
     #[event]
+    struct QiaraBurnEvent has copy, drop, store {
+        aux: vector<Data>,
+    }
+    #[event]
     struct ProofEvent has copy, drop, store {
         aux: vector<Data>,
     }
@@ -304,6 +308,12 @@ module event::QiaraEventV1 {
     public fun emit_consensus_vote_event(data: vector<Data>) {
         vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
          event::emit(ConsensusVoteEvent {
+            aux: data,
+        });
+    }
+    public fun emit_qiara_burn_event(data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
+         event::emit(QiaraBurnEvent {
             aux: data,
         });
     }
