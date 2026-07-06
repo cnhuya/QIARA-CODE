@@ -16,8 +16,8 @@ module dev::QiaraBurnedQiaraV31 {
     use aptos_std::smart_table::{Self, SmartTable};
 
     use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV35::{Self as TokensCore};
-    use dev::QiaraTokensQiaraV35::{Self as TokensQiara, Access as TokensCoreAccess};
+    use dev::QiaraTokensCoreV35::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV35::{Self as TokensQiara};
     use dev::QiaraStorageV15::{Self as storage};
     use dev::QiaraRanksV31::{Self as Ranks};
 
@@ -145,7 +145,7 @@ module dev::QiaraBurnedQiaraV31 {
         let time_elapsed = current_time - last_claim;
         let view_user_rank = Ranks::return_shared_rank(shared);
         let user_increased_reward_rate = Ranks::extract_gas_fee_reduction(view_user_rank);
-        let (user_dedicated_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
+        let (user_dedicated_reward_rate, base_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
         let reward = calculate_reward(burned_amount, user_dedicated_reward_rate, time_elapsed);
         
         // Update last claim timestamp
@@ -234,15 +234,15 @@ module dev::QiaraBurnedQiaraV31 {
     }
 
     #[view]
-    public fun calculate_increased_reward_rate(increase: u64): (u64) {
+    public fun calculate_increased_reward_rate(increase: u64): (u64, u64) {
         let reward_rate = TokensQiara::get_burned_qiara_rate();
-        let (_,_, ratio) = get_ratio();
+        let (_,_, ratio) = TokensQiara::get_ratio();
         let scale = 100_000_000;
         // 25_000_000 + 554 092 = 25 554 092
         // e.g., (25 554 092 * 50_000_000) / 100_000_000
         // (1 277 704 600 000 000 / 100_000_000 )
         // 12 777 046, which equals 12,77% (correct)
-       (reward_rate * increase) / scale;
+       ((reward_rate * increase) / scale, reward_rate)
 
 
     }
