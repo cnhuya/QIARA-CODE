@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV23"
+    name = "QiaraPerpsV24"
     version = "2.1.1"
     authors = []
 
@@ -59,7 +59,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV41]
+    [dependencies.QiaraVaultsV42]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
@@ -69,12 +69,12 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraOracleV6]
+    [dependencies.QiaraOracleV7]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Oracle'
 
-    [dependencies.QiaraGasV10]
+    [dependencies.QiaraGasV11]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Gas'
