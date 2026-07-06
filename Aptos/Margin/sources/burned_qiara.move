@@ -16,8 +16,8 @@ module dev::QiaraBurnedQiaraV31 {
     use aptos_std::smart_table::{Self, SmartTable};
 
     use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV35::{Self as TokensCore, Access as TokensCoreAccess};
-     use dev::QiaraTokensQiaraV35::{Self as TokensQiara, Access as TokensCoreAccess};
+    use dev::QiaraTokensCoreV35::{Self as TokensCore};
+    use dev::QiaraTokensQiaraV35::{Self as TokensQiara, Access as TokensCoreAccess};
     use dev::QiaraStorageV15::{Self as storage};
     use dev::QiaraRanksV31::{Self as Ranks};
 
@@ -176,7 +176,6 @@ module dev::QiaraBurnedQiaraV31 {
             Event::create_data_struct(utf8(b"reward"), utf8(b"u64"), bcs::to_bytes(&reward)),
         ];
         Event::emit_qiara_burn_event(data);
-;
     
     }
 

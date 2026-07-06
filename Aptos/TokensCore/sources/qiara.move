@@ -42,13 +42,13 @@ module dev::QiaraTokensQiaraV35 {
     }
     
 // === STRUCTS === //
-    struct Timers has copy,key {
+    struct Timers has copy,key, drop {
         creation: u64,
         last_claimed: u64,
     }
 
 
-    struct QiaraData has copy {
+    struct QiaraData has copy, drop {
         timers: Timers,
         epoch: u64,
         inflation: u64,
@@ -65,6 +65,7 @@ module dev::QiaraTokensQiaraV35 {
         burned_qiara_rate: u64,
         qiara_supply: u256,
         burned_qiara: u256,
+        ratio: u256
     }
 
 // === ENTRY FUNCTIONS === //
@@ -139,11 +140,11 @@ module dev::QiaraTokensQiaraV35 {
     }
 
     #[view]
-    public fun get_ratio(): (u128,u128,u128)  {
-        let burned_qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Burned Qiara")));
+    public fun get_ratio(): (u256,u256,u256)  {
+        let burned_qiara_supply_opt = fungible_asset::supply(get_metadata(utf8(b"Burned Qiara")));
         let burned_qiara_supply =std::option::destroy_some(burned_qiara_supply_opt);
 
-        let qiara_supply_opt = fungible_asset::supply(TokensCore::get_metadata(utf8(b"Qiara")));
+        let qiara_supply_opt = fungible_asset::supply(get_metadata(utf8(b"Qiara")));
         let qiara_supply =std::option::destroy_some(qiara_supply_opt);
 
         ((burned_qiara_supply as u256), (qiara_supply as u256), (burned_qiara_supply*1_000_000*100 / qiara_supply) as u256)
@@ -153,7 +154,7 @@ module dev::QiaraTokensQiaraV35 {
     public fun get_burned_qiara_rate(): u64 {
         let base_reward_rate = get_locked_qiara_rate();
         let (_,_, ratio) = get_ratio();
-        base_reward_rate + (ratio as u64)/10;
+        base_reward_rate + (ratio as u64)/10
 
     }
 

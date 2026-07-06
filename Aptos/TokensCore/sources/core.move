@@ -307,7 +307,6 @@ module dev::QiaraTokensCoreV35{
                 fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));
                 TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
             };
-            TokensQiara::accrue_burned_tokens((fee as u128), TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
             return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
         };
 
@@ -569,7 +568,6 @@ module dev::QiaraTokensCoreV35{
         let delta_seconds = timestamp::now_seconds() - TokensQiara::get_last_claimed();
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),(claimable_amount as u64), managed);
-        TokensQiara::accrue_minted_tokens(claimable_amount, TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
         let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
@@ -581,8 +579,6 @@ module dev::QiaraTokensCoreV35{
         let managed = authorized_borrow_refs(utf8(b"Qiara"));
 
         let fa = internal_mint(utf8(b"Qiara"),utf8(b"Aptos"),amount, managed);
-        TokensQiara::accrue_minted_tokens((amount as u128), TokensQiara::give_permission(&borrow_global<Permissions>(@dev).tokens_qiara_access));
-
         let to_wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, to_wallet, fa,utf8(b"Aptos"), managed);
 
