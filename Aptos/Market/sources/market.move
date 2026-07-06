@@ -36,8 +36,8 @@ module dev::QiaraVaultsV45 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV43::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV43::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV44::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV44::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
