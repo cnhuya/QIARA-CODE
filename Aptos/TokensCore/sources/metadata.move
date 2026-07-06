@@ -520,8 +520,9 @@ public entry fun create_metadata(
             while (i < len) {
                 let metadat = vector::borrow(&vault_list.list, i);
                 if (metadat.symbol == symbol) {
-                    let (price, price_decimals,) = oracle::get_raw_price(metadat.oracleID);
-                    let denom = Math::pow10_u256((price_decimals as u8));
+                        let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
+                        let price = (oracle::viewPrice(metadat.symbol) as u64);
+                        let denom = Math::pow10_u256((price_decimals as u8));
 
                     let tier;
 
