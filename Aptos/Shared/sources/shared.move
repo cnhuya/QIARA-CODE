@@ -1,4 +1,4 @@
-module dev::QiaraSharedV11{
+module dev::QiaraSharedV12{
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -426,15 +426,23 @@ module dev::QiaraSharedV11{
     public fun ensure_shared_fungible_storage(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission): Object<FungibleStore> acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+        
         if (!table::contains(&shared.fungible_stores, shared_name)) {
             table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
         };
         
         let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
         if (!table::contains(token_map, asset_metadata)) {
-            // The vault is just a primary store owned by @dev.
-            // It doesn't need TransferRef here because TokensCore handles the transfers.
-            let vault_store = primary_fungible_store::ensure_primary_store_exists(@dev, asset_metadata);
+            
+            // 1. Convert the shared_name string to bytes
+            let name_bytes = *std::string::bytes(&shared_name);
+            
+            // 2. Derive a deterministic address based on this name and the contract address
+            let derived_address = object::create_object_address(&@dev, name_bytes);
+            
+            // 3. Create/Ensure the store exists at that derived address instead of @dev
+            let vault_store = primary_fungible_store::ensure_primary_store_exists(derived_address, asset_metadata);
+            
             table::add(token_map, asset_metadata, vault_store);
         };
 
