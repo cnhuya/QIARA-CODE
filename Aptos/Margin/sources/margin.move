@@ -1,4 +1,4 @@
-module dev::QiaraMarginV32{
+module dev::QiaraMarginV33{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV32{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV32::{Self as Ranks};
+    use dev::QiaraRanksV33::{Self as Ranks};
     use dev::QiaraTokensMetadataV36::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV36::{Self as TokensType};
     
@@ -758,7 +758,7 @@ module dev::QiaraMarginV32{
             native_reward_index_snapshot: 0,
             reward_index_snapshot: 0,
             interest_index_snapshot: 0,
-            last_update: 0,
+            last_update: timestamp::now_seconds(),
             locked_fee: 0
         };
 

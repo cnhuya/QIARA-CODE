@@ -20,10 +20,10 @@ module dev::QiaraVaultsV46 {
     use dev::QiaraTokensRatesV36::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV36::{Self as TokensTiers};
     use dev::QiaraTokensOmnichainV36::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV32::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV32::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV32::{Self as RI};
-    use dev::QiaraBurnedQiaraV32::{Self as BurnedQiara};
+    use dev::QiaraMarginV33::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV33::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV33::{Self as RI};
+    use dev::QiaraBurnedQiaraV33::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV36::{Self as TokensTypes};
     use dev::QiaraChainTypesV36::{Self as ChainTypes};
@@ -1124,7 +1124,7 @@ module dev::QiaraVaultsV46 {
         let new_user_incentive_index = Liquidity::distribute_rewards(shared, user, token, chain, provider, total_deposited, user_deposited, (user_incentive_index as u128), Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
-        let points_reward = calculate_deposit_points(user_deposited, user_last_interacted);
+        let points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
         
         // 8. UPDATE CHECKPOINT INDEXES FOR THE USER TO PREVENT DOUBLE-CLAIMING
@@ -1149,7 +1149,9 @@ module dev::QiaraVaultsV46 {
             price 
         )
     }
-        
+//100000000000000000000000000
+//10000000000000000000
+//401000000000000000000
     fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){

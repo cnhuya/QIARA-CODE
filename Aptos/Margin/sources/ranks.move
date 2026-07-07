@@ -1,4 +1,4 @@
-module dev::QiaraRanksV32{
+module dev::QiaraRanksV33{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -114,7 +114,7 @@ module dev::QiaraRanksV32{
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
                 ownership: ownership,
-                ref_code_params: Shared::create_empty_raw_params(),
+                ref_code_params: Shared::extract_used_ref_code_params(ownership),
                 first_interaction: 0,
                 experience: 0,
                 experience_to_this_level: 0,
