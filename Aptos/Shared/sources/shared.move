@@ -602,8 +602,13 @@ module dev::QiaraSharedV12{
     }
 
     public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
-        return_ref_code_params(ownership_record.used_ref_code)
+        let used_ref_code_params = create_empty_raw_params();
+        if(ownership_record.used_ref_code != utf8(b"")){
+            used_ref_code_params = return_ref_code_params(ownership_record.used_ref_code);
+        };
+        return used_ref_code_params
     }
+
 
     public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
 
