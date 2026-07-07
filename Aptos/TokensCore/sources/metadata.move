@@ -9,7 +9,7 @@ module dev::QiaraTokensMetadataV37{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
 
-    use dev::QiaraStorageV15::{Self as storage};
+    use dev::QiaraStorageV16::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraTokensRatesV37::{Self as rates};
