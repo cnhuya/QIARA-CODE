@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV26"
+    name = "QiaraPerpsV27"
     version = "2.1.1"
     authors = []
 
@@ -29,12 +29,12 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraTokensV35]
+    [dependencies.QiaraTokensV36]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV35]
+    [dependencies.QiaraTypesV36]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
