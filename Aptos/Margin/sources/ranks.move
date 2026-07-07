@@ -138,6 +138,11 @@ module dev::QiaraRanksV32{
         if(user.custom_rank != utf8(b"None")){
             rank = user.custom_rank;
         };
+        let used_ref_code_params = Shared::create_empty_raw_params();
+        if(user.used_ref_code != utf8(b"")){
+            used_ref_code_params = Shared::return_ref_code_params(ownership);
+        };
+
         let (xp_multiplier, _, _) = calculate_xp_multiplier(user.first_interaction);
         return ViewUser {
             ownership: ownership,

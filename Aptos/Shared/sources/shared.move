@@ -597,10 +597,16 @@ module dev::QiaraSharedV12{
     }
 
     public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
-        (ownership_record.ref_code_params.xp_tax, ownership_record.ref_code_params.fee_tax)
+        let params = return_ref_code_params(ownership_record.used_ref_code);
+        (params.xp_tax, params.fee_tax)
+    }
+
+    public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
+        return_ref_code_params(ownership_record.used_ref_code)
     }
 
     public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
+
         (ownership_record.gas_index, ownership_record.last_updated)
     }
 
