@@ -18,8 +18,8 @@ module dev::QiaraLiquidityV45 {
     use dev::QiaraTokensRatesV35::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV35::{Self as TokensTiers};
 
-    use dev::QiaraMarginV31::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV31::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV32::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV32::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV12::{Self as Shared};
     use dev::QiaraChainTypesV35::{Self as ChainTypes};
