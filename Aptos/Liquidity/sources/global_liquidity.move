@@ -23,6 +23,7 @@ module dev::QiaraLiquidityV44 {
 
     use dev::QiaraSharedV12::{Self as Shared};
     use dev::QiaraChainTypesV35::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV35::{Self as ProviderTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};
 
 // === ERRORS === //
@@ -123,6 +124,72 @@ module dev::QiaraLiquidityV44 {
                 Shared::create_non_user_shared_storage((storage_address_bytes));
             };
         return (storage_address_bytes)
+    }
+
+/// Admin entry function to bootstrap all active provider, chain, and token combinations
+/// Fully automated admin entry function to dynamically bootstrap vaults
+    /// for all registered providers, chains, and tokens on-chain [2, 3]
+/// Fully automated admin entry function to dynamically bootstrap vaults
+    /// for all registered providers, chains, and tokens on-chain [2, 3]
+    public entry fun initialize_all_registered_vaults(admin: &signer) acquires GlobalVault {
+        // Assert only the module admin can execute bootstrap actions
+        let admin_addr = std::signer::address_of(admin);
+        assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
+
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let providers_ref = ProviderTypes::return_all_providers();
+        
+        let provider_keys = map::keys(&providers_ref);
+        let i = 0;
+        let num_providers = std::vector::length(&provider_keys);
+        
+        while (i < num_providers) {
+            let provider = *std::vector::borrow(&provider_keys, i);
+            let chains_map = map::borrow(&providers_ref, &provider);
+            
+            let chain_keys = map::keys(chains_map);
+            let j = 0;
+            let num_chains = std::vector::length(&chain_keys);
+            
+            while (j < num_chains) {
+                let chain = *std::vector::borrow(&chain_keys, j);
+                let provider_data = map::borrow(chains_map, &chain);
+                
+                // ✅ FIXED: Using the public getter helper function instead of direct field access [1]
+                let tokens = ProviderTypes::get_provider_tokens(provider_data);
+                
+                let k = 0;
+                let num_tokens = std::vector::length(tokens);
+                
+                while (k < num_tokens) {
+                    let token = *std::vector::borrow(tokens, k);
+                    
+                    // Call find_vault dynamically
+                    find_vault(vaults, token, chain, provider);
+                    k = k + 1;
+                };
+                
+                j = j + 1;
+            };
+            
+            i = i + 1;
+        };
+    }
+
+    /// Internal loop helper to initialize individual vaults sequentially [3]
+    fun init_chain_vaults(
+        vaults: &mut GlobalVault, 
+        provider: std::string::String, 
+        chain: std::string::String, 
+        tokens: vector<std::string::String>
+    ) {
+        let i = 0;
+        let len = std::vector::length(&tokens);
+        while (i < len) {
+            let token = *std::vector::borrow(&tokens, i);
+            find_vault(vaults, token, chain, provider);
+            i = i + 1;
+        };
     }
 
 

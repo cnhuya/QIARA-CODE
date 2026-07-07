@@ -88,28 +88,35 @@ module dev::QiaraBurnedQiaraV31 {
 
     /// Deposits tokens from the user's primary store into our custom store and 
     /// tracks the accumulated amount sent by a specific 'shared_name' (string).
-    public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions  {
+public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
         let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
 
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         let fa = TokensCore::withdraw(shared, obj, amount, utf8(b"Aptos"));
+        
+        // 1. Read the actual amount from the FungibleAsset resource BEFORE burning/consuming it
+        let actual_amount = fungible_asset::amount(&fa);
+        
+        // 2. Burn the FungibleAsset (this consumes 'fa')
         TokensCore::burn_fa(utf8(b"Qiara"), utf8(b"Aptos"), fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
         
-        // Record the transferred amount in our tracking table per shared name
+        // Record the actual burned amount in our tracking table per shared name
         if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
             let current_amount = smart_table::borrow_mut(&mut burn_qiara.tracked_amounts, shared);
-            *current_amount = *current_amount + amount;
+            *current_amount = *current_amount + actual_amount;
         } else {
-            smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
+            smart_table::add(&mut burn_qiara.tracked_amounts, shared, actual_amount);
         };
 
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Burned Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
-        let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        
+        // 3. Mint the exact post-fee 'actual_amount' that was burned
+        let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), actual_amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
+        
         claim_rewards(sender, shared);
         TokensCore::deposit(shared, obj, new_fa, utf8(b"Aptos"));
     }
-
     /// Claims accumulated rewards based on burned amount and time since last claim
     public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));

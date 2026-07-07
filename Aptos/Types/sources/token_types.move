@@ -273,4 +273,6 @@ fun x_init(signer: &signer) acquires Tokens {
         let names = map::values(&tokens.nick_names);
         assert!(vector::contains(&names, &token_name), ERROR_INVALID_TOKEN);
     }
+
+    
 }

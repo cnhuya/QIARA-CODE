@@ -305,7 +305,7 @@ module dev::QiaraTokensCoreV35{
             } else {
                 amount = amount - fee;
                 fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));
-                TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
+                TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount+fee, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
             };
             return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
         };

@@ -208,4 +208,8 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         let providers = borrow_global<Providers>(@dev);
         providers.table
     }
+
+    public fun get_provider_tokens(data: &ProviderData): &vector<std::string::String> {
+        &data.tokens
+    }
 }

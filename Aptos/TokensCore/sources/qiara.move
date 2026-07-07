@@ -93,6 +93,7 @@ module dev::QiaraTokensQiaraV35 {
             Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&qiara_data.qiara_supply)),
             Event::create_data_struct(utf8(b"total_burned"), utf8(b"u256"), bcs::to_bytes(&qiara_data.burned_qiara)),
             Event::create_data_struct(utf8(b"inflation"), utf8(b"u64"), bcs::to_bytes(&qiara_data.actual_inflation)),
+            Event::create_data_struct(utf8(b"burn_fee"), utf8(b"u64"), bcs::to_bytes(&qiara_data.actual_burn_fee)),
             Event::create_data_struct(utf8(b"burned_qiara_rate"), utf8(b"u64"), bcs::to_bytes(&qiara_data.burned_qiara_rate)),
 
         ];
