@@ -29,6 +29,7 @@ module dev::QiaraSharedV12{
     const ERROR_FEE_TAX_CANNOT_BE_ABOVE_100_PERCENT: u64 = 11;
     const ERROR_REF_CODE_ALREADY_EXISTS: u64 = 12;
     const ERROR_REF_CODE_CANT_BE_EMPTY: u64 = 13;
+    const ERROR_REF_CODE_DOESNT_EXISTS: u64 = 14;
     const MAX_ALLOWED_TAX: u64 = 100_000_000;
     
     // === NEW ERRORS === //
@@ -63,6 +64,7 @@ module dev::QiaraSharedV12{
         ref_code: String,
         ref_code_params: RefCodeParams,
         used_ref_code: String,
+        amount_of_users_using_ref_code: u64,
         users: vector<String>,
         gas_index: u256,
         last_updated: u64,
@@ -111,6 +113,7 @@ module dev::QiaraSharedV12{
                 used_ref_code: utf8(b""),
                 users: vector::empty<String>(),
                 gas_index: 0,
+                amount_of_users_using_ref_code: 0,
                 last_updated: 0
             });
             table::add(&mut shared.storage_registry, non_user_key, vector::empty<String>());
@@ -154,6 +157,10 @@ module dev::QiaraSharedV12{
         let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
+        assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+
+        let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
+        used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
 
         table::add(&mut shared.ref_code_registry, ref_code, ref_code_params);
         
@@ -166,6 +173,7 @@ module dev::QiaraSharedV12{
             used_ref_code: used_ref_code,
             users: vector::empty<String>(),
             gas_index: 0,
+            amount_of_users_using_ref_code: 0,
             last_updated: timestamp::now_seconds(),
         });
 
@@ -242,16 +250,31 @@ module dev::QiaraSharedV12{
         Event::emit_shared_storage_event(utf8(b"Sub Owner Removed"), data);
     }
 
-    public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner: vector<u8>, new_used_ref_code: String) acquires SharedStorage {
+public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner: vector<u8>, new_used_ref_code: String) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         let sender_addr = signer::address_of(signer);
 
         assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
 
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        assert!(ownership_record.owner == bcs::to_bytes(&sender_addr), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
+        // Scope 1: Immutable borrow to verify owner [1.2.2]
+        {
+            let ownership_record = table::borrow(&shared.storage, name);
+            assert!(ownership_record.owner == bcs::to_bytes(&sender_addr), ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
+        }; // <- Borrow expires here! [1.2.2]
 
-        ownership_record.used_ref_code = new_used_ref_code;
+        assert!(table::contains(&shared.ref_code_registry, new_used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+
+        // Scope 2: Mutably borrow and increment amount_of_users_using_ref_code [1.2.2]
+        {
+            let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, new_used_ref_code);
+            used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
+        }; // <- Borrow expires here! [1.2.2]
+
+        // Scope 3: Mutably borrow and update the used_ref_code of the storage [1.2.2]
+        {
+            let ownership_record = table::borrow_mut(&mut shared.storage, name);
+            ownership_record.used_ref_code = new_used_ref_code;
+        }; // <- Borrow expires here! [1.2.2]
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
@@ -276,6 +299,16 @@ module dev::QiaraSharedV12{
         let sub_owners = vector::empty<vector<u8>>();
         vector::push_back(&mut sub_owners, user);
 
+        assert!(xp_tax <= MAX_ALLOWED_TAX, ERROR_XP_TAX_CANNOT_BE_ABOVE_100_PERCENT);
+        assert!(fee_tax <= MAX_ALLOWED_TAX, ERROR_FEE_TAX_CANNOT_BE_ABOVE_100_PERCENT);
+        let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
+
+        assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
+        assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+
+        let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
+        used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
+
         table::add(&mut shared.storage, name, Ownership { 
             owner: user, 
             sub_owners: sub_owners,
@@ -285,6 +318,7 @@ module dev::QiaraSharedV12{
             used_ref_code: used_ref_code,
             users: vector::empty<String>(),
             gas_index: 0,
+            amount_of_users_using_ref_code: 0,
             last_updated: timestamp::now_seconds(),
         });
 
@@ -363,267 +397,282 @@ module dev::QiaraSharedV12{
     }
 
     public fun p_change_used_ref_code(validator: &signer, user: vector<u8>, name: String, _sub_owner: vector<u8>, new_used_ref_code: String, perm: Permission) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+            let shared = borrow_global_mut<SharedStorage>(@dev);
+            assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
 
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        assert!(ownership_record.owner == user, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
+            // Scope 1: Immutable borrow to verify owner [1.2.2]
+            {
+                let ownership_record = table::borrow(&shared.storage, name);
+                assert!(ownership_record.owner == user, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
+            }; // <- Borrow expires here! [1.2.2]
 
-        ownership_record.used_ref_code = new_used_ref_code;
+            assert!(table::contains(&shared.ref_code_registry, new_used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
 
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
-            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
-            Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&new_used_ref_code)),
-        ];
-        Event::emit_shared_storage_event(utf8(b"Used Ref Code Updated"), data);
-    }
+            // Scope 2: Mutably borrow and increment amount_of_users_using_ref_code [1.2.2]
+            {
+                let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, new_used_ref_code);
+                used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
+            }; // <- Borrow expires here! [1.2.2]
 
-    // === EXTERNAL CONTRACTS PUBLIC INTERFACE === //
+            // Scope 3: Mutably borrow and update the used_ref_code of the storage [1.2.2]
+            {
+                let ownership_record = table::borrow_mut(&mut shared.storage, name);
+                ownership_record.used_ref_code = new_used_ref_code;
+            }; // <- Borrow expires here! [1.2.2]
 
-    public fun update_selected_validator(name: String, new_validator: String, _perm: Permission) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
+            let data = vector[
+                Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
+                Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+                Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
+                Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
+                Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&new_used_ref_code)),
+            ];
+            Event::emit_shared_storage_event(utf8(b"Used Ref Code Updated"), data);
+        }
 
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        ownership_record.selected_validator = new_validator;
-    }
+        // === EXTERNAL CONTRACTS PUBLIC INTERFACE === //
 
-    public fun update_gas_index(name: String, new_gas_index: u256, _perm: Permission) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        ownership_record.gas_index = new_gas_index;
-        ownership_record.last_updated = timestamp::now_seconds();
-    }
-
-    // deprecated remove in future
-    public fun create_shared_vault(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
-        if (!table::contains(&shared.fungible_stores, shared_name)) {
-            table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
-        };
-        
-        let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
-        if (!table::contains(token_map, asset_metadata)) {
-            // The vault is just a primary store owned by @dev.
-            // It doesn't need TransferRef here because TokensCore handles the transfers.
-            let vault_store = primary_fungible_store::ensure_primary_store_exists(@dev, asset_metadata);
-            table::add(token_map, asset_metadata, vault_store);
-        };
-    }
-
-    public fun ensure_shared_fungible_storage(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission): Object<FungibleStore> acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
-        
-        if (!table::contains(&shared.fungible_stores, shared_name)) {
-            table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
-        };
-        
-        let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
-        if (!table::contains(token_map, asset_metadata)) {
+        public fun update_selected_validator(name: String, new_validator: String, _perm: Permission) acquires SharedStorage {
+            let shared = borrow_global_mut<SharedStorage>(@dev);
             
-            // 1. Convert the shared_name string to bytes
-            let name_bytes = *std::string::bytes(&shared_name);
-            
-            // 2. Derive a deterministic address based on this name and the contract address
-            let derived_address = object::create_object_address(&@dev, name_bytes);
-            
-            // 3. Create/Ensure the store exists at that derived address instead of @dev
-            let vault_store = primary_fungible_store::ensure_primary_store_exists(derived_address, asset_metadata);
-            
-            table::add(token_map, asset_metadata, vault_store);
-        };
-
-        *table::borrow(token_map, asset_metadata)
-    }
-
-    // ----------------------------------------------------------------
-    // === VIEW FUNCTIONS === //
-    // ----------------------------------------------------------------
-
-    #[view]
-    public fun return_list_shared_storages(owner: vector<u8>): vector<String> acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-        if (!table::contains(&shared.storage_registry, owner)) {
-            return vector::empty<String>()
-        };
-        *table::borrow(&shared.storage_registry, owner)
-    }
-
-    #[view]
-    public fun return_shared_storages(owner: vector<u8>): Map<String, Ownership> acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-        let map = map::new<String, Ownership>();
-
-        if (!table::contains(&shared.storage_registry, owner)) {
-            return map
-        };
-
-        let list = table::borrow(&shared.storage_registry, owner);
-        let len = vector::length(list);
-        while (len > 0) {
-            let name = *vector::borrow(list, len-1);
-            if (table::contains(&shared.storage, name)) {
-                let ownership = *table::borrow(&shared.storage, name);
-                map::add(&mut map, name, ownership);
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
             };
-            len = len - 1;
-        };
-        map
+
+            let ownership_record = table::borrow_mut(&mut shared.storage, name);
+            ownership_record.selected_validator = new_validator;
+        }
+
+        public fun update_gas_index(name: String, new_gas_index: u256, _perm: Permission) acquires SharedStorage {
+            let shared = borrow_global_mut<SharedStorage>(@dev);
+            
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            let ownership_record = table::borrow_mut(&mut shared.storage, name);
+            ownership_record.gas_index = new_gas_index;
+            ownership_record.last_updated = timestamp::now_seconds();
+        }
+
+        // deprecated remove in future
+        public fun create_shared_vault(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission) acquires SharedStorage {
+            let shared = borrow_global_mut<SharedStorage>(@dev);
+            assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+            if (!table::contains(&shared.fungible_stores, shared_name)) {
+                table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
+            };
+            
+            let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
+            if (!table::contains(token_map, asset_metadata)) {
+                // The vault is just a primary store owned by @dev.
+                // It doesn't need TransferRef here because TokensCore handles the transfers.
+                let vault_store = primary_fungible_store::ensure_primary_store_exists(@dev, asset_metadata);
+                table::add(token_map, asset_metadata, vault_store);
+            };
+        }
+
+        public fun ensure_shared_fungible_storage(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission): Object<FungibleStore> acquires SharedStorage {
+            let shared = borrow_global_mut<SharedStorage>(@dev);
+            assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+            
+            if (!table::contains(&shared.fungible_stores, shared_name)) {
+                table::add(&mut shared.fungible_stores, shared_name, table::new<Object<Metadata>, Object<FungibleStore>>());
+            };
+            
+            let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
+            if (!table::contains(token_map, asset_metadata)) {
+                
+                // 1. Convert the shared_name string to bytes
+                let name_bytes = *std::string::bytes(&shared_name);
+                
+                // 2. Derive a deterministic address based on this name and the contract address
+                let derived_address = object::create_object_address(&@dev, name_bytes);
+                
+                // 3. Create/Ensure the store exists at that derived address instead of @dev
+                let vault_store = primary_fungible_store::ensure_primary_store_exists(derived_address, asset_metadata);
+                
+                table::add(token_map, asset_metadata, vault_store);
+            };
+
+            *table::borrow(token_map, asset_metadata)
+        }
+
+        // ----------------------------------------------------------------
+        // === VIEW FUNCTIONS === //
+        // ----------------------------------------------------------------
+
+        #[view]
+        public fun return_list_shared_storages(owner: vector<u8>): vector<String> acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+            if (!table::contains(&shared.storage_registry, owner)) {
+                return vector::empty<String>()
+            };
+            *table::borrow(&shared.storage_registry, owner)
+        }
+
+        #[view]
+        public fun return_shared_storages(owner: vector<u8>): Map<String, Ownership> acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+            let map = map::new<String, Ownership>();
+
+            if (!table::contains(&shared.storage_registry, owner)) {
+                return map
+            };
+
+            let list = table::borrow(&shared.storage_registry, owner);
+            let len = vector::length(list);
+            while (len > 0) {
+                let name = *vector::borrow(list, len-1);
+                if (table::contains(&shared.storage, name)) {
+                    let ownership = *table::borrow(&shared.storage, name);
+                    map::add(&mut map, name, ownership);
+                };
+                len = len - 1;
+            };
+            map
+        }
+
+        #[view]
+        public fun return_shared_ownership(owner: vector<u8>, name: String): Ownership acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            *table::borrow(&shared.storage, name)
+        }
+
+        public fun return_shared_raw_ref_params(owner: vector<u8>, name: String): (u64, u64) acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            let ref_code_params = table::borrow(&shared.storage, name).ref_code_params;
+            (ref_code_params.xp_tax, ref_code_params.fee_tax)
+        }
+
+        #[view]
+        public fun return_shared_ownership_new(name: String): Ownership acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            *table::borrow(&shared.storage, name)
+        }
+
+        #[view]
+        public fun return_shared_owner(name: String): vector<u8> acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            table::borrow(&shared.storage, name).owner
+        }
+
+        #[view]
+        public fun return_ref_code_params(name: String): RefCodeParams acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            table::borrow(&shared.storage, name).ref_code_params
+        }
+
+        #[view]
+        public fun assert_shared_storage(name: String): bool acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+            return table::contains(&shared.storage, name)
+        }
+
+        #[view]
+        public fun return_fungible_store(shared_name: String, asset_metadata: Object<Metadata>): Object<FungibleStore> acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+            
+            assert!(table::contains(&shared.fungible_stores, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+            let token_map = table::borrow(&shared.fungible_stores, shared_name);
+            assert!(table::contains(token_map, asset_metadata), ERROR_SHARED_STORAGE_DOESNT_EXIST);
+            
+            *table::borrow(token_map, asset_metadata)
+        }
+
+        public fun assert_is_sub_owner(name: String, sub_owner: vector<u8>) acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            let ownership_record = table::borrow(&shared.storage, name);
+
+            if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
+                abort ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE
+            };
+        }
+
+        public fun safe_assert_is_sub_owner(name: String, sub_owner: vector<u8>): bool acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                return false
+            };
+
+            let ownership_record = table::borrow(&shared.storage, name);
+
+            if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
+                return false
+            };
+            return true
+        }
+
+        public fun assert_is_owner(owner: vector<u8>, name: String) acquires SharedStorage {
+            let shared = borrow_global<SharedStorage>(@dev);
+
+            if (!table::contains(&shared.storage, name)) {
+                abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
+            };
+
+            let ownership_record = table::borrow(&shared.storage, name);
+            assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
+        }
+
+        public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
+
+        if(ownership_record.used_ref_code == utf8(b"")){
+                return (0,0)
+            };
+
+            let params = return_ref_code_params(ownership_record.used_ref_code);
+            (params.xp_tax, params.fee_tax)
+        }
+
+        public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
+            let used_ref_code_params = create_empty_raw_params();
+            if(ownership_record.used_ref_code != utf8(b"")){
+                used_ref_code_params = return_ref_code_params(ownership_record.used_ref_code);
+            };
+            return used_ref_code_params
+        }
+
+
+        public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
+
+            (ownership_record.gas_index, ownership_record.last_updated)
+        }
+
+        public fun create_empty_raw_params(): RefCodeParams {
+            RefCodeParams { xp_tax: 0, fee_tax: 0 }
+        }
+
+
+
     }
-
-    #[view]
-    public fun return_shared_ownership(owner: vector<u8>, name: String): Ownership acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        *table::borrow(&shared.storage, name)
-    }
-
-    public fun return_shared_raw_ref_params(owner: vector<u8>, name: String): (u64, u64) acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        let ref_code_params = table::borrow(&shared.storage, name).ref_code_params;
-        (ref_code_params.xp_tax, ref_code_params.fee_tax)
-    }
-
-    #[view]
-    public fun return_shared_ownership_new(name: String): Ownership acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        *table::borrow(&shared.storage, name)
-    }
-
-    #[view]
-    public fun return_shared_owner(name: String): vector<u8> acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        table::borrow(&shared.storage, name).owner
-    }
-
-    #[view]
-    public fun return_ref_code_params(name: String): RefCodeParams acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        table::borrow(&shared.storage, name).ref_code_params
-    }
-
-    #[view]
-    public fun assert_shared_storage(name: String): bool acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-        return table::contains(&shared.storage, name)
-    }
-
-    #[view]
-    public fun return_fungible_store(shared_name: String, asset_metadata: Object<Metadata>): Object<FungibleStore> acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-        
-        assert!(table::contains(&shared.fungible_stores, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
-        let token_map = table::borrow(&shared.fungible_stores, shared_name);
-        assert!(table::contains(token_map, asset_metadata), ERROR_SHARED_STORAGE_DOESNT_EXIST);
-        
-        *table::borrow(token_map, asset_metadata)
-    }
-
-    public fun assert_is_sub_owner(name: String, sub_owner: vector<u8>) acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        let ownership_record = table::borrow(&shared.storage, name);
-
-        if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
-            abort ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE
-        };
-    }
-
-    public fun safe_assert_is_sub_owner(name: String, sub_owner: vector<u8>): bool acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            return false
-        };
-
-        let ownership_record = table::borrow(&shared.storage, name);
-
-        if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
-            return false
-        };
-        return true
-    }
-
-    public fun assert_is_owner(owner: vector<u8>, name: String) acquires SharedStorage {
-        let shared = borrow_global<SharedStorage>(@dev);
-
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        let ownership_record = table::borrow(&shared.storage, name);
-        assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
-    }
-
-    public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
-
-       if(ownership_record.used_ref_code == utf8(b"")){
-            return (0,0)
-        };
-
-        let params = return_ref_code_params(ownership_record.used_ref_code);
-        (params.xp_tax, params.fee_tax)
-    }
-
-    public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
-        let used_ref_code_params = create_empty_raw_params();
-        if(ownership_record.used_ref_code != utf8(b"")){
-            used_ref_code_params = return_ref_code_params(ownership_record.used_ref_code);
-        };
-        return used_ref_code_params
-    }
-
-
-    public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
-
-        (ownership_record.gas_index, ownership_record.last_updated)
-    }
-
-    public fun create_empty_raw_params(): RefCodeParams {
-        RefCodeParams { xp_tax: 0, fee_tax: 0 }
-    }
-
-
-
-}

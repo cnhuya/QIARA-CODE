@@ -222,7 +222,7 @@ module dev::QiaraRanksV33{
         };
         return map
     }
-
+//5846000000000000000000
 //100000000000000000000000000
 //100000000000000000000
     #[view]
@@ -299,17 +299,34 @@ module dev::QiaraRanksV33{
         let base_gas_reduction = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION")));
         let base_xp_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_XP_INCREASE")));
 
-        let scale = 1_000_000;
-        // e.g., (10_000_000 * 50_000_000) / 100_000_000 / 100
-        // (500_000_000_000_000 / 100_000_000 )/ 100
-        // (500_000_000 / 100)
+        let scale = 100_000_000;
+
+
+        // 10_000_000 * 500_000
+
+        // e.g., (10_000_000 * 1_000_000) / 100_000_000 
+        // (500_000_000_000_000 / 100_000_000 )
         // 5_000_000, which equals 5% (correct)
-        let actual_gas_reduction = (base_gas_reduction * ref_code_gas_tax) / scale / 100;
-        let actual_xp_increase = (base_xp_increase * ref_code_xp_tax) / scale / 100;
+        let actual_gas_reduction = base_gas_reduction - (base_gas_reduction * ref_code_gas_tax) / scale ;
+        let actual_xp_increase = base_xp_increase - (base_xp_increase * ref_code_xp_tax) / scale;
 
         (actual_gas_reduction, actual_xp_increase)
 
     }
+//250_000_000
+    #[view]
+    public fun calculate_ref_code_taxes(ref_code_gas_tax: u64, ref_code_xp_tax: u64, gas_fee: u64, xp_earned: u64): (u64, u64, u64, u64) {
+        
+         let scale = 1_000_000;
+        let (actual_gas_reduction, actual_xp_increase) = calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax, ref_code_xp_tax);
+
+        let actual_gas_fee = (gas_fee * actual_gas_reduction) / scale ;
+        let actual_xp_earned = (xp_earned * actual_xp_increase) / scale ;
+
+        (actual_gas_fee, actual_xp_earned, actual_gas_fee+gas_fee, actual_xp_earned+xp_earned)
+
+    }
+
 
     fun calculate_fee_deduction(power: u8): u256{
         let deduction_percentage = (power as u256) * return_fee_deduction_per_power(); // each rank power gives 5% fee deductionpower as u256 * 5; // each rank power gives 5% fee deduction

@@ -213,7 +213,6 @@ module dev::QiaraStorageV15 {
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"), 25_000, true, &give_permission(&give_access(admin))); // 25%  
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"POINTS_PER_PERP_ACTION"), 100, true, &give_permission(&give_access(admin))); // 0.001%  
 
-
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"TIME_PERIOD"), 86400, true, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"USD_VALUE"), 100_000_000, true, &give_permission(&give_access(admin))); // 0.1x
       
