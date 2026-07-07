@@ -704,6 +704,8 @@ module dev::QiaraMarginV33{
     }
 
 
+
+
     #[view]
     public fun calculate_increased_efficiency_by_staking(base_efficiency: u256, efficiency_factor: u256): (u256)  {
         let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);

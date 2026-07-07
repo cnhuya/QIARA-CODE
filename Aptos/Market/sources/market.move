@@ -1237,7 +1237,7 @@ module dev::QiaraVaultsV47 {
 
         // Calculation: (Amount * Time * Rate) / Precision
         // This ensures: ($1.00) * (1 sec) * (1.0 rate) = 1 point
-        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor;
+        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor / precision_factor;
 
         return incentive_points_reward 
     }

@@ -103,13 +103,20 @@ module dev::QiaraRanksV33{
         user.experience = user.experience + n_points;
     }
 
+    fun tttta(number: u64){
+        abort(number);
+    }
+
 
 // === PUBLIC VIEWS === //
     #[view]
     public fun return_shared_rank(shared: String): ViewUser acquires UsersProfile{
         let points_table = borrow_global<UsersProfile>(@dev);
+   //             tttta(1);
         let ownership = Shared::return_shared_ownership_new(shared);
+                    //    tttta(10);
         let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
+        tttta(2);
         let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
@@ -357,6 +364,12 @@ module dev::QiaraRanksV33{
         return increased_qburned_reward_rate
     }
 
+//8100000000000000000000000000
+//48400000000000000000000000000
+
+
+//100000000000000000000000000
+//1000000000000000000
     #[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
         let days = (((timestamp::now_seconds() - first_interaction) / 86400) as u256);

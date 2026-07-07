@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraBridgeV40"
+    name = "QiaraBridgeV41"
     version = "2.1.1"
     authors = []
 
@@ -32,12 +32,12 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV32]
+    [dependencies.QiaraMarginV33]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraVaultsV46]
+    [dependencies.QiaraVaultsV47]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
@@ -57,7 +57,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraPerpsV27]
+    [dependencies.QiaraPerpsV28]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Perpetuals'

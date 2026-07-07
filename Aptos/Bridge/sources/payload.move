@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV40
+module dev::QiaraPayloadV41
 {
     use std::signer;
     use std::vector;
