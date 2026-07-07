@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV45 {
+module dev::QiaraLiquidityV46 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -110,6 +110,8 @@ module dev::QiaraLiquidityV45 {
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
+
+        initialize_all_registered_vaults(admin);
     }
 
 // === ENTRY FUN === //
@@ -125,89 +127,49 @@ module dev::QiaraLiquidityV45 {
         return (storage_address_bytes)
     }
 
-/// Admin entry function to bootstrap all active provider, chain, and token combinations
-    public entry fun initialize_all_provider_vaults(admin: &signer) acquires GlobalVault {
+    public entry fun initialize_all_registered_vaults(admin: &signer) acquires GlobalVault {
         // Assert only the module admin can execute bootstrap actions
         let admin_addr = std::signer::address_of(admin);
         assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
 
         let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let providers_ref = ProviderTypes::return_all_providers();
         
-        // 1. Curvance (Monad)
-        init_chain_vaults(vaults, std::string::utf8(b"Curvance"), std::string::utf8(b"Monad"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"Monad"), 
-            std::string::utf8(b"USDT0"), std::string::utf8(b"Bitcoin"), std::string::utf8(b"AUSD"), 
-            std::string::utf8(b"earnAUSD")
-        ]);
-
-        // 2. Neverland (Monad)
-        init_chain_vaults(vaults, std::string::utf8(b"Neverland"), std::string::utf8(b"Monad"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"Monad"), 
-            std::string::utf8(b"USDT0"), std::string::utf8(b"Bitcoin"), std::string::utf8(b"AUSD")
-        ]);
-
-        // 3. Morpho (Monad, Ethereum, Base)
-        init_chain_vaults(vaults, std::string::utf8(b"Morpho"), std::string::utf8(b"Monad"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"Monad"), 
-            std::string::utf8(b"USDT0"), std::string::utf8(b"AUSD")
-        ]);
-        init_chain_vaults(vaults, std::string::utf8(b"Morpho"), std::string::utf8(b"Ethereum"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"USDT"), 
-            std::string::utf8(b"Bitcoin")
-        ]);
-        init_chain_vaults(vaults, std::string::utf8(b"Morpho"), std::string::utf8(b"Base"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"Virtuals")
-        ]);
-        //tttta(1);
-        // 4. Aave (Ethereum, Base, Aptos)
-        init_chain_vaults(vaults, std::string::utf8(b"Aave"), std::string::utf8(b"Ethereum"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum")
-        ]);
-        init_chain_vaults(vaults, std::string::utf8(b"Aave"), std::string::utf8(b"Base"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum")
-        ]);
-        init_chain_vaults(vaults, std::string::utf8(b"Aave"), std::string::utf8(b"Aptos"), vector[
-            std::string::utf8(b"Aptos"), std::string::utf8(b"USDT"), std::string::utf8(b"USDC")
-        ]);
-      //tttta(2);
-        // 5. Moonwell (Base)
-        init_chain_vaults(vaults, std::string::utf8(b"Moonwell"), std::string::utf8(b"Base"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"Ethereum"), std::string::utf8(b"Virtuals")
-        ]);
-
-        // 6. Suilend (Sui)
-        init_chain_vaults(vaults, std::string::utf8(b"Suilend"), std::string::utf8(b"Sui"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"USDT"), std::string::utf8(b"Ethereum"), 
-            std::string::utf8(b"Bitcoin"), std::string::utf8(b"Sui"), std::string::utf8(b"Deepbook")
-        ]);
-       //tttta(3);
-        // 7. Alphalend (Sui)
-        init_chain_vaults(vaults, std::string::utf8(b"Alphalend"), std::string::utf8(b"Sui"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"USDT"), std::string::utf8(b"Ethereum"), 
-            std::string::utf8(b"Bitcoin"), std::string::utf8(b"Sui"), std::string::utf8(b"Deepbook")
-        ]);
-
-        // 8. Navi (Sui)
-        init_chain_vaults(vaults, std::string::utf8(b"Navi"), std::string::utf8(b"Sui"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"USDT"), std::string::utf8(b"Ethereum"), 
-            std::string::utf8(b"Bitcoin"), std::string::utf8(b"Sui"), std::string::utf8(b"Deepbook")
-        ]);
-
-        // 9. Bluefin (Sui)
-        init_chain_vaults(vaults, std::string::utf8(b"Bluefin"), std::string::utf8(b"Sui"), vector[
-            std::string::utf8(b"USDC"), std::string::utf8(b"USDT"), std::string::utf8(b"Ethereum"), 
-            std::string::utf8(b"Bitcoin"), std::string::utf8(b"Sui"), std::string::utf8(b"Deepbook")
-        ]);
-         // tttta(4);
-        // 10. Echelon (Aptos)
-        init_chain_vaults(vaults, std::string::utf8(b"Echelon"), std::string::utf8(b"Aptos"), vector[
-            std::string::utf8(b"Aptos"), std::string::utf8(b"USDT"), std::string::utf8(b"USDC")
-        ]);
-        // 11. Qiara (Aptos)
-        init_chain_vaults(vaults, std::string::utf8(b"Qiara"), std::string::utf8(b"Aptos"), vector[
-            std::string::utf8(b"Qiara"), std::string::utf8(b"BQiara")
-        ]);
-
+        let provider_keys = map::keys(&providers_ref);
+        let i = 0;
+        let num_providers = std::vector::length(&provider_keys);
+        
+        while (i < num_providers) {
+            let provider = *std::vector::borrow(&provider_keys, i);
+            let chains_map = map::borrow(&providers_ref, &provider);
+            
+            let chain_keys = map::keys(chains_map);
+            let j = 0;
+            let num_chains = std::vector::length(&chain_keys);
+            
+            while (j < num_chains) {
+                let chain = *std::vector::borrow(&chain_keys, j);
+                let provider_data = map::borrow(chains_map, &chain);
+                
+                // ✅ FIXED: Using the public getter helper function instead of direct field access [1]
+                let tokens = ProviderTypes::get_provider_tokens(provider_data);
+                
+                let k = 0;
+                let num_tokens = std::vector::length(tokens);
+                
+                while (k < num_tokens) {
+                    let token = *std::vector::borrow(tokens, k);
+                    
+                    // Call find_vault dynamically
+                    find_vault(vaults, token, chain, provider);
+                    k = k + 1;
+                };
+                
+                j = j + 1;
+            };
+            
+            i = i + 1;
+        };
     }
 
     /// Internal loop helper to initialize individual vaults sequentially [3]
@@ -225,6 +187,7 @@ module dev::QiaraLiquidityV45 {
             i = i + 1;
         };
     }
+
 
 
 
