@@ -598,7 +598,7 @@ module dev::QiaraSharedV12{
 
     public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
 
-       if(ownership_record.used_ref_code != utf8(b"")){
+       if(ownership_record.used_ref_code == utf8(b"")){
             return (0,0)
         };
 
