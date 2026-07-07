@@ -1,4 +1,4 @@
-module dev::QiaraRanksV33{
+module dev::QiaraRanksV34{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,9 +8,9 @@ module dev::QiaraRanksV33{
     use dev::QiaraTokenTypesV36::{Self as TokensType};
     use dev::QiaraChainTypesV36::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraStorageV15::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV16::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV12::{Self as Shared, Ownership, RefCodeParams};
+    use dev::QiaraSharedV13::{Self as Shared, Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

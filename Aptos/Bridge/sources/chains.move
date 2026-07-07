@@ -17,16 +17,16 @@ module dev::QiaraBridgeV41{
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStorageV15::{Self as storage};
+    use dev::QiaraStorageV16::{Self as storage};
 
-    use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV13::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraTokensCoreV36::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV36::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV47::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV48::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV33::{Self as Margin};
+    use dev::QiaraMarginV34::{Self as Margin};
 
     use dev::QiaraPayloadV41::{Self as Payload};
     use dev::QiaraValidatorsV41::{Self as Validators, Access as ValidatorsAccess};

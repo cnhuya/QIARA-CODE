@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV47 {
+module dev::QiaraVaultsV48 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -20,24 +20,24 @@ module dev::QiaraVaultsV47 {
     use dev::QiaraTokensRatesV36::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV36::{Self as TokensTiers};
     use dev::QiaraTokensOmnichainV36::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV33::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV33::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV33::{Self as RI};
-    use dev::QiaraBurnedQiaraV33::{Self as BurnedQiara};
+    use dev::QiaraMarginV34::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV34::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV34::{Self as RI};
+    use dev::QiaraBurnedQiaraV34::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV36::{Self as TokensTypes};
     use dev::QiaraChainTypesV36::{Self as ChainTypes};
     use dev::QiaraProviderTypesV36::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV15::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV15::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV16::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV16::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV13::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV47::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV47::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV48::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV48::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
