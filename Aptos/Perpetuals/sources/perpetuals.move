@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV28 {
+module dev::QiaraPerpsV29 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -29,7 +29,7 @@ module dev::QiaraPerpsV28 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV28::{Self as Orders};
+    use dev::QiaraPerpsOrdersV29::{Self as Orders};
 
 
 // === ERRORS === //

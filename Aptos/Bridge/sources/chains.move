@@ -31,8 +31,8 @@ module dev::QiaraBridgeV41{
     use dev::QiaraPayloadV41::{Self as Payload};
     use dev::QiaraValidatorsV41::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV28::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV28::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV29::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV29::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
