@@ -24,6 +24,7 @@ module dev::QiaraLiquidityV45 {
     use dev::QiaraSharedV12::{Self as Shared};
     use dev::QiaraChainTypesV35::{Self as ChainTypes};
     use dev::QiaraProviderTypesV35::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV35::{Self as ProviderTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};
 
 // === ERRORS === //
