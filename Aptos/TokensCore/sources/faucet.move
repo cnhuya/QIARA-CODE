@@ -13,7 +13,7 @@ use dev::QiaraProviderTypesV37::{Self as ProviderTypes};
 
     use dev::QiaraTokensCoreV37::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensMetadataV37::{Self as TokensMetadata};
-    use dev::QiaraSharedV12::{Self as Shared};
+    use dev::QiaraSharedV13::{Self as Shared};
     use dev::QiaraStorageV15::{Self as storage};
 
 // === ERRORS === //

@@ -26,7 +26,7 @@ module dev::QiaraTokensCoreV37{
     use dev::QiaraTokensQiaraV37::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
-    use dev::QiaraSharedV12::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV13::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStoragesV37::{Self as Storages};
