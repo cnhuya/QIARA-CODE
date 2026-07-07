@@ -9,8 +9,8 @@ module dev::QiaraMarginV34{
     use std::bcs;
 
     use dev::QiaraRanksV34::{Self as Ranks};
-    use dev::QiaraTokensMetadataV36::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV36::{Self as TokensType};
+    use dev::QiaraTokensMetadataV37::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV37::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
