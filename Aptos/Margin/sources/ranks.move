@@ -116,7 +116,7 @@ module dev::QiaraRanksV33{
         let ownership = Shared::return_shared_ownership_new(shared);
                     //    tttta(10);
         let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
-        tttta(2);
+        //tttta(2);
         let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
         if(!table::contains(&points_table.table, shared)){
             return ViewUser {
@@ -223,6 +223,8 @@ module dev::QiaraRanksV33{
         return map
     }
 
+//100000000000000000000000000
+//100000000000000000000
     #[view]
     public fun return_xp_needed_to_level(level: u256): u256{
        let base_xp = return_base_xp_increase();
@@ -244,7 +246,7 @@ module dev::QiaraRanksV33{
 
     #[view]
     public fun return_base_xp_increase(): u256{
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"BASE_XP"))) as u256)*1000000000000000000
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"BASE_XP"))) as u256)*1000000000000000000/1_000_000
     }
     #[view]
     public fun return_fee_points_conversion(): u256{ // 1$ fee = 1 xp
@@ -366,8 +368,9 @@ module dev::QiaraRanksV33{
 
 //8100000000000000000000000000
 //48400000000000000000000000000
-
-
+//5220000000000000
+//100000000000000000000
+//100000000000000000000000000
 //100000000000000000000000000
 //1000000000000000000
     #[view]

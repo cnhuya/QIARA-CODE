@@ -1227,7 +1227,7 @@ module dev::QiaraVaultsV47 {
     public fun calculate_deposit_points(user_deposited: u256, last_update: u64): u256 {
         let base_points = Points::return_market_liquidity_provision_points_conversion();
 
-        let precision_factor: u256 = 1000000; 
+        let precision_factor: u256 = 1_000_000; 
 
         let now = (timestamp::now_seconds() as u256);
         let last = (last_update as u256);
@@ -1237,7 +1237,7 @@ module dev::QiaraVaultsV47 {
 
         // Calculation: (Amount * Time * Rate) / Precision
         // This ensures: ($1.00) * (1 sec) * (1.0 rate) = 1 point
-        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor / precision_factor;
+        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor;
 
         return incentive_points_reward 
     }
