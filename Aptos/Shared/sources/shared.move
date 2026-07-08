@@ -1,4 +1,4 @@
-module dev::QiaraSharedV13{
+module dev::QiaraSharedV14{
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -55,7 +55,6 @@ module dev::QiaraSharedV13{
     struct RefCodeParams has store, copy, drop {
         xp_tax: u64, // 100_000_000 = 100%
         fee_tax: u64, // 100_000_000 = 100%
-        shared: String,
     }
 
     struct Ownership has store, copy, drop {
@@ -110,7 +109,7 @@ module dev::QiaraSharedV13{
                 sub_owners: vector::empty<vector<u8>>(),
                 selected_validator: utf8(b""),
                 ref_code: utf8(b""), 
-                ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0, shared: utf8(b"") }, 
+                ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0, }, 
                 used_ref_code: utf8(b""),
                 users: vector::empty<String>(),
                 gas_index: 0,
@@ -155,7 +154,7 @@ public entry fun create_shared_storage(signer: &signer, name: String, ref_code: 
 
         assert!(xp_tax <= MAX_ALLOWED_TAX, ERROR_XP_TAX_CANNOT_BE_ABOVE_100_PERCENT);
         assert!(fee_tax <= MAX_ALLOWED_TAX, ERROR_FEE_TAX_CANNOT_BE_ABOVE_100_PERCENT);
-        let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax, shared: name };
+        let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax, };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
 
@@ -168,7 +167,7 @@ public entry fun create_shared_storage(signer: &signer, name: String, ref_code: 
         
             let data = vector[
                 Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&name)),
-                Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&amount_of_users_using_ref_code)),
+                Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&used_ref_code_ownership_record.amount_of_users_using_ref_code)),
             ];
             Event::emit_qiara_shared_stats(data);
      
@@ -279,7 +278,7 @@ public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: S
 
         assert!(xp_tax <= MAX_ALLOWED_TAX, ERROR_XP_TAX_CANNOT_BE_ABOVE_100_PERCENT);
         assert!(fee_tax <= MAX_ALLOWED_TAX, ERROR_FEE_TAX_CANNOT_BE_ABOVE_100_PERCENT);
-        let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax, shared: name };
+        let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
         
@@ -292,7 +291,7 @@ public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: S
      
             let data = vector[
                 Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&name)),
-                Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&amount_of_users_using_ref_code)),
+                Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&used_ref_code_ownership_record.amount_of_users_using_ref_code)),
             ];
             Event::emit_qiara_shared_stats(data);
      
@@ -628,7 +627,7 @@ public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: S
         }
 
         public fun create_empty_raw_params(): RefCodeParams {
-            RefCodeParams { xp_tax: 0, fee_tax: 0, shared: utf8(b"") }
+            RefCodeParams { xp_tax: 0, fee_tax: 0,}
         }
 
 
