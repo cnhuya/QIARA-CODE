@@ -136,10 +136,10 @@ module dev::QiaraSharedV13{
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
     }
 
-    public entry fun create_shared_storage(signer: &signer, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64) acquires SharedStorage {
+public entry fun create_shared_storage(signer: &signer, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
-        let signer_addr = signer::address_of(signer);
-        let signer_addr_bytes = bcs::to_bytes(&signer_addr);
+        let sender_addr = signer::address_of(signer);
+        let signer_addr_bytes = bcs::to_bytes(&sender_addr);
 
         if (table::contains(&shared.storage, name)) {
             abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_ALREADY_EXISTS
@@ -158,12 +158,13 @@ module dev::QiaraSharedV13{
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
 
+        // ✅ FIXED: Only execute assertions and borrow/mutate if used_ref_code is not empty [1.2.2]
         if (used_ref_code != utf8(b"")) {
             assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+            
+            let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
+            used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
         };
-
-        let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
-        used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
 
         table::add(&mut shared.ref_code_registry, ref_code, ref_code_params);
         
@@ -194,7 +195,7 @@ module dev::QiaraSharedV13{
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer_addr)),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&sender_addr)),
             Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&name)),
         ];
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
@@ -292,7 +293,7 @@ public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner:
     // PERMISSIONLESS INTERFACE
     // ----------------------------------------------------------------
 
-    public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64, perm: Permission ) acquires SharedStorage {
+public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64, perm: Permission ) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
 
         if (table::contains(&shared.storage, name)) {
@@ -307,12 +308,14 @@ public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner:
         let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
+        
+        // ✅ FIXED: Only execute assertion and borrow/mutate if used_ref_code is not empty [1.2.2]
         if (used_ref_code != utf8(b"")) {
             assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+            
+            let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
+            used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
         };
-
-        let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
-        used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
 
         table::add(&mut shared.storage, name, Ownership { 
             owner: user, 
