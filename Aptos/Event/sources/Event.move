@@ -88,6 +88,14 @@ module event::QiaraEventV1 {
         aux: vector<Data>,
     }
     #[event]
+    struct QiaraRefCodeStats has copy, drop, store {
+        aux: vector<Data>,
+    }
+    #[event]
+    struct QiaraSharedStats has copy, drop, store {
+        aux: vector<Data>,
+    }
+    #[event]
     struct QiaraSupplyEvent has copy, drop, store {
         aux: vector<Data>,
     }
@@ -318,6 +326,18 @@ module event::QiaraEventV1 {
     public fun emit_qiara_burn_event(data: vector<Data>) {
         vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
          event::emit(QiaraBurnEvent {
+            aux: data,
+        });
+    }
+    public fun emit_qiara_ref_code_stats(data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
+         event::emit(QiaraRefCodeStats {
+            aux: data,
+        });
+    }
+    public fun emit_qiara_shared_stats(data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
+         event::emit(QiaraSharedStats {
             aux: data,
         });
     }
