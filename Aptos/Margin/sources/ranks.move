@@ -294,6 +294,23 @@ module dev::QiaraRanksV34{
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"))) as u128)
     }
 
+        let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
+        //tttta(2);
+        let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
+
+    #[view]
+    public fun calculate_ref_code_taxes_directly(shared: string): (u64, u64) {
+
+        let ownership = Shared::return_shared_ownership_new(shared);
+                    //    tttta(10);
+        let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
+        let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
+
+        
+        (actual_gas_reduction, actual_xp_increase)
+
+    }
+
     #[view]
     public fun calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax: u64, ref_code_xp_tax: u64): (u64, u64) {
         let base_gas_reduction = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION")));
