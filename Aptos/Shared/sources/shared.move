@@ -157,7 +157,10 @@ module dev::QiaraSharedV13{
         let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
-        assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+
+        if (used_ref_code != utf8(b"")) {
+            assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+        };
 
         let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
         used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
@@ -304,7 +307,9 @@ public entry fun change_used_ref_code(signer: &signer, name: String, _sub_owner:
         let ref_code_params = RefCodeParams { xp_tax: xp_tax, fee_tax: fee_tax };
 
         assert!(!table::contains(&shared.ref_code_registry, ref_code), ERROR_REF_CODE_ALREADY_EXISTS);
-        assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+        if (used_ref_code != utf8(b"")) {
+            assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
+        };
 
         let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, used_ref_code);
         used_ref_code_ownership_record.amount_of_users_using_ref_code += 1;
