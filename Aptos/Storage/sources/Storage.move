@@ -1,4 +1,4 @@
-module dev::QiaraStorageV16 {
+module dev::QiaraStorageV17 {
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
