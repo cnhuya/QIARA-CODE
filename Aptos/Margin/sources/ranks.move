@@ -1,16 +1,16 @@
-module dev::QiaraRanksV34{
+module dev::QiaraRanksV35{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV37::{Self as TokensType};
-    use dev::QiaraChainTypesV37::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV38::{Self as TokensType};
+    use dev::QiaraChainTypesV38::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraStorageV16::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV17::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV13::{Self as Shared, Ownership, RefCodeParams};
+    use dev::QiaraSharedV14::{Self as Shared, Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
