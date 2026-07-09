@@ -1123,10 +1123,40 @@ module dev::QiaraVaultsV50 {
         // you would pass global_total_supply and user_total_supply here instead.
         let new_user_incentive_index = Liquidity::distribute_rewards(shared, user, token, chain, provider, total_deposited, user_deposited, (user_incentive_index as u128), Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
+
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
         let points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
+      
+        let (gas_fee_reduction, xp_increased) = QiaraRanks::calculate_ref_code_taxes_directly(shared);
+        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_taxed_gas_fees, actual_taxed_xp ) = QiaraRanks::calculate_ref_code_taxes(gas_fee_reduction, xp_increased, points_reward, user_interest_reward);
+
+
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
-        
+
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+
+            // Original items from the data vector
+            Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
+            Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
+            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
+            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
+            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
+            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
+            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
+            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+        ];
+
+
         // 8. UPDATE CHECKPOINT INDEXES FOR THE USER TO PREVENT DOUBLE-CLAIMING
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -1146,7 +1176,9 @@ module dev::QiaraVaultsV50 {
             total_apr,
             borrow_apr,
             utilization,
-            price 
+            price,
+            actual_gas_reduction_for_ref_code_user,
+            actual_xp_earned_for_ref_code_user,
         )
     }
 //100000000000000000000000000

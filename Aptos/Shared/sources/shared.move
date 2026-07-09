@@ -612,6 +612,15 @@ public fun p_create_shared_storage(validator: &signer, user: vector<u8>, name: S
             (params.xp_tax, params.fee_tax)
         }
 
+        public fun extract_used_ref_code(ownership_record: Ownership): String {
+
+            if(ownership_record.used_ref_code == utf8(b"")){
+                return utf8(b"")
+            };
+
+            ownership_record.used_ref_code
+        }
+
         public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
             let used_ref_code_params = create_empty_raw_params();
             if(ownership_record.used_ref_code != utf8(b"")){

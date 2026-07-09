@@ -324,7 +324,7 @@ module dev::QiaraRanksV35{
         let actual_gas_reduction = base_gas_reduction - (base_gas_reduction * ref_code_gas_tax) / scale ;
         let actual_xp_increase = base_xp_increase - (base_xp_increase * ref_code_xp_tax) / scale;
 
-        (actual_gas_reduction, actual_xp_increase)
+        (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user)
 
     }
 //250_000_000
@@ -337,7 +337,7 @@ module dev::QiaraRanksV35{
         let actual_gas_fee = (gas_fee * actual_gas_reduction) / scale ;
         let actual_xp_earned = (xp_earned * actual_xp_increase) / scale ;
 
-        (actual_gas_fee, actual_xp_earned, actual_gas_fee+gas_fee, actual_xp_earned+xp_earned)
+        (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user, gas_fee, actual_xp_earned+xp_earned)
 
     }
 
