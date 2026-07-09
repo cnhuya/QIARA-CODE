@@ -334,10 +334,10 @@ module dev::QiaraRanksV36{
          let scale = 1_000_000;
         let (actual_gas_reduction, actual_xp_increase) = calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax, ref_code_xp_tax);
 
-        let actual_gas_fee = (gas_fee * actual_gas_reduction) / scale ;
-        let actual_xp_earned = (xp_earned * actual_xp_increase) / scale ;
+        let actual_gas_reduction_for_ref_code_user = (gas_fee * actual_gas_reduction) / scale ;
+        let actual_xp_increase_for_ref_code_user = (xp_earned * actual_xp_increase) / scale ;
 
-        (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user, gas_fee, actual_xp_earned+xp_earned)
+        (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user, gas_fee, actual_xp_increase+xp_earned)
 
     }
 
