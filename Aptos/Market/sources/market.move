@@ -138,7 +138,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, sender, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, sender, token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, sender, token, chain, provider);
 
         let data = vector[
             // Items from the event top-level fields
@@ -160,6 +160,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -206,7 +209,7 @@ module dev::QiaraVaultsV51 {
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
         Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, sender, token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, sender, token, chain, provider);
 
         let data = vector[
             // Items from the event top-level fields
@@ -229,6 +232,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -274,7 +280,7 @@ module dev::QiaraVaultsV51 {
 
         Margin::add_borrow(shared, sender, token, chain, provider, (amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Liquidity::add_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared,  sender, token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared,  sender, token, chain, provider);
         let data = vector[
             // Items from the event top-level fields
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
@@ -296,6 +302,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -330,7 +339,7 @@ module dev::QiaraVaultsV51 {
         Liquidity::add_deposit(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::remove_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, sender, token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, sender, token, chain, provider);
         let data = vector[
             // Items from the event top-level fields
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
@@ -351,6 +360,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -376,7 +388,7 @@ module dev::QiaraVaultsV51 {
         let storage = Liquidity::return_storage(token, chain, provider);
         let storage_address_string = non_user_storage_helper(&storage);
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, sender, token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, sender, token, chain, provider);
         let data = vector[
             // Items from the event top-level fields
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
@@ -395,6 +407,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -456,7 +471,7 @@ module dev::QiaraVaultsV51 {
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_stake(shared,bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let data = vector[
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -470,6 +485,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -589,7 +607,7 @@ module dev::QiaraVaultsV51 {
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
  
         Margin::add_locked_fee(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, ((fee-1000000000000000000)*99)/100, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         //            tttta(100);
         let data = vector[
             // Items from the event top-level fields
@@ -610,6 +628,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&(total_deposited+amount_u256_taxed))),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -651,7 +672,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::remove_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -672,6 +693,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -713,7 +737,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -734,6 +758,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -768,7 +795,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_virtual_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -789,6 +816,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -822,7 +852,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_virtual_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -843,6 +873,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -877,7 +910,7 @@ module dev::QiaraVaultsV51 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::remove_virtual_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -898,6 +931,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -923,7 +959,7 @@ module dev::QiaraVaultsV51 {
 
         Margin::remove_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, (amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Liquidity::remove_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price) = new_accrue( shared,bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue( shared,bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let data = vector[
             // Items from the event top-level fields
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
@@ -943,6 +979,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
 
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
+
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
             Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
@@ -960,7 +999,7 @@ module dev::QiaraVaultsV51 {
 
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
@@ -982,6 +1021,9 @@ module dev::QiaraVaultsV51 {
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
             Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
             Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
@@ -1020,7 +1062,7 @@ module dev::QiaraVaultsV51 {
 
 // === HELPERS === //
 
-    public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256) acquires Permissions {
+    public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256,u256,u256) acquires Permissions {
         
         // 1. FETCH CURRENT BALANCES AND GLOBAL VAULT STATES
         // Mapping the 8th wildcard slot to 'user_incentive_index' to track your Credits Index checkpoint
@@ -1127,8 +1169,8 @@ module dev::QiaraVaultsV51 {
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
         let points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
       
-        let (gas_fee_reduction, xp_increased, used_ref_code) = QiaraRanks::calculate_ref_code_taxes_directly(shared);
-        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_taxed_gas_fees, actual_taxed_xp ) = QiaraRanks::calculate_ref_code_taxes(gas_fee_reduction, xp_increased, points_reward, user_interest_reward);
+        let (gas_fee_reduction, xp_increased, used_ref_code) = Points::calculate_ref_code_taxes_directly(shared);
+        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_taxed_gas_fees, actual_taxed_xp ) = Points::calculate_ref_code_taxes(gas_fee_reduction, xp_increased, (points_reward/1000000000000000000 as u64), (user_interest_reward/1000000000000000000 as u64));
 
 
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
@@ -1164,8 +1206,8 @@ module dev::QiaraVaultsV51 {
             borrow_apr,
             utilization,
             price,
-            actual_gas_reduction_for_ref_code_user,
-            actual_xp_earned_for_ref_code_user,
+            (actual_gas_reduction_for_ref_code_user as u256),
+            (actual_xp_earned_for_ref_code_user as u256),
         )
     }
 //100000000000000000000000000
