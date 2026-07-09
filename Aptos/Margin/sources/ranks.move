@@ -1,4 +1,4 @@
-module dev::QiaraRanksV35{
+module dev::QiaraRanksV36{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -296,15 +296,15 @@ module dev::QiaraRanksV35{
 
 
     #[view]
-    public fun calculate_ref_code_taxes_directly(shared: String): (u64, u64) {
+    public fun calculate_ref_code_taxes_directly(shared: String): (u64, u64, String) {
 
         let ownership = Shared::return_shared_ownership_new(shared);
                     //    tttta(10);
         let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
         let (gas_fee_reduction, xp_increased) = calculate_actual_ref_code_taxes_from_shared(fee_tax, xp_tax);
+        let used_ref_code = Shared::extract_used_ref_code(ownership);
 
-
-        (gas_fee_reduction, xp_increased)
+        (gas_fee_reduction, xp_increased, used_ref_code)
 
     }
 
@@ -321,8 +321,8 @@ module dev::QiaraRanksV35{
         // e.g., (10_000_000 * 1_000_000) / 100_000_000 
         // (500_000_000_000_000 / 100_000_000 )
         // 5_000_000, which equals 5% (correct)
-        let actual_gas_reduction = base_gas_reduction - (base_gas_reduction * ref_code_gas_tax) / scale ;
-        let actual_xp_increase = base_xp_increase - (base_xp_increase * ref_code_xp_tax) / scale;
+        let actual_gas_reduction_for_ref_code_user = base_gas_reduction - (base_gas_reduction * ref_code_gas_tax) / scale ;
+        let actual_xp_increase_for_ref_code_user = base_xp_increase - (base_xp_increase * ref_code_xp_tax) / scale;
 
         (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user)
 

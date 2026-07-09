@@ -1,4 +1,4 @@
-module dev::QiaraRIV35{
+module dev::QiaraRIV36{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
