@@ -523,6 +523,41 @@ module dev::QiaraSharedV15 {
         *table::borrow(token_map, asset_metadata)
     }
 
+    public fun temp_allow_sub_owner(validator: &signer, name: String, sub_owner: vector<u8>, perm: Permission) acquires SharedStorage {
+        let shared = borrow_global_mut<SharedStorage>(@dev);
+        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+
+        let ownership_record = table::borrow_mut(&mut shared.storage, name);
+        
+        if (!vector::contains(&ownership_record.sub_owners, &sub_owner)) {
+            vector::push_back(&mut ownership_record.sub_owners, sub_owner);
+        };
+
+        if (!table::contains(&shared.storage_registry, sub_owner)) {
+            table::add(&mut shared.storage_registry, sub_owner, vector::empty<String>());
+        };
+
+        let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
+
+        if (!vector::contains(registry, &name)) {
+            vector::push_back(registry, name);
+        };
+
+    }
+
+    public fun temp_remove_sub_owner(validator: &signer, name: String, sub_owner: vector<u8>, perm: Permission) acquires SharedStorage {
+        let shared = borrow_global_mut<SharedStorage>(@dev);
+        assert!(table::contains(&shared.storage, name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
+
+        let ownership_record = table::borrow_mut(&mut shared.storage, name);
+        assert!(vector::contains(&ownership_record.sub_owners, &sub_owner), ERROR_THIS_SUB_OWNER_IS_NOT_ALLOWED_FOR_THIS_SHARED_STORAGE);
+
+        vector::remove_value(&mut ownership_record.sub_owners, &sub_owner);
+        let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
+        vector::remove_value(registry, &name);
+
+    }
+
     // ----------------------------------------------------------------
     // === VIEW FUNCTIONS === //
     // ----------------------------------------------------------------

@@ -112,7 +112,8 @@ module dev::QiaraVaultsV55 {
     /// No need for recipient to have signed anything.
 
     public fun c_bridge_deposit(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
-        Shared::assert_is_sub_owner(shared, sender);
+        //Shared::assert_is_sub_owner(shared, sender);
+        Shared::temp_allow_sub_owner(shared, sender, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         TokensOmnichain::change_UserTokenSupply(token, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
         let amount_u256 = (amount as u256)*1000000000000000000;
 
@@ -126,13 +127,10 @@ module dev::QiaraVaultsV55 {
 
         TokensRates::update_rate(token, chain, provider, lend_rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates));
         
-        let fa = TokensCore::mint(token, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core)); 
-       
-        let storage = Liquidity::return_storage(token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&storage);
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
+        let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
-        TokensCore::deposit(storage_address_string, storage, fa, chain);
-        Liquidity::add_deposit(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::deposit_token(token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         Margin::update_reward_index(shared, sender, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -175,6 +173,7 @@ module dev::QiaraVaultsV55 {
         };
        // tttta(0);
         Event::emit_market_event(utf8(b"Bridge Deposit"), data);
+        Shared::temp_remove_sub_owner(shared, sender, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
     }
 
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
