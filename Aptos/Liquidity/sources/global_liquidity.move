@@ -202,7 +202,7 @@ module dev::QiaraLiquidityV53 {
         let credit_value = TokensMetadata::getValue(token, credits);
         let amount_u256 = credit_value*1000000000000000000;
 
-        let (deposited, borrowed, virtual_deposit, virtual_borrow, staked, rewards, reward_index_snapshot, interest, interest_index_snapshot, locked_fee, last_update) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (deposited, borrowed, virtual_deposit, virtual_borrow, staked, rewards, reward_index_snapshot, interest, interest_index_snapshot, incentive_index, locked_fee, last_update) = Margin::get_user_raw_balance(shared, token, chain, provider);
         assert!(deposited > amount_u256, ERROR_INSUFFICIENT_BALANCE);
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
         let current_time = timestamp::now_seconds();
