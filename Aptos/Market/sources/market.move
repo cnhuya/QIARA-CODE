@@ -377,7 +377,7 @@ module dev::QiaraVaultsV54 {
 
     public entry fun c_bridge_claim_rewards(validator: &signer,  shared: String, sender: vector<u8>,  token: String, chain: String, provider: String) acquires Permissions {
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _,_, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -990,7 +990,7 @@ module dev::QiaraVaultsV54 {
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -1070,6 +1070,9 @@ module dev::QiaraVaultsV54 {
             user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
+        return ( balance.native_reward_index_snapshot, balance.locked_fee, balance.last_update)
+
+
         let (
             total_liquidity,
             total_borrowed, 
@@ -1116,14 +1119,14 @@ module dev::QiaraVaultsV54 {
 
         // 4. ACCRUE GLOBAL POOL INTEREST & REWARDS SINCE LAST GLOBAL UPDATE
         // Accumulate native pool rewards over the time gap (USDC organic yield from providers)
-        let native_accumulated_rewards = calculate_rewards(global_total_supply, total_apr, (time_diff as u256));
+        let native_accumulated_rewards = calculate_global_rewards(global_total_supply, total_apr, (time_diff as u256));
         Liquidity::add_native_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // ✅ FIXED: Calculate global interest accrued on all active borrowings (outstanding debt) since last update [1]
         let global_accrued_interest = 0;
         if (total_borrowed > 0) {
-            global_accrued_interest = (total_borrowed * borrow_apr * (time_diff as u256)) / 1_000_000_000;
+            global_accrued_interest = calculate_global_interest(total_borrowed * borrow_apr * (time_diff as u256));
         };
 
         // ✅ FIXED: Add the accrued interest directly to the global pool's accumulators to grow the index [1]
@@ -1144,7 +1147,7 @@ module dev::QiaraVaultsV54 {
         // ✅ FIXED: Calculate user's accrued interest from the global interest index and user index [1, 2]
         let user_interest_accrued = 0;
         if (user_total_debt > 0) {
-            user_interest_accrued = calculate_borrow_interest(total_accumulated_interest, user_accumulated_interest_index, user_total_debt, total_borrowed);
+            user_interest_accrued = calculate_user_borrow_interest(total_accumulated_interest, user_accumulated_interest_index, user_total_debt, total_borrowed);
         };
 
         if (user_interest_accrued > 0) {
@@ -1155,10 +1158,10 @@ module dev::QiaraVaultsV54 {
         // 6. USER REWARDS DISTRIBUTION (INTEREST PAYMENTS & NATIVE STAKING)
         let user_interest_reward;
         if (enoughLocked) {
-            user_interest_reward = calculate_interest(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, global_total_supply);
+            user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, global_total_supply);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
         } else {
-            user_interest_reward = calculate_rewards(net_deposited, total_apr, (user_time_diff as u256));
+            user_interest_reward = calculate_user_native_rewards(net_deposited, total_apr, (user_time_diff as u256));
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
@@ -1321,17 +1324,22 @@ module dev::QiaraVaultsV54 {
     }
 
     #[view]
-    public fun calculate_rewards(total_deposited: u256, total_apr: u256, time_diff: u256): u256 {
+    public fun calculate_global_rewards(total_deposited: u256, total_apr: u256, time_diff: u256): u256 {
         return (total_deposited * total_apr * time_diff) / 31_556_926 / 100000 // (/100 - convert from percentage + /1000 - apr scale)
     }
     #[view]
-    public fun calculate_interest(total_accumulated_rewards: u256, user_accumulated_rewards_index: u256, user_deposited: u256, total_deposited: u256): u256 {
+    public fun calculate_global_interest(total_borrowed: u256, borrow_apr: u256, time_diff: u256): u256 {
+        return (total_borrowed * borrow_apr * time_diff) / 31_556_926 / 100000 // (/100 - convert from percentage + /1000 - apr scale)
+    }
+
+    #[view]
+    public fun calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards: u256, user_accumulated_rewards_index: u256, user_deposited: u256, total_deposited: u256): u256 {
         return (total_accumulated_rewards - user_accumulated_rewards_index) * user_deposited / total_deposited
     }
 
     #[view]
     /// Calculates the borrower's accrued interest fee using the global and user interest indexes [1, 2]
-    public fun calculate_borrow_interest(total_accumulated_interest: u256, user_accumulated_interest_index: u256, user_total_debt: u256, total_borrowed: u256): u256 {
+    public fun calculate_user_borrow_interest(total_accumulated_interest: u256, user_accumulated_interest_index: u256, user_total_debt: u256, total_borrowed: u256): u256 {
         if (total_borrowed == 0 || total_accumulated_interest <= user_accumulated_interest_index) {
             return 0
         };
@@ -1339,6 +1347,14 @@ module dev::QiaraVaultsV54 {
         // User Interest = (Global Index Delta * User Debt) / Total Pool Borrows [1, 2]
         let index_diff = total_accumulated_interest - user_accumulated_interest_index;
         (index_diff * user_total_debt) / total_borrowed
+    }
+
+    #[view]
+    /// Calculates the borrower's accrued interest fee using the global and user interest indexes [1, 2]
+    public fun calculate_user_native_rewards(total_native_accumulated_rewards: u256, user_native_accumulated_rewards_index: u256, user_total_deposited: u256, total_deposited: u256): u256 {        
+        // User Interest = (Global Index Delta * User Debt) / Total Pool Borrows [1, 2]
+        let index_diff = total_native_accumulated_rewards - user_native_accumulated_rewards_index;
+        (index_diff * user_total_deposited) / total_deposited
     }
 
 }

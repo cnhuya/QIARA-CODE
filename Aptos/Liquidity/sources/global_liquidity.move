@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV53 {
+module dev::QiaraLiquidityV54 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -18,8 +18,8 @@ module dev::QiaraLiquidityV53 {
     use dev::QiaraTokensRatesV39::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV39::{Self as TokensTiers};
 
-    use dev::QiaraMarginV39::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV39::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV40::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV40::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV15::{Self as Shared};
     use dev::QiaraChainTypesV39::{Self as ChainTypes};
@@ -74,11 +74,11 @@ module dev::QiaraLiquidityV53 {
         total_borrowed: u256,
         total_deposited: u256,
         total_staked: u256,
-        total_native_accumulated_rewards: u256, // native rewards from providers (ie. Aave)
-        total_accumulated_rewards: u256,
-        total_accumulated_interest: u256,
-        virtual_borrowed: u256,
-        virtual_deposited: u256,
+        total_native_accumulated_rewards: u256, // native rewards from providers (ie. Aave) + Qiara Native Yield
+        total_accumulated_rewards: u256, // All fees collected (withdrawals, staking locks, perpetuals, borrow interest) -> going for burned qiara holders
+        total_accumulated_interest: u256, // Global tracker of Borrow Apr Interest, essentially what are borrowers paying.
+        virtual_borrowed: u256, // for perps, future features
+        virtual_deposited: u256, // for perps, future features
         storage: Object<FungibleStore>, // the actual wrapped balance in object,
         incentive: Incentive,           // Direct flat struct (no Option, no Vector)
         w_tracker: WithdrawTracker,
@@ -201,8 +201,7 @@ module dev::QiaraLiquidityV53 {
 
         let credit_value = TokensMetadata::getValue(token, credits);
         let amount_u256 = credit_value*1000000000000000000;
-
-        let (deposited, borrowed, virtual_deposit, virtual_borrow, staked, rewards, reward_index_snapshot, interest, interest_index_snapshot, incentive_index, locked_fee, last_update) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (deposited, borrowed, virtual_deposit, virtual_borrow, staked, rewards, reward_index_snapshot, interest, interest_index_snapshot, native_reward_index_snapshot, incentive_index, locked_fee, last_update) = Margin::get_user_raw_balance(shared, token, chain, provider);
         assert!(deposited > amount_u256, ERROR_INSUFFICIENT_BALANCE);
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
         let current_time = timestamp::now_seconds();
@@ -501,10 +500,10 @@ module dev::QiaraLiquidityV53 {
     }
 
     #[view]
-    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256, u256, u256, u256,u256, u64) acquires GlobalVault{
+    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256, u256, u256, u256,u256, u64) acquires GlobalVault{
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
-        return (((vault.total_deposited + vault.virtual_deposited) - (vault.total_borrowed + vault.virtual_borrowed)), vault.total_borrowed, vault.total_deposited, vault.total_staked, vault.total_accumulated_rewards, vault.total_accumulated_interest, vault.virtual_borrowed, vault.virtual_deposited, vault.last_update)
+        return (((vault.total_deposited + vault.virtual_deposited) - (vault.total_borrowed + vault.virtual_borrowed)), vault.total_borrowed, vault.total_deposited, vault.total_staked, vault.total_accumulated_rewards, vault.total_native_accumulated_rewards, vault.total_accumulated_interest, vault.virtual_borrowed, vault.virtual_deposited, vault.last_update)
     }
 
     #[view]

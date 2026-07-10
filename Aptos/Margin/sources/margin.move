@@ -1,4 +1,4 @@
-module dev::QiaraMarginV39{
+module dev::QiaraMarginV40{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV39{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV39::{Self as Ranks};
+    use dev::QiaraRanksV40::{Self as Ranks};
     use dev::QiaraTokensMetadataV39::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV39::{Self as TokensType};
     
@@ -65,6 +65,7 @@ module dev::QiaraMarginV39{
         native_reward_index_snapshot: u256,
         reward_index_snapshot: u256,
         interest_index_snapshot: u256,
+        incentive_index: u256,
         last_update: u64,
         locked_fee: u256,
     }
@@ -150,6 +151,13 @@ module dev::QiaraMarginV39{
         } else {
             credit.value = credit.value + value;
         };
+    }
+
+    public fun update_incentive_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
+        Shared::assert_is_sub_owner(shared, user);
+        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
+        balance.incentive_index = index;
+       // balance.last_update = timestamp::now_seconds();
     }
 
     public fun update_interest_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
@@ -631,9 +639,9 @@ module dev::QiaraMarginV39{
     }
 
     #[view]
-    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
+    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256,u256, u64) acquires TokenHoldings {
         let balance  = *find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-        return (balance.deposited, balance.borrowed, balance.virtual_deposit, balance.virtual_borrow, balance.staked, balance.rewards, balance.reward_index_snapshot, balance.interest, balance.interest_index_snapshot, balance.native_reward_index_snapshot, balance.locked_fee, balance.last_update)
+        return (balance.deposited, balance.borrowed, balance.virtual_deposit, balance.virtual_borrow, balance.staked, balance.rewards, balance.reward_index_snapshot, balance.interest, balance.interest_index_snapshot, balance.native_reward_index_snapshot, balance.incentive_index, balance.locked_fee, balance.last_update)
     }
 
     #[view]
@@ -760,6 +768,7 @@ module dev::QiaraMarginV39{
             native_reward_index_snapshot: 0,
             reward_index_snapshot: 0,
             interest_index_snapshot: 0,
+            incentive_index: 0,
             last_update: timestamp::now_seconds(),
             locked_fee: 0
         };
