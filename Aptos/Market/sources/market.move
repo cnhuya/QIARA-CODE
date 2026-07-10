@@ -29,10 +29,10 @@ module dev::QiaraVaultsV51 {
     use dev::QiaraChainTypesV38::{Self as ChainTypes};
     use dev::QiaraProviderTypesV38::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV17::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV17::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV18::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV18::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV14::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
