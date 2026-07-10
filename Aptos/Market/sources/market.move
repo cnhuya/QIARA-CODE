@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV54 {
+module dev::QiaraVaultsV55 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -20,10 +20,10 @@ module dev::QiaraVaultsV54 {
     use dev::QiaraTokensRatesV39::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV39::{Self as TokensTiers};
     use dev::QiaraTokensOmnichainV39::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraMarginV39::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV39::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV39::{Self as RI};
-    use dev::QiaraBurnedQiaraV39::{Self as BurnedQiara};
+    use dev::QiaraMarginV40::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV40::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV40::{Self as RI};
+    use dev::QiaraBurnedQiaraV40::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV39::{Self as TokensTypes};
     use dev::QiaraChainTypesV39::{Self as ChainTypes};
@@ -36,8 +36,8 @@ module dev::QiaraVaultsV54 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV53::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV53::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV54::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV54::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -116,7 +116,7 @@ module dev::QiaraVaultsV54 {
         TokensOmnichain::change_UserTokenSupply(token, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
@@ -179,7 +179,7 @@ module dev::QiaraVaultsV54 {
 
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
     public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
-        let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         TokensRates::update_rate(token, chain, provider, lend_rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates));
         // Yes it is intentional that recipient is first, because thats the shared storage. (in case i forget again)
 
@@ -252,7 +252,7 @@ module dev::QiaraVaultsV54 {
         TokensOmnichain::change_UserTokenSupply(token, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -318,7 +318,7 @@ module dev::QiaraVaultsV54 {
 
     public fun c_bridge_repay(validator: &signer, shared: String, sender: vector<u8>,token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, fee) = TokensMetadata::impact(token, amount_u256, total_deposited, false, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
         Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -376,8 +376,8 @@ module dev::QiaraVaultsV54 {
     }
 
     public entry fun c_bridge_claim_rewards(validator: &signer,  shared: String, sender: vector<u8>,  token: String, chain: String, provider: String) acquires Permissions {
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _,_, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _,_,_, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -450,7 +450,7 @@ module dev::QiaraVaultsV54 {
     public entry fun stake(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
-        let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
 
@@ -506,7 +506,7 @@ module dev::QiaraVaultsV54 {
             let _provider = *vector::borrow(&provider, len-1);
             let _amount = *vector::borrow(&amount, len-1);
             let amount_u256 = (_amount as u256)*1000000000000000000;
-            let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(_token, _chain, _provider);
+            let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(_token, _chain, _provider);
 
             let (_, _fee) = TokensMetadata::impact(_token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
@@ -582,7 +582,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -643,7 +643,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -707,7 +707,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -771,7 +771,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -828,7 +828,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -885,7 +885,7 @@ module dev::QiaraVaultsV54 {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -942,7 +942,7 @@ module dev::QiaraVaultsV54 {
     public entry fun repay(signer: &signer,shared: String,  token: String, chain: String, provider: String, amount: u64) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let fa = TokensCore::withdraw(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token)), amount, chain);
         Liquidity::deposit_token(token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -987,10 +987,10 @@ module dev::QiaraVaultsV54 {
 
     public entry fun claim_rewards(signer: &signer, shared: String, token: String, chain: String, provider: String) acquires Permissions {
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _,_,_,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -1065,12 +1065,13 @@ module dev::QiaraVaultsV54 {
             user_accumulated_rewards_index, 
             user_interest, 
             user_accumulated_interest_index, 
+            user_native_accumulated_rewards_index,
             user_incentive_index,
             user_locked_fee, 
             user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
-        return ( balance.native_reward_index_snapshot, balance.locked_fee, balance.last_update)
+
 
 
         let (
@@ -1079,6 +1080,7 @@ module dev::QiaraVaultsV54 {
             total_deposited, 
             total_staked, 
             total_accumulated_rewards, 
+            total_native_accumulated_rewards,
             total_accumulated_interest, 
             virtual_borrowed, 
             virtual_deposited, 
@@ -1126,7 +1128,7 @@ module dev::QiaraVaultsV54 {
         // ✅ FIXED: Calculate global interest accrued on all active borrowings (outstanding debt) since last update [1]
         let global_accrued_interest = 0;
         if (total_borrowed > 0) {
-            global_accrued_interest = calculate_global_interest(total_borrowed * borrow_apr * (time_diff as u256));
+            global_accrued_interest = calculate_global_interest(total_borrowed, borrow_apr,(time_diff as u256));
         };
 
         // ✅ FIXED: Add the accrued interest directly to the global pool's accumulators to grow the index [1]
@@ -1161,7 +1163,7 @@ module dev::QiaraVaultsV54 {
             user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, global_total_supply);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
         } else {
-            user_interest_reward = calculate_user_native_rewards(net_deposited, total_apr, (user_time_diff as u256));
+            user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, global_total_supply);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
