@@ -328,17 +328,30 @@ module dev::QiaraRanksV36{
 
     }
 //250_000_000
-    #[view]
+#[view]
     public fun calculate_ref_code_taxes(ref_code_gas_tax: u64, ref_code_xp_tax: u64, gas_fee: u64, xp_earned: u64): (u64, u64, u64, u64) {
+        let scale = 100_000_000;
         
-         let scale = 1_000_000;
+        // 1. Query raw base configuration parameters
+        let base_gas_reduction = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_FEE_REDUCTION")));
+        let base_xp_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraShared"), utf8(b"BASE_SHARED_XP_INCREASE")));
+
+        // 2. Fetch the calculated actual user rates
         let (actual_gas_reduction, actual_xp_increase) = calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax, ref_code_xp_tax);
 
-        let actual_gas_reduction_for_ref_code_user = (gas_fee * actual_gas_reduction) / scale ;
-        let actual_xp_increase_for_ref_code_user = (xp_earned * actual_xp_increase) / scale ;
+        // 3. Calculate gross base discount/bonus amounts
+        let base_gas_discount_amount = (gas_fee * base_gas_reduction) / scale;
+        let base_xp_increase_amount = (xp_earned * base_xp_increase) / scale;
 
-        (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user, gas_fee, actual_xp_increase+xp_earned)
+        // 4. Calculate actual net user savings/bonus amounts
+        let user_gas_savings = (gas_fee * actual_gas_reduction) / scale;
+        let user_xp_bonus = (xp_earned * actual_xp_increase) / scale;
 
+        // 5. Referrer's share is the baseline discount minus what the user saved [3]
+        let referrer_gas_share = base_gas_discount_amount - user_gas_savings;
+        let referrer_xp_share = base_xp_increase_amount - user_xp_bonus;
+
+        (user_gas_savings, user_xp_bonus, referrer_gas_share, referrer_xp_share)
     }
 
 

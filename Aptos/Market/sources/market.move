@@ -1143,9 +1143,6 @@ module dev::QiaraVaultsV51 {
             // Scaled calculation based on user's total debt (correctly includes virtual borrows)
             user_interest = (user_total_debt * borrow_apr * (time_diff as u256)) / 1_000_000_000; // Scaled to prevent decimal overflow
             
-            Liquidity::add_accumulated_rewards(token, chain, provider, user_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Liquidity::add_accumulated_interest(token, chain, provider, user_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Margin::add_borrow(shared, user, token, chain, provider, user_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
         // 6. USER REWARDS DISTRIBUTION (INTEREST PAYMENTS & NATIVE STAKING)
@@ -1167,24 +1164,43 @@ module dev::QiaraVaultsV51 {
 
 
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
-        let points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
-      
+// 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
+        let base_points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
         let (gas_fee_reduction, xp_increased, used_ref_code) = Points::calculate_ref_code_taxes_directly(shared);
-        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_taxed_gas_fees, actual_taxed_xp ) = Points::calculate_ref_code_taxes(gas_fee_reduction, xp_increased, (points_reward/1000000000000000000 as u64), (user_interest_reward/1000000000000000000 as u64));
 
+        // ✅ FIXED: Assign the results of the evaluation block directly to avoid shadowing and reassignments [1.2.2]
+        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user) = if (used_ref_code != utf8(b"")) {
+            let (gas_reduced, xp_earned, actual_taxed_gas_fees, actual_taxed_xp) = Points::calculate_ref_code_taxes(
+                gas_fee_reduction, 
+                xp_increased, 
+                (base_points_reward / 1000000000000000000 as u64), 
+                (user_interest / 1000000000000000000 as u64)
+            );
+
+            let data = vector[
+                Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&used_ref_code)),
+                Event::create_data_struct(utf8(b"taxed_gas"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_gas_fees)),
+                Event::create_data_struct(utf8(b"taxed_xp"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_xp)),
+            ];
+            Event::emit_qiara_shared_stats(data);
+
+            let actual_gas_reduction_for_ref_code_user_u256 = (gas_reduced as u256) * 1000000000000000000; 
+
+            Liquidity::add_accumulated_rewards(token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_accumulated_interest(token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Margin::add_borrow(shared, user, token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
+            // Return calculated tuple values from the 'if' expression block
+            (gas_reduced, xp_earned)
+        } else {
+            // Return 0 fallback values if no referral code is active
+            (0, 0)
+        };
+
+        // Combine base points with the calculated referral bonus points
+        let points_reward = base_points_reward + (actual_xp_earned_for_ref_code_user as u256) * 1000000000000000000;
 
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
-
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&used_ref_code)),
-
-            // Original items from the data vector
-            Event::create_data_struct(utf8(b"taxed_gas"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_gas_fees)),
-            Event::create_data_struct(utf8(b"taxed_xp"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_xp)),
-
-        ];
-            Event::emit_qiara_shared_stats(data);
 
         // 8. UPDATE CHECKPOINT INDEXES FOR THE USER TO PREVENT DOUBLE-CLAIMING
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 

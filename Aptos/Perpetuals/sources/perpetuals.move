@@ -21,8 +21,7 @@ module dev::QiaraPerpsV31 {
     use dev::QiaraTokenVaultsV50::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV17::{Self as storage};
-    use dev::QiaraCapabilitiesV17
-    ::{Self as capabilities};
+    use dev::QiaraCapabilitiesV17::{Self as capabilities};
     use dev::QiaraOracleV7::{Self as oracle};
     use dev::QiaraChainTypesV38::{Self as ChainTypes};
     use dev::QiaraTokenTypesV38::{Self as TokensTypes};
