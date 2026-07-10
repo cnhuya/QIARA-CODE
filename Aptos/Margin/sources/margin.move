@@ -1,4 +1,4 @@
-module dev::QiaraMarginV38{
+module dev::QiaraMarginV39{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV38{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV38::{Self as Ranks};
+    use dev::QiaraRanksV39::{Self as Ranks};
     use dev::QiaraTokensMetadataV39::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV39::{Self as TokensType};
     
@@ -57,7 +57,7 @@ module dev::QiaraMarginV38{
         deposited: u256,
         borrowed: u256,
         virtual_borrow: u256,
-        virtual_deposit: u256,
+        virtual_deposit: u256,  
         staked: u256,
         stake_lock: u64, // epoch
         rewards: u256,
@@ -631,9 +631,9 @@ module dev::QiaraMarginV38{
     }
 
     #[view]
-    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
+    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
         let balance  = *find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-        return (balance.deposited, balance.borrowed, balance.virtual_deposit, balance.virtual_borrow, balance.staked, balance.rewards, balance.reward_index_snapshot, balance.interest, balance.interest_index_snapshot, balance.locked_fee, balance.last_update)
+        return (balance.deposited, balance.borrowed, balance.virtual_deposit, balance.virtual_borrow, balance.staked, balance.rewards, balance.reward_index_snapshot, balance.interest, balance.interest_index_snapshot, balance.native_reward_index_snapshot, balance.locked_fee, balance.last_update)
     }
 
     #[view]

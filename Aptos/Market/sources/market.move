@@ -120,7 +120,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -189,7 +188,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -259,7 +257,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -460,7 +457,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -515,7 +511,6 @@ module dev::QiaraVaultsV53 {
             let (_, _fee) = TokensMetadata::impact(_token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
             let gas_rate = Gas::add_withdraw(_token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-            handle_gas_fee(shared,sender, _token);
             
         
             let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(_token, _chain, _provider,  amount_u256);
@@ -592,7 +587,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -654,7 +648,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
         if(amount_u256_w_fee_taxed == 0) { return };
@@ -719,7 +712,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        let gas_fee = handle_gas_fee(shared, sender, token);
         
         let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
         if(amount_u256_w_fee_taxed == 0) { return };
@@ -784,7 +776,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -842,7 +833,7 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
+
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -899,7 +890,6 @@ module dev::QiaraVaultsV53 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        handle_gas_fee(shared, sender, token);
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
@@ -1062,21 +1052,21 @@ module dev::QiaraVaultsV53 {
 
 // === HELPERS === //
 
-    public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256,u256,u256) acquires Permissions {
+   public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256,u256,u256) acquires Permissions {
         
         // 1. FETCH CURRENT BALANCES AND GLOBAL VAULT STATES
-        // Mapping the 8th wildcard slot to 'user_incentive_index' to track your Credits Index checkpoint
         let (
             user_deposited, 
             user_borrowed, 
             user_virtual_deposited, 
             user_virtual_borrowed, 
             user_staked, 
-            _, 
+            user_rewards, 
             user_accumulated_rewards_index, 
-            user_incentive_index, 
+            user_interest, 
             user_accumulated_interest_index, 
-            _, 
+            user_incentive_index,
+            user_locked_fee, 
             user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
@@ -1092,7 +1082,7 @@ module dev::QiaraVaultsV53 {
             last_update
         ) = Liquidity::return_raw_vault(token, chain, provider);
 
-        // Calculate utilization ratio using all 5 required parameters (correctly includes virtual balances)
+        // Calculate utilization ratio using all 5 required parameters
         let utilization = Liquidity::get_utilization_ratio(
             total_deposited, 
             virtual_deposited, 
@@ -1100,11 +1090,11 @@ module dev::QiaraVaultsV53 {
             virtual_borrowed, 
             total_staked
         );
-        
 
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
         let id = (TokensMetadata::get_coin_metadata_tier(&metadata) as u8);
         let price = TokensMetadata::get_coin_metadata_price(&metadata);
+        
         // 2. CALCULATE GLOBAL INTERACTIVE INTEREST RATES (APRs)
         let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
         // 25% of the native provider APR is directed to the minimal APR model
@@ -1118,16 +1108,29 @@ module dev::QiaraVaultsV53 {
         // Sync global vault state first (releasing expired incentives, updating timestamp)
         Liquidity::update(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        // FIX: Define total global supply as the sum of physical, staked, and virtual deposits to serve as the true economic denominator
+        // Define total global supply as the sum of physical, staked, and virtual deposits
         let global_total_supply = total_deposited + total_staked + virtual_deposited;
 
         // Sync the Global Virtual Credit Index using the complete global supply definition
         Liquidity::update_incentive_index(token, chain, provider, global_total_supply, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 4. ACCRUE GLOBAL POOL INTEREST & REWARDS SINCE LAST GLOBAL UPDATE
-        // Accumulate native pool rewards over the time gap using the complete global supply base
+        // Accumulate native pool rewards over the time gap (USDC organic yield from providers)
         let native_accumulated_rewards = calculate_rewards(global_total_supply, total_apr, (time_diff as u256));
         Liquidity::add_native_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::add_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        // ✅ FIXED: Calculate global interest accrued on all active borrowings (outstanding debt) since last update [1]
+        let global_accrued_interest = 0;
+        if (total_borrowed > 0) {
+            global_accrued_interest = (total_borrowed * borrow_apr * (time_diff as u256)) / 1_000_000_000;
+        };
+
+        // ✅ FIXED: Add the accrued interest directly to the global pool's accumulators to grow the index [1]
+        if (global_accrued_interest > 0) {
+            Liquidity::add_accumulated_rewards(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        };
 
         // Calculate user net deposits (assets supplied minus assets borrowed)
         let user_total_supply = user_deposited + user_staked + user_virtual_deposited;
@@ -1138,43 +1141,50 @@ module dev::QiaraVaultsV53 {
         let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
        
         // 5. USER INTEREST ACCRUAL (DEBT FEE)
-        let user_interest = 0;
+        // ✅ FIXED: Calculate user's accrued interest from the global interest index and user index [1, 2]
+        let user_interest_accrued = 0;
         if (user_total_debt > 0) {
-            // Scaled calculation based on user's total debt (correctly includes virtual borrows)
-            user_interest = (user_total_debt * borrow_apr * (time_diff as u256)) / 1_000_000_000; // Scaled to prevent decimal overflow
-            
+            user_interest_accrued = calculate_borrow_interest(total_accumulated_interest, user_accumulated_interest_index, user_total_debt, total_borrowed);
+        };
+
+        if (user_interest_accrued > 0) {
+            // Compound the borrower's debt by adding the calculated index-based interest fee [2]
+            Margin::add_borrow(shared, user, token, chain, provider, user_interest_accrued, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
         // 6. USER REWARDS DISTRIBUTION (INTEREST PAYMENTS & NATIVE STAKING)
         let user_interest_reward;
         if (enoughLocked) {
-            // FIX: Using global_total_supply as the denominator to prevent math inflation and protect pool rewards
             user_interest_reward = calculate_interest(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, global_total_supply);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
         } else {
-            // FIX: Non-index fallback rewards are now correctly calculated using the individual user's net_deposited position
             user_interest_reward = calculate_rewards(net_deposited, total_apr, (user_time_diff as u256));
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
         // 6b. VIRTUAL CREDIT INCENTIVE DISTRIBUTION
-        // Note: If you want virtual/staked deposits to earn virtual credit incentives in the ledger, 
-        // you would pass global_total_supply and user_total_supply here instead.
         let new_user_incentive_index = Liquidity::distribute_rewards(shared, user, token, chain, provider, total_deposited, user_deposited, (user_incentive_index as u128), Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
+        // GAS FEE
+        let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
+        let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
+        let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
+        Shared::update_gas_index(shared, gas_index, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
+        
         // 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
-// 7. USER ENGAGEMENT POINTS (GAMEFI EXPERIENCE)
         let base_points_reward = calculate_deposit_points(TokensMetadata::getValue(token, user_deposited), user_last_interacted);
-        let (gas_fee_reduction, xp_increased, used_ref_code) = Points::calculate_ref_code_taxes_directly(shared);
+        
+        let ownership = Shared::return_shared_ownership_new(shared);
+        let (xp_tax, fee_tax) = Shared::extract_raw_params(ownership);
+        let used_ref_code = Shared::extract_used_ref_code(ownership);
 
-        // ✅ FIXED: Assign the results of the evaluation block directly to avoid shadowing and reassignments [1.2.2]
-        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user) = if (used_ref_code != utf8(b"")) {
+        let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_final_gas) = if (used_ref_code != utf8(b"")) {
             let (gas_reduced, xp_earned, actual_taxed_gas_fees, actual_taxed_xp) = Points::calculate_ref_code_taxes(
-                gas_fee_reduction, 
-                xp_increased, 
-                (base_points_reward / 1000000000000000000 as u64), 
-                (user_interest / 1000000000000000000 as u64)
+                fee_tax, 
+                xp_tax, 
+                (gas_fee), 
+                (base_points_reward)
             );
 
             let data = vector[
@@ -1184,27 +1194,29 @@ module dev::QiaraVaultsV53 {
             ];
             Event::emit_qiara_shared_stats(data);
 
-            let actual_gas_reduction_for_ref_code_user_u256 = (gas_reduced as u256) * 1000000000000000000; 
+            let final_gas = gas_fee - (gas_reduced + (actual_taxed_gas_fees as u256));
 
-            Liquidity::add_accumulated_rewards(token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Liquidity::add_accumulated_interest(token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Margin::add_borrow(shared, user, token, chain, provider, actual_gas_reduction_for_ref_code_user_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-
-            // Return calculated tuple values from the 'if' expression block
-            (gas_reduced, xp_earned)
+            Liquidity::add_accumulated_rewards(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_accumulated_interest(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Margin::add_borrow(shared, user, token, chain, provider, final_gas, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+            
+            (gas_reduced, xp_earned, gas_fee - gas_reduced)
         } else {
-            // Return 0 fallback values if no referral code is active
-            (0, 0)
+            (0, 0, gas_fee)
         };
 
+        Margin::remove_credit(shared, user, actual_final_gas, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        TokenVaults::fast_add_accumulated_rewards(token, actual_final_gas, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
+
         // Combine base points with the calculated referral bonus points
-        let points_reward = base_points_reward + (actual_xp_earned_for_ref_code_user as u256) * 1000000000000000000;
+        let points_reward = actual_xp_earned_for_ref_code_user;
 
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
 
         // 8. UPDATE CHECKPOINT INDEXES FOR THE USER TO PREVENT DOUBLE-CLAIMING
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-        Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+        // ✅ FIXED: Update the user's personal interest index checkpoint to the new global index [1, 2]
+        Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
 
         // Update the user's personal virtual credit index checkpoint to the newly returned index
         Margin::update_native_reward_index(shared, user, token, chain, provider, (new_user_incentive_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -1215,20 +1227,18 @@ module dev::QiaraVaultsV53 {
         return (
             total_accumulated_rewards, 
             total_accumulated_interest, 
-            user_interest, 
+            user_interest_accrued, 
             user_interest_reward, 
             points_reward,
             total_apr,
             borrow_apr,
             utilization,
             price,
-            (actual_gas_reduction_for_ref_code_user as u256),
-            (actual_xp_earned_for_ref_code_user as u256),
+            actual_gas_reduction_for_ref_code_user,
+            actual_xp_earned_for_ref_code_user,
         )
     }
-//100000000000000000000000000
-//10000000000000000000
-//401000000000000000000
+    
     fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){
@@ -1267,17 +1277,6 @@ module dev::QiaraVaultsV53 {
         return (taxed_amount, fee)
     }
 
-    fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
-        let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
-        let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
-        let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
-
-        Shared::update_gas_index(shared, gas_index, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
-        Margin::remove_credit(shared, user, gas_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        TokenVaults::fast_add_accumulated_rewards(token, gas_fee, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
-        return gas_fee
-    }
-
 // === VIEWS === //
     
     #[view]
@@ -1314,7 +1313,9 @@ module dev::QiaraVaultsV53 {
 
         // Calculation: (Amount * Time * Rate) / Precision
         // This ensures: ($1.00) * (1 sec) * (1.0 rate) = 1 point
-        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor;
+        // 1999561840436160000000000 * 1 * 1_000_000 / 1_000_000
+        // 1999561840436160000000000
+        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor / precision_factor;
 
         return incentive_points_reward 
     }
@@ -1326,6 +1327,18 @@ module dev::QiaraVaultsV53 {
     #[view]
     public fun calculate_interest(total_accumulated_rewards: u256, user_accumulated_rewards_index: u256, user_deposited: u256, total_deposited: u256): u256 {
         return (total_accumulated_rewards - user_accumulated_rewards_index) * user_deposited / total_deposited
+    }
+
+    #[view]
+    /// Calculates the borrower's accrued interest fee using the global and user interest indexes [1, 2]
+    public fun calculate_borrow_interest(total_accumulated_interest: u256, user_accumulated_interest_index: u256, user_total_debt: u256, total_borrowed: u256): u256 {
+        if (total_borrowed == 0 || total_accumulated_interest <= user_accumulated_interest_index) {
+            return 0
+        };
+        
+        // User Interest = (Global Index Delta * User Debt) / Total Pool Borrows [1, 2]
+        let index_diff = total_accumulated_interest - user_accumulated_interest_index;
+        (index_diff * user_total_debt) / total_borrowed
     }
 
 }

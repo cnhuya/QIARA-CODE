@@ -74,7 +74,7 @@ module dev::QiaraLiquidityV52 {
         total_borrowed: u256,
         total_deposited: u256,
         total_staked: u256,
-        total_native_accumulated_rewards: u256,
+        total_native_accumulated_rewards: u256, // native rewards from providers (ie. Aave)
         total_accumulated_rewards: u256,
         total_accumulated_interest: u256,
         virtual_borrowed: u256,

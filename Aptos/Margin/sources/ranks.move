@@ -1,4 +1,4 @@
-module dev::QiaraRanksV38{
+module dev::QiaraRanksV39{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -295,6 +295,7 @@ module dev::QiaraRanksV38{
     }
 
 
+    //deprecated remove in future
     #[view]
     public fun calculate_ref_code_taxes_directly(shared: String): (u64, u64, String) {
 
@@ -307,6 +308,11 @@ module dev::QiaraRanksV38{
         (gas_fee_reduction, xp_increased, used_ref_code)
 
     }
+
+//50000000
+//50000000
+//50000000
+//50000000
 
     #[view]
     public fun calculate_actual_ref_code_taxes_from_shared(ref_code_gas_tax: u64, ref_code_xp_tax: u64): (u64, u64) {
@@ -360,52 +366,19 @@ module dev::QiaraRanksV38{
         return deduction_percentage
     }
     fun calculate_ltv_increase(power: u8): u256{
-        
-        if (power==10){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  15_000_000
-        };
-
-        if (power==13){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  22_500_000
-        };
-
-        if (power==15){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  30_000_000
-        };
-
-        
-        if(power>=2){ // minimum rank to have ltv increase is Gold (power 3)
-            return 0
-        };
+    
+        let deducted = 2 * return_ltv_increase_per_power();
         let deduction_percentage = (power as u256) * return_ltv_increase_per_power(); // each rank power gives 5% fee deduction
-        return deduction_percentage
+        return deduction_percentage-deducted
     }
     fun calculate_withdrawal_over_limit(power: u8): u256{
 
-        if (power==10){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  10_000_000
-        };
-
-        if (power==13){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  15_000_000
-        };
-
-        if (power==15){ // minimum rank to have ltv increase is Emerald (power 1)
-            return  20_000_000
-        };
-
-        if(power>=4){ // minimum rank to have ltv increase is Emerald (power 5)
-            return 0
-        };
+        let deducted = 4 * return_ltv_increase_per_power();
 
         let deduction_percentage = (power as u256) * return_withdrawal_over_limit_per_power(); // each rank power gives 5% fee deduction
-        return deduction_percentage
+        return deduction_percentage-deducted
     }
     fun calculate_increased_qburned_reward_rate(power: u8): u256{
-        if(power>=1){ // minimum rank to have ltv increase is Emerald (power 2)
-            return 0
-        };
-
         let increased_qburned_reward_rate = (power as u256) * return_increased_qburned_reward_rate_per_power(); // each rank power gives 5% fee deduction
         return increased_qburned_reward_rate
     }
@@ -417,6 +390,9 @@ module dev::QiaraRanksV38{
 //100000000000000000000000000
 //100000000000000000000000000
 //1000000000000000000
+
+//317999682000000000000000000
+//72590400000000000000000000
     #[view]
     public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
         let days = (((timestamp::now_seconds() - first_interaction) / 86400) as u256);
@@ -483,9 +459,9 @@ module dev::QiaraRanksV38{
         } else if (rank == utf8(b"VIP I")){
             return 10
         } else if (rank == utf8(b"VIP II")){
-            return 13
+            return 12
         } else if (rank == utf8(b"VIP III")){
-            return 15
+            return 14
         } else {
             return 7
         }

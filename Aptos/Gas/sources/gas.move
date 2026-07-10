@@ -251,7 +251,7 @@ module dev::QiaraGasV11{
         return total_fee
     }
 
-    #[view]
+#[view]
     public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): (u256, u256) acquires Gas {
         let gas_state = borrow_global<Gas>(@dev);
         let now = timestamp::now_seconds();
@@ -268,16 +268,16 @@ module dev::QiaraGasV11{
         let current_index = gas_state.global_gas_index + (gas_state.gas * elapsed);
         
         if (current_index <= user_last_index) {
-            return (0,0)
+            return (0, 0)
         };
         
         let index_diff = current_index - user_last_index;
         
         // 3. Compute the final fee
-        let total_fee = (amount * index_diff) / 1_000_000 / 100;
+        // Division by 100_000_000 (8-decimal percentage scale) and 31_536_000 (seconds per year) [3]
+        let total_fee = (amount * index_diff) / 100_000_000 / 31_536_000;
         return (total_fee, current_index)
     }
-
     #[view]
     public fun return_gas(): Gas acquires Gas{
         return *borrow_global<Gas>(@dev)
