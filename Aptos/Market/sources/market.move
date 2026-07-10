@@ -452,7 +452,6 @@ module dev::QiaraVaultsV55 {
         let amount_u256 = (amount as u256)*1000000000000000000;
         let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -462,6 +461,7 @@ module dev::QiaraVaultsV55 {
         if(amount_u256_taxed == 0) { return };
 
 
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
         Liquidity::deposit_token(token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));

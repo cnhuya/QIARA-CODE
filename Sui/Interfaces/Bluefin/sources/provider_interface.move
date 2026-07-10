@@ -11,7 +11,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
     use sui::event;
     use sui::bcs;
     use sui::clock::{Self, Clock}; 
-    use sui::hash; // Added hash import [2]
+    use sui::hash; 
     
     use Qiara::QiaraDelegatorV1::{Self as delegator, AdminCap, Vault, SupportedTokenKey, Nullifiers, ProviderManager};
     use Qiara::QiaraEventsV1::{Self as Event};
@@ -30,15 +30,28 @@ module 0x0::QiaraBluefinInterfaceV1 {
 
     const PROVIDER_NAME: vector<u8> = b"Bluefin";
 
-    // --- Range Constants [1] ---
+    // --- Range Constants ---
     const MIN_RATE: u64 = 2_750_000;
     const MAX_RATE: u64 = 11_275_000;
 
-    /// This key is native to THIS module.
-    /// Only this module can add/borrow/remove DFs using this key type.
+    /// Key for allowance tracking
     public struct AllowanceKey has copy, drop, store { 
         user: address, 
         token_type: TypeName 
+    }
+
+    // === NEW ACCRUAL DYNAMIC FIELD KEYS === [1]
+    
+    /// Key mapping a user to their active compounded balance
+    public struct UserBalanceKey has copy, drop, store {
+        user: address,
+        token_type: TypeName
+    }
+
+    /// Key mapping a user to their last interaction timestamp (in seconds)
+    public struct LastInteractedKey has copy, drop, store {
+        user: address,
+        token_type: TypeName
     }
 
     // --- Initialization ---
@@ -47,6 +60,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
     }
 
     // --- User Functions ---
+    
     public entry fun deposit<T>(
         vault: &mut Vault, 
         mut coin: Coin<T>, 
@@ -58,10 +72,16 @@ module 0x0::QiaraBluefinInterfaceV1 {
     ) {
         let sender = tx_context::sender(ctx);
         
-        // 1. Safety Check: Ensure the coin has enough balance
+        // 1. Ensure the coin has enough balance
         assert!(coin::value(&coin) >= amount, EInsufficientBalance);
 
-        // 2. Handle the amount splitting
+        // 2. Generate the pseudo-random APR rate
+        let rate = get_pseudo_random_range(clock, ctx);
+
+        // 3. Accrue pending rewards on existing balance [1, 2]
+        let rewards = accrue_user_yield<T>(vault, sender, rate, clock);
+
+        // 4. Handle the amount splitting
         let deposit_coin = if (coin::value(&coin) == amount) {
             coin
         } else {
@@ -70,13 +90,31 @@ module 0x0::QiaraBluefinInterfaceV1 {
             split_off
         };
 
-        // 3. Hand over the balance to the Delegator
+        // 5. Hand over the balance to the Delegator
         delegator::increase_reserve<T>(vault, deposit_coin);
 
-        // 4. Generate the pseudo-random rate [1, 2]
-        let rate = get_pseudo_random_range(clock, ctx);
+        // 6. Update user's compounded balance and last interaction timestamp [1]
+        let token_type = type_name::get<T>();
+        let balance_key = UserBalanceKey { user: sender, token_type };
+        let time_key = LastInteractedKey { user: sender, token_type };
+        let vault_uid_mut = delegator::borrow_id_mut(vault);
+        let current_time_seconds = clock::timestamp_ms(clock) / 1000;
 
-        // 5. Emit the event including the rate [1, 2]
+        if (df::exists_(vault_uid_mut, balance_key)) {
+            let current_balance = df::borrow_mut<UserBalanceKey, u64>(vault_uid_mut, balance_key);
+            *current_balance = *current_balance + amount + rewards;
+        } else {
+            df::add(vault_uid_mut, balance_key, amount + rewards);
+        };
+
+        if (df::exists_(vault_uid_mut, time_key)) {
+            let last_time = df::borrow_mut<LastInteractedKey, u64>(vault_uid_mut, time_key);
+            *last_time = current_time_seconds;
+        } else {
+            df::add(vault_uid_mut, time_key, current_time_seconds);
+        };
+
+        // 7. Emit the event including rate and newly accrued rewards [1, 2]
         let mut data = vector[
             Event::create_data_struct(std::string::utf8(b"sender"), std::string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"string"), bcs::to_bytes(&addr)),
@@ -85,6 +123,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&std::string::utf8(PROVIDER_NAME))),
             Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
             Event::create_data_struct(std::string::utf8(b"rate"), std::string::utf8(b"u64"), bcs::to_bytes(&rate)),
+            Event::create_data_struct(std::string::utf8(b"rewards"), std::string::utf8(b"u64"), bcs::to_bytes(&rewards)), // ✅ Added rewards
         ];
 
         Event::emit_event(clock, std::string::utf8(b"Deposit"), data);
@@ -105,7 +144,17 @@ module 0x0::QiaraBluefinInterfaceV1 {
         Event::emit_event(clock,string::utf8(b"Modular Withdraw"), data);
     }
 
-    public entry fun direct_withdraw<T>(vault: &mut Vault, state: &ValidatorState, manager: &ProviderManager, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>, signatures: vector<vector<u8>>,clock: &sui::clock::Clock,ctx: &mut TxContext) {
+    public entry fun direct_withdraw<T>(
+        vault: &mut Vault, 
+        state: &ValidatorState, 
+        manager: &ProviderManager, 
+        nullifiers: &mut Nullifiers, 
+        public_inputs: vector<u8>,
+        proof_points: vector<u8>, 
+        signatures: vector<vector<u8>>,
+        clock: &sui::clock::Clock,
+        ctx: &mut TxContext
+    ) {
         let (user_address, amount, _nullifier, proof_provider_name) = delegator::grant_permission<T>(
             manager, 
             state, 
@@ -118,6 +167,36 @@ module 0x0::QiaraBluefinInterfaceV1 {
         assert!(delegator::provider_name(vault) == proof_provider_name, EWrongProviderProvided);
         assert!(delegator::is_token_supported<T>(vault), ENotSupported);
 
+        // 1. Accrue pending interest on withdrawal [1, 2]
+        let rate = get_pseudo_random_range(clock, ctx);
+        let rewards = accrue_user_yield<T>(vault, user_address, rate, clock);
+
+        // 2. Reduce their balance and update checkpoints [1]
+        let token_type = type_name::get<T>();
+        let balance_key = UserBalanceKey { user: user_address, token_type };
+        let time_key = LastInteractedKey { user: user_address, token_type };
+        let vault_uid_mut = delegator::borrow_id_mut(vault);
+        let current_time_seconds = clock::timestamp_ms(clock) / 1000;
+
+        assert!(df::exists_(vault_uid_mut, balance_key), EInsufficientBalance);
+        
+        let previous_balance = *df::borrow<UserBalanceKey, u64>(vault_uid_mut, balance_key);
+        let total_available = previous_balance + rewards;
+        assert!(total_available >= amount, EInsufficientBalance);
+
+        // Deduct amount
+        let current_balance = df::borrow_mut<UserBalanceKey, u64>(vault_uid_mut, balance_key);
+        *current_balance = total_available - amount;
+
+        // Reset timestamp checkpoint
+        if (df::exists_(vault_uid_mut, time_key)) {
+            let last_time = df::borrow_mut<LastInteractedKey, u64>(vault_uid_mut, time_key);
+            *last_time = current_time_seconds;
+        } else {
+            df::add(vault_uid_mut, time_key, current_time_seconds);
+        };
+
+        // 3. Decrease reserve and execute physical transfer
         let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
         
         transfer::public_transfer(
@@ -130,11 +209,44 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
             Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
             Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(std::string::utf8(b"rewards"), std::string::utf8(b"u64"), bcs::to_bytes(&rewards)), // ✅ Added rewards
         ];
         Event::emit_event(clock,std::string::utf8(b"DirectWithdraw"), data);
     }
 
     // --- Internal Helpers ---
+
+    /// Calculates and returns accrued interest on existing balances using dynamic fields [1, 2]
+    fun accrue_user_yield<T>(
+        vault: &mut Vault, 
+        user: address, 
+        rate: u64, 
+        clock: &Clock
+    ): u64 {
+        let token_type = type_name::get<T>();
+        let balance_key = UserBalanceKey { user, token_type };
+        let time_key = LastInteractedKey { user, token_type };
+        
+        let vault_uid_mut = delegator::borrow_id_mut(vault);
+        let current_time_seconds = clock::timestamp_ms(clock) / 1000;
+
+        let rewards = 0;
+
+        if (df::exists_(vault_uid_mut, balance_key) && df::exists_(vault_uid_mut, time_key)) {
+            let last_time = *df::borrow<LastInteractedKey, u64>(vault_uid_mut, time_key);
+            let previous_balance = *df::borrow<UserBalanceKey, u64>(vault_uid_mut, balance_key);
+
+            if (previous_balance > 0 && current_time_seconds > last_time) {
+                let elapsed = current_time_seconds - last_time;
+                // Interest = (Balance * APR * elapsed) / (10^8 percentage scale * seconds per year) [3]
+                let scale: u128 = 100_000_000;
+                let seconds_per_year: u128 = 31_536_000;
+                rewards = (((previous_balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_year) as u64);
+            };
+        };
+
+        rewards
+    }
 
     /// Generates a pseudo-random range from clock and transaction digest details [1, 2]
     fun get_pseudo_random_range(clock: &Clock, ctx: &TxContext): u64 {
