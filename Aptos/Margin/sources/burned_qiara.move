@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV36 {
+module dev::QiaraBurnedQiaraV37 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -15,11 +15,11 @@ module dev::QiaraBurnedQiaraV36 {
     use std::string::{Self as string, String, utf8};
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraSharedV14::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV38::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV38::{Self as TokensQiara};
-    use dev::QiaraStorageV17::{Self as storage};
-    use dev::QiaraRanksV36::{Self as Ranks};
+    use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraTokensCoreV39::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV39::{Self as TokensQiara};
+    use dev::QiaraStorageV18::{Self as storage};
+    use dev::QiaraRanksV37::{Self as Ranks};
 
     use event::QiaraEventV1::{Self as Event};
 // === CONSTANTS === //
