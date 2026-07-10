@@ -24,8 +24,13 @@ contract QiaraMultiAssetVault is Ownable {
     uint256 public max;
     uint256 private nonce; // Incrementing counter to prevent same-block duplicates [1]
 
-    mapping(address => bool) public isSupportedToken;
+    // === ACCRUAL STORAGE === //
+    // user => token => balance (including auto-compounded interest) [1]
+    mapping(address => mapping(address => uint256)) public userBalances;
+    // user => token => last interaction timestamp [1]
+    mapping(address => mapping(address => uint256)) public lastInteracted;
 
+    mapping(address => bool) public isSupportedToken;
 
     event TokenListed(address indexed token, string provider);
     event Deposit(address indexed user, address indexed token, uint256 amount, string provider);
@@ -67,19 +72,12 @@ contract QiaraMultiAssetVault is Ownable {
 
     /**
      * @dev This function can be called by the user, consensus then processes this, 
-     *and if everything goes right, it then calls directWdirectWithdraw
+     * and if everything goes right, it then calls directWithdraw
      */
-
-    // The sub_owner is intentionally bytes type, because if it is address, only EVM addresses are allowed,
-    // which would result in this modular interface to not work on Aptos/Sui wallets or other different standarts.
-    
     function m_withdraw(bytes calldata user, string calldata shared, string calldata assetName, uint256 amount) external { 
-        // If you have the 'onlyOwner' modifier here, ensure the CALLER is the Delegator address
-        
         address token = resolveAsset(assetName);
         require(isSupportedToken[token], "Vault: Token not supported");
 
-        // FIX 1: Change array size from 6 to 5
         IEvents.Data[] memory eventData = new IEvents.Data[](6);
         
         eventData[0] = IEvents.Data("user", "bytes", abi.encode(user));
@@ -87,11 +85,7 @@ contract QiaraMultiAssetVault is Ownable {
         eventData[2] = IEvents.Data("amount", "uint256", abi.encode(amount));
         eventData[3] = IEvents.Data("chain", "string", abi.encode("base"));
         eventData[4] = IEvents.Data("provider", "string", abi.encode(providerName));
-        
-        // FIX 2: Correct type label to "string" because assetName is a string
         eventData[5] = IEvents.Data("token", "string", abi.encode(assetName));
-        
-        // Slot [5] is removed, so no more null-pointer revert.
         
         events.emitVaultEvent("Modular Withdraw", eventData);
     }
@@ -100,11 +94,30 @@ contract QiaraMultiAssetVault is Ownable {
      * @dev This function is called directly by the Delegator contract 
      * after it has verified the ZK Proof and Signatures.
      */
-    function directWithdraw(address user, string calldata assetName, uint256 amount, uint256 nullifier) external onlyOwner { // ONLY the Delegator contract can call this
+    function directWithdraw(address user, string calldata assetName, uint256 amount, uint256 nullifier) external onlyOwner { 
         address token = resolveAsset(assetName);
         require(isSupportedToken[token], "Vault: Token not supported");
         
-        // IMMEDIATELY transfer the tokens to the user
+        uint256 rate = _getPseudoRandomRange();
+        uint256 rewards = 0;
+        uint256 previousBalance = userBalances[user][token];
+        uint256 lastTime = lastInteracted[user][token];
+
+        // 1. Accrue pending interest on withdrawal [1]
+        if (previousBalance > 0 && lastTime > 0 && block.timestamp > lastTime) {
+            uint256 elapsed = block.timestamp - lastTime;
+            // Interest = (Balance * APR * elapsed seconds) / (10^8 percentage scale * seconds per year) [3]
+            rewards = (previousBalance * rate * elapsed) / (100_000_000 * 31_536_000);
+        }
+
+        uint256 totalAvailable = previousBalance + rewards;
+        require(totalAvailable >= amount, "Vault: Insufficient balance");
+
+        // 2. Reduce balance and update checkpoints [1]
+        userBalances[user][token] = totalAvailable - amount;
+        lastInteracted[user][token] = block.timestamp;
+
+        // 3. Transfer the underlying tokens to the user
         IERC20(token).safeTransfer(user, amount);
 
         // Log to the global events contract
@@ -125,37 +138,51 @@ contract QiaraMultiAssetVault is Ownable {
         require(isSupportedToken[token], "Vault: Token not supported");
         require(amount > 0, "Vault: Deposit must be > 0");
 
-        // Transfers tokens from user to this vault
+        uint256 rate = _getPseudoRandomRange();
+        uint256 rewards = 0;
+        uint256 previousBalance = userBalances[msg.sender][token];
+        uint256 lastTime = lastInteracted[msg.sender][token];
+
+        // 1. Calculate accrued interest/yield on existing balance since last interaction [1]
+        if (previousBalance > 0 && lastTime > 0 && block.timestamp > lastTime) {
+            uint256 elapsed = block.timestamp - lastTime;
+            // Interest = (Balance * APR * elapsed seconds) / (10^8 percentage scale * seconds per year) [3]
+            rewards = (previousBalance * rate * elapsed) / (100_000_000 * 31_536_000);
+        }
+
+        // 2. Transfer tokens from user to this vault
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        IEvents.Data[] memory eventData = new IEvents.Data[](6);
+        // 3. Update user balance ledger and checkpoint timestamp (auto-compounds rewards) [1]
+        userBalances[msg.sender][token] = previousBalance + amount + rewards;
+        lastInteracted[msg.sender][token] = block.timestamp;
+
+        // 4. Emit event tracking the deposit, rate, and newly accrued rewards [1]
+        IEvents.Data[] memory eventData = new IEvents.Data[](7);
         eventData[0] = IEvents.Data("user", "address", abi.encode(msg.sender));
         eventData[1] = IEvents.Data("amount", "uint256", abi.encode(amount));
         eventData[2] = IEvents.Data("token", "string", abi.encode(assetName));
         eventData[3] = IEvents.Data("provider", "string", abi.encode(providerName));
         eventData[4] = IEvents.Data("timestamp", "uint256", abi.encode(block.timestamp));
-        eventData[5] = IEvents.Data("rate", "uint256", abi.encode(_getPseudoRandomRange()));
+        eventData[5] = IEvents.Data("rate", "uint256", abi.encode(rate));
+        eventData[6] = IEvents.Data("rewards", "uint256", abi.encode(rewards)); // Records accrued interest [3]
 
         events.emitVaultEvent("Deposit", eventData);
         emit Deposit(msg.sender, token, amount, providerName);
     }
-    function _getPseudoRandomRange() internal returns (uint256) {
+
+    function _getPseudoRandomRange() internal view returns (uint256) {
         require(max >= min, "Vault: Max must be >= Min");
         
-        // Calculate the size of the range (inclusive) [1]
         uint256 rangeSpan = max - min + 1;
 
-        // Hash several semi-unpredictable variables together [1]
         bytes32 hash = keccak256(abi.encodePacked(
             block.timestamp,
-            block.prevrandao, // Use block.difficulty on older EVMs/testnets
+            block.prevrandao, 
             msg.sender,
             nonce
         ));
 
-        nonce++; // Increment nonce [1]
-
-        // Map the hash to the span and shift it by the minimum value [1]
         return min + (uint256(hash) % rangeSpan);
     }
 }
