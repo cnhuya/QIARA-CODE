@@ -1,4 +1,4 @@
-module dev::QiaraPerpsOrdersV31 {
+module dev::QiaraPerpsOrdersV32 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::table::{Self, Table};
@@ -6,7 +6,7 @@ module dev::QiaraPerpsOrdersV31 {
     use aptos_std::bcs;
     use std::timestamp;
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraSharedV14::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_ID_OUT_OF_BOUNDS: u64 = 1;

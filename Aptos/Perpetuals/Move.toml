@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV31"
+    name = "QiaraPerpsV32"
     version = "2.1.1"
     authors = []
 
@@ -29,37 +29,37 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraTokensV38]
+    [dependencies.QiaraTokensV39]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV38]
+    [dependencies.QiaraTypesV39]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV36]
+    [dependencies.QiaraMarginV37]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraLiquidityV50]
+    [dependencies.QiaraLiquidityV51]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Liquidity'
 
-    [dependencies.QiaraSharedV14]
+    [dependencies.QiaraSharedV15]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'
 
-    [dependencies.QiaraStorageV17]
+    [dependencies.QiaraStorageV18]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV51]
+    [dependencies.QiaraVaultsV52]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
