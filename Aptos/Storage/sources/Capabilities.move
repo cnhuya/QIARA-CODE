@@ -1,4 +1,4 @@
-module dev::QiaraCapabilitiesV17 {
+module dev::QiaraCapabilitiesV18 {
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
@@ -7,7 +7,7 @@ module dev::QiaraCapabilitiesV17 {
     use aptos_std::type_info;
     use aptos_std::from_bcs;
     use std::bcs::{Self as bc};
-    use dev::QiaraSharedV14::{Self as Shared};
+    use dev::QiaraSharedV15::{Self as Shared};
 
     struct Access has key, store, drop { }
     struct Permission has key, drop { }
