@@ -164,7 +164,9 @@ module dev::QiaraWrapperGateV41 {
 
         let cap = table::borrow(&global_caps.caps, unwrapped_address);
         let unwrapped_metadata = fungible_asset::asset_metadata(&unwrapped_fa);
-        assert!(object::object_address(&unwrapped_metadata) == unwrapped_address, ERROR_INVALID_UNWRAPPED_TOKEN);
+        
+        // FIXED: Check metadata object equality directly to resolve randomized sticky AUID mismatch
+        assert!(unwrapped_metadata == cap.metadata, ERROR_INVALID_UNWRAPPED_TOKEN);
 
         // 2. Burn the standard unwrapped FA
         fungible_asset::burn(&cap.burn_ref, unwrapped_fa);
@@ -184,7 +186,6 @@ module dev::QiaraWrapperGateV41 {
     public entry fun unwrap_custom_token(signer: &signer,shared: String,custom_token: String,chain: String,provider: String,amount: u64) acquires GlobalUnwrappedCapabilities, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         
-        // FIXED: Extract the permission struct inside a localized scope block to drop reference to Permissions
         let shared_access_perm = {
             let perms = borrow_global<Permissions>(@dev);
             Shared::give_permission(&perms.shared_access)
@@ -193,7 +194,6 @@ module dev::QiaraWrapperGateV41 {
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), shared_access_perm);
         let custom_fa = TokensCore::withdraw(shared, user_shared_store, amount, chain);
 
-        // Now safe to call unwrap_to_standard_fa which acquires Permissions
         let unwrapped_fa = unwrap_to_standard_fa(shared, custom_token, chain, provider, custom_fa);
 
         let unwrapped_metadata = fungible_asset::asset_metadata(&unwrapped_fa);
@@ -219,13 +219,11 @@ module dev::QiaraWrapperGateV41 {
         let user_storage = primary_fungible_store::primary_store(signer::address_of(signer), cap.metadata);
         let unwrapped_fa = fungible_asset::withdraw(signer, user_storage, amount);
 
-        // FIXED: Extract the permission struct inside a localized scope block to drop reference to Permissions
         let shared_access_perm = {
             let perms = borrow_global<Permissions>(@dev);
             Shared::give_permission(&perms.shared_access)
         };
 
-        // Now safe to call wrap_standard_fa which acquires Permissions
         let custom_fa = wrap_standard_fa(shared, custom_token, chain, provider, unwrapped_fa);
 
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), shared_access_perm);

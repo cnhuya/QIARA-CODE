@@ -91,19 +91,18 @@ module dev::QiaraVaultsV58 {
         token_vaults: TokenVaultsAccess,
         margin: MarginAccess,
         points: PointsAccess,
-        tokens_omnichain: TokensOmnichainAccess,
         tokens_core: TokensCoreAccess,
         tokens_metadata: TokensMetadataAccess,
         storage: StorageAccess,
         capabilities: CapabilitiesAccess,
         gas: GasAccess,
-        shared: SharedAccess
+        shared_access: SharedAccess
     }
 
 // === FUNCTIONS === //
     fun init_module(admin: &signer){
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {shared: Shared::give_access(admin), gas: Gas::give_access(admin), token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
+            move_to(admin, Permissions {shared_access: Shared::give_access(admin), gas: Gas::give_access(admin), token_vaults: TokenVaults::give_access(admin), liquidity: Liquidity::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_core: TokensCore::give_access(admin),tokens_metadata: TokensMetadata::give_access(admin), storage:  storage::give_access(admin), capabilities:  capabilities::give_access(admin)});
         };
     }
 
@@ -123,7 +122,7 @@ module dev::QiaraVaultsV58 {
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
 
-        Liquidity::admin_accrue_rewards_from_lz(token, chain, reward, lend_rate, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liqudity));
+        Liquidity::admin_accrue_rewards_from_lz(token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
@@ -177,9 +176,9 @@ module dev::QiaraVaultsV58 {
     }
 
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
-    public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
+    public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, reward: u64,permission: Permission) acquires Permissions {
         let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        Liquidity::admin_accrue_rewards_from_lz(token, chain, reward, lend_rate, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liqudity));
+        Liquidity::admin_accrue_rewards_from_lz(token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         let amount_u256 = (amount as u256)*1000000000000000000;
         
@@ -242,7 +241,7 @@ module dev::QiaraVaultsV58 {
     }
 
     // Recipient needs to be address here, in case permissioneless user wants to borrow to existing Supra wallet.
-    public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
+    public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, reward: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -257,7 +256,7 @@ module dev::QiaraVaultsV58 {
 
         Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
     
-        Liquidity::admin_accrue_rewards_from_lz(token, chain, reward, lend_rate, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liqudity));
+        Liquidity::admin_accrue_rewards_from_lz(token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         let storage = Liquidity::return_storage(token, chain, provider);
         let storage_address_string = non_user_storage_helper(&storage);
@@ -1153,6 +1152,8 @@ module dev::QiaraVaultsV58 {
             let fa = TokensCore::withdraw(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token)), (interest as u64), chain);
 
             // UPGRADE: Deposit interest/yield directly into vault storage (Do not mint LP shares for yield payments)
+            let storage = Liquidity::return_storage(token, chain, provider);
+            let storage_address_string = non_user_storage_helper(&storage);
             TokensCore::deposit(storage_address_string, storage, fa, chain);
 
             Liquidity::add_deposit(token, chain, provider, (interest as u256), Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -1221,7 +1222,7 @@ module dev::QiaraVaultsV58 {
         let price = TokensMetadata::get_coin_metadata_price(&metadata);
         
         //let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
-        let (qiara_base_apr, provider_native_apr, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization, (native_chain_lend_apr / 4) as u256);
+        let (qiara_base_apr, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
 
         let current_time = timestamp::now_seconds();
         let time_diff = current_time - last_update;
