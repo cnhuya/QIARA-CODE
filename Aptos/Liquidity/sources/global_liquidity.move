@@ -730,7 +730,7 @@ module dev::QiaraLiquidityV55 {
     }
 
     #[view]
-    public fun return_vaults(tokens: vector<String>): Map<String, Map<String, Map<String, FullVault>>> acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_vaults(tokens: vector<String>): Map<String, Map<String, Map<String, FullVault>>> acquires GlobalVault {
         let vaults = borrow_global<GlobalVault>(@dev);
         let map = map::new<String, Map<String, Map<String, FullVault>>>();
         let len = vector::length(&tokens);
@@ -836,13 +836,18 @@ module dev::QiaraLiquidityV55 {
             // ==========================================
             // NEW: Initialize LP Fungible Asset Token
             // ==========================================
+// ==========================================
+            // NEW: Initialize LP Fungible Asset Token
+            // ==========================================
             let lp_seed = *String::bytes(&token);
             vector::append(&mut lp_seed, *String::bytes(&chain));
             vector::append(&mut lp_seed, *String::bytes(&provider));
             vector::append(&mut lp_seed, b"-LP");
 
             let lp_random_address = account::create_resource_address(&@dev, lp_seed);
-            let lp_constructor_ref = object::create_object(lp_random_address);
+            
+            // FIXED: Change from create_object to create_sticky_object to make it non-deletable
+            let lp_constructor_ref = object::create_sticky_object(lp_random_address); 
 
             // Dynamically construct LP Token Name & Symbol based on underlying token
             let name_bytes = b"Qiara LP ";
