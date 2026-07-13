@@ -16,12 +16,11 @@ module dev::QiaraLiquidityV58 {
 
     use dev::QiaraTokensMetadataV41::{Self as TokensMetadata};
     use dev::QiaraTokensCoreV41::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensRatesV41::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV41::{Self as TokensTiers};
 
-    use dev::QiaraMarginV42::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV42::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV42::{Self as BurnedQiara};
+    use dev::QiaraMarginV43::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV43::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV43::{Self as BurnedQiara};
     use dev::QiaraSharedV15::{Self as Shared};
     use dev::QiaraChainTypesV41::{Self as ChainTypes};
     use dev::QiaraProviderTypesV41::{Self as ProviderTypes};
@@ -52,7 +51,6 @@ module dev::QiaraLiquidityV58 {
     struct Permissions has key, store, drop {
         margin: MarginAccess,
         points: PointsAccess,
-        tokens_rates: TokensRatesAccess,
         tokens_core: TokensCoreAccess,
     }
 
@@ -99,7 +97,6 @@ module dev::QiaraLiquidityV58 {
 
     struct Data has key, store, copy, drop {
         utilization: u256,
-        native_provider_apr: u256,
         qiara_native_apr: u256,
         final_lend_rate: u256,
         final_borrow_rate: u256
@@ -131,7 +128,7 @@ module dev::QiaraLiquidityV58 {
             move_to(admin, GlobalLPCapabilities { caps: table::new<address, LPCapabilities>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
 
         initialize_all_registered_vaults(admin);
@@ -642,10 +639,10 @@ module dev::QiaraLiquidityV58 {
 
 // === PUBLIC VIEWS === //
     #[view]
-    public fun return_raw_data_vault(token: String, chain: String,provider: String): (u256,u256,u256,u256,u256) acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_raw_data_vault(token: String, chain: String,provider: String): (u256,u256,u256,u256) acquires GlobalVault, GlobalLPCapabilities {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         let data = get_vault_data(token, chain, provider, vault);
-        return (data.utilization, data.native_provider_apr, data.qiara_native_apr, data.final_lend_rate, data.final_borrow_rate)
+        return (data.utilization,  data.qiara_native_apr, data.final_lend_rate, data.final_borrow_rate)
     }
 
     #[view]
@@ -790,10 +787,10 @@ module dev::QiaraLiquidityV58 {
     }
 
     #[view]
-    public fun calculate_minimal_apr(id: u8, utilization: u256, provider_native_apr: u256): (u256, u256, u256, u256) {
+    public fun calculate_minimal_apr(id: u8, utilization: u256): (u256, u256, u256) {
         utilization = utilization / 10000;
         let utilx5 = (utilization * utilization * utilization * utilization);
-        let qiara_base_apr = (TokensTiers::market_base_lending_apr(id) as u256) + provider_native_apr;
+        let qiara_base_apr = (TokensTiers::market_base_lending_apr(id) as u256);
         let slashing = 1_000_000_000;
         if (id == 254) {
             slashing = slashing - 100_000_000;
@@ -806,7 +803,7 @@ module dev::QiaraLiquidityV58 {
         let x = (qiara_base_apr * (utilx5)) / 1_000_000;
         let final_apr = (x / slashing) + qiara_base_apr;
         let borrow_apr = (final_apr * ((utilization) / 50)) / 100 + final_apr;
-        return (qiara_base_apr, provider_native_apr, final_apr, borrow_apr)
+        return (qiara_base_apr, final_apr, borrow_apr)
     }
 
 // === MUT RETURNS === //
@@ -927,17 +924,12 @@ module dev::QiaraLiquidityV58 {
             0 
         );
         
-        let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
         
-        let (qiara_base_apr, _, final_lend_rate, final_borrow_rate) = calculate_minimal_apr(
-            id,
-            utilization,
-            ((native_chain_lend_apr / 4) as u256)
+        let (qiara_base_apr,final_lend_rate, final_borrow_rate) = calculate_minimal_apr(id,utilization,
         );
         
         Data {
             utilization: (utilization),
-            native_provider_apr: (native_chain_lend_apr as u256),
             qiara_native_apr: (qiara_base_apr),
             final_lend_rate: (final_lend_rate),
             final_borrow_rate: (final_borrow_rate)

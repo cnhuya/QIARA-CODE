@@ -16,7 +16,6 @@ module dev::QiaraTokenVaultsV58{
 
     use dev::QiaraTokensMetadataV41::{Self as TokensMetadata};
     use dev::QiaraTokensCoreV41::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensRatesV41::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV41::{Self as TokensTiers};
 
     use dev::QiaraMarginV43::{Self as Margin, Access as MarginAccess};
@@ -45,7 +44,6 @@ module dev::QiaraTokenVaultsV58{
     struct Permissions has key, store, drop {
         margin: MarginAccess,
         points: PointsAccess,
-        tokens_rates: TokensRatesAccess,
         tokens_core: TokensCoreAccess,
     }
 
@@ -65,7 +63,7 @@ module dev::QiaraTokenVaultsV58{
             move_to(admin, GlobalVault { additional_rewards: map::new<String, u256>(),protocol_reserves: map::new<String, u256>(),protocol_revenue: map::new<String, u256>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_rates:  TokensRates::give_access(admin), tokens_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin),  tokens_core: TokensCore::give_access(admin)});
         };
     }
 
