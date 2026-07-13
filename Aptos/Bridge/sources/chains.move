@@ -741,12 +741,10 @@ module dev::QiaraBridgeV44{
             if (event_type == utf8(b"Bridge Deposit")) {
                 // Handle Deposit specific logic here
                 let (receiver, x, shared, symbol, chain, provider, amount, rate, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                //tttta(0);
+                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
                 TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, rate, TokensCore::give_permission(&cap.tokens_core));
-                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
-                if(provider != utf8(b"none")) {
-                    Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
-                }
+
 
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (name, user, synbol, chain, provider, amount, receiver) = Payload::prepare_modular_withdraw(type_names, payload);

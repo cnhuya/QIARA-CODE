@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV55 {
+module dev::QiaraLiquidityV56 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -19,9 +19,9 @@ module dev::QiaraLiquidityV55 {
     use dev::QiaraTokensRatesV39::{Self as TokensRates, Access as TokensRatesAccess};
     use dev::QiaraTokensTiersV39::{Self as TokensTiers};
 
-    use dev::QiaraMarginV40::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV40::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV40::{Self as BurnedQiara};
+    use dev::QiaraMarginV41::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV41::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV41::{Self as BurnedQiara};
     use dev::QiaraSharedV15::{Self as Shared};
     use dev::QiaraChainTypesV39::{Self as ChainTypes};
     use dev::QiaraProviderTypesV39::{Self as ProviderTypes};
@@ -196,7 +196,7 @@ module dev::QiaraLiquidityV55 {
 
         let credit_value = TokensMetadata::getValue(token, credits);
         let amount_u256 = credit_value*1000000000000000000;
-        let (deposited, borrowed, _, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (deposited, borrowed, _, _, _, _, _, _, _, _, _, _, _,_, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
         assert!(deposited > amount_u256, ERROR_INSUFFICIENT_BALANCE);
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
         let current_time = timestamp::now_seconds();
