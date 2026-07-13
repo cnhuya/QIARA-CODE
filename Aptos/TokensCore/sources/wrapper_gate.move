@@ -1,4 +1,4 @@
-module dev::QiaraWrapperGateV39 {
+module dev::QiaraWrapperGateV40 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -10,7 +10,7 @@ module dev::QiaraWrapperGateV39 {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
 
-    use dev::QiaraTokensCoreV39::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensCoreV40::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
 
 // === ERRORS === //
@@ -183,11 +183,17 @@ module dev::QiaraWrapperGateV39 {
     /// and deposits the unwrapped standard FA into the user's native wallet.
     public entry fun unwrap_custom_token(signer: &signer,shared: String,custom_token: String,chain: String,provider: String,amount: u64) acquires GlobalUnwrappedCapabilities, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        let perms = borrow_global<Permissions>(@dev);
         
-        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), Shared::give_permission(&perms.shared_access));
+        // FIXED: Extract the permission struct inside a localized scope block to drop reference to Permissions
+        let shared_access_perm = {
+            let perms = borrow_global<Permissions>(@dev);
+            Shared::give_permission(&perms.shared_access)
+        };
+        
+        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), shared_access_perm);
         let custom_fa = TokensCore::withdraw(shared, user_shared_store, amount, chain);
 
+        // Now safe to call unwrap_to_standard_fa which acquires Permissions
         let unwrapped_fa = unwrap_to_standard_fa(shared, custom_token, chain, provider, custom_fa);
 
         let unwrapped_metadata = fungible_asset::asset_metadata(&unwrapped_fa);
@@ -199,7 +205,6 @@ module dev::QiaraWrapperGateV39 {
     /// and deposits the wrapped custom tokens into their shared storage.
     public entry fun wrap_standard_token(signer: &signer,shared: String,custom_token: String,chain: String,provider: String,amount: u64) acquires GlobalUnwrappedCapabilities, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        let perms = borrow_global<Permissions>(@dev);
 
         let seed = *string::bytes(&custom_token);
         vector::append(&mut seed, *string::bytes(&chain));
@@ -214,9 +219,16 @@ module dev::QiaraWrapperGateV39 {
         let user_storage = primary_fungible_store::primary_store(signer::address_of(signer), cap.metadata);
         let unwrapped_fa = fungible_asset::withdraw(signer, user_storage, amount);
 
+        // FIXED: Extract the permission struct inside a localized scope block to drop reference to Permissions
+        let shared_access_perm = {
+            let perms = borrow_global<Permissions>(@dev);
+            Shared::give_permission(&perms.shared_access)
+        };
+
+        // Now safe to call wrap_standard_fa which acquires Permissions
         let custom_fa = wrap_standard_fa(shared, custom_token, chain, provider, unwrapped_fa);
 
-        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), Shared::give_permission(&perms.shared_access));
+        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(custom_token), shared_access_perm);
         TokensCore::deposit(shared, user_shared_store, custom_fa, chain);
     }
 }

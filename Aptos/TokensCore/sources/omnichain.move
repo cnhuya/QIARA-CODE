@@ -1,4 +1,4 @@
-module dev::QiaraTokensOmnichainV39{
+module dev::QiaraTokensOmnichainV40{
     use std::signer;
     use std::bcs;
     use std::timestamp;
@@ -43,6 +43,8 @@ module dev::QiaraTokensOmnichainV39{
     struct Permissions has key {
         nonce: NonceAccess,
     }
+
+
     // For Pagination purposes
     struct AddressCounter has key {
         counter: u64,
@@ -62,6 +64,11 @@ module dev::QiaraTokensOmnichainV39{
     // i.e Ethereum (token) -> Base/Sui/Solana (chains)... -> supply
     struct CrosschainBook has key{
         book: Map<String, Map<String, u256>>
+    }
+    // Tracks "liqudity" across chains for each address
+    // i.e 0/1/2...(page) -> 0x...123 (user) -> Base/Sui/Solana (chains).. -> Ethereum (token) -> supply
+    struct UserCrosschainBook has key{
+        outflows: Table<u64,Map<vector<u8>, Map<String, Map<String, u256>>>>,
     }
 
 
@@ -88,6 +95,9 @@ module dev::QiaraTokensOmnichainV39{
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, 1);
 
+        if (!exists<AddressCounter>(@dev)) {
+            move_to(admin, AddressCounter { counter: 0, counter_outflow: 0 });
+        };
         if (!exists<AddressDatabase>(@dev)) {
             move_to(admin, AddressDatabase { table: table::new<String, u64>(), table_outflow: table::new<vector<u8>, u64>() });
         };
@@ -97,11 +107,11 @@ module dev::QiaraTokensOmnichainV39{
         if (!exists<CrosschainBook>(@dev)) {
             move_to(admin, CrosschainBook { book: map::new<String,Map<String, u256>>() });
         };
+        if (!exists<UserCrosschainBook>(@dev)) {
+            move_to(admin, UserCrosschainBook { outflows: table::new<u64, Map<vector<u8>, Map<String, Map<String, u256>>>>() });
+        };
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { nonce: Nonce::give_access(admin)});
-        };
-        if (!exists<AddressCounter>(@dev)) {
-            move_to(admin, AddressCounter { counter: 0, counter_outflow: 0 });
         };
     }
 
@@ -253,6 +263,7 @@ module dev::QiaraTokensOmnichainV39{
 
     }
 
+
     #[view]
     public fun return_outflow_page(page_number: u64): Map<vector<u8>,Map<String, Map<String, u256>>> acquires UserCrosschainBook {
         let book = borrow_global<UserCrosschainBook>(@dev);
@@ -298,6 +309,8 @@ module dev::QiaraTokensOmnichainV39{
         return *map::borrow(map, &token)
 
     }
+
+
     #[view]
     public fun return_specified_outflow_path(address: vector<u8>, chain:String, token:String): u256 acquires UserCrosschainBook, AddressDatabase {
         let book = borrow_global<UserCrosschainBook>(@dev);

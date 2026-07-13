@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV39{
+module dev::QiaraTokensCoreV40{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,21 +19,20 @@ module dev::QiaraTokensCoreV39{
 
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV39::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV39::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV39::{Self as TokensTiers};
-    use dev::QiaraTokensRatesV39::{Self as TokensRates, Access as TokensRatesAccess};
-    use dev::QiaraTokensQiaraV39::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV40::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV40::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV40::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV40::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV39::{Self as Storages};
+    use dev::QiaraStoragesV40::{Self as Storages};
 
-    use dev::QiaraChainTypesV39::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV39::{Self as TokensType};
-    use dev::QiaraProviderTypesV39::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV40::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV40::{Self as TokensType};
+    use dev::QiaraProviderTypesV40::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -63,7 +62,6 @@ module dev::QiaraTokensCoreV39{
     struct Permissions has key {
         tokens_omnichain_access: TokensOmnichainAccess,
         tokens_qiara_access: TokensQiaraAccess,
-        tokens_rates_access: TokensRatesAccess,
         shared_access: Shared::Access,
     }
 
@@ -128,7 +126,7 @@ module dev::QiaraTokensCoreV39{
     fun init_module(admin: &signer){
 
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { shared_access: Shared::give_access(admin), tokens_rates_access: TokensRates::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
+            move_to(admin, Permissions { shared_access: Shared::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
         };
     }
 
@@ -250,12 +248,12 @@ module dev::QiaraTokensCoreV39{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV39"),
+            string::utf8(b"QiaraTokensCoreV40"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV39"),
+            string::utf8(b"QiaraTokensCoreV40"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -273,16 +271,16 @@ module dev::QiaraTokensCoreV39{
         }
     }
 // === PUBLIC FUNCTIONS === //
-    public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires Permissions, ManagedFungibleAsset{
+    public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires  ManagedFungibleAsset{
         internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))));
     }
-    public fun withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String): FungibleAsset acquires Permissions, ManagedFungibleAsset {
+    public fun withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String): FungibleAsset acquires ManagedFungibleAsset {
         internal_withdraw<T>(shared, store, amount, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))))
     }
  
 // === INTERNAL FUNCTIONS === //
 
-    fun internal_deposit<T: key>(shared: String,store: Object<T>,fa: FungibleAsset, chain: String, managed: &ManagedFungibleAsset) acquires Permissions {
+    fun internal_deposit<T: key>(shared: String,store: Object<T>,fa: FungibleAsset, chain: String, managed: &ManagedFungibleAsset)  {
         ChainTypes::ensure_valid_chain_name(chain);
         fungible_asset::set_frozen_flag(&managed.transfer_ref, store, true);
 
@@ -292,7 +290,7 @@ module dev::QiaraTokensCoreV39{
         };
         fungible_asset::deposit_with_ref(&managed.transfer_ref, store, fa);
     }
-    fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset acquires Permissions {
+    fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset  {
         ChainTypes::ensure_valid_chain_name(chain);
         fungible_asset::set_frozen_flag(&managed.transfer_ref, store, true);
         if(fungible_asset::name(fungible_asset::store_metadata(store)) == utf8(b"Qiara")){
@@ -368,7 +366,7 @@ module dev::QiaraTokensCoreV39{
         internal_deposit(to_shared, to, fa, chain, managed);
     }
 
-    public entry fun request_bridge(user: &signer, shared: String, symbol: String, chain: String, provider: String, amount: u64, tokenTo: String, receiver: vector<u8>) acquires Permissions, ManagedFungibleAsset{
+    public entry fun request_bridge(user: &signer, shared: String, symbol: String, chain: String, provider: String, amount: u64, tokenTo: String, receiver: vector<u8>) acquires  ManagedFungibleAsset{
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(user)));
        // tttta(10);
         ensure_safety(symbol, chain);
@@ -411,7 +409,7 @@ module dev::QiaraTokensCoreV39{
 
 
 // === PERMISSIONELESS FUNCTIONS === // - for permissioneless access across chains
-    public fun p_transfer(validator: &signer, from_shared: String, sender: vector<u8>, to: vector<u8>, to_shared: String, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions {
+    public fun p_transfer(validator: &signer, from_shared: String, sender: vector<u8>, to: vector<u8>, to_shared: String, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset {
         Shared::assert_is_sub_owner(from_shared, bcs::to_bytes(&sender));
         Shared::assert_is_sub_owner(to_shared, bcs::to_bytes(&to));
         ensure_safety(symbol, chain);
@@ -428,7 +426,7 @@ module dev::QiaraTokensCoreV39{
 
     // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
     // Later implement function to claim locked tokens if the bridge tx fails
-    public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) acquires Permissions{
+    public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&user));
         ensure_safety(symbol, chain);
         //assert!(provider == utf8(b"Bluefin"), 100);
@@ -491,8 +489,6 @@ module dev::QiaraTokensCoreV39{
        // Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
 
-        TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
-
         let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
@@ -533,20 +529,6 @@ module dev::QiaraTokensCoreV39{
     
     }
 
-    // Function that can be only called by Validator, used to redeem tokens to existing Aptos wallet.
-    public fun redeem(validator: &signer, shared: String, aptos_wallet: address, symbol:String, chain:String, perm: Permission) acquires ManagedFungibleAsset, Permissions {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&aptos_wallet));
-        let asset = get_metadata(symbol);
-        ensure_safety(symbol, chain);
-        let managed = authorized_borrow_refs(symbol);
-        assert!(account::exists_at(aptos_wallet), ERROR_ACCOUNT_DOES_NOT_EXISTS);
-
-        let amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
-        let fa = internal_mint(symbol, chain, amount, managed);
-        
-        let wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        internal_deposit(shared, wallet, fa, chain, managed);
-    }
     
     public entry fun claim_inflation(claimer: &signer,shared: String) acquires Permissions, ManagedFungibleAsset  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(claimer)));
