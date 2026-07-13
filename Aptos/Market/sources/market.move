@@ -112,8 +112,7 @@ module dev::QiaraVaultsV55 {
     /// No need for recipient to have signed anything.
 
     public fun c_bridge_deposit(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
-        //Shared::assert_is_sub_owner(shared, sender);
-        Shared::temp_allow_sub_owner(validator, shared, sender, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
+        Shared::assert_is_sub_owner(shared, sender);
         TokensOmnichain::change_UserTokenSupply(token, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
         let amount_u256 = (amount as u256)*1000000000000000000;
 
@@ -173,7 +172,6 @@ module dev::QiaraVaultsV55 {
         };
        // tttta(0);
         Event::emit_market_event(utf8(b"Bridge Deposit"), data);
-        Shared::temp_remove_sub_owner(validator, shared, sender, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
     }
 
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
