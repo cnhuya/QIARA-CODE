@@ -290,7 +290,6 @@ module dev::QiaraTokensCoreV39{
            fungible_asset::destroy_zero(fa);
            return
         };
-        TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, fungible_asset::amount(&fa), true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         fungible_asset::deposit_with_ref(&managed.transfer_ref, store, fa);
     }
     fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset acquires Permissions {
@@ -300,17 +299,12 @@ module dev::QiaraTokensCoreV39{
             let fee = TokensQiara::burn_calculation(amount);
             if(fee >= amount){
                 amount = 0;
-                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));          
-                TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));      
-            } else {
+                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));                      } else {
                 amount = amount - fee;
-                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));
-                TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount+fee, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            };
+                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));            };
             return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
         };
 
-        TokensOmnichain::change_UserTokenSupply(fungible_asset::name(fungible_asset::store_metadata(store)), chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
     }
 
@@ -348,7 +342,6 @@ module dev::QiaraTokensCoreV39{
         let wallet = primary_fungible_store::primary_store(signer::address_of(signer), get_metadata(symbol));
         let managed = authorized_borrow_refs(symbol);
         let fa = internal_withdraw(shared, wallet, amount, chain, managed);
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, fungible_asset::amount(&fa), false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         internal_burn(symbol, chain, fa, managed);
     }
 
@@ -422,8 +415,14 @@ module dev::QiaraTokensCoreV39{
         Shared::assert_is_sub_owner(from_shared, bcs::to_bytes(&sender));
         Shared::assert_is_sub_owner(to_shared, bcs::to_bytes(&to));
         ensure_safety(symbol, chain);
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, from_shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, to_shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
+        TokensOmnichain::ensure_token_supports_chain(symbol, chain);
+        let managed = authorized_borrow_refs(symbol);
+
+        let from = Shared::return_fungible_store(from_shared, get_metadata(symbol));
+        let to = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        
+        let fa = internal_withdraw(from_shared, from, amount, chain, managed);
+        internal_deposit(to_shared, to, fa, chain, managed);
 
     }
 
@@ -439,7 +438,6 @@ module dev::QiaraTokensCoreV39{
         let total_outflow = (TokensOmnichain::return_specified_outflow_path(receiver, chain, symbol) as u64);
        
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         //TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
         let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
@@ -499,7 +497,6 @@ module dev::QiaraTokensCoreV39{
         let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
         //tttta(100);
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
         let data = vector[
             Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),
@@ -527,18 +524,11 @@ module dev::QiaraTokensCoreV39{
         ];
         Event::emit_bridge_event(utf8(b"Finalized Failed Bridge"), data);   
 
-        if(!account::exists_at(user)){
-            TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
-            TokensOmnichain::change_TokenSupply(symbol, chain,amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
-            
-            return
-        };
      
         let asset = get_metadata(symbol);
         let fa = internal_mint(symbol, chain, amount, managed);
         let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, store, fa, chain, managed);
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
     
     
     }
@@ -553,7 +543,6 @@ module dev::QiaraTokensCoreV39{
 
         let amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
         let fa = internal_mint(symbol, chain, amount, managed);
-        TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
         
         let wallet = Shared::ensure_shared_fungible_storage(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         internal_deposit(shared, wallet, fa, chain, managed);

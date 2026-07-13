@@ -9,7 +9,7 @@ module dev::QiaraTokensFaucetV39 {
     use dev::QiaraChainTypesV39::{Self as ChainTypes};
     use dev::QiaraTokenTypesV39::{Self as TokensType};
     use aptos_std::simple_map::{Self as simple_map, SimpleMap as Map};
-use dev::QiaraProviderTypesV39::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV39::{Self as ProviderTypes};
 
     use dev::QiaraTokensCoreV39::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensMetadataV39::{Self as TokensMetadata};

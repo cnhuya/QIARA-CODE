@@ -43,6 +43,8 @@ module dev::QiaraTokensOmnichainV39{
     struct Permissions has key {
         nonce: NonceAccess,
     }
+
+
     // For Pagination purposes
     struct AddressCounter has key {
         counter: u64,
@@ -62,6 +64,13 @@ module dev::QiaraTokensOmnichainV39{
     // i.e Ethereum (token) -> Base/Sui/Solana (chains)... -> supply
     struct CrosschainBook has key{
         book: Map<String, Map<String, u256>>
+    }
+    // Tracks "liqudity" across chains for each address
+    // i.e 0/1/2...(page) -> 0x...123 (user) -> Base/Sui/Solana (chains).. -> Ethereum (token) -> supply
+    struct UserCrosschainBook has key{
+        book: Table<u64,Map<String, Map<String, Map<String, u256>>>>,
+        outflows: Table<u64,Map<vector<u8>, Map<String, Map<String, u256>>>>,
+        nonce: Table<vector<u8>, u256>
     }
 
 
@@ -88,6 +97,9 @@ module dev::QiaraTokensOmnichainV39{
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, 1);
 
+        if (!exists<AddressCounter>(@dev)) {
+            move_to(admin, AddressCounter { counter: 0, counter_outflow: 0 });
+        };
         if (!exists<AddressDatabase>(@dev)) {
             move_to(admin, AddressDatabase { table: table::new<String, u64>(), table_outflow: table::new<vector<u8>, u64>() });
         };
@@ -97,11 +109,11 @@ module dev::QiaraTokensOmnichainV39{
         if (!exists<CrosschainBook>(@dev)) {
             move_to(admin, CrosschainBook { book: map::new<String,Map<String, u256>>() });
         };
+        if (!exists<UserCrosschainBook>(@dev)) {
+            move_to(admin, UserCrosschainBook { nonce: table::new<vector<u8>, u256>(), book: table::new<u64, Map<String, Map<String, Map<String, u256>>>>(), outflows: table::new<u64, Map<vector<u8>, Map<String, Map<String, u256>>>>() });
+        };
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { nonce: Nonce::give_access(admin)});
-        };
-        if (!exists<AddressCounter>(@dev)) {
-            move_to(admin, AddressCounter { counter: 0, counter_outflow: 0 });
         };
     }
 
@@ -145,6 +157,57 @@ module dev::QiaraTokensOmnichainV39{
         } else {
             map::upsert(token_book, token_type, (amount as u256));
         }   
+    }
+
+
+    public fun change_UserTokenSupply(token: String, chain: String, shared: String, amount: u64, isMint: bool, _perm: Permission) acquires AddressCounter, AddressDatabase, UserCrosschainBook {
+        let book = borrow_global_mut<UserCrosschainBook>(@dev);
+        let addressCounter_ref = borrow_global_mut<AddressCounter>(@dev);
+        let addressDatabase_ref = borrow_global_mut<AddressDatabase>(@dev);
+        let page_number = addressCounter_ref.counter / 100;
+
+        if (!table::contains(&addressDatabase_ref.table, shared)) {
+            table::add(&mut addressDatabase_ref.table, shared, page_number); // Store the page!
+            addressCounter_ref.counter = addressCounter_ref.counter + 1;
+        };
+        
+        if (!table::contains(&book.book, page_number)) {
+            table::add(&mut book.book, page_number, map::new<String, Map<String, Map<String, u256>>>());
+        };
+
+        // handling pagination
+        let users = table::borrow_mut(&mut book.book, page_number);
+        if (!map::contains_key(users, &shared)) {
+            map::add(users, shared, map::new<String, Map<String, u256>>());
+        };
+
+        // handling user
+        let shared_storage = map::borrow_mut(users, &shared);
+        if(!map::contains_key(shared_storage, &chain)) {
+            map::add(shared_storage, chain, map::new<String, u256>());
+        };
+        let token_map = map::borrow_mut(shared_storage, &chain);
+
+        // --- CRITICAL FIX: MOVE THIS OUTSIDE THE ELSE BLOCK ---
+        if (!map::contains_key(token_map, &token)) {
+            let initial_amount = if (isMint) { (amount as u256) } else { 0 };
+            map::add(token_map, token, initial_amount);
+        } else {
+            let current_balance = map::borrow_mut(token_map, &token);
+            if (isMint) {
+                *current_balance = *current_balance + (amount as u256);
+            } else {
+                assert!(*current_balance >= (amount as u256), 101); // INSUFFICIENT_BALANCE
+                *current_balance = *current_balance - (amount as u256);
+            };
+        };
+
+        // --- EMIT EVENTS AT THE VERY END ---
+        if (isMint) {
+            event::emit(MintEvent { shared, token, chain, amount, time: timestamp::now_seconds() });
+        } else {
+            event::emit(BurnEvent { shared, token, chain, amount, time: timestamp::now_seconds() });
+        };
     }
 
     public fun increment_UserOutflow(token: String, chain: String, shared: String, address: vector<u8>, amount: u64, isMint: bool, _perm: Permission) acquires AddressCounter, AddressDatabase, UserCrosschainBook {
@@ -252,6 +315,52 @@ module dev::QiaraTokensOmnichainV39{
         return *map::borrow(map, &chain)
 
     }
+    
+    #[view]
+    public fun return_balance_page(page_number: u64): Map<String,Map<String, Map<String, u256>>> acquires UserCrosschainBook {
+        let book = borrow_global<UserCrosschainBook>(@dev);
+
+        *table::borrow(&book.book, page_number)
+    }
+    #[view]
+    public fun return_address_full_balance(address: String): Map<String, Map<String, u256>> acquires UserCrosschainBook, AddressDatabase {
+        let book = borrow_global<UserCrosschainBook>(@dev);
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+
+        if (!table::contains(&addressDatabase_ref.table, address)) {
+            abort ERROR_ADDRESS_NOT_INITIALIZED
+        };
+        let user_pagination = table::borrow(&addressDatabase_ref.table, address);
+
+        let users = table::borrow(&book.book, *user_pagination);
+        return *map::borrow(users, &address)
+    }
+    #[view]
+    public fun return_address_balance_by_chain_for_token(address: String, chain:String, token:String,): u256 acquires UserCrosschainBook, AddressDatabase {
+        let book = borrow_global<UserCrosschainBook>(@dev);
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+
+        if (!table::contains(&addressDatabase_ref.table, address)) {
+            abort ERROR_ADDRESS_NOT_INITIALIZED
+        };
+        let user_pagination = table::borrow(&addressDatabase_ref.table, address);
+
+        let users = table::borrow(&book.book, *user_pagination);
+        if(!map::contains_key(users, &address)) {
+            abort ERROR_ADDRESS_NOT_INITIALIZED
+        };
+
+        let user_book = map::borrow(users, &address);
+        if(!map::contains_key(user_book, &chain)) {
+            abort ERROR_TOKEN_ON_CHAIN_IN_ADDRESS_NOT_INITIALIZED 
+        };
+        let map = map::borrow(user_book, &chain);
+        if(!map::contains_key(map, &token)) {
+            abort ERROR_TOKEN_IN_ADDRESS_NOT_INITIALIZED
+        };
+        return *map::borrow(map, &token)
+
+    }
 
     #[view]
     public fun return_outflow_page(page_number: u64): Map<vector<u8>,Map<String, Map<String, u256>>> acquires UserCrosschainBook {
@@ -298,6 +407,33 @@ module dev::QiaraTokensOmnichainV39{
         return *map::borrow(map, &token)
 
     }
+
+    #[view]
+    public fun accq(address: vector<u8>, chain:String, token:String): u256 acquires UserCrosschainBook, AddressDatabase {
+        let book = borrow_global<UserCrosschainBook>(@dev);
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+        if (!table::contains(&addressDatabase_ref.table_outflow, address)) {
+            return 0
+        };
+        let user_pagination = table::borrow(&addressDatabase_ref.table_outflow, address);
+
+        let users = table::borrow(&book.outflows, *user_pagination);
+        if(!map::contains_key(users, &address)) {
+            return 0
+        };
+
+        let user_book = map::borrow(users, &address);
+        if(!map::contains_key(user_book, &chain)) {
+            return 0
+        };
+        let map = map::borrow(user_book, &chain);
+        if(!map::contains_key(map, &token)) {
+            return 0
+        };
+        return *map::borrow(map, &token)
+
+    }
+
     #[view]
     public fun return_specified_outflow_path(address: vector<u8>, chain:String, token:String): u256 acquires UserCrosschainBook, AddressDatabase {
         let book = borrow_global<UserCrosschainBook>(@dev);
