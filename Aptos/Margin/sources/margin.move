@@ -1,4 +1,4 @@
-module dev::QiaraMarginV40{
+module dev::QiaraMarginV41 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV40{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV40::{Self as Ranks};
+    use dev::QiaraRanksV41::{Self as Ranks};
     use dev::QiaraTokensMetadataV39::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV39::{Self as TokensType};
     
@@ -41,7 +41,7 @@ module dev::QiaraMarginV40{
     struct TokenHoldings has key {
         // shared_storage_name, token, chain, provider
         holdings: Table<String, Table<String,Map<String, Map<String, Credit>>>>,
-        credit: Table<String, Integer>, // universal "credit" ($ value essentially), per user (shared_storage) | this is used for perpetual profits... and more in the future
+        credit: Table<String, Integer>, // universal "credit" ($ value essentially), per user (shared_storage)
     }
 
     struct TotalStaked has key{
@@ -65,7 +65,9 @@ module dev::QiaraMarginV40{
         native_reward_index_snapshot: u256,
         reward_index_snapshot: u256,
         interest_index_snapshot: u256,
-        incentive_index: u256,
+        incentive_deposit_index: u256,            // <--- FIXED: Split Lender Index
+        incentive_borrow_index: u256,             // <--- FIXED: Split Borrower Index
+        accumulated_rewards_index_snapshot: u256, // <--- FIXED: Gated Fee Index
         last_update: u64,
         locked_fee: u256,
     }
@@ -153,32 +155,35 @@ module dev::QiaraMarginV40{
         };
     }
 
-    public fun update_incentive_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
+    public fun update_incentive_indices(shared: String, user: vector<u8>, token: String, chain: String,provider: String, deposit_index: u256, borrow_index: u256, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-        balance.incentive_index = index;
-       // balance.last_update = timestamp::now_seconds();
+        balance.incentive_deposit_index = deposit_index;
+        balance.incentive_borrow_index = borrow_index;
+    }
+
+    public fun update_accumulated_rewards_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
+        Shared::assert_is_sub_owner(shared, user);
+        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
+        balance.accumulated_rewards_index_snapshot = index;
     }
 
     public fun update_interest_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         balance.interest_index_snapshot = index;
-       // balance.last_update = timestamp::now_seconds();
     }
 
     public fun update_reward_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         balance.reward_index_snapshot = index;
-  //      balance.last_update = timestamp::now_seconds();
     }
 
     public fun update_native_reward_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         balance.native_reward_index_snapshot = index;
-  //      balance.last_update = timestamp::now_seconds();
     }
 
     public fun update_time(shared: String, user: vector<u8>, token: String, chain: String,provider: String, cap: Permission) acquires TokenHoldings{
@@ -258,7 +263,7 @@ module dev::QiaraMarginV40{
         *staked_value = *staked_value + value;
     }
 
-    public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings, TotalStaked { // Added TotalStaked here
+    public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings, TotalStaked { 
         Shared::assert_is_sub_owner(shared, user);
         assert!(
             vector::length(&token) == vector::length(&chain) && 
@@ -285,7 +290,6 @@ module dev::QiaraMarginV40{
 
             let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev), *token, *chain, *provider);
             
-            // Fixed reference assignments and comparisons
             if (*value > *staked_value) {
                 *staked_value = 0;
             } else {
@@ -388,7 +392,6 @@ module dev::QiaraMarginV40{
                 continue;
             };
 
-            // Get Metadata once per token type
             let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
@@ -396,7 +399,7 @@ module dev::QiaraMarginV40{
             let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
             efficiency = calculate_increased_efficiency(efficiency, ltv_increase);
             let staked_efficiency = calculate_increased_efficiency_by_staking(efficiency, staked_ltv_increase);
-            // Pre-collect keys to avoid borrow conflicts
+            
             let vect_chain = vector::empty<String>();
             let vect_provider = vector::empty<String>();
 
@@ -426,7 +429,6 @@ module dev::QiaraMarginV40{
                 };
             };
 
-            // Process collected items for this token
             let j = 0;
             let len_inner = vector::length(&vect_chain);
             while (j < len_inner) {
@@ -437,15 +439,16 @@ module dev::QiaraMarginV40{
                 let uv = *uv_ref;
                 vector::push_back(&mut vect, uv);
 
-                // Safety check for division
                 if (denom > 0) {
-                    let dep_usd = (uv.deposited * price) / denom;
+                    // FIXED: Value collateral including native rewards & accrued interest (Yield-bearing compounding)
+                    let compounded_deposit = uv.deposited + uv.interest + uv.rewards;
+                    let dep_usd = (compounded_deposit * price) / denom;
+                    
                     let bor_usd = (uv.borrowed * price) / denom;
                     let reward_usd = (uv.rewards * price) / denom;
                     let interest_usd = (uv.interest * price) / denom;
                     let locked_fees_usd = ((uv.locked_fee as u256) * price) / denom;
 
-                    // FIXED: Using a helper variable to avoid 'let' shadowing bugs
                     let current_staked_usd: u256;
                     if (token == utf8(b"Qiara")) {
                         current_staked_usd = uv.staked / denom;
@@ -453,7 +456,6 @@ module dev::QiaraMarginV40{
                         current_staked_usd = (((uv.staked * price) / denom) * staked_efficiency) / 100_000_000;
                     };
 
-                    // Accumulate totals
                     total_staked = total_staked + current_staked_usd;
                     total_dep = total_dep + dep_usd;
                     total_bor = total_bor + bor_usd;
@@ -467,7 +469,6 @@ module dev::QiaraMarginV40{
             i = i + 1;
         };
 
-        // Credit Processing (Calculated once outside token loop to avoid inflation)
         let credit = find_credit(tokens_holdings, shared);
         if (credit.isPositive) {
             total_available = total_available + credit.value;
@@ -512,12 +513,10 @@ module dev::QiaraMarginV40{
                 continue;
             };
 
-            // Get Metadata for price/denom
             let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
 
-            // Pre-collect keys (standard pattern to avoid double-borrowing table/map)
             let vect_chain = vector::empty<String>();
             let vect_provider = vector::empty<String>();
 
@@ -547,7 +546,6 @@ module dev::QiaraMarginV40{
                 };
             };
 
-            // Process collected items and sum USD value
             let j = 0;
             let len_inner = vector::length(&vect_chain);
             while (j < len_inner) {
@@ -558,7 +556,6 @@ module dev::QiaraMarginV40{
 
                 if (denom > 0) {
                     let current_staked_usd: u256;
-                    // Check for your specific Qiara token logic
                     if (token == utf8(b"Qiara")) {
                         current_staked_usd = uv.staked / denom;
                     } else {
@@ -589,18 +586,15 @@ module dev::QiaraMarginV40{
         while (i < len_tokens) {
             let token = *vector::borrow(&tokens, i);
 
-            // Skip calculations for the native Qiara token as requested
             if (token == utf8(b"Qiara")) {
                 i = i + 1;
                 continue;
             };
 
-            // Retrieve price, denomination, and metadata using the protocol's system
             let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
 
-            // Avoid division by zero
             if (denom > 0) {
                 let chain_map = map::borrow(&total_staked_ref.map, &token);
                 let chains = map::keys(chain_map);
@@ -618,7 +612,6 @@ module dev::QiaraMarginV40{
                         let provider = *vector::borrow(&providers, x);
                         let staked_amount = *map::borrow(providers_map, &provider);
 
-                        // Calculate USD value: (Staked amount * Oracle Price) / Denomination
                         let current_staked_usd = (staked_amount * price) / denom;
                         total_staked_usd = total_staked_usd + current_staked_usd;
 
@@ -639,9 +632,25 @@ module dev::QiaraMarginV40{
     }
 
     #[view]
-    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256,u256, u64) acquires TokenHoldings {
+    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
         let balance  = *find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-        return (balance.deposited, balance.borrowed, balance.virtual_deposit, balance.virtual_borrow, balance.staked, balance.rewards, balance.reward_index_snapshot, balance.interest, balance.interest_index_snapshot, balance.native_reward_index_snapshot, balance.incentive_index, balance.locked_fee, balance.last_update)
+        return (
+            balance.deposited, 
+            balance.borrowed, 
+            balance.virtual_deposit, 
+            balance.virtual_borrow, 
+            balance.staked, 
+            balance.rewards, 
+            balance.reward_index_snapshot, 
+            balance.interest, 
+            balance.interest_index_snapshot, 
+            balance.native_reward_index_snapshot, 
+            balance.incentive_deposit_index, 
+            balance.incentive_borrow_index, 
+            balance.accumulated_rewards_index_snapshot, 
+            balance.locked_fee, 
+            balance.last_update
+        )
     }
 
     #[view]
@@ -655,13 +664,10 @@ module dev::QiaraMarginV40{
     public fun get_user_all_balances(shared: String): Map<String, Map<String, Map<String, Credit>>> acquires TokenHoldings {
         let th = borrow_global<TokenHoldings>(@dev);
         
-        // ✅ FIX: Check if shared exists BEFORE borrowing
         if (!table::contains(&th.holdings, shared)) {
-            // Return empty map instead of aborting
-            return map::new<String, Map<String, Map<String, Credit>>>();
+            return map::new<String, Map<String, Map<String, Credit>>>()
         };
         
-        // Safe to borrow now that we know the key exists
         let inner = table::borrow(&th.holdings, shared);
 
         let tokens = TokensType::return_full_nick_names_list();
@@ -672,7 +678,6 @@ module dev::QiaraMarginV40{
         while (i < len_tokens) {
             let token = *vector::borrow(&tokens, i);
             
-            // Check if token exists for this shared storage
             if (table::contains(inner, token)) { 
                 let tokens_map = table::borrow(inner, token);
                 map::add(&mut map, token, *tokens_map);
@@ -691,19 +696,12 @@ module dev::QiaraMarginV40{
 
     #[view]
     public fun calculate_increased_efficiency(base_efficiency: u256, efficiency_factor: u256): (u256)  {
-        //100_000_000 - 85_000_000
-        let missing_increase = 100_000_000 - base_efficiency; // Assuming 100% efficiency is represented as 1,000,000,000 (for 4 decimal places)
+        let missing_increase = 100_000_000 - base_efficiency; 
         let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
 
-        // Efficiency increase is calculated as: 
-        //base_efficiency + (base_efficiency * efficiency_factor / 10000)
-        // 85000000 + (85_000_000 * 50_000_000)
-        // 85_000_000 + 42_500_000
         let efficiency_increase = (missing_increase * efficiency_factor) / 1_000_000 / 100;
         let new_efficiency = base_efficiency + efficiency_increase;
 
-
-        // Cap the efficiency at 100%
         if (new_efficiency > 100_000_000) {
             (max_allowed_ltv)
         } else {
@@ -717,15 +715,9 @@ module dev::QiaraMarginV40{
     #[view]
     public fun calculate_increased_efficiency_by_staking(base_efficiency: u256, efficiency_factor: u256): (u256)  {
         let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
-        // Efficiency increase is calculated as: 
-        //base_efficiency + (base_efficiency * efficiency_factor / 10000)
-        // 85000000 + (85_000_000 * 50_000_000)
-        // 85_000_000 + 42_500_000
         let efficiency_increase = (base_efficiency * efficiency_factor) / 1_000_000 / 100;
         let new_efficiency = base_efficiency + efficiency_increase;
 
-
-        // Cap the efficiency at 100%
         if (new_efficiency > 100_000_000) {
             (max_allowed_ltv)
         } else {
@@ -768,7 +760,9 @@ module dev::QiaraMarginV40{
             native_reward_index_snapshot: 0,
             reward_index_snapshot: 0,
             interest_index_snapshot: 0,
-            incentive_index: 0,
+            incentive_deposit_index: 0,
+            incentive_borrow_index: 0,
+            accumulated_rewards_index_snapshot: 0,
             last_update: timestamp::now_seconds(),
             locked_fee: 0
         };
@@ -791,19 +785,16 @@ module dev::QiaraMarginV40{
     }
 
     fun find_staked_entry(feature_table: &mut TotalStaked, token: String,chain: String, provider: String,): &mut u256 {
-        // Level 1: Check and initialize Token Map
         if (!map::contains_key(&feature_table.map, &token)) {
             map::add(&mut feature_table.map, copy token, map::create<String, Map<String, u256>>());
         };
         let user_holdings = map::borrow_mut(&mut feature_table.map, &token);
 
-        // Level 2: Check and initialize Chain Map
         if (!map::contains_key(user_holdings, &chain)) {
             map::add(user_holdings, copy chain, map::create<String, u256>());
         };
         let holdings = map::borrow_mut(user_holdings, &chain);
 
-        // Level 3: Check and initialize Provider staked u256 balance
         if (!map::contains_key(holdings, &provider)) {
             map::add(holdings, copy provider, 0);
         };
