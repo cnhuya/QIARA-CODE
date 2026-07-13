@@ -367,7 +367,7 @@ module dev::QiaraRanksV43{
     }
     fun calculate_ltv_increase(power: u8): u256{
     
-        if(power>=2){ // minimum rank to have ltv increase is Gold (power 3)
+        if(power<=2){ // minimum rank to have ltv increase is Gold (power 3)
             return 0;
         };
         let deducted = 2 * return_ltv_increase_per_power();
@@ -375,7 +375,7 @@ module dev::QiaraRanksV43{
         return deduction_percentage-deducted
     }
     fun calculate_withdrawal_over_limit(power: u8): u256{
-        if(power>=4){ // minimum rank to have ltv increase is Gold (power 3)
+        if(power<=4){ // minimum rank to have ltv increase is Gold (power 3)
             return 0;
         };
         let deducted = 4 * return_withdrawal_over_limit_per_power();
