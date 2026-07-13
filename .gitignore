@@ -1,4 +1,14 @@
+# build
+/build/
 **/build/
 **/.aptos/
 Move.lock
+
+# secrets
 .env
+
+# binaries - never commit these
+aptos.exe
+apt.exe
+aptos9.exe
+*.exe

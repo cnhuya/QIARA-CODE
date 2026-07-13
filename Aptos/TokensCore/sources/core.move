@@ -490,7 +490,7 @@ module dev::QiaraTokensCoreV39{
     }
 
     public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, rate: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
-        Shared::assert_is_sub_owner(shared, user);
+       // Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
 
         TokensRates::update_rate(symbol, chain, provider, rate, TokensRates::give_permission(&borrow_global<Permissions>(@dev).tokens_rates_access));
@@ -498,7 +498,7 @@ module dev::QiaraTokensCoreV39{
         let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = mint(symbol, chain, amount, perm);
         deposit(shared, store, fa, chain);
-        
+        //tttta(100);
         TokensOmnichain::change_UserTokenSupply(symbol, chain, shared, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
         let data = vector[
