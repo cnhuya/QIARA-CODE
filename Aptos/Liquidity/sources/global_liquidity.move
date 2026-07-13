@@ -328,7 +328,7 @@ module dev::QiaraLiquidityV58 {
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(&vault.storage);
 
-        let deposit_amount = (fungible_asset::amount(&fa) as u256);
+        let deposit_amount = (fungible_asset::amount(&fa) as u256)*1000000000000000000;
         
         // 1. Calculate how many shares to mint (ERC-4626 exchange rate)
         // FIXED: Included total_native_accumulated_rewards to correctly compound LP value
@@ -336,7 +336,7 @@ module dev::QiaraLiquidityV58 {
         let total_shares = vault.total_shares;
 
         let shares_to_mint = if (total_shares == 0 || total_assets == 0) {
-            deposit_amount
+            deposit_amount/1000000000000000000
         } else {
             (deposit_amount * total_shares) / total_assets
         };

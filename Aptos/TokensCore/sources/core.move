@@ -273,6 +273,7 @@ module dev::QiaraTokensCoreV41{
 // === PUBLIC FUNCTIONS === //
     public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires  ManagedFungibleAsset{
         internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))));
+    //tttta(99);
     }
     public fun withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String): FungibleAsset acquires ManagedFungibleAsset {
         internal_withdraw<T>(shared, store, amount, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))))
@@ -282,12 +283,14 @@ module dev::QiaraTokensCoreV41{
 
     fun internal_deposit<T: key>(shared: String,store: Object<T>,fa: FungibleAsset, chain: String, managed: &ManagedFungibleAsset)  {
         ChainTypes::ensure_valid_chain_name(chain);
+       //tttta(100);
         fungible_asset::set_frozen_flag(&managed.transfer_ref, store, true);
 
         if(fungible_asset::amount(&fa) == 0){
            fungible_asset::destroy_zero(fa);
            return
         };
+            //   tttta(101);
         fungible_asset::deposit_with_ref(&managed.transfer_ref, store, fa);
     }
     fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset  {
