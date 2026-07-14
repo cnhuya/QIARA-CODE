@@ -12,3 +12,39 @@ aptos.exe
 apt.exe
 aptos9.exe
 *.exe
+
+# ==================================================
+# TypeScript, JavaScript, and Node.js
+# ==================================================
+
+# Dependencies (Never commit node_modules)
+node_modules/
+jspm_packages/
+web_modules/
+
+# TypeScript / JS Build Outputs
+dist/
+out/
+lib-cov/
+.tsbuildinfo
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+
+# Logs (NPM, Yarn, pnpm debug logs)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Linters and formatters caches
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# Tests
+tests
+package.json
+package-lock.json
+tsconfig.json

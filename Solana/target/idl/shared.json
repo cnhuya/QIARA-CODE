@@ -1,0 +1,110 @@
+{
+  "address": "E3mfX19ZD6m9s4TPmM9jLW8kVmEfs8PtVGvviT1DDKzM",
+  "metadata": {
+    "name": "shared",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "m_create_shared_storage",
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "ref_code",
+          "type": "string"
+        },
+        {
+          "name": "used_ref_code",
+          "type": "string"
+        },
+        {
+          "name": "selected_validator",
+          "type": "string"
+        },
+        {
+          "name": "xp_tax",
+          "type": "u64"
+        },
+        {
+          "name": "fee_tax",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "p_allow_sub_owner",
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "sub_owner",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "p_remove_sub_owner",
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "sub_owner",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "p_change_used_ref_code",
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "sub_owner",
+          "type": "bytes"
+        },
+        {
+          "name": "new_used_ref_code",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

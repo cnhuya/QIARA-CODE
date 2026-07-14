@@ -1,0 +1,15 @@
+[package]
+name = "shared"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "shared"
+
+[dependencies]
+anchor-lang = "0.30.1"
+events = { path = "../../libraries/events" }
+
+[features]
+idl-build = ["anchor-lang/idl-build"]
