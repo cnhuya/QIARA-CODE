@@ -17,8 +17,8 @@ module dev::QiaraPerpsV34 {
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV55::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV60::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV60::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV59::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV59::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV18::{Self as storage};
     use dev::QiaraCapabilitiesV18::{Self as capabilities};
