@@ -15,7 +15,7 @@ module dev::QiaraPerpsV34 {
 
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV55::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV60::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV59::{Self as Liquidity};
     use dev::QiaraTokenVaultsV59::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -591,7 +591,7 @@ module dev::QiaraPerpsV34 {
         } else { 0 };
         
         // Fetch dynamic borrow rate from Liquidity module
-        let (_, _, _, _, final_borrow_rate) = Liquidity::return_raw_data_vault(position.reserve_token, position.reserve_chain, position.reserve_provider);
+        let (_, _, _, final_borrow_rate) = Liquidity::return_raw_data_vault(position.reserve_token, position.reserve_chain, position.reserve_provider);
 
         // Convert the 1_000_000 scale to the 1_000_000_000_000 (1e12) scale
         let base_rate: u128 = (final_borrow_rate as u128) * 1000000; 
