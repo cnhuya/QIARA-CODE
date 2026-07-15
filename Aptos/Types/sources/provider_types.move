@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV43 {
+module dev::QiaraProviderTypesV44 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -83,7 +83,7 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     
     // Solana Tokens
     allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
-    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"JupUSD"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
+    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
 
 
     // Robinhood Tokens
