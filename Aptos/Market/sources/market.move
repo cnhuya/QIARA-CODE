@@ -1371,6 +1371,7 @@ module dev::QiaraVaultsV58 {
 
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
+    
         return (
             total_accumulated_rewards, 
             total_accumulated_interest, 
@@ -1383,6 +1384,7 @@ module dev::QiaraVaultsV58 {
             price,
             actual_gas_reduction_for_ref_code_user,
             actual_xp_earned_for_ref_code_user,
+            calculate_mint_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_shares)
         )
     }
     
@@ -1467,7 +1469,11 @@ module dev::QiaraVaultsV58 {
     }
 
 // === VIEWS === //
-    
+    #[view]
+    public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, shares: u256): u256 {
+         shares / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards)
+    }
+
     #[view]
     public fun get_withdraw_fee(multiply: u256, limit: u256, amount: u256): u256 {
 

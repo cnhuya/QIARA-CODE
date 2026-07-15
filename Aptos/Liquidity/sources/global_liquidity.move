@@ -336,7 +336,7 @@ module dev::QiaraLiquidityV59 {
         let total_shares = vault.total_shares;
 
         let shares_to_mint = if (total_shares == 0 || total_assets == 0) {
-            deposit_amount/1000000000000000000
+            deposit_amount 
         } else {
             (deposit_amount * total_shares) / total_assets
         };
