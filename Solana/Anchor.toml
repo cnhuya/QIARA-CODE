@@ -7,7 +7,8 @@ skip-lint = false
 # Tell Anchor which program ID belongs to which program
 # The key (qiara_interface) must match your directory name in /programs/ (with hyphens replaced by underscores)
 [programs.localnet]
-qiara_interface = "E3mfX19ZD6m9s4TPmM9jLW8kVmEfs8PtVGvviT1DDKzM"
+shared = "H6iGwFKdoSmG5wmi6RYGDYtQQo2ouDRYTLycx1psrTs7"
+
 
 [registry]
 url = "https://api.apr.dev"

@@ -1,5 +1,5 @@
 {
-  "address": "E3mfX19ZD6m9s4TPmM9jLW8kVmEfs8PtVGvviT1DDKzM",
+  "address": "H6iGwFKdoSmG5wmi6RYGDYtQQo2ouDRYTLycx1psrTs7",
   "metadata": {
     "name": "shared",
     "version": "0.1.0",
@@ -8,6 +8,19 @@
   "instructions": [
     {
       "name": "m_create_shared_storage",
+      "docs": [
+        "Permissionless instruction to log dynamic storage creation parameters"
+      ],
+      "discriminator": [
+        244,
+        213,
+        144,
+        191,
+        139,
+        144,
+        66,
+        182
+      ],
       "accounts": [
         {
           "name": "sender",
@@ -44,26 +57,19 @@
     },
     {
       "name": "p_allow_sub_owner",
-      "accounts": [
-        {
-          "name": "sender",
-          "writable": true,
-          "signer": true
-        }
+      "docs": [
+        "Logs permissioned add sub-owner actions"
       ],
-      "args": [
-        {
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "name": "sub_owner",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "p_remove_sub_owner",
+      "discriminator": [
+        110,
+        248,
+        170,
+        132,
+        43,
+        33,
+        199,
+        195
+      ],
       "accounts": [
         {
           "name": "sender",
@@ -84,6 +90,19 @@
     },
     {
       "name": "p_change_used_ref_code",
+      "docs": [
+        "Logs permissioned referral code modifications"
+      ],
+      "discriminator": [
+        128,
+        57,
+        40,
+        30,
+        253,
+        16,
+        130,
+        91
+      ],
       "accounts": [
         {
           "name": "sender",
@@ -105,6 +124,56 @@
           "type": "string"
         }
       ]
+    },
+    {
+      "name": "p_remove_sub_owner",
+      "docs": [
+        "Logs permissioned remove sub-owner actions"
+      ],
+      "discriminator": [
+        73,
+        6,
+        97,
+        185,
+        105,
+        38,
+        30,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "sub_owner",
+          "type": "bytes"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SharedNameCantBeEmpty",
+      "msg": "Shared name can't be empty"
+    },
+    {
+      "code": 6001,
+      "name": "RefCodeCantBeEmpty",
+      "msg": "Referral code can't be empty"
+    },
+    {
+      "code": 6002,
+      "name": "SubOwnerCantBeEmpty",
+      "msg": "Sub owner can't be empty"
     }
   ]
 }

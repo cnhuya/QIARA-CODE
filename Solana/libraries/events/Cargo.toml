@@ -8,4 +8,4 @@ crate-type = ["rlib"] # Removed the redundant "lib" to prevent duplicate file ge
 
 
 [dependencies]
-anchor-lang = "0.30.1"
+anchor-lang = "0.31.1"

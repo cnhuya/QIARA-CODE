@@ -8,7 +8,7 @@ crate-type = ["cdylib", "lib"]
 name = "qiara"
 
 [dependencies]
-anchor-lang = "0.30.1"
+anchor-lang = "0.31.1"
 events = { path = "../../libraries/events" }
 # Explicitly enable "curve" to expose Bn254/Fr while keeping multi-threading disabled
 groth16-solana = "0.2.0"

@@ -1,0 +1,19 @@
+[package]
+name = "token"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "token"
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = { version = "0.31.1", features = ["token", "associated_token"] }
+zeroize = "=1.8.2"
+zeroize_derive = "=1.4.2"
+
+# ENSURE THIS ENTIRE BLOCK IS PRESENT AT THE BOTTOM:
+[features]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]

@@ -1,4 +1,4 @@
-module dev::QiaraChainTypesV41 {
+module dev::QiaraChainTypesV43 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -29,8 +29,10 @@ module dev::QiaraChainTypesV41 {
         register_chain(signer, utf8(b"Aptos"), 2);
         register_chain(signer, utf8(b"Sui"), 103);
         register_chain(signer, utf8(b"Base"), 84532);
-        register_chain(signer, utf8(b"Monad"), 10143);
+        register_chain(signer, utf8(b"Monad"), 10143); 
         register_chain(signer, utf8(b"Ethereum"), 11155111);
+        register_chain(signer, utf8(b"Solana"), 901);
+        register_chain(signer, utf8(b"Robinhood"), 46630);
     } 
 
 // === FUNCTIONS === //

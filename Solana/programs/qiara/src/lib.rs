@@ -6,7 +6,7 @@ use anchor_lang::solana_program::keccak;
 pub mod extractor;
 pub mod verifier;
 
-declare_id!("FbE5REoJCNz6t2Kkuyqxw8213TSz6jwype2NRp2P731y");
+declare_id!("Fy8y5rxmhogaw1DvqA1ghcJJBCvKrfu2eRWK4es721Ec");
 
 #[program]
 pub mod qiara {

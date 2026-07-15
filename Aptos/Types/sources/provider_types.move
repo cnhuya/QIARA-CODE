@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV41 {
+module dev::QiaraProviderTypesV43 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -73,8 +73,20 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     register_vault(signer, utf8(b"Aave"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
     register_vault(signer, utf8(b"Qiara"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
 
+    // Solana Vaults
+    register_vault(signer, utf8(b"Juplend"), utf8(b"Solana"), utf8(b"0xSP_SUP_VAULT"));
+    register_vault(signer, utf8(b"Kamino"), utf8(b"Solana"), utf8(b"0xSP_SUP_VAULT"));
+
     // === 2. Allow Tokens (Fills the 'tokens' vector in ProviderData) ===
     
+    // Solana Tokens
+    allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
+    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"JupUSD"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
+
+
+    // Robinhood Tokens
+    allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Robinhood"), vector[utf8(b"USDG")]);
+
     // Monad Tokens
     allow_tokens_for_provider(signer, utf8(b"Curvance"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD"), utf8(b"earnAUSD")]);
     allow_tokens_for_provider(signer, utf8(b"Neverland"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD")]);

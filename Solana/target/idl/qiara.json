@@ -1,0 +1,681 @@
+{
+  "address": "Fy8y5rxmhogaw1DvqA1ghcJJBCvKrfu2eRWK4es721Ec",
+  "metadata": {
+    "name": "qiara",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "add_active_pubkey_direct",
+      "discriminator": [
+        42,
+        205,
+        148,
+        50,
+        90,
+        234,
+        122,
+        202
+      ],
+      "accounts": [
+        {
+          "name": "validator_state",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "pubkey",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "add_pending_pubkey",
+      "discriminator": [
+        56,
+        72,
+        11,
+        103,
+        55,
+        212,
+        88,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "validator_state",
+          "writable": true
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "public_inputs",
+          "type": "bytes"
+        },
+        {
+          "name": "proof_points",
+          "type": "bytes"
+        },
+        {
+          "name": "signatures",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin_add_variable",
+      "discriminator": [
+        195,
+        218,
+        219,
+        194,
+        163,
+        230,
+        49,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "header",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "create_vault",
+      "discriminator": [
+        29,
+        237,
+        247,
+        208,
+        193,
+        82,
+        54,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "provider_name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "provider_name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "friend_add_variable",
+      "discriminator": [
+        219,
+        31,
+        157,
+        221,
+        72,
+        4,
+        223,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "writable": true
+        },
+        {
+          "name": "validator_state"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "friend",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "public_inputs",
+          "type": "bytes"
+        },
+        {
+          "name": "proof_points",
+          "type": "bytes"
+        },
+        {
+          "name": "signatures",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_epoch",
+      "discriminator": [
+        19,
+        114,
+        86,
+        107,
+        206,
+        21,
+        45,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "genesis_timestamp_sec",
+          "type": "u64"
+        },
+        {
+          "name": "epoch_duration_sec",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "list_new_token",
+      "discriminator": [
+        109,
+        165,
+        42,
+        157,
+        58,
+        150,
+        79,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "supported_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  112,
+                  112,
+                  111,
+                  114,
+                  116,
+                  101,
+                  100,
+                  45,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "lock_registry",
+      "discriminator": [
+        224,
+        114,
+        14,
+        205,
+        137,
+        43,
+        33,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "EpochConfig",
+      "discriminator": [
+        190,
+        66,
+        87,
+        197,
+        214,
+        153,
+        144,
+        193
+      ]
+    },
+    {
+      "name": "Registry",
+      "discriminator": [
+        47,
+        174,
+        110,
+        246,
+        184,
+        182,
+        252,
+        218
+      ]
+    },
+    {
+      "name": "SupportedToken",
+      "discriminator": [
+        56,
+        162,
+        96,
+        99,
+        193,
+        245,
+        204,
+        108
+      ]
+    },
+    {
+      "name": "ValidatorState",
+      "discriminator": [
+        217,
+        140,
+        124,
+        163,
+        31,
+        187,
+        1,
+        89
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "TokenListed",
+      "discriminator": [
+        122,
+        82,
+        154,
+        225,
+        250,
+        48,
+        63,
+        4
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "GenesisInFuture",
+      "msg": "Genesis timestamp is in the future."
+    },
+    {
+      "code": 6001,
+      "name": "DurationIsZero",
+      "msg": "Epoch duration must be greater than zero."
+    },
+    {
+      "code": 6002,
+      "name": "RegistryLocked",
+      "msg": "Registry variable map has been locked."
+    },
+    {
+      "code": 6003,
+      "name": "InvalidProof",
+      "msg": "ZK variables proof validation failed."
+    },
+    {
+      "code": 6004,
+      "name": "InvalidInputLength",
+      "msg": "Contiguous input parser out of bounds."
+    },
+    {
+      "code": 6005,
+      "name": "InvalidSignatureLength",
+      "msg": "Signature size does not equal 65 bytes."
+    },
+    {
+      "code": 6006,
+      "name": "InvalidSignature",
+      "msg": "Derivation recovered invalid SECP256K1 signature."
+    },
+    {
+      "code": 6007,
+      "name": "NotValidator",
+      "msg": "Caller is not a registered active validator."
+    },
+    {
+      "code": 6008,
+      "name": "SharedNameCantBeEmpty",
+      "msg": "Shared name can't be empty"
+    },
+    {
+      "code": 6009,
+      "name": "RefCodeCantBeEmpty",
+      "msg": "Referral code can't be empty"
+    },
+    {
+      "code": 6010,
+      "name": "SubOwnerCantBeEmpty",
+      "msg": "Sub owner can't be empty"
+    },
+    {
+      "code": 6011,
+      "name": "WrongChainId",
+      "msg": "Wrong chain ID."
+    }
+  ],
+  "types": [
+    {
+      "name": "ActiveVariableMap",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": "string"
+          },
+          {
+            "name": "variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "PendingVariable"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "genesis_timestamp_ms",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration_ms",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingUpdate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "bytes"
+          },
+          {
+            "name": "is_removal",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingVariable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Registry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active_variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ActiveVariableMap"
+                }
+              }
+            }
+          },
+          {
+            "name": "pending_variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ActiveVariableMap"
+                }
+              }
+            }
+          },
+          {
+            "name": "is_locked",
+            "type": "bool"
+          },
+          {
+            "name": "last_processed_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SupportedToken",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_supported",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenListed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider_name",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidatorState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active_pubkeys",
+            "type": {
+              "vec": "bytes"
+            }
+          },
+          {
+            "name": "pending_updates",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "PendingUpdate"
+                }
+              }
+            }
+          },
+          {
+            "name": "last_processed_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider_name",
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
