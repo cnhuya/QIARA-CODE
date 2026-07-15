@@ -48,7 +48,9 @@ module dev::QiaraProviderTypesV43 {
 fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     // === 1. Register Vaults (Sets Forward & Reverse Maps) ===
     // Syntax: register_vault(signer, provider_name, chain_name, vault_address)
-    
+
+    // Robinhood Vaults
+    register_vault(signer, utf8(b"Morpho"), utf8(b"Robinhood"), utf8(b"0xCV_MON_VAULT"));
     // Monad Vaults
     register_vault(signer, utf8(b"Curvance"), utf8(b"Monad"), utf8(b"0xCV_MON_VAULT"));
     register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0xNL_MON_VAULT"));
