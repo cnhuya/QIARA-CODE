@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV43{
+module dev::QiaraTokensCoreV44{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,20 +19,20 @@ module dev::QiaraTokensCoreV43{
 
 
     use dev::QiaraMathV2::{Self as Math};
-    use dev::QiaraTokensMetadataV43::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV43::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV43::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV43::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV44::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV44::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV44::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV44::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV43::{Self as Storages};
+    use dev::QiaraStoragesV44::{Self as Storages};
 
-    use dev::QiaraChainTypesV43::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV43::{Self as TokensType};
-    use dev::QiaraProviderTypesV43::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV44::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV44::{Self as TokensType};
+    use dev::QiaraProviderTypesV44::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -151,7 +151,7 @@ module dev::QiaraTokensCoreV43{
         init_token(admin, utf8(b"USDT0"), utf8(b"QUSDT0"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdt0.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 4_064_676_256 , 4_064_676_256 , 4_064_676_256 , 255);
         init_token(admin, utf8(b"USDG"), utf8(b"QUSDG"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdg.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 3_160_971_119 , 3_160_971_119 , 3_160_971_119 , 254);
         init_token(admin, utf8(b"syrupUSDC"), utf8(b"QsyrupUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/syrupUSDC.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 1_346_218_727 , 1_346_218_727 , 1_346_218_727 , 254);
-        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/syrupUSDC.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 225_840_650 , 225_840_650 , 225_840_650 , 1);
+        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 225_840_650 , 225_840_650 , 225_840_650 , 1);
 
 
     }
@@ -251,7 +251,7 @@ module dev::QiaraTokensCoreV43{
         // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV43"),
+            string::utf8(b"QiaraTokensCoreV44"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
