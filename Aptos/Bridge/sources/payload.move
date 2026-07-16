@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV44
+module dev::QiaraPayloadV45
 {
     use std::signer;
     use std::vector;
@@ -8,8 +8,8 @@ module dev::QiaraPayloadV44
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV39::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV39::{Self as TokenTypes};
+    use dev::QiaraChainTypesV44::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV44::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
@@ -111,7 +111,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         OmniNonce::increment_nonce(type, OmniNonce::give_permission(&borrow_global<Permissions>(@dev).omni_nonce));
     }
        
-    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, u64,String)  acquires Permissions  {
+    public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, u64, u64, String)  acquires Permissions  {
         
         // 1. Extract raw byte chunks
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
@@ -122,6 +122,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
         let (_, hash_raw) = find_payload_value(utf8(b"hash"), type_names, payload);
         let (_, rate_raw) = find_payload_value(utf8(b"rate"), type_names, payload);
+        let (_, rewards_raw) = find_payload_value(utf8(b"rewards"), type_names, payload);
 
         // 2. Decode using bcs_stream
 
@@ -139,13 +140,14 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let d = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
         let f = bcs_stream::deserialize_string(&mut bcs_stream::new(hash_raw));
         let y = bcs_stream::deserialize_u64(&mut bcs_stream::new(rate_raw));
+        let u = bcs_stream::deserialize_u64(&mut bcs_stream::new(rewards_raw));
 
         // Extract U64
         let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-        return (a, x, k, b, c, d, e, y, f)
+        return (a, x, k, b, c, d, e, y, u, f)
     }
 
     public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>, String, String, String, u64,u64,)  acquires Permissions {

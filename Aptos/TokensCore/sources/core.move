@@ -151,7 +151,9 @@ module dev::QiaraTokensCoreV44{
         init_token(admin, utf8(b"USDT0"), utf8(b"QUSDT0"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdt0.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 4_064_676_256 , 4_064_676_256 , 4_064_676_256 , 255);
         init_token(admin, utf8(b"USDG"), utf8(b"QUSDG"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdg.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 3_160_971_119 , 3_160_971_119 , 3_160_971_119 , 254);
         init_token(admin, utf8(b"syrupUSDC"), utf8(b"QsyrupUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/syrupUSDC.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 1_346_218_727 , 1_346_218_727 , 1_346_218_727 , 254);
-        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 0, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 225_840_650 , 225_840_650 , 225_840_650 , 1);
+        init_token(admin, utf8(b"Solana"), utf8(b"QSOL"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/solana.webp"), 1_584_368_940, x"fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd", 630_357_702 , 582_409_722 , 630_357_702 , 1);
+        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 1_700_611_200, x"c877c9422e794106bee634c7d7f27e2bbd9e2a6118f0ba57da57725a45164754", 225_851_161, 225_851_161, 225_851_161, 1);
+   
 
 
     }
@@ -162,6 +164,9 @@ module dev::QiaraTokensCoreV44{
     }
     public entry fun init_deep(admin: &signer){
         init_token(admin, utf8(b"Deepbook"), utf8(b"QDEEP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/deepbook.webp"),  1_683_072_000, x"d9c3b63a33b3750e1a73fe8631aad0d62d84fc00cde29eac8781207e67e47386", 10_000_000_000, 5_469_776_910, 10_000_000_000, 1);
+    }
+    public entry fun init_solana(admin: &signer){
+        init_token(admin, utf8(b"Solana"), utf8(b"QSOL"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/solana.webp"), 1_584_368_940, x"fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd", 630_357_702 , 582_409_722 , 630_357_702 , 1);
     }
 
 
@@ -362,13 +367,15 @@ module dev::QiaraTokensCoreV44{
         Shared::assert_is_sub_owner(sender_shared, bcs::to_bytes(&signer::address_of(sender)));
         Shared::assert_is_sub_owner(to_shared, bcs::to_bytes(&to));
         ensure_safety(symbol, chain);
+      //  tttta(10);
         TokensOmnichain::ensure_token_supports_chain(symbol, chain);
         let managed = authorized_borrow_refs(symbol);
 
         let from = Shared::return_fungible_store(sender_shared, get_metadata(symbol));
         let to = Shared::ensure_shared_fungible_storage(to_shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        
+          //      tttta(100);
         let fa = internal_withdraw(sender_shared, from, amount, chain, managed);
+          //  tttta(101);
         internal_deposit(to_shared, to, fa, chain, managed);
     }
 

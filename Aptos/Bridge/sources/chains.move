@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV44{
+module dev::QiaraBridgeV45{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -21,18 +21,18 @@ module dev::QiaraBridgeV44{
 
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraTokensCoreV39::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV39::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV44::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV44::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV55::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV60::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV40::{Self as Margin};
+    use dev::QiaraMarginV44::{Self as Margin};
 
-    use dev::QiaraPayloadV44::{Self as Payload};
-    use dev::QiaraValidatorsV44::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV45::{Self as Payload};
+    use dev::QiaraValidatorsV45::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV33::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV33::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV34::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV34::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -740,10 +740,11 @@ module dev::QiaraBridgeV44{
             // 5. Execute Bridging Logic (Main Event Specific)
             if (event_type == utf8(b"Bridge Deposit")) {
                 // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, rate, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
                 //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
-                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, 0, Market::give_permission(&cap.market));
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, rate, TokensCore::give_permission(&cap.tokens_core));
+
+                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
 
 
             } else if (event_type == utf8(b"Modular Withdraw")) {

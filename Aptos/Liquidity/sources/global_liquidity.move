@@ -355,7 +355,7 @@ module dev::QiaraLiquidityV59 {
         let cap = table::borrow(&lp_caps.caps, vault_address);
 
         // 4. Mint LP shares and update state
-        let shares_fa = fungible_asset::mint(&cap.mint_ref, (shares_to_mint as u64));
+        let shares_fa = fungible_asset::mint(&cap.mint_ref, (shares_to_mint/1000000000000000000 as u64));
         vault.total_shares = vault.total_shares + shares_to_mint;
 
         shares_fa
