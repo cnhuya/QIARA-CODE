@@ -1,6 +1,6 @@
 [package]
 name = "QiaraUSDC"
-#published-at = "0xfa4985eec4732d4b8965244a85f6b6b72433a96d4c95668ed676635eca60676b"
+published-at = "0x3834316d4d23bc49ba031f48a420e4431791cff66fd8b6585120274232d525e8"
 edition = "2024.beta"
 
 [addresses]

@@ -230,7 +230,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
         let vault_uid_mut = delegator::borrow_id_mut(vault);
         let current_time_seconds = clock::timestamp_ms(clock) / 1000;
 
-        let rewards = 0;
+        let mut rewards = 0;
 
         if (df::exists_(vault_uid_mut, balance_key) && df::exists_(vault_uid_mut, time_key)) {
             let last_time = *df::borrow<LastInteractedKey, u64>(vault_uid_mut, time_key);
