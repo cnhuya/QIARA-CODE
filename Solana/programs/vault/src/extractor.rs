@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct UnpackedTx {
@@ -12,7 +11,7 @@ pub struct UnpackedTx {
 pub fn extract_chunk(inputs: &[u8], index: usize) -> Result<[u8; 32]> {
     let start = index * 32;
     if inputs.len() < start + 32 {
-        return err!(crate::QiaraError::InvalidInputLength); // Mapped to QiaraError
+        return err!(crate::QiaraError::InvalidInputLength);
     }
     let mut chunk = [0u8; 32];
     chunk.copy_from_slice(&inputs[start..start + 32]);
@@ -101,18 +100,4 @@ pub fn extract_provider(inputs: &[u8]) -> Result<String> {
     let mut provider_bytes = chunk_4.to_vec();
     provider_bytes.retain(|&x| x != 0);
     Ok(String::from_utf8(provider_bytes).unwrap_or_default())
-}
-
-pub fn build_nullifier(inputs: &[u8]) -> Result<[u8; 32]> {
-    if inputs.len() < 192 {
-        return err!(crate::QiaraError::InvalidInputLength);
-    }
-    let mut data = Vec::new();
-    for i in 0..6 {
-        let chunk_le = extract_chunk(inputs, i)?;
-        let mut chunk_be = chunk_le;
-        chunk_be.reverse();
-        data.extend_from_slice(&chunk_be);
-    }
-    Ok(keccak::hash(&data).to_bytes())
 }

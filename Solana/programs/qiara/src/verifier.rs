@@ -5,13 +5,7 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
 use crate::extractor;
-use crate::QiaraError;
-
-const SUI_CHAIN_ID: u64 = 103;
-
-// ==========================================
-// VERIFYING KEYS (Complete 455-Byte Arrays)
-// ==========================================
+use crate::QiaraError; // Updated to match your program's error [1.4.4]
 
 pub const BALANCE_RAW_VK: &[u8] = &[
     0xfb, 0xc6, 0x4e, 0xa7, 0xcb, 0x1c, 0x44, 0x19, 0x5b, 0xaf, 0x80, 0xbf, 0x8a, 0xe1, 0xbf, 0xad,
@@ -112,49 +106,37 @@ pub const VARIABLE_RAW_VK: &[u8] = &[
     0x22, 0x25, 0x7c, 0x14, 0x9b, 0x61, 0xf,
 ];
 
-// ==========================================
-// PROOF VERIFICATION ENGINE (Solana alt_bn128 Syscalls)
-// ==========================================
-
-/// Private helper to convert an Arkworks deserialized point to raw uncompressed bytes
 fn to_uncompressed_bytes<T: CanonicalSerialize, const N: usize>(point: &T) -> Result<[u8; N]> {
     let mut bytes = vec![0u8; N];
     point.serialize_uncompressed(&mut bytes[..])
-        .map_err(|_| error!(QiaraError::InvalidProof))?;
-    let array: [u8; N] = bytes.try_into().map_err(|_| error!(QiaraError::InvalidProof))?;
+        .map_err(|_| error!(crate::QiaraError::InvalidProof))?;
+    let array: [u8; N] = bytes.try_into().map_err(|_| error!(crate::QiaraError::InvalidProof))?;
     Ok(array)
 }
 
-/// Core Groth16 verification mapping using native high-performance syscalls
 pub fn verify_proof_with_vk<const NR_INPUTS: usize>(
     raw_vk: &[u8],
     public_inputs: &[u8],
     proof_points: &[u8],
 ) -> Result<bool> {
-    // 1. Unpack proof points directly from raw bytes
-    // G1 (proof A) is 64 bytes, G2 (proof B) is 128 bytes, G1 (proof C) is 64 bytes
     let proof_a: &[u8; 64] = proof_points[0..64].try_into().unwrap();
     let proof_b: &[u8; 128] = proof_points[64..192].try_into().unwrap();
     let proof_c: &[u8; 64] = proof_points[192..256].try_into().unwrap();
 
-    // 2. Deserialize the compressed verifying key using Arkworks (lightweight since parallel is off)
     let vk = VerifyingKey::<Bn254>::deserialize_compressed(raw_vk)
-        .map_err(|_| error!(QiaraError::InvalidProof))?;
+        .map_err(|_| error!(crate::QiaraError::InvalidProof))?;
 
-    // 3. Convert deserialized points to uncompressed bytes
     let vk_alpha_g1 = to_uncompressed_bytes::<_, 64>(&vk.alpha_g1)?;
     let vk_beta_g2 = to_uncompressed_bytes::<_, 128>(&vk.beta_g2)?;
     let vk_gamme_g2 = to_uncompressed_bytes::<_, 128>(&vk.gamma_g2)?;
     let vk_delta_g2 = to_uncompressed_bytes::<_, 128>(&vk.delta_g2)?;
 
-    // 4. Convert gamma_abc_g1 (IC points) to uncompressed bytes
     let mut vk_ic_vec = Vec::new();
     for ic_point in &vk.gamma_abc_g1 {
         let ic_bytes = to_uncompressed_bytes::<_, 64>(ic_point)?;
         vk_ic_vec.push(ic_bytes);
     }
 
-    // 5. Construct the groth16-solana VerifyingKey
     let verifying_key = Groth16Verifyingkey {
         nr_pubinputs: NR_INPUTS,
         vk_alpha_g1,
@@ -164,7 +146,6 @@ pub fn verify_proof_with_vk<const NR_INPUTS: usize>(
         vk_ic: &vk_ic_vec,
     };
 
-    // 6. Map contiguous 32-byte public inputs into a fixed-size array
     let mut public_inputs_array = [[0u8; 32]; NR_INPUTS];
     for (i, chunk) in public_inputs.chunks_exact(32).enumerate() {
         if i < NR_INPUTS {
@@ -172,83 +153,19 @@ pub fn verify_proof_with_vk<const NR_INPUTS: usize>(
         }
     }
 
-    // 7. Build and execute verification via the audited Light Protocol system-call wrapper
     let mut verifier = Groth16Verifier::new(
         proof_a,
         proof_b,
         proof_c,
         &public_inputs_array,
         &verifying_key,
-    ).map_err(|_| error!(QiaraError::InvalidProof))?;
+    ).map_err(|_| error!(crate::QiaraError::InvalidProof))?;
 
     verifier.verify()
-        .map_err(|_| error!(QiaraError::InvalidProof))?;
+        .map_err(|_| error!(crate::QiaraError::InvalidProof))?;
 
     Ok(true)
 }
-
-// ==========================================
-// PUBLIC VERIFICATION INTERFACES
-// ==========================================
-
-/// Verifies balance proof, asserts chain ID, and returns unpacked data
-pub fn verify_balance(
-    public_inputs: &[u8],
-    proof_points: &[u8],
-) -> Result<(Pubkey, u64, String, [u8; 32])> {
-    // 1. Verify the cryptographic proof using native syscalls (6 public inputs)
-    let is_valid = verify_proof_with_vk::<6>(BALANCE_RAW_VK, public_inputs, proof_points)?;
-    require!(is_valid, QiaraError::InvalidProof);
-
-    // 2. Build Nullifier logic (using your Keccak256 builder)
-    let nullifier = extractor::build_nullifier(public_inputs)?;
-
-    // 3. Extract transaction and user properties
-    let tx_data = extractor::extract_all_tx_data(public_inputs)?;
-    let user = extractor::extract_user_address(public_inputs)?;
-    
-    let amount = tx_data.amount;
-    let vault_provider = extractor::extract_provider(public_inputs)?;
-
-    // 4. Chain ID safety assertion (must equal 103)
-    let chain_id = tx_data.chain_id;
-    require!(chain_id == SUI_CHAIN_ID, QiaraError::WrongChainId);
-
-    // 5. Return unpacked components
-    Ok((user, amount, vault_provider, nullifier))
-}
-
-/// Verifies validator proof and returns pubkey along with removal flag
-pub fn verify_validator(
-    public_inputs: &[u8],
-    proof_points: &[u8],
-) -> Result<(Vec<u8>, bool)> {
-    // 1. Verify the cryptographic proof using native syscalls (7 public inputs)
-    let is_valid = verify_proof_with_vk::<7>(VALIDATOR_RAW_VK, public_inputs, proof_points)?;
-    require!(is_valid, QiaraError::InvalidProof);
-
-    let pubkey = extractor::extract_validator_pubkey(public_inputs)?;
-    let is_removal = extractor::extract_validator_is_removal(public_inputs)?;
-
-    Ok((pubkey, is_removal))
-}
-
-/// Verifies variable registry proof and returns variable properties
-pub fn verify_variable(
-    public_inputs: &[u8],
-    proof_points: &[u8],
-) -> Result<(String, String, Vec<u8>)> {
-    // 1. Verify the cryptographic proof using native syscalls (7 public inputs)
-    let is_valid = verify_proof_with_vk::<7>(VARIABLE_RAW_VK, public_inputs, proof_points)?;
-    require!(is_valid, QiaraError::InvalidProof);
-
-    let (header, name, data) = extractor::extract_variable_strings(public_inputs)?;
-    Ok((header, name, data))
-}
-
-// ==========================================
-// BOOLEAN PROOF ASSERTERS (Used by lib.rs)
-// ==========================================
 
 pub fn verify_validator_proof(public_inputs: &[u8], proof_points: &[u8]) -> Result<bool> {
     verify_proof_with_vk::<7>(VALIDATOR_RAW_VK, public_inputs, proof_points)
@@ -258,9 +175,13 @@ pub fn verify_variable_proof(public_inputs: &[u8], proof_points: &[u8]) -> Resul
     verify_proof_with_vk::<7>(VARIABLE_RAW_VK, public_inputs, proof_points)
 }
 
-// ==========================================
-// INTERNAL ARRAY COPING EXTENSION TRAIT
-// ==========================================
+// Added the missing balance helper to unpack ZK public inputs
+pub fn verify_and_unpack_balance(public_inputs: &[u8]) -> Result<(Pubkey, u64, String)> {
+    let user = extractor::extract_user_address(public_inputs)?;
+    let tx_data = extractor::extract_all_tx_data(public_inputs)?;
+    let provider = extractor::extract_provider(public_inputs)?;
+    Ok((user, tx_data.amount, provider))
+}
 
 trait ArrayCopySlice {
     fn copy_slice(&mut self, slice: &[u8]);

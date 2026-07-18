@@ -1,20 +1,16 @@
+// programs/qiara/src/lib.rs
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::secp256k1_recover;
 use anchor_lang::solana_program::secp256k1_recover::secp256k1_recover;
 use anchor_lang::solana_program::keccak;
 
 pub mod extractor;
 pub mod verifier;
 
-declare_id!("Fy8y5rxmhogaw1DvqA1ghcJJBCvKrfu2eRWK4es721Ec");
+declare_id!("gJQs9vx9y4zvxNeVqRzZX8iQiZ2y4sLb6X3tKwe3yW1");
 
 #[program]
 pub mod qiara {
     use super::*;
-
-    // ==========================================
-    // 1. EPOCH MANAGER
-    // ==========================================
 
     pub fn initialize_epoch(
         ctx: Context<InitializeEpoch>,
@@ -36,9 +32,22 @@ pub mod qiara {
         Ok(())
     }
 
-    // ==========================================
-    // 2. VARIABLES REGISTRY
-    // ==========================================
+    pub fn initialize_registry(ctx: Context<InitializeRegistry>) -> Result<()> {
+        let registry = &mut ctx.accounts.registry;
+        registry.is_locked = false;
+        registry.last_processed_epoch = 0;
+        registry.active_variables = Vec::new();
+        registry.pending_variables = Vec::new();
+        Ok(())
+    }
+
+    pub fn initialize_validator_state(ctx: Context<InitializeValidatorState>) -> Result<()> {
+        let state = &mut ctx.accounts.validator_state;
+        state.last_processed_epoch = 0;
+        state.active_pubkeys = Vec::new();
+        state.pending_updates = Vec::new();
+        Ok(())
+    }
 
     pub fn admin_add_variable(
         ctx: Context<AdminAddVariable>,
@@ -48,7 +57,6 @@ pub mod qiara {
     ) -> Result<()> {
         let registry = &mut ctx.accounts.registry;
         require!(!registry.is_locked, QiaraError::RegistryLocked);
-        
         internal_add_direct(registry, header, name, data);
         Ok(())
     }
@@ -62,22 +70,14 @@ pub mod qiara {
         let registry = &mut ctx.accounts.registry;
         require!(!registry.is_locked, QiaraError::RegistryLocked);
 
-        // 1. Verify signatures from validators
         verify_signatures(&ctx.accounts.validator_state, &signatures, &public_inputs)?;
 
-        // 2. Verify ZK Proof
-        require!(
-            verifier::verify_variable_proof(&public_inputs, &proof_points)?,
-            QiaraError::InvalidProof
-        );
+        let is_valid = verifier::verify_variable_proof(&public_inputs, &proof_points)?;
+        require!(is_valid, QiaraError::InvalidProof);
 
-        // 3. Extract properties
         let (header, name, data) = extractor::extract_variable_strings(&public_inputs)?;
 
-        // 4. Handle rollover check
         check_and_handle_epoch_rollover(registry, &ctx.accounts.epoch_config)?;
-
-        // 5. Append to pending queue
         internal_add_pending(registry, header, name, data);
         Ok(())
     }
@@ -87,10 +87,6 @@ pub mod qiara {
         Ok(())
     }
 
-    // ==========================================
-    // 3. VALIDATORS MANAGER
-    // ==========================================
-
     pub fn add_pending_pubkey(
         ctx: Context<AddPendingPubkey>,
         public_inputs: Vec<u8>,
@@ -99,22 +95,15 @@ pub mod qiara {
     ) -> Result<()> {
         let validator_state = &mut ctx.accounts.validator_state;
 
-        // 1. Verify Signatures of Current Quorum
         verify_signatures(validator_state, &signatures, &public_inputs)?;
 
-        // 2. Verify ZK Proof
-        require!(
-            verifier::verify_validator_proof(&public_inputs, &proof_points)?,
-            QiaraError::InvalidProof
-        );
+        let is_valid = verifier::verify_validator_proof(&public_inputs, &proof_points)?;
+        require!(is_valid, QiaraError::InvalidProof);
 
         let pubkey = extractor::extract_validator_pubkey(&public_inputs)?;
         let is_removal = extractor::extract_validator_is_removal(&public_inputs)?;
 
-        // 3. Check and handle epoch rollover
         check_and_handle_validator_rollover(validator_state, &ctx.accounts.epoch_config)?;
-
-        // 4. Push update to queue
         validator_state.pending_updates.push(PendingUpdate { pubkey, is_removal });
         Ok(())
     }
@@ -128,34 +117,26 @@ pub mod qiara {
         Ok(())
     }
 
-    // ==========================================
-    // 4. DELEGATOR / VAULT
-    // ==========================================
+    /// CPI TARGET: Verifies balance proof and signatures, returning Ok(()) to Vault [2]
+    pub fn verify_balance_proof(
+        ctx: Context<VerifyBalanceProof>,
+        public_inputs: Vec<u8>,
+        proof_points: Vec<u8>,
+        signatures: Vec<Vec<u8>>,
+    ) -> Result<()> {
+        // 1. Verify signatures against active validator state [2]
+        verify_signatures(&ctx.accounts.validator_state, &signatures, &public_inputs)?;
 
-    pub fn create_vault(ctx: Context<CreateVault>, provider_name: String) -> Result<()> {
-        let vault = &mut ctx.accounts.vault;
-        vault.provider_name = provider_name;
-        vault.authority = ctx.accounts.payer.key();
-        vault.bump = ctx.bumps.vault;
-        Ok(())
-    }
-
-    pub fn list_new_token(ctx: Context<ListNewToken>) -> Result<()> {
-        let vault = &ctx.accounts.vault;
-        let token_mint = ctx.accounts.token_mint.key();
-
-        emit!(TokenListed {
-            vault: vault.key(),
-            token_mint,
-            provider_name: vault.provider_name.clone(),
-        });
+        // 2. Verify ZK Balance Proof
+        let is_valid = verifier::verify_proof_with_vk::<6>(verifier::BALANCE_RAW_VK, &public_inputs, &proof_points)?;
+        require!(is_valid, QiaraError::InvalidProof);
 
         Ok(())
     }
 }
 
 // ==========================================
-// 5. DATA STRUCTURES & ACCOUNTS
+// DATA STRUCTURES & CONTEXTS
 // ==========================================
 
 #[account]
@@ -185,7 +166,7 @@ pub struct PendingVariable {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct ActiveVariableMap {
     pub header: String,
-    pub variables: Vec<PendingVariable>, // Uses the same flat structure
+    pub variables: Vec<PendingVariable>,
 }
 
 #[account]
@@ -194,6 +175,18 @@ pub struct Registry {
     pub pending_variables: Vec<ActiveVariableMap>,
     pub is_locked: bool,
     pub last_processed_epoch: u64,
+}
+
+impl Registry {
+    pub fn get_active_variable(&self, header: &str, name: &str) -> Option<Vec<u8>> {
+        if let Some(pos) = self.active_variables.iter().position(|x| x.header == header) {
+            let map = &self.active_variables[pos];
+            if let Some(v_pos) = map.variables.iter().position(|x| x.name == name) {
+                return Some(map.variables[v_pos].value.clone());
+            }
+        }
+        None
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -209,21 +202,16 @@ pub struct ValidatorState {
     pub last_processed_epoch: u64,
 }
 
-#[account]
-pub struct Vault {
-    pub provider_name: String,
-    pub authority: Pubkey,
-    pub bump: u8,
+#[derive(Accounts)]
+pub struct VerifyProof<'info> {
+    /// CHECK: Dummy account
+    pub signer: UncheckedAccount<'info>,
 }
 
-#[account]
-pub struct SupportedToken {
-    pub is_supported: bool,
+#[derive(Accounts)]
+pub struct VerifyBalanceProof<'info> {
+    pub validator_state: Account<'info, ValidatorState>, // Needed to verify signatures [2]
 }
-
-// ==========================================
-// 6. INSTRUCTION CONTEXTS
-// ==========================================
 
 #[derive(Accounts)]
 pub struct InitializeEpoch<'info> {
@@ -231,6 +219,24 @@ pub struct InitializeEpoch<'info> {
     pub config: Account<'info, EpochConfig>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeRegistry<'info> {
+    #[account(init, payer = admin, space = 8 + 4000)]
+    pub registry: Account<'info, Registry>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeValidatorState<'info> {
+    #[account(init, payer = admin, space = 8 + 2000)]
+    pub validator_state: Account<'info, ValidatorState>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -272,45 +278,7 @@ pub struct AddActivePubkeyDirect<'info> {
     pub admin: Signer<'info>,
 }
 
-#[derive(Accounts)]
-#[instruction(provider_name: String)]
-pub struct CreateVault<'info> {
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + 4 + provider_name.len() + 32 + 1,
-        seeds = [b"vault", provider_name.as_bytes()],
-        bump
-    )]
-    pub vault: Account<'info, Vault>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct ListNewToken<'info> {
-    pub vault: Account<'info, Vault>,
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + 1,
-        seeds = [b"supported-token", vault.key().as_ref(), token_mint.key().as_ref()],
-        bump
-    )]
-    pub supported_token: Account<'info, SupportedToken>,
-    /// CHECK: Safe
-    /// CHECK: Safe
-    pub token_mint: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-// ==========================================
-// 7. INTERNAL HELPER IMPLEMENTATIONS
-// ==========================================
-
+// Helpers
 fn internal_add_direct(registry: &mut Registry, header: String, name: String, data: Vec<u8>) {
     if let Some(pos) = registry.active_variables.iter().position(|x| x.header == header) {
         let active_map = &mut registry.active_variables[pos];
@@ -369,7 +337,6 @@ fn check_and_handle_validator_rollover(state: &mut ValidatorState, epoch_config:
     Ok(())
 }
 
-/// Recovers ECDSA secp256k1 keys and validates them against the active validator state
 pub fn verify_signatures(
     state: &ValidatorState,
     signatures: &[Vec<u8>],
@@ -382,14 +349,10 @@ pub fn verify_signatures(
         sig_bytes.copy_from_slice(&sig[0..64]);
         let recovery_id = sig[64];
 
-        // 1. Keccak256 hash inputs
         let msg_hash = keccak::hash(inputs).to_bytes();
-
-        // 2. Recover 64-byte uncompressed key from system call
         let recovered_raw = secp256k1_recover(&msg_hash, recovery_id, &sig_bytes)
             .map_err(|_| QiaraError::InvalidSignature)?;
 
-        // 3. SEC1 Decompress Prefix (Adds 0x04)
         let mut recovered_uncompressed = vec![0x04];
         recovered_uncompressed.extend_from_slice(&recovered_raw.to_bytes());
 
@@ -400,25 +363,6 @@ pub fn verify_signatures(
     }
     Ok(())
 }
-
-// ==========================================
-// 8. CUSTOM EVENTS
-// ==========================================
-
-#[event]
-pub struct TokenListed {
-    pub vault: Pubkey,
-    pub token_mint: Pubkey,
-    pub provider_name: String,
-}
-
-// ==========================================
-// 9. ERROR HANDLING
-// ==========================================
-
-// ==========================================
-// 9. ERROR HANDLING
-// ==========================================
 
 #[error_code]
 pub enum QiaraError {
@@ -438,12 +382,6 @@ pub enum QiaraError {
     InvalidSignature,
     #[msg("Caller is not a registered active validator.")]
     NotValidator,
-    #[msg("Shared name can't be empty")]
-    SharedNameCantBeEmpty,
-    #[msg("Referral code can't be empty")]
-    RefCodeCantBeEmpty,
-    #[msg("Sub owner can't be empty")]
-    SubOwnerCantBeEmpty,
     #[msg("Wrong chain ID.")]
-    WrongChainId, // Added to resolve the verifier assertion error
+    WrongChainId,
 }

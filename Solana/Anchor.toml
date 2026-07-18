@@ -8,7 +8,7 @@ skip-lint = false
 # The key (qiara_interface) must match your directory name in /programs/ (with hyphens replaced by underscores)
 [programs.localnet]
 shared = "H6iGwFKdoSmG5wmi6RYGDYtQQo2ouDRYTLycx1psrTs7"
-
+qiara = "A7Pz7Ki8ExyQBnwhxX6Xnyj8KKF7DMaeSQZDNT44gPd8"
 
 [registry]
 url = "https://api.apr.dev"

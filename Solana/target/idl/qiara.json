@@ -1,5 +1,5 @@
 {
-  "address": "Fy8y5rxmhogaw1DvqA1ghcJJBCvKrfu2eRWK4es721Ec",
+  "address": "gJQs9vx9y4zvxNeVqRzZX8iQiZ2y4sLb6X3tKwe3yW1",
   "metadata": {
     "name": "qiara",
     "version": "0.1.0",
@@ -115,58 +115,6 @@
       ]
     },
     {
-      "name": "create_vault",
-      "discriminator": [
-        29,
-        237,
-        247,
-        208,
-        193,
-        82,
-        54,
-        135
-      ],
-      "accounts": [
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "provider_name"
-              }
-            ]
-          }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "provider_name",
-          "type": "string"
-        }
-      ]
-    },
-    {
       "name": "friend_add_variable",
       "discriminator": [
         219,
@@ -251,62 +199,55 @@
       ]
     },
     {
-      "name": "list_new_token",
+      "name": "initialize_registry",
       "discriminator": [
-        109,
-        165,
-        42,
-        157,
-        58,
-        150,
-        79,
-        236
+        189,
+        181,
+        20,
+        17,
+        174,
+        57,
+        249,
+        59
       ],
       "accounts": [
         {
-          "name": "vault"
-        },
-        {
-          "name": "supported_token",
+          "name": "registry",
           "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  117,
-                  112,
-                  112,
-                  111,
-                  114,
-                  116,
-                  101,
-                  100,
-                  45,
-                  116,
-                  111,
-                  107,
-                  101,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "vault"
-              },
-              {
-                "kind": "account",
-                "path": "token_mint"
-              }
-            ]
-          }
+          "signer": true
         },
         {
-          "name": "token_mint"
+          "name": "admin",
+          "writable": true,
+          "signer": true
         },
         {
-          "name": "payer",
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_validator_state",
+      "discriminator": [
+        177,
+        228,
+        24,
+        246,
+        157,
+        93,
+        161,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "validator_state",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "admin",
           "writable": true,
           "signer": true
         },
@@ -340,6 +281,43 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "verify_balance_proof",
+      "docs": [
+        "CPI TARGET: Verifies balance proof and signatures, returning Ok(()) to Vault [2]"
+      ],
+      "discriminator": [
+        16,
+        107,
+        81,
+        160,
+        246,
+        36,
+        116,
+        231
+      ],
+      "accounts": [
+        {
+          "name": "validator_state"
+        }
+      ],
+      "args": [
+        {
+          "name": "public_inputs",
+          "type": "bytes"
+        },
+        {
+          "name": "proof_points",
+          "type": "bytes"
+        },
+        {
+          "name": "signatures",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -370,19 +348,6 @@
       ]
     },
     {
-      "name": "SupportedToken",
-      "discriminator": [
-        56,
-        162,
-        96,
-        99,
-        193,
-        245,
-        204,
-        108
-      ]
-    },
-    {
       "name": "ValidatorState",
       "discriminator": [
         217,
@@ -393,34 +358,6 @@
         187,
         1,
         89
-      ]
-    },
-    {
-      "name": "Vault",
-      "discriminator": [
-        211,
-        8,
-        232,
-        43,
-        2,
-        152,
-        117,
-        119
-      ]
-    }
-  ],
-  "events": [
-    {
-      "name": "TokenListed",
-      "discriminator": [
-        122,
-        82,
-        154,
-        225,
-        250,
-        48,
-        63,
-        4
       ]
     }
   ],
@@ -467,21 +404,6 @@
     },
     {
       "code": 6008,
-      "name": "SharedNameCantBeEmpty",
-      "msg": "Shared name can't be empty"
-    },
-    {
-      "code": 6009,
-      "name": "RefCodeCantBeEmpty",
-      "msg": "Referral code can't be empty"
-    },
-    {
-      "code": 6010,
-      "name": "SubOwnerCantBeEmpty",
-      "msg": "Sub owner can't be empty"
-    },
-    {
-      "code": 6011,
       "name": "WrongChainId",
       "msg": "Wrong chain ID."
     }
@@ -598,38 +520,6 @@
       }
     },
     {
-      "name": "SupportedToken",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "is_supported",
-            "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "TokenListed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "vault",
-            "type": "pubkey"
-          },
-          {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
-            "name": "provider_name",
-            "type": "string"
-          }
-        ]
-      }
-    },
-    {
       "name": "ValidatorState",
       "type": {
         "kind": "struct",
@@ -653,26 +543,6 @@
           {
             "name": "last_processed_epoch",
             "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Vault",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "provider_name",
-            "type": "string"
-          },
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
           }
         ]
       }

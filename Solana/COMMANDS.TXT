@@ -1,0 +1,5 @@
+solana address -k ~/solana/target/deploy/qiara-keypair.json
+
+cp /home/kristian/solana/target/idl/qiara.json /mnt/x/project/QIARA-CODE/Solana/target/idl/qiara.json
+
+ solana program close FUcB68BawaTk6Ui9UwgeEpeUkucyWeYZEfams9t8A8yi --url devnet --bypass-warning
