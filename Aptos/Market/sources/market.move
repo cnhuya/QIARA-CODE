@@ -1284,7 +1284,7 @@ module dev::QiaraVaultsV62 {
         if (enoughLocked) {
             user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
-            Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, (new_user_fee_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+            Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         } else {
             user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, total_deposited);
@@ -1364,7 +1364,7 @@ module dev::QiaraVaultsV62 {
         Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_incentive_indices(shared, user, token, chain, provider, (new_user_incentive_deposit_index as u256), (new_user_incentive_borrow_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        Margin::update_native_reward_index(shared, user, token, chain, provider, total_native_accumulated_rewards, (new_user_incentive_borrow_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_native_reward_index(shared, user, token, chain, provider, total_native_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
 
         return (
