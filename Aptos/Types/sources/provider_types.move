@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV44 {
+module dev::QiaraProviderTypesV45 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -10,7 +10,8 @@ module dev::QiaraProviderTypesV44 {
 
     // === STRUCTS === //
 
-    // Forward: Provider -> Chain -> (VaultAddress, List of Tokens)
+    // Forward: Provider -> Chain -> (VaultAddress, List of Token
+    )
     struct ProviderData has store, drop, copy {
         vault_address: String,
         tokens: vector<String>
@@ -82,8 +83,8 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     // === 2. Allow Tokens (Fills the 'tokens' vector in ProviderData) ===
     
     // Solana Tokens
-    allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
-    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
+    allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
+    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC"),]);
 
 
     // Robinhood Tokens
