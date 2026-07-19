@@ -510,7 +510,7 @@ module dev::QiaraLiquidityV60 {
             vault.total_accumulated_rewards = vault.total_accumulated_rewards + value;
         };
     }
-    public fun add_accumulated_interest(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_accumulated_interest(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(&vault.storage);

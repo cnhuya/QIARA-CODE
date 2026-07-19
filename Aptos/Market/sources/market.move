@@ -1275,7 +1275,7 @@ module dev::QiaraVaultsV61 {
 
         if (global_accrued_interest > 0) {
             //Liquidity::add_accumulated_rewards(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
 
         let user_total_supply = user_deposited + user_staked + user_virtual_deposited;
