@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV34 {
+module dev::QiaraPerpsV35 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -7,24 +7,24 @@ module dev::QiaraPerpsV34 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV44::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV44::{Self as RI};
-    use dev::QiaraRanksV44::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV45::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV45::{Self as RI};
+    use dev::QiaraRanksV45::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV44::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV45::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV60::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV61::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV59::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV59::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV60::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV60::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV18::{Self as storage};
     use dev::QiaraCapabilitiesV18::{Self as capabilities};
     use dev::QiaraOracleV7::{Self as oracle};
-    use dev::QiaraChainTypesV44::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV44::{Self as TokensTypes};
+    use dev::QiaraChainTypesV45::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV45::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 

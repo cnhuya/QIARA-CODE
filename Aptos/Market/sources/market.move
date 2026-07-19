@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV60 {
+module dev::QiaraVaultsV61 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -16,19 +16,19 @@ module dev::QiaraVaultsV60 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV44::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV44::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV44::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV44::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV45::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV45::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV45::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV45::{Self as WrapperGate};
 
-    use dev::QiaraMarginV44::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV44::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV44::{Self as RI};
-    use dev::QiaraBurnedQiaraV44::{Self as BurnedQiara};
+    use dev::QiaraMarginV45::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV45::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV45::{Self as RI};
+    use dev::QiaraBurnedQiaraV45::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV44::{Self as TokensTypes};
-    use dev::QiaraChainTypesV44::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV44::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV45::{Self as TokensTypes};
+    use dev::QiaraChainTypesV45::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV45::{Self as ProviderTypes};
 
     use dev::QiaraStorageV18::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV18::{Self as capabilities, Access as CapabilitiesAccess};
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV60 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV59::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV59::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV60::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV60::{Self as TokenVaults, Access as TokenVaultsAccess};
 
 
     use event::QiaraEventV1::{Self as Event};
