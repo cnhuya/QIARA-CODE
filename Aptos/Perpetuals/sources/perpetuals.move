@@ -174,7 +174,7 @@ module dev::QiaraPerpsV35 {
 
         let initial_markets = vector[
             utf8(b"Bitcoin"), utf8(b"Ethereum"), utf8(b"Sui"), utf8(b"Monad"), 
-            utf8(b"Virtuals"), utf8(b"Aptos"), utf8(b"Deepbook")
+            utf8(b"Virtuals"), utf8(b"Aptos"), utf8(b"Deepbook"), utf8(b"Solana")
         ];
         
         let i = 0;

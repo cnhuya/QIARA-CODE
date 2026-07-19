@@ -1274,7 +1274,7 @@ module dev::QiaraVaultsV61 {
         };
 
         if (global_accrued_interest > 0) {
-            Liquidity::add_accumulated_rewards(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            //Liquidity::add_accumulated_rewards(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
 
@@ -1357,8 +1357,9 @@ module dev::QiaraVaultsV61 {
 
             let final_gas = gas_fee - (gas_reduced + (actual_taxed_gas_fees as u256));
 
-            Liquidity::add_accumulated_rewards(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Liquidity::add_accumulated_interest(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            // Gas goes to protocol, not toward any vault rewards
+            //Liquidity::add_accumulated_rewards(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            //Liquidity::add_accumulated_interest(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Margin::add_borrow(shared, user, token, chain, provider, final_gas, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             
             (gas_reduced, xp_earned, gas_fee - gas_reduced)

@@ -511,10 +511,18 @@ module dev::QiaraLiquidityV60 {
         };
     }
     public fun add_accumulated_interest(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
-        {
-        let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-            vault.total_accumulated_interest = vault.total_accumulated_interest + value;
-        };
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let vault = find_vault(vaults, token, chain, provider);
+        let storage_address_string = non_user_storage_helper(&vault.storage);
+
+        let interest_fa = TokensCore::mint(token, chain, (yield as u64), TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+        
+        // 1. Physically store the assets in the vault
+        TokensCore::deposit(storage_address_string, vault.storage, interest_fa, chain);
+
+        // 2. Increment the rewards counter (which inflates the share price for existing LPs)
+        vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + value;
+
     }
 
     public fun update_incentive_index(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
