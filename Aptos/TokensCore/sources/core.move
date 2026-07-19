@@ -201,10 +201,10 @@ module dev::QiaraTokensCoreV45{
         ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Aptos"));
 
         ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"Solana"));
-        ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"USDC"));
-        ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"JLP"));
-        ma_drilla_lul(signer, shared, utf8(b"Robinhood"), utf8(b"USDG"));
-        ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"syrupUSDC"));
+        ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Solana"));
+        ma_drilla_lul(signer, shared, utf8(b"syrupUSDC"), utf8(b"Solana"));
+        ma_drilla_lul(signer, shared, utf8(b"USDG"), utf8(b"Solana"));
+        ma_drilla_lul(signer, shared, utf8(b"USDG"), utf8(b"Robinhood"));
         //        tttta(9);
     }
 
