@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV45 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV44::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV45::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV18::{Self as storage};
-    use dev::QiaraTokensQiaraV44::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV44::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV45::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV45::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
