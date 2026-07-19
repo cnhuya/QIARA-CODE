@@ -11,7 +11,7 @@ module dev::QiaraProviderTypesV45 {
     // === STRUCTS === //
 
     // Forward: Provider -> Chain -> (VaultAddress, List of Token
-    )
+    
     struct ProviderData has store, drop, copy {
         vault_address: String,
         tokens: vector<String>
