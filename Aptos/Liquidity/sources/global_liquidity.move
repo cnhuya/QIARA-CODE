@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV60 {
+module dev::QiaraLiquidityV61 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -498,12 +498,6 @@ module dev::QiaraLiquidityV60 {
         };
     }
 
-    public fun add_native_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
-        {
-        let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-            vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + value;
-        };
-    }
     public fun add_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
@@ -521,7 +515,7 @@ module dev::QiaraLiquidityV60 {
         TokensCore::deposit(storage_address_string, vault.storage, interest_fa, chain);
 
         // 2. Increment the rewards counter (which inflates the share price for existing LPs)
-        vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + value;
+        vault.total_accumulated_interest = vault.total_accumulated_interest + value;
 
     }
 

@@ -1205,7 +1205,6 @@ module dev::QiaraVaultsV61 {
    public fun new_accrue(shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256,u256, u256, u256, u256, u256, u256, u256, u256, u256,u256,u256) acquires Permissions {
         
         // 1. FETCH CURRENT BALANCES AND GLOBAL VAULT STATES
-        // FIXED: Destructure the updated 15-element balance tuple from Margin [1]
         let (
             user_deposited, 
             user_borrowed, 
@@ -1223,9 +1222,6 @@ module dev::QiaraVaultsV61 {
             user_locked_fee, 
             user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
-
-
-        // FIXED: Destructure the updated 11-element raw vault tuple from Liquidity [1]
         let (
             total_liquidity,
             total_borrowed, 
@@ -1239,7 +1235,6 @@ module dev::QiaraVaultsV61 {
             total_shares,                       // <--- FIXED: Return LP share supply
             last_update
         ) = Liquidity::return_raw_vault(token, chain, provider);
-
         let utilization = Liquidity::get_utilization_ratio(
             total_deposited, 
             virtual_deposited, 
@@ -1247,42 +1242,32 @@ module dev::QiaraVaultsV61 {
             virtual_borrowed, 
             total_staked
         );
-
+        // 2. FETCH TOKEN METADATA - >> PRICE
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
         let id = (TokensMetadata::get_coin_metadata_tier(&metadata) as u8);
         let price = TokensMetadata::get_coin_metadata_price(&metadata);
         
-        //let (native_chain_lend_apr, _) = TokensRates::get_vault_raw(token, chain, provider);
-        let (qiara_base_apr, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
+        // 3. UPDATE VAULT
+        Liquidity::update(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::update_incentive_index(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         let current_time = timestamp::now_seconds();
         let time_diff = current_time - last_update;
-        let user_time_diff = current_time - user_last_interacted;
-
-        Liquidity::update(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
-        // Sync Global Virtual Credit Index using the updated dual-incentive indexing logic
-        Liquidity::update_incentive_index(token, chain, provider, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
-        let native_accumulated_rewards = calculate_global_rewards(total_deposited, total_apr, (time_diff as u256));
-        Liquidity::add_native_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        Liquidity::add_accumulated_rewards(token, chain, provider, native_accumulated_rewards, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
         let global_accrued_interest = 0;
+
+        // 4.  CALCULATE BORROW_APR & ACCRUE INTEREST
+        let (_, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
         if (total_borrowed > 0) {
             global_accrued_interest = calculate_global_interest(total_borrowed, borrow_apr,(time_diff as u256));
         };
-
         if (global_accrued_interest > 0) {
-            //Liquidity::add_accumulated_rewards(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
-
+        // 5. CALCULATE USER INTEREST
         let user_total_supply = user_deposited + user_staked + user_virtual_deposited;
         let user_total_debt = user_borrowed + user_virtual_borrowed;
         let net_deposited = if (user_total_supply > user_total_debt) { user_total_supply - user_total_debt } else { 0 };
 
-        let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
        
         let user_interest_accrued = 0;
         if (user_total_debt > 0) {
@@ -1293,10 +1278,14 @@ module dev::QiaraVaultsV61 {
             Margin::add_borrow(shared, user, token, chain, provider, user_interest_accrued, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
+        // 6. CALCULATE USER REWARDS
+        let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
         let user_interest_reward;
         if (enoughLocked) {
             user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
+            Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, (new_user_fee_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
         } else {
             user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, total_deposited);
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1356,10 +1345,7 @@ module dev::QiaraVaultsV61 {
             Event::emit_qiara_shared_stats(data);
 
             let final_gas = gas_fee - (gas_reduced + (actual_taxed_gas_fees as u256));
-
             // Gas goes to protocol, not toward any vault rewards
-            //Liquidity::add_accumulated_rewards(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            //Liquidity::add_accumulated_interest(token, chain, provider, final_gas, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Margin::add_borrow(shared, user, token, chain, provider, final_gas, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             
             (gas_reduced, xp_earned, gas_fee - gas_reduced)
@@ -1376,33 +1362,11 @@ module dev::QiaraVaultsV61 {
 
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-
-        // FIXED: Update dual-index incentive checkpoints in the Margin module
-        Margin::update_incentive_indices(
-            shared, 
-            user, 
-            token, 
-            chain, 
-            provider, 
-            (new_user_incentive_deposit_index as u256), 
-            (new_user_incentive_borrow_index as u256), 
-            Margin::give_permission(&borrow_global<Permissions>(@dev).margin)
-        );
-
-        // FIXED: Update gated fee reward index checkpoint in the Margin module
-        Margin::update_accumulated_rewards_index(
-            shared, 
-            user, 
-            token, 
-            chain, 
-            provider, 
-            (new_user_fee_index as u256), 
-            Margin::give_permission(&borrow_global<Permissions>(@dev).margin)
-        );
-
+        Margin::update_incentive_indices(shared, user, token, chain, provider, (new_user_incentive_deposit_index as u256), (new_user_incentive_borrow_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_native_reward_index(shared, user, token, chain, provider, total_native_accumulated_rewards, (new_user_incentive_borrow_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-    
+
         return (
             total_accumulated_rewards, 
             total_accumulated_interest, 
