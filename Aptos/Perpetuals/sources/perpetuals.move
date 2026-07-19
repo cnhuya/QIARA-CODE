@@ -28,7 +28,7 @@ module dev::QiaraPerpsV35 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV34::{Self as Orders};
+    use dev::QiaraPerpsOrdersV35::{Self as Orders};
 
 
 // === ERRORS === //
