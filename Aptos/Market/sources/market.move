@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV64 {
+module dev::QiaraVaultsV65 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV64 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV63::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV63::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV64::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV64::{Self as TokenVaults, Access as TokenVaultsAccess};
 
 
     use event::QiaraEventV1::{Self as Event};
@@ -194,9 +194,8 @@ module dev::QiaraVaultsV64 {
         Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::remove_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        // 1. Redeems LP shares from shared storage, depositing underlying into shared storage
-        let lp_shares_to_redeem = amount_u256_taxed / 1000000000000000000;
-        Liquidity::withdraw_token(shared, token, chain, provider, lp_shares_to_redeem, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
 
         // 2. Withdraw from shared storage and transfer to the recipient's primary store
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -261,6 +260,8 @@ module dev::QiaraVaultsV64 {
         Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
     
         Liquidity::admin_accrue_rewards_from_lz(token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        
 
         let storage = Liquidity::return_storage(token, chain, provider);
         let storage_address_string = non_user_storage_helper(&storage);
@@ -419,7 +420,7 @@ module dev::QiaraVaultsV64 {
             Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&reward));
             
             // Redeem shares and deposit underlying into shared storage
-            Liquidity::withdraw_token(shared, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            //Liquidity::withdraw_token(shared, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             
             // Withdraw from shared storage and burn
             let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -530,7 +531,7 @@ module dev::QiaraVaultsV64 {
             len=len-1;
 
             // Redeem shares and deposit underlying directly to shared storage, then transfer to signer's personal wallet
-            Liquidity::withdraw_token(shared, _token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            //Liquidity::withdraw_token(shared, _token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::remove_stake(_token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             
             //What was this for? (all the token stuff is handled in withdraw_token?)
@@ -671,12 +672,11 @@ module dev::QiaraVaultsV64 {
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
 
         // 1. Redeem shares and deposit underlying into shared storage
-        let lp_shares_to_redeem = (amount_u256_taxed-fee)/1000000000000000000;
-        Liquidity::withdraw_token(shared, token, chain, provider, lp_shares_to_redeem, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Withdraw custom wrapped token from shared storage
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        let custom_fa = TokensCore::withdraw(shared, user_shared_store, (lp_shares_to_redeem as u64), chain);
+        let custom_fa = TokensCore::withdraw(shared, user_shared_store, (amount_u256_taxed/1000000000000000000 as u64), chain);
 
         // 3. Unwrap custom token into standard/normal FA using the helper in WrapperGate
         let unwrapped_fa = WrapperGate::unwrap_to_standard_fa(shared, token, chain, provider, custom_fa);
@@ -738,8 +738,9 @@ module dev::QiaraVaultsV64 {
         let amount_u256 = (amount as u256) * 1000000000000000000;
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1e18, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-        let (gross_after_impact, protocol_fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
+        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+        let (gross_after_impact, fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
+        let net = gross_after_impact - fee;
         if (gross_after_impact == 0) return;
 
         // gross_after_impact = what should be burned from shares (e.g. 98)
@@ -754,7 +755,7 @@ module dev::QiaraVaultsV64 {
         assert!(user_dep >= gross_after_impact, ERROR_INSUFFICIENT_BALANCE);
 
         // Burn gross, send net
-        Liquidity::withdraw_token(shared, token, chain, provider, gross_after_impact, net_to_user, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Margin: remove gross, NO locked_fee
         Margin::remove_deposit(shared, sender_bytes, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1134,7 +1135,7 @@ module dev::QiaraVaultsV64 {
             vector::push_back(&mut data, Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&reward)));
             
             // Redeem shares and deposit underlying into shared storage
-            Liquidity::withdraw_token(shared, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            //Liquidity::withdraw_token(shared, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             
             // Transfer from shared storage to the signer's personal wallet
             let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
