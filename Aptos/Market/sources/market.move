@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV63 {
+module dev::QiaraVaultsV64 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV63 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV62::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV62::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV63::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV63::{Self as TokenVaults, Access as TokenVaultsAccess};
 
 
     use event::QiaraEventV1::{Self as Event};
@@ -613,7 +613,7 @@ module dev::QiaraVaultsV63 {
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
         let user_lp_store = Shared::ensure_shared_fungible_storage(shared, lp_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
        //         tttta(2);
-       fungible_asset::deposit(user_lp_store, shares_fa);
+        fungible_asset::deposit(user_lp_store, shares_fa);
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
  
@@ -732,36 +732,36 @@ module dev::QiaraVaultsV63 {
     }
 
     public entry fun withdraw(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
-        let sender = bcs::to_bytes(&signer::address_of(signer));
-        let amount_u256 = (amount as u256)*1000000000000000000;
-
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-
-        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-      
-        let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+        let sender_bytes = bcs::to_bytes(&signer::address_of(signer));
+        Shared::assert_is_sub_owner(shared, sender_bytes);
         
-        let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256, _fee);
-        if(amount_u256_taxed == 0) { return };
+        let amount_u256 = (amount as u256) * 1000000000000000000;
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
+        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1e18, total_deposited/1e18, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+        let (gross_after_impact, protocol_fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
+        if (gross_after_impact == 0) return;
 
-        assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
-        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        // gross_after_impact = what should be burned from shares (e.g. 98)
+        // protocol_fee = what stays in vault (e.g. 2)
+        // net = gross - fee = what user gets (96)
+        let net_to_user = if (gross_after_impact > protocol_fee) { gross_after_impact - protocol_fee } else { 0 };
+        assert!(net_to_user > 0, ERROR_INSUFFICIENT_BALANCE);
+        assert!(total_deposited >= net_to_user, ERROR_NOT_ENOUGH_LIQUIDITY);
+
+        // Check user Margin balance
+        let (user_dep, _, _, _, _, _, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        assert!(user_dep >= gross_after_impact, ERROR_INSUFFICIENT_BALANCE);
+
+        // Burn gross, send net
+        Liquidity::withdraw_token(shared, token, chain, provider, gross_after_impact, net_to_user, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        // Margin: remove gross, NO locked_fee
+        Margin::remove_deposit(shared, sender_bytes, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
+        // Accrue after
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(shared, sender_bytes, token, chain, provider);
         
-        // 1. Redeems LP shares from shared storage, depositing underlying into shared storage
-        let lp_shares_to_redeem = (amount_u256_taxed-fee)/1000000000000000000;
-        Liquidity::withdraw_token(shared, token, chain, provider, lp_shares_to_redeem, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
-        // 2. Withdraw from shared storage and transfer directly to signer's personal wallet
-        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        let fa = TokensCore::withdraw(shared, user_shared_store, ((amount_u256_taxed-fee)/1000000000000000000 as u64), chain);
-        TokensCore::deposit(shared, obj, fa, chain);
-
-        Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-        Margin::remove_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
-            
         let data = vector[
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -813,11 +813,10 @@ module dev::QiaraVaultsV63 {
 
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        //tttta(100);
+
         // 1. Redeems LP shares from shared storage, depositing underlying into shared storage
-        let lp_shares_to_redeem = (amount_u256_taxed-fee)/1000000000000000000;
-        Liquidity::withdraw_token(shared, token, chain, provider, lp_shares_to_redeem, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        tttta(101);
+        Liquidity::borrow_token(shared, token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
         // 2. Withdraw from shared storage and transfer directly to signer's personal wallet
         //let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         //let fa = TokensCore::withdraw(shared, user_shared_store, ((amount_u256_taxed-fee)/1000000000000000000 as u64), chain);
@@ -1313,7 +1312,7 @@ module dev::QiaraVaultsV63 {
             ];
             Event::emit_qiara_shared_stats(data);
             // raw amount of gas reduced, xp earned, actual final gas (innitial gas fee - (amount of gas reduced from ref code user + ref code tax))
-            (amount_of_gas_reduced, xp_earned, gas_fee - (amount_of_gas_reduced + (actual_taxed_gas_fees_ref_code as u256)));
+            (amount_of_gas_reduced, xp_earned, gas_fee - (amount_of_gas_reduced + (actual_taxed_gas_fees_ref_code as u256)))
         } else {
             (0, 0, gas_fee)
         };
