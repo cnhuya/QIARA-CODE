@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV66 {
+module dev::QiaraVaultsV67 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -16,22 +16,22 @@ module dev::QiaraVaultsV66 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV46::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV46::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV46::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV46::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV47::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV47::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV47::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV47::{Self as WrapperGate};
 
-    use dev::QiaraMarginV46::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV46::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV46::{Self as RI};
-    use dev::QiaraBurnedQiaraV46::{Self as BurnedQiara};
+    use dev::QiaraMarginV47::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV47::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV47::{Self as RI};
+    use dev::QiaraBurnedQiaraV47::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV46::{Self as TokensTypes};
-    use dev::QiaraChainTypesV46::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV46::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV47::{Self as TokensTypes};
+    use dev::QiaraChainTypesV47::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV47::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV19::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV19::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV20::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV20::{Self as capabilities, Access as CapabilitiesAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 

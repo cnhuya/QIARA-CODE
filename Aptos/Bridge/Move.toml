@@ -42,7 +42,7 @@
     rev = 'main'
     subdir = 'Aptos/Market'
 
-    [dependencies.QiaraSharedV16]
+    [dependencies.QiaraSharedV17]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'
@@ -52,7 +52,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraStorageV19]
+    [dependencies.QiaraStorageV20]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'
