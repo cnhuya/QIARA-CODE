@@ -340,11 +340,11 @@ module dev::QiaraTokensCoreV46{
 // === TOKENOMICS FUNCTIONS === //
     
 // 1. Wrapper to create a vault (calls the Shared module)
-    public entry fun create_token_vault(user: &signer, shared: String, symbol: String) acquires Permissions {
+   /* public entry fun create_token_vault(user: &signer, shared: String, symbol: String) acquires Permissions {
         TokensType::ensure_valid_token_nick_name(symbol);
         let asset = get_metadata(symbol);
-        Shared::create_shared_vault(shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-    }
+        Shared::create_shared_vault(user, shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+    }*/
 
     /// Anyone can call this to burn their own tokens.
     public entry fun burn(signer: &signer, shared: String, symbol: String, chain: String, amount: u64) acquires Permissions, ManagedFungibleAsset {
@@ -396,7 +396,7 @@ module dev::QiaraTokensCoreV46{
         let storage_address_bytes = string_utils::to_string(&object::object_address(&storage));
 
         if(!Shared::assert_shared_storage((storage_address_bytes))){
-            Shared::create_non_user_shared_storage((storage_address_bytes));
+            Shared::create_non_user_shared_storage(user, (storage_address_bytes));
         };
 
         internal_deposit((storage_address_bytes),storage, fa, chain,managed);
@@ -481,7 +481,7 @@ module dev::QiaraTokensCoreV46{
         let storage_address_bytes = string_utils::to_string(&object::object_address(&storage));
 
         if(!Shared::assert_shared_storage((storage_address_bytes))){
-            Shared::create_non_user_shared_storage((storage_address_bytes));
+            Shared::create_non_user_shared_storage(validator, (storage_address_bytes));
         };
 
         let fa = internal_withdraw((storage_address_bytes),storage, amount, chain, managed);
