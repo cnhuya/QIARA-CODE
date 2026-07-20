@@ -425,7 +425,7 @@ module dev::QiaraPerpsV36 {
     }
 
     fun handle_gas_fee(shared: String, user: vector<u8>, token: String): u256 acquires Permissions{
-        let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
+        let (total_user_usd, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
         let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
