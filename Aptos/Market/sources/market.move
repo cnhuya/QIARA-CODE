@@ -738,7 +738,7 @@ module dev::QiaraVaultsV64 {
         let amount_u256 = (amount as u256) * 1000000000000000000;
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1e18, total_deposited/1e18, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1e18, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let (gross_after_impact, protocol_fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
         if (gross_after_impact == 0) return;
 

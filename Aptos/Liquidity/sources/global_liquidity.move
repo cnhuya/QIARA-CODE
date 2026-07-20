@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV63 {
+module dev::QiaraLiquidityV64 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -348,7 +348,7 @@ module dev::QiaraLiquidityV63 {
 
 
         /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-    public fun withdraw_token(shared: String, token: String, chain: String,provider: String, gross_amount_scaled: u256,net_amount_scaled: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun withdraw_token(signer: &signer,shared: String, token: String, chain: String,provider: String, gross_amount_scaled: u256, net_amount_scaled: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(&vault.storage);
@@ -359,37 +359,43 @@ module dev::QiaraLiquidityV63 {
         let total_shares = vault.total_shares;
         assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        // BURN FOR GROSS - so user doesn't keep fee LP
-        let shares_to_burn = (gross_amount_scaled * total_shares) / total_assets;
-        assert!(shares_to_burn > 0, ERROR_INSUFFICIENT_BALANCE);
+        // BURN FOR GROSS - user doesn't keep fee
+        let shares_to_burn_scaled = (gross_amount_scaled * total_shares) / total_assets;
+        assert!(shares_to_burn_scaled > 0, ERROR_INSUFFICIENT_BALANCE);
 
+        // 1. Resolve LP cap
         let vault_seed = *String::bytes(&token);
         vector::append(&mut vault_seed, *String::bytes(&chain));
         vector::append(&mut vault_seed, *String::bytes(&provider));
         let vault_address = account::create_resource_address(&@dev, vault_seed);
         let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
         let cap = table::borrow(&lp_caps.caps, vault_address);
-
-        let user_addr = string_to_address(&shared);
+        let user_addr = signer::address_of(signer);
+        // 2. Withdraw LP shares using standard FA api - signer not needed, shared is object address
         let user_lp_store = primary_fungible_store::primary_store(user_addr, cap.lp_metadata);
         
-        let shares_to_burn_u64 = (shares_to_burn / 1000000000000000000 as u64);
-        let shares_fa = TokensCore::withdraw(shared, user_lp_store, shares_to_burn_u64, chain);
-        assert!(fungible_asset::asset_metadata(&shares_fa) == cap.lp_metadata, ERROR_INVALID_LP_TOKEN);
-        fungible_asset::burn(&cap.burn_ref, shares_fa);
-        vault.total_shares = vault.total_shares - shares_to_burn;
+        // LP FA amount is in its own decimals - assuming 18 dec, scaled = u256 / 1e18
+        // If LP metadata is 8 dec, adjust divisor
+        let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
+        assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        // ACCOUNTING: gross leaves share system, but only net leaves vault storage
-        // fee = gross - net stays in vault
-        // So we reduce total_deposited only by net, fee stays as extra liquidity
+        // STANDARD FA withdraw, not TokensCore
+        let shares_fa = fungible_asset::withdraw(signer, user_lp_store, shares_to_burn_u64);
+        assert!(fungible_asset::asset_metadata(&shares_fa) == cap.lp_metadata, ERROR_INVALID_LP_TOKEN);
+        
+        fungible_asset::burn(&cap.burn_ref, shares_fa);
+        vault.total_shares = vault.total_shares - shares_to_burn_scaled;
+
+        // 3. Accounting - only net leaves deposited, fee stays in vault
         vault.total_deposited = vault.total_deposited - net_amount_scaled;
 
-        // Withdraw only NET to user
+        // 4. Underlying still via your wrapper (cross-chain)
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (net_amount_scaled / 1000000000000000000 as u64), chain);
+        
         let underlying_metadata = TokensCore::get_metadata(token);
-        let user_store = Shared::ensure_shared_fungible_storage(shared, underlying_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        TokensCore::deposit(shared, user_store, underlying_fa, chain);
-        // fee amount (gross - net) stays in vault.storage, no withdraw
+        let user_underlying_store = primary_fungible_store::ensure_primary_store_exists(user_addr, underlying_metadata);
+        // underlying deposit via standard FA too - TokensCore::deposit internally does FA deposit
+        primary_fungible_store::deposit(user_addr, underlying_fa);
     }
 
     public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
