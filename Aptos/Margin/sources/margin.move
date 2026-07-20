@@ -1,4 +1,4 @@
-module dev::QiaraMarginV47 {
+module dev::QiaraMarginV48 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV47 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV47::{Self as Ranks};
+    use dev::QiaraRanksV48::{Self as Ranks};
     use dev::QiaraTokensMetadataV47::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV47::{Self as TokensType};
     
@@ -69,7 +69,6 @@ module dev::QiaraMarginV47 {
         incentive_borrow_index: u256,             // <--- FIXED: Split Borrower Index
         accumulated_rewards_index_snapshot: u256, // <--- FIXED: Gated Fee Index
         last_update: u64,
-        locked_fee: u256,
     }
 
     struct Leverage has key, store, copy, drop{
@@ -111,25 +110,6 @@ module dev::QiaraMarginV47 {
         abort(number);
     }
 
-    public fun add_locked_fee(shared: String, user: vector<u8>, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires TokenHoldings{
-        Shared::assert_is_sub_owner(shared, user);
-        {
-        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-            balance.locked_fee = balance.locked_fee + value;
-        };
-    }
-
-    public fun remove_locked_fee(shared: String,user: vector<u8>,token: String, chain: String,provider: String, value: u256, cap: Permission) acquires TokenHoldings{
-        Shared::assert_is_sub_owner(shared, user);
-        {
-        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-            if(value > balance.locked_fee){
-                balance.locked_fee = 0
-            } else {
-                balance.locked_fee = balance.locked_fee - value;
-            };
-        };
-    }
 
 
     public fun add_credit(shared: String, user: vector<u8>, value: u256, cap: Permission) acquires TokenHoldings{
@@ -364,7 +344,7 @@ module dev::QiaraMarginV47 {
 // === PUBLIC VIEWS === //
 
     #[view]
-    public fun get_user_total_usd(shared: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, vector<Credit>) acquires TokenHoldings {
+    public fun get_user_total_usd(shared: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256, vector<Credit>) acquires TokenHoldings {
         let tokens_holdings = borrow_global_mut<TokenHoldings>(@dev);
         let tokens = TokensType::return_full_nick_names_list();
 
@@ -377,7 +357,6 @@ module dev::QiaraMarginV47 {
         let total_bor = 0u256;
         let total_rew = 0u256;
         let total_int = 0u256;
-        let total_locked_fees = 0u256;
         let total_expected_interest = 0u256;
 
         let len_tokens = vector::length(&tokens);
@@ -447,7 +426,6 @@ module dev::QiaraMarginV47 {
                     let bor_usd = (uv.borrowed * price) / denom;
                     let reward_usd = (uv.rewards * price) / denom;
                     let interest_usd = (uv.interest * price) / denom;
-                    let locked_fees_usd = ((uv.locked_fee as u256) * price) / denom;
 
                     let current_staked_usd: u256;
                     if (token == utf8(b"Qiara")) {
@@ -461,7 +439,6 @@ module dev::QiaraMarginV47 {
                     total_bor = total_bor + bor_usd;
                     total_rew = total_rew + reward_usd;
                     total_int = total_int + interest_usd;
-                    total_locked_fees = total_locked_fees + locked_fees_usd;
                     total_margin = total_margin + (dep_usd * efficiency / 10000);
                 };
                 j = j + 1;
@@ -491,7 +468,6 @@ module dev::QiaraMarginV47 {
             total_int,
             avg_interest,
             total_staked,
-            total_locked_fees,
             vect
         )
     }
@@ -632,7 +608,7 @@ module dev::QiaraMarginV47 {
     }
 
     #[view]
-    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): (u256, u256,u256,u256,u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
+    public fun get_user_raw_balance(shared: String, token: String, chain: String, provider: String): ( u256,u256,u256,u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u64) acquires TokenHoldings {
         let balance  = *find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         return (
             balance.deposited, 
@@ -648,7 +624,6 @@ module dev::QiaraMarginV47 {
             balance.incentive_deposit_index, 
             balance.incentive_borrow_index, 
             balance.accumulated_rewards_index_snapshot, 
-            balance.locked_fee, 
             balance.last_update
         )
     }
@@ -764,7 +739,6 @@ module dev::QiaraMarginV47 {
             incentive_borrow_index: 0,
             accumulated_rewards_index_snapshot: 0,
             last_update: timestamp::now_seconds(),
-            locked_fee: 0
         };
 
         if (!map::contains_key(a, &provider)) {
@@ -806,7 +780,7 @@ module dev::QiaraMarginV47 {
 // === HELPERS === //
 
     public fun get_utilization_ratio(shared: String): u256 acquires TokenHoldings{
-        let (_, marginUSD, _, borrowUSD, _, _, _, _, _, _,_,) = get_user_total_usd(shared);
+        let (_, marginUSD, _, borrowUSD, _, _, _, _, _,_,) = get_user_total_usd(shared);
         if (marginUSD == 0) {
             0
         } else {

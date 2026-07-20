@@ -617,9 +617,7 @@ module dev::QiaraVaultsV67 {
         fungible_asset::deposit(user_lp_store, shares_fa);
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
- 
-        Margin::add_locked_fee(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, ((fee-1000000000000000000)*99)/100, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let data = vector[
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
@@ -1241,13 +1239,11 @@ module dev::QiaraVaultsV67 {
 
         // 6. CALCULATE USER REWARDS
         let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
-         let user_interest_reward = 0;
+        let user_interest_reward = 0;
         if (enoughLocked) {
             user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
             Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-
-        } else {
-            user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, total_deposited);        };
+        }
 
         if (user_interest_reward > 0) {
             Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
@@ -1477,12 +1473,6 @@ module dev::QiaraVaultsV67 {
         
         let index_diff = total_accumulated_interest - user_accumulated_interest_index;
         (index_diff * user_total_debt) / total_borrowed
-    }
-
-    #[view]
-    public fun calculate_user_native_rewards(total_native_accumulated_rewards: u256, user_native_accumulated_rewards_index: u256, user_total_deposited: u256, total_deposited: u256): u256 {        
-        let index_diff = total_native_accumulated_rewards - user_native_accumulated_rewards_index;
-        (index_diff * user_total_deposited) / total_deposited
     }
 
 }
