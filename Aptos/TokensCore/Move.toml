@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraTokensV46"
+    name = "QiaraTokensV47"
     version = "2.1.1"
     authors = []
 
@@ -22,12 +22,12 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTypesV46]
+    [dependencies.QiaraTypesV47]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraStoragesV46]
+    [dependencies.QiaraStoragesV47]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storages'
@@ -37,7 +37,7 @@
     rev = 'main'
     subdir = 'Aptos/oracle'
 
-    [dependencies.QiaraStorageV19]
+    [dependencies.QiaraStorageV20]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'
@@ -47,7 +47,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraSharedV16]
+    [dependencies.QiaraSharedV17]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Shared'

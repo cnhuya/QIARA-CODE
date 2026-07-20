@@ -1,4 +1,4 @@
-module dev::QiaraWrapperGateV46 {
+module dev::QiaraWrapperGateV47 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -10,8 +10,8 @@ module dev::QiaraWrapperGateV46 {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
 
-    use dev::QiaraTokensCoreV46::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraTokensCoreV47::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
