@@ -34,6 +34,7 @@ module dev::QiaraLiquidityV61 {
     const ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO: u64 = 5;
     const ERROR_INSUFFICIENT_BALANCE: u64 = 6;
     const ERROR_INVALID_LP_TOKEN: u64 = 7;
+    const ERROR_WEIGHTS_MUST_ADD_TO_100: u64 = 8;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -189,15 +190,11 @@ module dev::QiaraLiquidityV61 {
     public entry fun add_incentive(signer: &signer, shared: String, amount: u256,token: String, chain: String, provider: String, credits: u256, duration_seconds: u64,deposit_weight: u256,borrow_weight: u256) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
-        assert!(deposit_weight + borrow_weight == 100000000, ERROR_ARGUMENT_LENGHT_MISSMATCH); // 1e8 = 100%
+        assert!(deposit_weight + borrow_weight == 100000000, ERROR_WEIGHTS_MUST_ADD_TO_100); // 1e8 = 100%
         assert!(amount > 0, 101);
 
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        
-        // 1. Check user has enough
-        let (deposited, _, _, _, _,_, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
-        assert!(deposited >= amount, ERROR_INSUFFICIENT_BALANCE);
 
         // 2. Escrow REAL underlying - not just delete Margin record
         // amount is 1e18 scaled, FA amount is u64
@@ -233,7 +230,7 @@ module dev::QiaraLiquidityV61 {
         if (vault.incentive.period_finish == 0) {
             // new incentive
             vault.incentive = Incentive {
-                deployer: sender_addr,
+                deployer: signer::address_of(signer),
                 total_amount: amount,
                 reward_rate: amount / (duration_seconds as u256),
                 deposit_weight,
@@ -255,7 +252,7 @@ module dev::QiaraLiquidityV61 {
             vault.incentive.total_amount = vault.incentive.total_amount + amount;
             vault.incentive.deposit_weight = deposit_weight; // update weights
             vault.incentive.borrow_weight = borrow_weight;
-            vault.incentive.deployer = sender_addr; 
+            vault.incentive.deployer = signer::address_of(signer); 
         };
     }
 
@@ -351,7 +348,7 @@ module dev::QiaraLiquidityV61 {
 
 
     /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-    public fun withdraw_token(shared: String, token: String, chain: String,provider: String, shares_amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun withdraw_token(shared: String, token: String, chain: String,provider: String, shares_amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(&vault.storage);
@@ -392,7 +389,7 @@ module dev::QiaraLiquidityV61 {
         // 7. Deposit the underlying assets directly back into the user's shared storage
         let underlying_metadata = TokensCore::get_metadata(token);
         let user_shared_store_underlying = Shared::ensure_shared_fungible_storage(shared, underlying_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        TokensCore::deposit(shared, user_underlying_store, user_shared_store_underlying, chain);
+        TokensCore::deposit(shared, user_shared_store_underlying, underlying_fa, chain);
     }
 
     public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
