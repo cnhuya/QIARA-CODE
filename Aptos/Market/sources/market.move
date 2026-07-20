@@ -37,8 +37,8 @@ module dev::QiaraVaultsV67 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV65::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV65::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV66::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV66::{Self as TokenVaults, Access as TokenVaultsAccess};
 
 
     use event::QiaraEventV1::{Self as Event};
@@ -264,7 +264,7 @@ module dev::QiaraVaultsV67 {
         
 
         let storage = Liquidity::return_storage(token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&storage);
+        let storage_address_string = non_user_storage_helper(validator, &storage);
 
         let fa = TokensCore::withdraw(storage_address_string, storage, amount, chain);
         TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(recipient,TokensCore::get_metadata(token)), fa, chain);
@@ -324,7 +324,7 @@ module dev::QiaraVaultsV67 {
         
         // UPGRADE: Deposit repayment directly into vault storage (Do not mint LP shares for repayments)
         let storage = Liquidity::return_storage(token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&storage);
+        let storage_address_string = non_user_storage_helper(validator, &storage);
         TokensCore::deposit(storage_address_string, storage, fa, chain);
 
         Margin::remove_borrow(shared, sender, token, chain, provider, (amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -379,7 +379,7 @@ module dev::QiaraVaultsV67 {
         let interest_amount = user_interest;
 
         let storage = Liquidity::return_storage(token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&storage);
+        let storage_address_string = non_user_storage_helper(validator, &storage);
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
         let data = vector[
@@ -672,7 +672,7 @@ module dev::QiaraVaultsV67 {
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
 
         // 1. Redeem shares and deposit underlying into shared storage
-        Liquidity::withdraw_token(shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Withdraw custom wrapped token from shared storage
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -743,17 +743,6 @@ module dev::QiaraVaultsV67 {
         let net = gross_after_impact - fee;
         if (gross_after_impact == 0) return;
 
-        // gross_after_impact = what should be burned from shares (e.g. 98)
-        // protocol_fee = what stays in vault (e.g. 2)
-        // net = gross - fee = what user gets (96)
-        let net_to_user = if (gross_after_impact > protocol_fee) { gross_after_impact - protocol_fee } else { 0 };
-        assert!(net_to_user > 0, ERROR_INSUFFICIENT_BALANCE);
-        assert!(total_deposited >= net_to_user, ERROR_NOT_ENOUGH_LIQUIDITY);
-
-        // Check user Margin balance
-        let (user_dep, _, _, _, _, _, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
-        assert!(user_dep >= gross_after_impact, ERROR_INSUFFICIENT_BALANCE);
-
         // Burn gross, send net
         Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
@@ -770,7 +759,7 @@ module dev::QiaraVaultsV67 {
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
 
-            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&gross_after_impact)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
             Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
             Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
@@ -884,7 +873,7 @@ module dev::QiaraVaultsV67 {
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_virtual_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
             
         let data = vector[
             // Items from the event top-level fields
@@ -1049,7 +1038,7 @@ module dev::QiaraVaultsV67 {
         
         // UPGRADE: Deposit repayment directly into vault storage (Do not mint LP shares for repayments)
         let storage = Liquidity::return_storage(token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&storage);
+        let storage_address_string = non_user_storage_helper(signer, &storage);
         TokensCore::deposit(storage_address_string, storage, fa, chain);
 
         Margin::remove_borrow(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, (amount as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1096,7 +1085,7 @@ module dev::QiaraVaultsV67 {
 
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, hared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
@@ -1153,7 +1142,7 @@ module dev::QiaraVaultsV67 {
 
             // UPGRADE: Deposit interest/yield directly into vault storage (Do not mint LP shares for yield payments)
             let storage = Liquidity::return_storage(token, chain, provider);
-            let storage_address_string = non_user_storage_helper(&storage);
+            let storage_address_string = non_user_storage_helper(signer,&storage);
             TokensCore::deposit(storage_address_string, storage, fa, chain);
 
             Liquidity::add_deposit(token, chain, provider, (interest as u256), Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -1231,7 +1220,7 @@ module dev::QiaraVaultsV67 {
             
         };
         if (global_accrued_interest > 0) {
-            Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_accumulated_interest(signer, token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::add_borrow(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
 
@@ -1349,10 +1338,10 @@ module dev::QiaraVaultsV67 {
         )
     }
     
-    fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
+    fun non_user_storage_helper<T: key>(signer: &signer, obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){
-                Shared::create_non_user_shared_storage((storage_address_bytes));
+                Shared::create_non_user_shared_storage(signer, (storage_address_bytes));
             };
         return (storage_address_bytes)
     }
