@@ -817,6 +817,13 @@ module dev::QiaraSharedV16 {
         RefCodeParams { xp_tax: 0, fee_tax: 0,}
     }
 
+
+    public fun get_shared_signer(shared_name: String,_cap: &Permission): signer acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+        let ownership_record = table::borrow(&shared.storage, shared_name);
+        object::generate_signer_for_extending(&ownership_record.metadata.extend_ref)
+    }
+
     /// Helper to convert a stored Ownership record into a copyable view
     fun make_ownership_view(record: &Ownership): OwnershipView {
         OwnershipView {
