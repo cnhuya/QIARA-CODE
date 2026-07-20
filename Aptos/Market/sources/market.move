@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV67 {
+module dev::QiaraVaultsV68 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -21,10 +21,10 @@ module dev::QiaraVaultsV67 {
     use dev::QiaraTokensTiersV47::{Self as TokensTiers};
     use dev::QiaraWrapperGateV47::{Self as WrapperGate};
 
-    use dev::QiaraMarginV47::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV47::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV47::{Self as RI};
-    use dev::QiaraBurnedQiaraV47::{Self as BurnedQiara};
+    use dev::QiaraMarginV48::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV48::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV48::{Self as RI};
+    use dev::QiaraBurnedQiaraV48::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV47::{Self as TokensTypes};
     use dev::QiaraChainTypesV47::{Self as ChainTypes};
@@ -37,8 +37,8 @@ module dev::QiaraVaultsV67 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV66::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV66::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV67::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV67::{Self as TokenVaults, Access as TokenVaultsAccess};
 
 
     use event::QiaraEventV1::{Self as Event};
@@ -1277,7 +1277,7 @@ module dev::QiaraVaultsV67 {
             Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity)
         );
 
-        let (total_user_usd, _, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
+        let (total_user_usd, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
         let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
