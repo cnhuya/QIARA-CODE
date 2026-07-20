@@ -13,15 +13,15 @@ module dev::QiaraPerpsV35 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV45::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
-    use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV61::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV60::{Self as Liquidity};
     use dev::QiaraTokenVaultsV60::{Self as TokenVaults, Access as TokenVaultsAccess};
 
-    use dev::QiaraStorageV18::{Self as storage};
-    use dev::QiaraCapabilitiesV18::{Self as capabilities};
+    use dev::QiaraStorageV19::{Self as storage};
+    use dev::QiaraCapabilitiesV19::{Self as capabilities};
     use dev::QiaraOracleV7::{Self as oracle};
     use dev::QiaraChainTypesV45::{Self as ChainTypes};
     use dev::QiaraTokenTypesV45::{Self as TokensTypes};

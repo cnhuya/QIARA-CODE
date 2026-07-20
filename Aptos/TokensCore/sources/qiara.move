@@ -16,8 +16,8 @@ module dev::QiaraTokensQiaraV46 {
 
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraCapabilitiesV18::{Self as capabilities};
-    use dev::QiaraStorageV18::{Self as storage};
+    use dev::QiaraCapabilitiesV19::{Self as capabilities};
+    use dev::QiaraStorageV19::{Self as storage};
 
     use dev::QiaraTokenTypesV46::{Self as TokensType};
 

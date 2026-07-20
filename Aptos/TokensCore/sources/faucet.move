@@ -14,7 +14,7 @@ module dev::QiaraTokensFaucetV46 {
     use dev::QiaraTokensCoreV46::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensMetadataV46::{Self as TokensMetadata};
     use dev::QiaraSharedV16::{Self as Shared};
-    use dev::QiaraStorageV18::{Self as storage};
+    use dev::QiaraStorageV19::{Self as storage};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
