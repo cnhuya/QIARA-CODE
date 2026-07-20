@@ -348,16 +348,7 @@ module dev::QiaraLiquidityV64 {
 
 
         /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-   public fun withdraw_token(
-    signer: &signer,
-    shared: String, 
-    token: String, 
-    chain: String,
-    provider: String, 
-    raw_scaled: u256, // 100e18 - how much shares to burn
-    net_scaled: u256, // 98e18 - how much to send to user
-    _cap: Permission
-) acquires GlobalVault, GlobalLPCapabilities {
+   public fun withdraw_token(signer: &signer,shared: String, token: String, chain: String,provider: String, raw_scaled: u256,net_scaled: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
     let vaults = borrow_global_mut<GlobalVault>(@dev);
     let vault = find_vault(vaults, token, chain, provider);
     let storage_address_string = non_user_storage_helper(&vault.storage);
@@ -379,7 +370,9 @@ module dev::QiaraLiquidityV64 {
     let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
     let cap = table::borrow(&lp_caps.caps, vault_address);
 
-    let shares_fa = primary_fungible_store::withdraw(signer, cap.lp_metadata, shares_to_burn_u64);
+    let obj = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+
+    let shares_fa = fungible_asset::withdraw(signer, cap.lp_metadata, shares_to_burn_u64);
     fungible_asset::burn(&cap.burn_ref, shares_fa);
     vault.total_shares = vault.total_shares - shares_to_burn_scaled;
 
