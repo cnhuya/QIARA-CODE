@@ -13,7 +13,7 @@ module dev::QiaraPerpsV35 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV45::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
-    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV61::{Self as Market, Access as MarketAccess};
 

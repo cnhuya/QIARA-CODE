@@ -10,7 +10,7 @@ module dev::QiaraRanksV46{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraStorageV19::{Self as storage, Access as StorageAccess};
 
-    use dev::QiaraSharedV16::{Self as Shared, Ownership, RefCodeParams};
+    use dev::QiaraSharedV17::{Self as Shared, OwnershipView as Ownership, RefCodeParams};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

@@ -1,4 +1,4 @@
-module dev::QiaraSharedV16 {
+module dev::QiaraSharedV17 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -7,7 +7,6 @@ module dev::QiaraSharedV16 {
     use std::timestamp;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use event::QiaraEventV1::{Self as Event};
-    
     
     // === NEW IMPORTS FOR FUNGIBLE ASSETS === //
     use aptos_framework::account::{Self, SignerCapability};
@@ -59,8 +58,6 @@ module dev::QiaraSharedV16 {
         extend_ref: ExtendRef,
     }
 
-
-
     struct RefCodeParams has store, copy, drop {
         xp_tax: u64, // 100_000_000 = 100%
         fee_tax: u64, // 100_000_000 = 100%
@@ -94,13 +91,10 @@ module dev::QiaraSharedV16 {
     }
 
     struct SharedStorage has key {
-        
         storage: Table<String, Ownership>,
         storage_registry: Table<vector<u8>, vector<String>>,
         ref_code_registry: Table<String, RefCodeParams>,
-        // ✅ NEW: Maps referral code (String) -> creator shared storage name (String) [2]
         ref_code_to_shared: Table<String, String>, 
-        // NEW: shared_name -> asset_metadata -> vault_store
         fungible_stores: Table<String, Table<Object<Metadata>, Object<FungibleStore>>>,
     }
 
@@ -115,7 +109,7 @@ module dev::QiaraSharedV16 {
                 storage: table::new<String, Ownership>(), 
                 storage_registry: table::new<vector<u8>, vector<String>>(),
                 ref_code_registry: table::new<String, RefCodeParams>(),
-                ref_code_to_shared: table::new<String, String>(), // ✅ Initialize registry [2]
+                ref_code_to_shared: table::new<String, String>(), 
                 fungible_stores: table::new<String, Table<Object<Metadata>, Object<FungibleStore>>>(),
             });
         };
@@ -130,13 +124,9 @@ module dev::QiaraSharedV16 {
         let non_user_key = bcs::to_bytes(&name);
 
         if (!table::contains(&shared.storage, name)) {
-            // 1. Convert the shared_name string to bytes
             let name_bytes = *std::string::bytes(&name);
 
-            // 2. Create the named object on-chain under the admin/deployer's signer
             let constructor_ref = object::create_named_object(signer, name_bytes);
-            
-            // 3. Generate the ExtendRef and wrap it in your Metadata struct
             let extend_ref = object::generate_extend_ref(&constructor_ref);
             let metadata = SharedMetadata {
                 extend_ref: extend_ref,
@@ -153,7 +143,7 @@ module dev::QiaraSharedV16 {
                 gas_index: 0,
                 amount_of_users_using_ref_code: 0,
                 last_updated: 0,
-                metadata: metadata // Map the metadata field
+                metadata: metadata 
             });
             table::add(&mut shared.storage_registry, non_user_key, vector::empty<String>());
         } else {
@@ -200,14 +190,10 @@ module dev::QiaraSharedV16 {
         if (used_ref_code != utf8(b"")) {
             assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
             
-            // ✅ Step A: Resolve the referrer's actual shared storage name using the new registry
             let referrer_shared_name = *table::borrow(&shared.ref_code_to_shared, used_ref_code);
-            
-            // ✅ Step B: Borrow and increment the referrer's count using their actual shared storage name
             let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, referrer_shared_name);
             used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
         
-            // ✅ Step C: Emit under the referrer's actual storage name
             let data = vector[
                 Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&referrer_shared_name)),
                 Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&used_ref_code_ownership_record.amount_of_users_using_ref_code)),
@@ -216,21 +202,16 @@ module dev::QiaraSharedV16 {
         };
 
         table::add(&mut shared.ref_code_registry, copy ref_code, copy ref_code_params);
-        table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); // ✅ Store the code-to-name mapping
+        table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); 
         
-        // 🟢 NEW: 1. Convert the shared_name string to bytes
         let name_bytes = *std::string::bytes(&name);
 
-        // 🟢 NEW: 2. Actually CREATE the named object on-chain under the user's signer
         let constructor_ref = object::create_named_object(signer, name_bytes);
-        
-        // 🟢 NEW: 3. Generate the ExtendRef and wrap it in your Metadata struct
         let extend_ref = object::generate_extend_ref(&constructor_ref);
         let metadata = SharedMetadata {
             extend_ref: extend_ref,
         };
 
-        // 🟢 NEW: 4. Save the full Ownership record including the newly created metadata
         table::add(&mut shared.storage, copy name, Ownership { 
             owner: signer_addr_bytes,  
             sub_owners: sub_owners,
@@ -242,7 +223,7 @@ module dev::QiaraSharedV16 {
             gas_index: 0,
             amount_of_users_using_ref_code: 0,
             last_updated: timestamp::now_seconds(),
-            metadata: metadata, // Added metadata field
+            metadata: metadata, 
         });
 
         if (!table::contains(&shared.storage_registry, signer_addr_bytes)) {
@@ -336,7 +317,6 @@ module dev::QiaraSharedV16 {
 
         ownership_record.used_ref_code = new_used_ref_code;
 
-        // Emit Event matching the module's existing standard
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"none"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&sender_addr)),
@@ -379,14 +359,10 @@ module dev::QiaraSharedV16 {
         if (used_ref_code != utf8(b"")) {
             assert!(table::contains(&shared.ref_code_registry, used_ref_code), ERROR_REF_CODE_DOESNT_EXISTS);
             
-            // ✅ Step A: Resolve the referrer's actual shared storage name using the new registry
             let referrer_shared_name = *table::borrow(&shared.ref_code_to_shared, used_ref_code);
-            
-            // ✅ Step B: Borrow and increment the referrer's count using their actual shared storage name
             let used_ref_code_ownership_record = table::borrow_mut(&mut shared.storage, referrer_shared_name);
             used_ref_code_ownership_record.amount_of_users_using_ref_code = used_ref_code_ownership_record.amount_of_users_using_ref_code + 1;
      
-            // ✅ Step C: Emit under the referrer's actual storage name
             let data = vector[
                 Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&referrer_shared_name)),
                 Event::create_data_struct(utf8(b"ref_code_users"), utf8(b"u64"), bcs::to_bytes(&used_ref_code_ownership_record.amount_of_users_using_ref_code)),
@@ -395,21 +371,16 @@ module dev::QiaraSharedV16 {
         };
 
         table::add(&mut shared.ref_code_registry, copy ref_code, copy ref_code_params);
-        table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); // ✅ Store the code-to-name mapping
+        table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); 
 
-        // 🟢 NEW: 1. Convert the shared_name string to bytes
         let name_bytes = *std::string::bytes(&name);
 
-        // 🟢 NEW: 2. Create the named object on-chain under the validator's signer
         let constructor_ref = object::create_named_object(validator, name_bytes);
-        
-        // 🟢 NEW: 3. Generate the ExtendRef and wrap it in your Metadata struct
         let extend_ref = object::generate_extend_ref(&constructor_ref);
         let metadata = SharedMetadata {
             extend_ref: extend_ref,
         };
 
-        // 🟢 NEW: 4. Save the full Ownership record including the newly created metadata
         table::add(&mut shared.storage, copy name, Ownership { 
             owner: user, 
             sub_owners: sub_owners,
@@ -421,7 +392,7 @@ module dev::QiaraSharedV16 {
             gas_index: 0,
             amount_of_users_using_ref_code: 0,
             last_updated: timestamp::now_seconds(),
-            metadata: metadata, // Added metadata field
+            metadata: metadata, 
         });
 
         if (!table::contains(&shared.storage_registry, user)) {
@@ -505,7 +476,6 @@ module dev::QiaraSharedV16 {
         let ownership_record = table::borrow_mut(&mut shared.storage, name);
         assert!(ownership_record.owner == user, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
 
-
         if (new_used_ref_code != utf8(b"")) {
             abort ERROR_ALREADY_USING_SOME_REF_CODE
         };
@@ -516,7 +486,6 @@ module dev::QiaraSharedV16 {
 
         ownership_record.used_ref_code = new_used_ref_code;
 
-        // Emit Event matching the module's existing standard
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
             Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
@@ -527,7 +496,9 @@ module dev::QiaraSharedV16 {
         Event::emit_shared_storage_event(utf8(b"Used Ref Code Updated"), data);
     }
 
+    // ----------------------------------------------------------------
     // === EXTERNAL CONTRACTS PUBLIC INTERFACE === //
+    // ----------------------------------------------------------------
 
     public fun update_selected_validator(name: String, new_validator: String, _perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
@@ -552,8 +523,7 @@ module dev::QiaraSharedV16 {
         ownership_record.last_updated = timestamp::now_seconds();
     }
 
-
- public fun ensure_shared_fungible_storage(
+    public fun ensure_shared_fungible_storage(
         shared_name: String, 
         asset_metadata: Object<Metadata>, 
         _perm: Permission
@@ -567,17 +537,9 @@ module dev::QiaraSharedV16 {
         
         let token_map = table::borrow_mut(&mut shared.fungible_stores, shared_name);
         if (!table::contains(token_map, asset_metadata)) {
-            
-            // 1. Fetch the storage ownership record
             let ownership_record = table::borrow(&shared.storage, shared_name);
-            
-            // 2. EXTRACTION FIX: Extract the actual address of the named object directly 
-            //    from its stored ExtendRef. This is 100% safe for both user and non-user structures!
             let derived_address = object::address_from_extend_ref(&ownership_record.metadata.extend_ref);
-            
-            // 3. Create/Ensure the store exists at that derived address
             let vault_store = primary_fungible_store::ensure_primary_store_exists(derived_address, asset_metadata);
-            
             table::add(token_map, asset_metadata, vault_store);
         };
 
@@ -603,7 +565,6 @@ module dev::QiaraSharedV16 {
         if (!vector::contains(registry, &name)) {
             vector::push_back(registry, name);
         };
-
     }
 
     public fun temp_remove_sub_owner(validator: &signer, name: String, sub_owner: vector<u8>, perm: Permission) acquires SharedStorage {
@@ -616,7 +577,6 @@ module dev::QiaraSharedV16 {
         vector::remove_value(&mut ownership_record.sub_owners, &sub_owner);
         let registry = table::borrow_mut(&mut shared.storage_registry, sub_owner);
         vector::remove_value(registry, &name);
-
     }
 
     // ----------------------------------------------------------------
@@ -646,10 +606,7 @@ module dev::QiaraSharedV16 {
         while (len > 0) {
             let name = *vector::borrow(list, len-1);
             if (table::contains(&shared.storage, name)) {
-                // 1. Borrow as a reference (no copying *)
                 let ownership = table::borrow(&shared.storage, name);
-                
-                // 2. Map to a copyable OwnershipView DTO
                 let view = make_ownership_view(ownership);
                 map::add(&mut map, name, view);
             };
@@ -666,10 +623,10 @@ module dev::QiaraSharedV16 {
             abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
         };
 
-        // Borrow reference and map to view
         let ownership = table::borrow(&shared.storage, name);
         make_ownership_view(ownership)
     }     
+
     public fun return_shared_raw_ref_params(owner: vector<u8>, name: String): (u64, u64) acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
 
@@ -689,7 +646,6 @@ module dev::QiaraSharedV16 {
             abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
         };
 
-        // Borrow reference and map to view
         let ownership = table::borrow(&shared.storage, name);
         make_ownership_view(ownership)
     }
@@ -716,7 +672,6 @@ module dev::QiaraSharedV16 {
         table::borrow(&shared.storage, name).ref_code_params
     }
 
-    // ✅ NEW: Public view helper to dynamically resolve a referral code to its creator's storage name [2]
     #[view]
     public fun return_shared_name_by_ref_code(ref_code: String): String acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
@@ -784,39 +739,42 @@ module dev::QiaraSharedV16 {
         assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
     }
 
-    public fun extract_raw_params(ownership_record: Ownership): (u64, u64) {
-        if(ownership_record.used_ref_code == utf8(b"")){
-            return (0,0)
+    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
+    public fun extract_raw_params(ownership_record: OwnershipView): (u64, u64) acquires SharedStorage {
+        if (ownership_record.used_ref_code == utf8(b"")) {
+            return (0, 0)
         };
 
         let params = return_ref_code_params(ownership_record.used_ref_code);
         (params.xp_tax, params.fee_tax)
     }
 
-    public fun extract_used_ref_code(ownership_record: Ownership): String {
-        if(ownership_record.used_ref_code == utf8(b"")){
+    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
+    public fun extract_used_ref_code(ownership_record: OwnershipView): String {
+        if (ownership_record.used_ref_code == utf8(b"")) {
             return utf8(b"")
         };
 
         ownership_record.used_ref_code
     }
 
-    public fun extract_used_ref_code_params(ownership_record: Ownership): RefCodeParams {
+    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
+    public fun extract_used_ref_code_params(ownership_record: OwnershipView): RefCodeParams acquires SharedStorage {
         let used_ref_code_params = create_empty_raw_params();
-        if(ownership_record.used_ref_code != utf8(b"")){
+        if (ownership_record.used_ref_code != utf8(b"")) {
             used_ref_code_params = return_ref_code_params(ownership_record.used_ref_code);
         };
         return used_ref_code_params
     }
 
-    public fun extract_raw_gas_relations(ownership_record: Ownership): (u256, u64) {
+    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
+    public fun extract_raw_gas_relations(ownership_record: OwnershipView): (u256, u64) {
         (ownership_record.gas_index, ownership_record.last_updated)
     }
 
     public fun create_empty_raw_params(): RefCodeParams {
         RefCodeParams { xp_tax: 0, fee_tax: 0,}
     }
-
 
     public fun get_shared_signer(shared_name: String,_cap: &Permission): signer acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
@@ -839,5 +797,4 @@ module dev::QiaraSharedV16 {
             last_updated: record.last_updated,
         }
     }
-
 }

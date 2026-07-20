@@ -15,7 +15,7 @@ module dev::QiaraBurnedQiaraV46 {
     use std::string::{Self as string, String, utf8};
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV46::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV46::{Self as TokensQiara};
     use dev::QiaraStorageV19::{Self as storage};

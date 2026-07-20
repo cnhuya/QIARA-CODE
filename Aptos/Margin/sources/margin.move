@@ -15,7 +15,7 @@ module dev::QiaraMarginV46 {
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV19::{Self as storage, Access as StorageAccess};
-    use dev::QiaraSharedV16::{Self as Shared};
+    use dev::QiaraSharedV17::{Self as Shared};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

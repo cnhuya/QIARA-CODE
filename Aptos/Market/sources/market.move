@@ -33,7 +33,7 @@ module dev::QiaraVaultsV66 {
     use dev::QiaraStorageV19::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV19::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 

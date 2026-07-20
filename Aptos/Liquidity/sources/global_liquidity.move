@@ -21,7 +21,7 @@ module dev::QiaraLiquidityV65 {
     use dev::QiaraMarginV46::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV46::{Self as Points, Access as PointsAccess};
     use dev::QiaraBurnedQiaraV46::{Self as BurnedQiara};
-    use dev::QiaraSharedV16::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV46::{Self as ChainTypes};
     use dev::QiaraProviderTypesV46::{Self as ProviderTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};

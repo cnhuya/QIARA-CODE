@@ -21,7 +21,7 @@ module dev::QiaraTokenVaultsV65{
     use dev::QiaraMarginV46::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV46::{Self as Points, Access as PointsAccess};
 
-    use dev::QiaraSharedV16::{Self as Shared};
+    use dev::QiaraSharedV17::{Self as Shared};
     
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
