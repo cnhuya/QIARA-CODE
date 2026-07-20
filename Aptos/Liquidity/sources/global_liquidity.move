@@ -141,10 +141,10 @@ module dev::QiaraLiquidityV66 {
         abort(number);
     }
 
-    fun non_user_storage_helper<T: key>(obj: &Object<T>): String{
+    fun non_user_storage_helper<T: key>(signer: &signer, obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
             if(!Shared::assert_shared_storage((storage_address_bytes))){
-                Shared::create_non_user_shared_storage((storage_address_bytes));
+                Shared::create_non_user_shared_storage(signer, (storage_address_bytes));
             };
         return (storage_address_bytes)
     }
@@ -206,7 +206,7 @@ module dev::QiaraLiquidityV66 {
         let fa_to_lock = TokensCore::withdraw(shared, user_shared_store, fa_amount_u64, chain);
         
         // deposit to vault's storage so it actually backs the rewards
-        let storage_address_string = non_user_storage_helper(&vault.storage);
+        let storage_address_string = non_user_storage_helper(signer,&vault.storage);
         TokensCore::deposit(storage_address_string, vault.storage, fa_to_lock, chain);
 
         // 3. Sync incentive index before changing reward_rate
@@ -256,10 +256,10 @@ module dev::QiaraLiquidityV66 {
         };
     }
 
-    public fun admin_accrue_rewards_from_lz(token: String, chain: String, provider: String, yield: u64, _cap: Permission) acquires Permissions, GlobalVault , GlobalLPCapabilities {
+    public fun admin_accrue_rewards_from_lz(signer: &signer,token: String, chain: String, provider: String, yield: u64, _cap: Permission) acquires Permissions, GlobalVault , GlobalLPCapabilities {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&vault.storage);
+        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
         let yield_fa = TokensCore::mint(token, chain, yield, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
         let yield_amount = (fungible_asset::amount(&yield_fa) as u256);
@@ -271,7 +271,7 @@ module dev::QiaraLiquidityV66 {
         vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + yield_amount;
     }
 
-    public fun claim_accumulated_fee_rewards(shared: String, user: vector<u8>, token: String, chain: String, provider: String, user_shares: u256, user_last_fee_index: u128, _cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun claim_accumulated_fee_rewards(signer: &signer, shared: String, user: vector<u8>, token: String, chain: String, provider: String, user_shares: u256, user_last_fee_index: u128, _cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let current_global_index = vault.accumulated_rewards_index;
@@ -290,7 +290,7 @@ module dev::QiaraLiquidityV66 {
                 Margin::add_credit(shared, user, pending_fee_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             } else {
                 // divert AND fix accounting
-                let storage_address_string = non_user_storage_helper(&vault.storage);
+                let storage_address_string = non_user_storage_helper(signer, &vault.storage);
                 let forfeited_assets = TokensCore::withdraw(storage_address_string, vault.storage, (pending_fee_rewards as u64), chain);
                 // DEDUCT from accounting so get_total_assets() stays correct
                 if (pending_fee_rewards <= vault.total_accumulated_rewards) {
@@ -305,10 +305,10 @@ module dev::QiaraLiquidityV66 {
     }
 
     /// Deposits underlying assets, mints matching LP shares, and returns them to the user.
-    public fun deposit_token(token: String, chain: String,provider: String, fa: FungibleAsset, _cap: Permission): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
+    public fun deposit_token(signer: &signer, token: String, chain: String,provider: String, fa: FungibleAsset, _cap: Permission): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&vault.storage);
+        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
         let deposit_amount = (fungible_asset::amount(&fa) as u256)*1000000000000000000;
         
@@ -348,10 +348,10 @@ module dev::QiaraLiquidityV66 {
 
 
         /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-   public fun withdraw_token(signer: &signer,shared: String, token: String, chain: String,provider: String, raw_scaled: u256,net_scaled: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+   public fun withdraw_token(signer: &signer,shared: String, token: String, chain: String,provider: String, raw_scaled: u256,net_scaled: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
     let vaults = borrow_global_mut<GlobalVault>(@dev);
     let vault = find_vault(vaults, token, chain, provider);
-    let storage_address_string = non_user_storage_helper(&vault.storage);
+    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
     internal_daily_withdraw_limit(token, vault, raw_scaled);
 
@@ -388,7 +388,7 @@ module dev::QiaraLiquidityV66 {
     public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&vault.storage);
+        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (amount/1000000000000000000 as u64), chain);
 
@@ -493,10 +493,10 @@ module dev::QiaraLiquidityV66 {
             vault.total_accumulated_rewards = vault.total_accumulated_rewards + value;
         };
     }
-    public fun add_accumulated_interest(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun add_accumulated_interest(signer: &signer, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(&vault.storage);
+        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
         let interest_fa = TokensCore::mint(token, chain, (value as u64), TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
         
