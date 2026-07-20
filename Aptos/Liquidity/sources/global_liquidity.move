@@ -21,7 +21,7 @@ module dev::QiaraLiquidityV61 {
     use dev::QiaraMarginV45::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV45::{Self as Points, Access as PointsAccess};
     use dev::QiaraBurnedQiaraV45::{Self as BurnedQiara};
-    use dev::QiaraSharedV15::{Self as Shared};
+    use dev::QiaraSharedV15::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV45::{Self as ChainTypes};
     use dev::QiaraProviderTypesV45::{Self as ProviderTypes};
     use dev::QiaraGenesisV2::{Self as Genesis};
@@ -52,6 +52,7 @@ module dev::QiaraLiquidityV61 {
         margin: MarginAccess,
         points: PointsAccess,
         tokens_core: TokensCoreAccess,
+        shared_access: SharedAccess
     }
 
 // === STRUCTS === //
@@ -128,7 +129,7 @@ module dev::QiaraLiquidityV61 {
             move_to(admin, GlobalLPCapabilities { caps: table::new<address, LPCapabilities>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions {shared_access: Shared::give_access(admin), margin: Margin::give_access(admin), points: Points::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
 
         initialize_all_registered_vaults(admin);
@@ -185,77 +186,76 @@ module dev::QiaraLiquidityV61 {
         };
     }
 
-    public entry fun add_incentive(signer: &signer, shared: String, amount: u256, token: String, chain: String, provider: String, credits: u256, duration_seconds: u64,deposit_weight: u256,borrow_weight: u256) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public entry fun add_incentive(signer: &signer, shared: String, amount: u256,token: String, chain: String, provider: String, credits: u256, duration_seconds: u64,deposit_weight: u256,borrow_weight: u256) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
+        assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
+        assert!(deposit_weight + borrow_weight == 100000000, ERROR_ARGUMENT_LENGHT_MISSMATCH); // 1e8 = 100%
+        assert!(amount > 0, 101);
 
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
+        
+        // 1. Check user has enough
+        let (deposited, _, _, _, _,_, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        assert!(deposited >= amount, ERROR_INSUFFICIENT_BALANCE);
 
-        let credit_value = TokensMetadata::getValue(token, credits);
-        let amount_u256 = credit_value*1000000000000000000;
-        let (deposited, borrowed, _, _, _, _, _, _, _, _, _, _, _,_, _) = Margin::get_user_raw_balance(shared, token, chain, provider);
-        assert!(deposited > amount_u256, ERROR_INSUFFICIENT_BALANCE);
-        assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
+        // 2. Escrow REAL underlying - not just delete Margin record
+        // amount is 1e18 scaled, FA amount is u64
+        let fa_amount_u64 = (amount / 1000000000000000000 as u64);
+        assert!(fa_amount_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
+        
+        // withdraw from user's shared storage
+        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        let fa_to_lock = TokensCore::withdraw(shared, user_shared_store, fa_amount_u64, chain);
+        
+        // deposit to vault's storage so it actually backs the rewards
+        let storage_address_string = non_user_storage_helper(&vault.storage);
+        TokensCore::deposit(storage_address_string, vault.storage, fa_to_lock, chain);
+
+        // 3. Sync incentive index before changing reward_rate
         let current_time = timestamp::now_seconds();
-
-        Margin::remove_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        let last_applicable_time = if (current_time < vault.incentive.period_finish) { current_time } else { vault.incentive.period_finish };
+        
+        if (vault.incentive.period_finish != 0 && last_applicable_time > vault.incentive.last_update_time) {
+            let elapsed = last_applicable_time - vault.incentive.last_update_time;
+            let total_rewards_accrued = vault.incentive.reward_rate * (elapsed as u256);
+            let scale = 1000000000000000000;   
+            if (vault.total_shares > 0) {
+                let deposit_rewards = (total_rewards_accrued * vault.incentive.deposit_weight) / 100000000;
+                vault.incentive.deposit_index = vault.incentive.deposit_index + ((deposit_rewards * scale / vault.total_shares) as u128);
+            };
+            if (vault.total_borrowed > 0) {
+                let borrow_rewards = (total_rewards_accrued * vault.incentive.borrow_weight) / 100000000;
+                vault.incentive.borrow_index = vault.incentive.borrow_index + ((borrow_rewards * scale / vault.total_borrowed) as u128);
+            };
+        };
 
         if (vault.incentive.period_finish == 0) {
-            let reward_rate = amount_u256 / (duration_seconds as u256);
-
+            // new incentive
             vault.incentive = Incentive {
-                deployer: signer::address_of(signer),
-                total_amount: amount_u256,
-                reward_rate,
+                deployer: sender_addr,
+                total_amount: amount,
+                reward_rate: amount / (duration_seconds as u256),
                 deposit_weight,
                 borrow_weight,
                 period_finish: current_time + duration_seconds,
                 last_update_time: current_time,
-                deposit_index: 0,
-                borrow_index: 0,
+                deposit_index: if (vault.incentive.deposit_index == 0) { 0 } else { vault.incentive.deposit_index },
+                borrow_index: if (vault.incentive.borrow_index == 0) { 0 } else { vault.incentive.borrow_index },
             };
         } else {
-            let last_applicable_time = if (current_time < vault.incentive.period_finish) {
-                current_time
-            } else {
-                vault.incentive.period_finish
-            };
-            
-            // Sync current index state before modifying parameters
-            if (last_applicable_time > vault.incentive.last_update_time) {
-                let elapsed = last_applicable_time - vault.incentive.last_update_time;
-                let total_rewards_accrued = vault.incentive.reward_rate * (elapsed as u256);
-                let scale = 1000000000000000000;   
-
-                if (vault.total_shares > 0) {
-                    let deposit_rewards = (total_rewards_accrued * vault.incentive.deposit_weight) / 100000000;
-                    let reward_per_share = (deposit_rewards * scale) / vault.total_shares;
-                    vault.incentive.deposit_index = vault.incentive.deposit_index + (reward_per_share as u128);
-                };
-
-                if (vault.total_borrowed > 0) {
-                    let borrow_rewards = (total_rewards_accrued * vault.incentive.borrow_weight) / 100000000;
-                    let reward_per_borrow = (borrow_rewards * scale) / vault.total_borrowed;
-                    vault.incentive.borrow_index = vault.incentive.borrow_index + (reward_per_borrow as u128);
-                };
-            };
-            
-            vault.incentive.last_update_time = last_applicable_time;
-
-            let remaining_time = if (current_time < vault.incentive.period_finish) {
-                vault.incentive.period_finish - current_time
-            } else {
-                0
-            };
-
+            // add to existing - combine remaining + new
+            let remaining_time = if (current_time < vault.incentive.period_finish) { vault.incentive.period_finish - current_time } else { 0 };
             let remaining_credits = vault.incentive.reward_rate * (remaining_time as u256);
-            let combined_credits = remaining_credits + amount_u256;
+            let combined_credits = remaining_credits + amount;
 
             vault.incentive.reward_rate = combined_credits / (duration_seconds as u256);
             vault.incentive.period_finish = current_time + duration_seconds;
             vault.incentive.last_update_time = current_time;
-            vault.incentive.total_amount = vault.incentive.total_amount + amount_u256;
-            vault.incentive.deployer = signer::address_of(signer); 
+            vault.incentive.total_amount = vault.incentive.total_amount + amount;
+            vault.incentive.deposit_weight = deposit_weight; // update weights
+            vault.incentive.borrow_weight = borrow_weight;
+            vault.incentive.deployer = sender_addr; 
         };
     }
 
@@ -274,10 +274,9 @@ module dev::QiaraLiquidityV61 {
         vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + yield_amount;
     }
 
-    public fun claim_accumulated_fee_rewards(shared: String,user: vector<u8>,token: String,chain: String,provider: String,user_shares: u256,user_last_fee_index: u128,_cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun claim_accumulated_fee_rewards(shared: String, user: vector<u8>, token: String, chain: String, provider: String, user_shares: u256, user_last_fee_index: u128, _cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
-
         let current_global_index = vault.accumulated_rewards_index;
 
         if (current_global_index <= user_last_fee_index || user_shares == 0) {
@@ -290,35 +289,21 @@ module dev::QiaraLiquidityV61 {
 
         if (pending_fee_rewards > 0) {
             let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, vault.total_deposited);
-
             if (enoughLocked) {
-                // User is qualified: allocate their reward
-                Margin::add_credit(
-                    shared, 
-                    user, 
-                    pending_fee_rewards, 
-                    Margin::give_permission(&borrow_global<Permissions>(@dev).margin)
-                );
+                Margin::add_credit(shared, user, pending_fee_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             } else {
-                // =============================================================
-                // OPTION 2: Physically withdraw and divert forfeited rewards
-                // =============================================================
+                // divert AND fix accounting
                 let storage_address_string = non_user_storage_helper(&vault.storage);
-                
-                // Extract the forfeited assets from the vault storage
-                let forfeited_assets = TokensCore::withdraw(
-                    storage_address_string, 
-                    vault.storage, 
-                    (pending_fee_rewards as u64), 
-                    chain
-                );
-
-                // Send the forfeited assets to your protocol treasury or buyback contract
-                let treasury_address = @dev; 
-                primary_fungible_store::deposit(treasury_address, forfeited_assets);
+                let forfeited_assets = TokensCore::withdraw(storage_address_string, vault.storage, (pending_fee_rewards as u64), chain);
+                // DEDUCT from accounting so get_total_assets() stays correct
+                if (pending_fee_rewards <= vault.total_accumulated_rewards) {
+                    vault.total_accumulated_rewards = vault.total_accumulated_rewards - pending_fee_rewards;
+                } else {
+                    vault.total_accumulated_rewards = 0;
+                };
+                primary_fungible_store::deposit(@dev, forfeited_assets);
             }
         };
-
         current_global_index
     }
 
@@ -341,6 +326,9 @@ module dev::QiaraLiquidityV61 {
             (deposit_amount * total_shares) / total_assets
         };
 
+        // prevent 0-share mint dust attack
+        assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
+
         // 2. Deposit underlying asset to storage
         vault.total_deposited = vault.total_deposited + deposit_amount;
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
@@ -361,6 +349,7 @@ module dev::QiaraLiquidityV61 {
         shares_fa
     }
 
+
     /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
     public fun withdraw_token(shared: String, token: String, chain: String,provider: String, shares_amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
@@ -376,11 +365,8 @@ module dev::QiaraLiquidityV61 {
         let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
         let cap = table::borrow(&lp_caps.caps, vault_address);
 
-        // 2. Parse shared address and withdraw physical LP shares from the user's shared storage
-        let user_address = string_to_address(&shared);
-        let user_lp_store = primary_fungible_store::primary_store(user_address, cap.lp_metadata);
-        
-        let shares_fa = TokensCore::withdraw(shared, user_lp_store, (shares_amount as u64), chain);
+        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        let shares_fa = TokensCore::withdraw(shared, user_shared_store, (shares_amount as u64), chain);
 
         // 3. Explicit Check: Ensure the LP asset metadata matches the vault
         let shares_metadata = fungible_asset::asset_metadata(&shares_fa);
@@ -399,13 +385,14 @@ module dev::QiaraLiquidityV61 {
         vault.total_shares = vault.total_shares - shares_amount;
 
         // 6. Withdraw underlying assets from vault storage
+        assert!(assets_to_withdraw <= vault.total_deposited, ERROR_INSUFFICIENT_BALANCE);
         vault.total_deposited = vault.total_deposited - assets_to_withdraw;
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (assets_to_withdraw as u64), chain);
 
         // 7. Deposit the underlying assets directly back into the user's shared storage
         let underlying_metadata = TokensCore::get_metadata(token);
-        let user_underlying_store = primary_fungible_store::ensure_primary_store_exists(user_address, underlying_metadata);
-        TokensCore::deposit(shared, user_underlying_store, underlying_fa, chain);
+        let user_shared_store_underlying = Shared::ensure_shared_fungible_storage(shared, underlying_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        TokensCore::deposit(shared, user_underlying_store, user_shared_store_underlying, chain);
     }
 
     public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
@@ -627,16 +614,20 @@ module dev::QiaraLiquidityV61 {
     }
 
     fun internal_daily_withdraw_limit(token: String, provider_vault: &mut Vault, amount: u256){
-        assert!(provider_vault.w_tracker.limit <= amount, ERROR_WITHDRAW_LIMIT_EXCEEDED);
-        provider_vault.w_tracker.limit = provider_vault.w_tracker.limit + amount;
-
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
-
-        if(provider_vault.w_tracker.day != ((timestamp::now_seconds()/86400) as u16)){
-            provider_vault.w_tracker.day = ((timestamp::now_seconds()/86400) as u16);
+        let now_day = (timestamp::now_seconds() / 86400) as u16;
+        
+        // reset BEFORE check
+        if (provider_vault.w_tracker.day != now_day) {
+            provider_vault.w_tracker.day = now_day;
             provider_vault.w_tracker.amount = 0;
-            provider_vault.w_tracker.limit = provider_vault.total_deposited * 1_000_000*100 / (TokensTiers::market_daily_withdraw_limit(TokensMetadata::get_coin_metadata_tier(&metadata)) as u256); 
+            // limit = % of deposits that can leave per day
+            let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+            provider_vault.w_tracker.limit = provider_vault.total_deposited * 1_000_000 * 100 
+                / (TokensTiers::market_daily_withdraw_limit(TokensMetadata::get_coin_metadata_tier(&metadata)) as u256); 
         };
+
+        assert!(provider_vault.w_tracker.amount + amount <= provider_vault.w_tracker.limit, ERROR_WITHDRAW_LIMIT_EXCEEDED);
+        provider_vault.w_tracker.amount = provider_vault.w_tracker.amount + amount;
     }
 
 // === PUBLIC VIEWS === //

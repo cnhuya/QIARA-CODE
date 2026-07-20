@@ -333,7 +333,9 @@ module dev::QiaraRanksV45{
         (actual_gas_reduction_for_ref_code_user, actual_xp_increase_for_ref_code_user)
 
     }
-//250_000_000
+
+    // returns:
+    // arg1 - the amount saved for used (i.e., the discount from the innitial base discount combined with the % tax of ref code from the discount)
     #[view]
     public fun calculate_ref_code_taxes(ref_code_gas_tax: u64, ref_code_xp_tax: u64, gas_fee: u256, xp_earned: u256): (u256, u256, u256, u256) {
         let scale = 100_000_000;
@@ -359,7 +361,6 @@ module dev::QiaraRanksV45{
 
         (user_gas_savings, user_xp_bonus, referrer_gas_share, referrer_xp_share)
     }
-
 
     fun calculate_fee_deduction(power: u8): u256{
         let deduction_percentage = (power as u256) * return_fee_deduction_per_power(); // each rank power gives 5% fee deductionpower as u256 * 5; // each rank power gives 5% fee deduction

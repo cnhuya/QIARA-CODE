@@ -523,24 +523,20 @@ module dev::QiaraVaultsV62 {
             let gas_rate = Gas::add_withdraw(_token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
             
         
-            let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(_token, _chain, _provider,  amount_u256);
-            if(amount_u256_w_fee_taxed == 0) { return };
-
-            let (amount_u256_taxed,fee) = assert_minimal_fee(_token, _chain, _provider,  amount_u256_w_fee_taxed, _fee);
+            let (amount_u256_taxed, fee) = handle_withdrawal_fee(_token, _chain, _provider,  amount_u256, _fee);
             if(amount_u256_taxed == 0) { return };
 
 
             len=len-1;
 
-            let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token));
-
             // Redeem shares and deposit underlying directly to shared storage, then transfer to signer's personal wallet
             Liquidity::withdraw_token(shared, _token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::remove_stake(_token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             
-            let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(_token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-            let fa = TokensCore::withdraw(shared, user_shared_store, (_amount as u64), _chain);
-            TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token)), fa, _chain);
+            //What was this for? (all the token stuff is handled in withdraw_token?)
+            //let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(_token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+            //let fa = TokensCore::withdraw(shared, user_shared_store, (_amount as u64), _chain);
+            //TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token)), fa, _chain);
             
             vector::push_back(&mut vect_amnt, amount_u256_taxed);
             Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), _token, _chain, _provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -618,7 +614,6 @@ module dev::QiaraVaultsV62 {
         let user_lp_store = Shared::ensure_shared_fungible_storage(shared, lp_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
        //         tttta(2);
        fungible_asset::deposit(user_lp_store, shares_fa);
-//tttta(3);
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
  
@@ -660,14 +655,7 @@ module dev::QiaraVaultsV62 {
         Event::emit_market_event(utf8(b"Deposit"), data);
     }
 
-    public entry fun withdraw_and_unwrap(
-        signer: &signer, 
-        shared: String, 
-        token: String, 
-        chain: String, 
-        provider: String, 
-        amount: u64
-    ) acquires Permissions {
+    public entry fun withdraw_and_unwrap(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
@@ -677,10 +665,7 @@ module dev::QiaraVaultsV62 {
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         
-        let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
-        if(amount_u256_w_fee_taxed == 0) { return };
-
-        let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
+        let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
 
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
@@ -694,17 +679,11 @@ module dev::QiaraVaultsV62 {
         let custom_fa = TokensCore::withdraw(shared, user_shared_store, (lp_shares_to_redeem as u64), chain);
 
         // 3. Unwrap custom token into standard/normal FA using the helper in WrapperGate
-        let unwrapped_fa = WrapperGate::unwrap_to_standard_fa(
-            shared, 
-            token, 
-            chain, 
-            provider, 
-            custom_fa
-        );
+        let unwrapped_fa = WrapperGate::unwrap_to_standard_fa(shared, token, chain, provider, custom_fa);
 
         // 4. Deposit unwrapped FA directly into the user's primary/personal wallet
         let unwrapped_metadata = fungible_asset::asset_metadata(&unwrapped_fa);
-        let user_storage = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer), unwrapped_metadata);
+        let user_storage = Shared::ensure_shared_fungible_storage(shared,unwrapped_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         fungible_asset::deposit(user_storage, unwrapped_fa);
 
         // 5. Update Margin checkpoints
@@ -762,15 +741,12 @@ module dev::QiaraVaultsV62 {
       
         let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         
-        let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
-        if(amount_u256_w_fee_taxed == 0) { return };
-
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
+        let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
 
 
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
-        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         
         // 1. Redeems LP shares from shared storage, depositing underlying into shared storage
         let lp_shares_to_redeem = (amount_u256_taxed-fee)/1000000000000000000;
@@ -832,24 +808,20 @@ module dev::QiaraVaultsV62 {
       
         let gas_rate = Gas::add_borrow(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         
-        let (amount_u256_w_fee_taxed, _w_fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256);
-        if(amount_u256_w_fee_taxed == 0) { return };
-
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256_w_fee_taxed, _fee);
+        let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
 
-
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
-        let obj = primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token));
-        
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        //tttta(100);
         // 1. Redeems LP shares from shared storage, depositing underlying into shared storage
         let lp_shares_to_redeem = (amount_u256_taxed-fee)/1000000000000000000;
         Liquidity::withdraw_token(shared, token, chain, provider, lp_shares_to_redeem, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
+        tttta(101);
         // 2. Withdraw from shared storage and transfer directly to signer's personal wallet
-        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        let fa = TokensCore::withdraw(shared, user_shared_store, ((amount_u256_taxed-fee)/1000000000000000000 as u64), chain);
-        TokensCore::deposit(shared, obj, fa, chain);
+        //let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        //let fa = TokensCore::withdraw(shared, user_shared_store, ((amount_u256_taxed-fee)/1000000000000000000 as u64), chain);
+        //TokensCore::deposit(shared, obj, fa, chain);
 
         Liquidity::add_borrow(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -961,11 +933,9 @@ module dev::QiaraVaultsV62 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
-
 
         Liquidity::add_virtual_deposit(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
@@ -1023,7 +993,6 @@ module dev::QiaraVaultsV62 {
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
-
 
         Liquidity::remove_virtual_borrow(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_deposit(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -1253,16 +1222,19 @@ module dev::QiaraVaultsV62 {
 
         let current_time = timestamp::now_seconds();
         let time_diff = current_time - last_update;
-        let global_accrued_interest = 0;
 
         // 4.  CALCULATE BORROW_APR & ACCRUE INTEREST
         let (_, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
-        if (total_borrowed > 0) {
+        let global_accrued_interest = 0;
+        if (total_borrowed > 0 && time_diff > 0) {
             global_accrued_interest = calculate_global_interest(total_borrowed, borrow_apr,(time_diff as u256));
+            
         };
         if (global_accrued_interest > 0) {
             Liquidity::add_accumulated_interest(token, chain, provider, global_accrued_interest/1000000000000000000, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+            Liquidity::add_borrow(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
+
         // 5. CALCULATE USER INTEREST
         let user_total_supply = user_deposited + user_staked + user_virtual_deposited;
         let user_total_debt = user_borrowed + user_virtual_borrowed;
@@ -1280,16 +1252,18 @@ module dev::QiaraVaultsV62 {
 
         // 6. CALCULATE USER REWARDS
         let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
-        let user_interest_reward;
+         let user_interest_reward = 0;
         if (enoughLocked) {
             user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
-            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
             Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         } else {
-            user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, total_deposited);
-            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+            user_interest_reward = calculate_user_native_rewards(total_native_accumulated_rewards, user_native_accumulated_rewards_index, net_deposited, total_deposited);        };
+
+        if (user_interest_reward > 0) {
+            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
         };
+
 
         // FIXED: Gated checking for the accumulated fee rewards (for burned Qiara holders)
         let new_user_fee_index = Liquidity::claim_accumulated_fee_rewards(
@@ -1330,25 +1304,16 @@ module dev::QiaraVaultsV62 {
         let used_ref_code = Shared::extract_used_ref_code(ownership);
 
         let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_final_gas) = if (used_ref_code != utf8(b"")) {
-            let (gas_reduced, xp_earned, actual_taxed_gas_fees, actual_taxed_xp) = Points::calculate_ref_code_taxes(
-                fee_tax, 
-                xp_tax, 
-                (gas_fee), 
-                (base_points_reward)
-            );
+            let (amount_of_gas_reduced, xp_earned, actual_taxed_gas_fees_ref_code, actual_taxed_xp_ref_code) = Points::calculate_ref_code_taxes(fee_tax, xp_tax, (gas_fee), (base_points_reward));
 
             let data = vector[
                 Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&used_ref_code)),
-                Event::create_data_struct(utf8(b"taxed_gas"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_gas_fees)),
-                Event::create_data_struct(utf8(b"taxed_xp"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_xp)),
+                Event::create_data_struct(utf8(b"taxed_gas"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_gas_fees_ref_code)),
+                Event::create_data_struct(utf8(b"taxed_xp"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_xp_ref_code)),
             ];
             Event::emit_qiara_shared_stats(data);
-
-            let final_gas = gas_fee - (gas_reduced + (actual_taxed_gas_fees as u256));
-            // Gas goes to protocol, not toward any vault rewards
-            Margin::add_borrow(shared, user, token, chain, provider, final_gas, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-            
-            (gas_reduced, xp_earned, gas_fee - gas_reduced)
+            // raw amount of gas reduced, xp earned, actual final gas (innitial gas fee - (amount of gas reduced from ref code user + ref code tax))
+            (amount_of_gas_reduced, xp_earned, gas_fee - (amount_of_gas_reduced + (actual_taxed_gas_fees_ref_code as u256)));
         } else {
             (0, 0, gas_fee)
         };
@@ -1392,7 +1357,10 @@ module dev::QiaraVaultsV62 {
     }
     // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
     fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256): (u256, u256) acquires Permissions{
-        let combined_fee = fee;
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+        let w_fee_percentage = TokensMetadata::get_coin_metadata_market_w_fee(&metadata);
+        let w_fee = (amount*(w_fee_percentage as u256))/100_000_000;
+        let combined_fee = fee+w_fee;
         if (combined_fee < 1 * 1000000000000000000) {
             combined_fee =  1 * 1000000000000000000;
         };
@@ -1404,10 +1372,7 @@ module dev::QiaraVaultsV62 {
     }
 
     // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
-    fun handle_withdrawal_fee(token: String, chain: String, provider: String, amount: u256): (u256, u256) acquires Permissions{
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
-        let w_fee = TokensMetadata::get_coin_metadata_market_w_fee(&metadata);
-        let fee = (amount*(w_fee as u256))/100_000_000;
+    fun handle_withdrawal_fee(token: String, chain: String, provider: String, amount: u256,fee: u256): (u256, u256) acquires Permissions{
         if (fee < 1 * 1000000000000000000) {
             fee =  1 * 1000000000000000000;
         };
