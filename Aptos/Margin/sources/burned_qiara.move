@@ -248,7 +248,7 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
         let user_burned = (get_user_burn_summary(shared_name).burned_amount as u256);
 
         if(user_burned == 0){
-            return (0, 0, true);
+            return (0, 0, false);
         };
         // e.g., (10_000_000 / 1_000
         let actual_user_dedicated_reward_rate = (dolars/1000000000000000000) / conversion_rate;

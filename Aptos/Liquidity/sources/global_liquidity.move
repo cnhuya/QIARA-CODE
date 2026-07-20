@@ -514,7 +514,7 @@ public fun withdraw_token(
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        let interest_fa = TokensCore::mint(token, chain, (value as u64), TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+        let interest_fa = TokensCore::mint(token, chain, (value/1000000000000000000 as u64), TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
         
         // 1. Physically store the assets in the vault
         TokensCore::deposit(storage_address_string, vault.storage, interest_fa, chain);
