@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV49 {
+module dev::QiaraValidatorsV51{
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV49 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV48::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV50::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV21::{Self as storage};
-    use dev::QiaraTokensQiaraV49::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV49::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV50::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV50::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
