@@ -1,11 +1,11 @@
-module dev::QiaraTokenTypesV49 {
+module dev::QiaraTokenTypesV50 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::table::{Self, Table};
 
-    use dev::QiaraChainTypesV49::{Self as ChainTypes};
+    use dev::QiaraChainTypesV50::{Self as ChainTypes};
     
 
     const TOKEN_PREFIX: vector<u8> = b"Qiara124 ";

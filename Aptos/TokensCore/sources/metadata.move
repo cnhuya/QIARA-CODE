@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV49{
+module dev::QiaraTokensMetadataV50{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,7 +12,7 @@ module dev::QiaraTokensMetadataV49{
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensTiersV49::{Self as tier};
+    use dev::QiaraTokensTiersV50::{Self as tier};
 
     use dev::QiaraOracleV7::{Self as oracle, Access as OracleAccess};
 
@@ -54,7 +54,6 @@ module dev::QiaraTokensMetadataV49{
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
-        penalty_expiry: u64,
         credit: Credit,
         tokenomics: Tokenomics,
     }
@@ -65,7 +64,6 @@ module dev::QiaraTokensMetadataV49{
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
-        penalty_expiry: u64,
         credit: Credit,
         price: Price,
         market: Market,
@@ -162,11 +160,6 @@ public entry fun create_metadata(
         total_supply 
     };
     
-    let now = timestamp::now_seconds();
-    let penalty_duration = storage::expect_u64(
-        storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_PENALTY_TIME"))
-    );
-
     // 3. CALCULATE TIER AND CREDIT
     let (credit, tier);
     if (symbol == utf8(b"QIARA")) {
@@ -191,7 +184,6 @@ public entry fun create_metadata(
         decimals: 8,
         oracleID,
         creation,
-        penalty_expiry: now + penalty_duration,
         credit,
         tokenomics
     };
@@ -523,16 +515,7 @@ public entry fun create_metadata(
                         let price = (oracle::viewPrice(metadat.symbol) as u64);
                         let denom = Math::pow10_u256((price_decimals as u8));
 
-                    let tier;
-
-                    if(metadat.penalty_expiry > timestamp::now_seconds()){
-                        tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), 
-                        efficiency: ((tier::tier_efficiency(metadat.tier)*100) / storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_EFFICIENCY_HANDICAP")))),
-                        multiplier: (tier::tier_multiplier(metadat.tier) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP")))/100 )
-                        } ;
-                    } else {
-                        tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), efficiency: tier::tier_efficiency(metadat.tier), multiplier: tier::tier_multiplier(metadat.tier) };
-                    };
+                    let tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), efficiency: tier::tier_efficiency(metadat.tier), multiplier: tier::tier_multiplier(metadat.tier) };
 
 
                     return VMetadata { 
@@ -541,7 +524,6 @@ public entry fun create_metadata(
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
-                        penalty_expiry: metadat.penalty_expiry,
                         credit: metadat.credit,
                         price: Price { price: price, denom: (denom as u64) },
                         market: calculate_market(metadat),
@@ -748,16 +730,8 @@ public entry fun create_metadata(
                         price = (oracle::viewPrice(metadat.symbol) as u64);
                         denom = Math::pow10_u256((price_decimals as u8));
                     };
-                    let tier;
+                    let tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), efficiency: tier::tier_efficiency(metadat.tier), multiplier: tier::tier_multiplier(metadat.tier) };
 
-                    if(metadat.penalty_expiry > timestamp::now_seconds()){
-                        tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), 
-                        efficiency: ((tier::tier_efficiency(metadat.tier)*100) / storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_EFFICIENCY_HANDICAP")))),
-                        multiplier: (tier::tier_multiplier(metadat.tier) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP")))/100 )
-                        } ;
-                    } else {
-                        tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), efficiency: tier::tier_efficiency(metadat.tier), multiplier: tier::tier_multiplier(metadat.tier) };
-                    };
 
                     return VMetadata { 
                         symbol: metadat.symbol,
@@ -765,7 +739,6 @@ public entry fun create_metadata(
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
-                        penalty_expiry: metadat.penalty_expiry,
                         credit: metadat.credit,
                         price: Price { price: price, denom: (denom as u64) },
                         market: calculate_market(metadat),
