@@ -115,6 +115,13 @@ module dev::QiaraSharedV17 {
         };
     }
 
+    // 🟢 HELPER: Creates a module-scoped unique seed
+    fun construct_unique_seed(name: &String): vector<u8> {
+        let seed = b"QiaraSharedV17::";
+        vector::append(&mut seed, *std::string::bytes(name));
+        seed
+    }
+
     // ----------------------------------------------------------------
     // EXISTING SHARED STORAGE LOGIC
     // ----------------------------------------------------------------
@@ -124,9 +131,10 @@ module dev::QiaraSharedV17 {
         let non_user_key = bcs::to_bytes(&name);
 
         if (!table::contains(&shared.storage, name)) {
-            let name_bytes = *std::string::bytes(&name);
+            // 🟢 UPDATED: Domain-separated seed
+            let seed = construct_unique_seed(&name);
 
-            let constructor_ref = object::create_named_object(signer, name_bytes);
+            let constructor_ref = object::create_named_object(signer, seed);
             let extend_ref = object::generate_extend_ref(&constructor_ref);
             let metadata = SharedMetadata {
                 extend_ref: extend_ref,
@@ -204,9 +212,10 @@ module dev::QiaraSharedV17 {
         table::add(&mut shared.ref_code_registry, copy ref_code, copy ref_code_params);
         table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); 
         
-        let name_bytes = *std::string::bytes(&name);
+        // 🟢 UPDATED: Domain-separated seed
+        let seed = construct_unique_seed(&name);
 
-        let constructor_ref = object::create_named_object(signer, name_bytes);
+        let constructor_ref = object::create_named_object(signer, seed);
         let extend_ref = object::generate_extend_ref(&constructor_ref);
         let metadata = SharedMetadata {
             extend_ref: extend_ref,
@@ -373,9 +382,10 @@ module dev::QiaraSharedV17 {
         table::add(&mut shared.ref_code_registry, copy ref_code, copy ref_code_params);
         table::add(&mut shared.ref_code_to_shared, copy ref_code, copy name); 
 
-        let name_bytes = *std::string::bytes(&name);
+        // 🟢 UPDATED: Domain-separated seed
+        let seed = construct_unique_seed(&name);
 
-        let constructor_ref = object::create_named_object(validator, name_bytes);
+        let constructor_ref = object::create_named_object(validator, seed);
         let extend_ref = object::generate_extend_ref(&constructor_ref);
         let metadata = SharedMetadata {
             extend_ref: extend_ref,
@@ -739,7 +749,6 @@ module dev::QiaraSharedV17 {
         assert!(ownership_record.owner == owner, ERROR_NOT_OWNER_OF_THIS_SHARED_STORAGE);
     }
 
-    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
     public fun extract_raw_params(ownership_record: OwnershipView): (u64, u64) acquires SharedStorage {
         if (ownership_record.used_ref_code == utf8(b"")) {
             return (0, 0)
@@ -749,7 +758,6 @@ module dev::QiaraSharedV17 {
         (params.xp_tax, params.fee_tax)
     }
 
-    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
     public fun extract_used_ref_code(ownership_record: OwnershipView): String {
         if (ownership_record.used_ref_code == utf8(b"")) {
             return utf8(b"")
@@ -758,7 +766,6 @@ module dev::QiaraSharedV17 {
         ownership_record.used_ref_code
     }
 
-    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
     public fun extract_used_ref_code_params(ownership_record: OwnershipView): RefCodeParams acquires SharedStorage {
         let used_ref_code_params = create_empty_raw_params();
         if (ownership_record.used_ref_code != utf8(b"")) {
@@ -767,7 +774,6 @@ module dev::QiaraSharedV17 {
         return used_ref_code_params
     }
 
-    // 🟢 UPDATED: Change functions to accept OwnershipView to fix compilation error [1]
     public fun extract_raw_gas_relations(ownership_record: OwnershipView): (u256, u64) {
         (ownership_record.gas_index, ownership_record.last_updated)
     }
