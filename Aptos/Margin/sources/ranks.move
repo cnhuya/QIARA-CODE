@@ -250,19 +250,19 @@ module dev::QiaraRanksV48{
     }
     #[view]
     public fun return_fee_points_conversion(): u256{ // 1$ fee = 1 xp
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"ANY_FEE_CONVERSION"))) as u256)
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"ANY_FEE_CONVERSION"))) as u256)
     }
     #[view]
     public fun return_perp_volume_points_conversion(): u256{ // 1000$ volume = 1 xp
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"PERPS_VOLUME_CONVERSION"))) as u256)
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"PERPS_VOLUME_CONVERSION"))) as u256)
     }
     #[view]
     public fun return_market_liquidity_provision_points_conversion(): u256{
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"))) as u256)
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"))) as u256)
     }
     #[view]
     public fun return_free_daily_claim_points(): u256{ // 10 xp/day free claim
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"DAILY_CLAIM"))) as u256)
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"))) as u256)
     }
 
     #[view]

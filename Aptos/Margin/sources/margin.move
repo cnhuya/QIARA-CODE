@@ -777,6 +777,26 @@ module dev::QiaraMarginV48 {
     }
 
 
+
+
+        #[view]
+        public fun calculate_staked_increased_ltv(base_ltv: u256, locked_for_epochs: u256): (u256,u256,u256,u256){
+            let max_ltv = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256;
+            let staked_ltv_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256;
+            let staked_ltv_increase_missing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"))) as u256;
+        
+            let ltv_increase_per_epoch = base_ltv + locked_for_epochs*staked_ltv_increase;
+
+            let ltv_increase_per_epoch_missing = (100_000_000 - base_ltv) * staked_ltv_increase_missing*locked_for_epochs;
+
+            let final_increased_ltv = ltv_increase_per_epoch+ltv_increase_per_epoch_missing/1_000_000/100;
+            if(final_increased_ltv > max_ltv){
+                final_increased_ltv = max_ltv;
+            };
+            (ltv_increase_per_epoch,ltv_increase_per_epoch_missing/1_000_000/100,final_increased_ltv,0)
+        }
+
+
 // === HELPERS === //
 
     public fun get_utilization_ratio(shared: String): u256 acquires TokenHoldings{

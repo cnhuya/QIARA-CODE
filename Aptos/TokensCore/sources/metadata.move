@@ -689,7 +689,7 @@ public entry fun create_metadata(
     }
 
     // OFF STRUCTS HELPERS
-        #[view]
+       /* #[view]
         public fun t_helper(symbol: String): (u64, u64, u64,u64,u64,u64,u64,u64) acquires Tokens {
             let metadata = get_coin_metadata(symbol);
             (
@@ -720,7 +720,7 @@ public entry fun create_metadata(
     
            storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"MARKET_PERCENTAGE_SCALE"))) - ((metadata.tier as u64)*500u64) - x
         }
-
+*/
 
         public fun get_coin_metadata_market_w_fee(metadata: &VMetadata): u64 {
             

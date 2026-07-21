@@ -238,11 +238,11 @@ module dev::QiaraTokensTiersV47{
             (((tier.multiplier as u64)/5) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE"))))/100 + storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE")))
         }
 
-        #[view]
+     /*   #[view]
         public fun w_limit(id: u8): u64 {
             let tier = get_tier(id);
             ((tier.multiplier  as u64)* storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_CAP"))))
-        }
+        }*/
 
         #[view]
         public fun rate_scale(id: u8, isLending: bool): u64 {
@@ -341,10 +341,10 @@ module dev::QiaraTokensTiersV47{
             ((tier.efficiency as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"MAX_POSITION"))) as u128)
         }
 
-        #[view]
+       /* #[view]
         public fun perps_rate_scale(id: u8): u64 {
             storage::expect_u64(storage::viewConstant(utf8(b"QiaraPerps"), utf8(b"PERPS_PERCENTAGE_SCALE"))) - ((id as u64)*1000)
-        }
+        }*/
 
         #[view]
         public fun perps_max_leverage(id: u8): u64 {
