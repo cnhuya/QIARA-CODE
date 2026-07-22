@@ -68,6 +68,7 @@ module dev::QiaraVaultsV71 {
     const ERROR_WITHDRAW_LIMIT_EXCEEDED: u64 = 21;
     const ERROR_ARGUMENT_LENGHT_MISSMATCH: u64 = 22;
     const ERROR_NOT_ENOUGH_CREDITS: u64 = 23;
+    const ERROR_STAKE_EXCEEDS_MAX_ALLOWED_EPOCH: u64 = 24;
 
 
     const ERROR_A: u64 = 101;
@@ -449,6 +450,8 @@ module dev::QiaraVaultsV71 {
 // === NATIVE INTERFACE === //
 
     public entry fun stake(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64, epoch: u64) acquires Permissions {
+        let max_stake_epoch = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH")));
+        assert!(epoch <= max_stake_epoch, ERROR_STAKE_EXCEEDS_MAX_ALLOWED_EPOCH);
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256) * 1000000000000000000;
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -467,31 +470,47 @@ module dev::QiaraVaultsV71 {
         let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        // Retrieve existing user balance and lock period
+        // Retrieve existing user balance and absolute unlock epoch
         let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, _, _, user_lock_period) = Margin::get_user_raw_balance(shared, token, chain, provider);
-
-        // Calculate weighted average epoch lock period
+        
+        let current_epoch = Genesis::return_epoch();
+        let current_epoch_u256 = (current_epoch as u256);
         let epoch_u256 = (epoch as u256);
-        let weighted_epoch = if (user_staked == 0) {
-            epoch_u256
+
+        // Absolute target epoch for the new deposit
+        let new_stake_unlock_epoch = current_epoch_u256 + epoch_u256;
+
+        let (weighted_unlock_epoch, weighted_duration) = if (user_staked == 0) {
+            (new_stake_unlock_epoch, epoch_u256)
         } else {
+            // Floor expired locks at current_epoch
+            let existing_unlock_epoch = if ((user_lock_period as u256) < current_epoch_u256) {
+                current_epoch_u256
+            } else {
+                (user_lock_period as u256)
+            };
+
             let total_staked_new = user_staked + amount_u256;
-            let weighted_sum = (user_staked * user_lock_period) + (amount_u256 * epoch_u256);
+            let weighted_sum = (user_staked * existing_unlock_epoch) + (amount_u256 * new_stake_unlock_epoch);
+            
+            // Round to nearest target unlock epoch
+            let target_unlock = (weighted_sum + (total_staked_new / 2)) / total_staked_new;
+            let duration = if (target_unlock > current_epoch_u256) {
+                target_unlock - current_epoch_u256
+            } else {
+                0
+            };
 
-            // Option A: Rounding UP (Ceiling) -> 15 / 2 = 7.5 -> 8
-            (weighted_sum + total_staked_new - 1) / total_staked_new
-
-            // Option B: Rounding DOWN (Default Move division) -> 15 / 2 = 7.5 -> 7
-            // weighted_sum / total_staked_new
-
-            // Option C: Round to Nearest -> 7.5 -> 8
-            // (weighted_sum + (total_staked_new / 2)) / total_staked_new
+            (target_unlock, duration)
         };
 
-        // Calculate stake fee using the weighted epoch
-        let (stake_fee, _) = calculate_stake_fee(amount_u256_taxed, weighted_epoch);
+        // Calculate stake fee using weighted lock DURATION
+        let (stake_fee, _) = calculate_stake_fee(amount_u256_taxed, (weighted_duration as u64));
         Margin::update_stake_locked_fee(shared, sender, token, chain, provider, stake_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        // Persist the updated weighted target unlock epoch in state
+        Margin::update_user_lock_period(shared, sender, token, chain, provider, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -529,54 +548,49 @@ module dev::QiaraVaultsV71 {
         Event::emit_market_event(utf8(b"Stake"), data);
     }
 
-    public entry fun unstake(signer: &signer, shared: String, token: vector<String>, chain: vector<String>, provider: vector<String>, amount: vector<u64>) acquires Permissions {
-        assert!(vector::length(&token) == vector::length(&chain), ERROR_ARGUMENT_LENGHT_MISSMATCH);
+    public entry fun unstake(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64) acquires Permissions {
         let sender = bcs::to_bytes(&signer::address_of(signer));
-        let vect_amnt = vector::empty<u256>();
+        let amount_u256 = (amount as u256) * 1000000000000000000;
 
-        let len = vector::length(&token);
-        while(len>0){
-            let _chain = *vector::borrow(&chain, len-1);
-            let _token = *vector::borrow(&token, len-1);
-            let _provider = *vector::borrow(&provider, len-1);
-            let _amount = *vector::borrow(&amount, len-1);
-            let amount_u256 = (_amount as u256)*1000000000000000000;
-            let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(_token, _chain, _provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-            let (_, _fee) = TokensMetadata::impact(_token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+        let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+    
+        let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         
-            let gas_rate = Gas::add_withdraw(_token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-            
-        
-            let (amount_u256_taxed, fee) = handle_withdrawal_fee(_token, _chain, _provider,  amount_u256, _fee);
-            if(amount_u256_taxed == 0) { return };
+        let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
+        if (amount_u256_taxed == 0) { return };
 
+        // Fetch user's current staked balance and stake_locked_fee
+        let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, user_stake_locked_fee, _, stake_lock) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
-            len=len-1;
-
-            // Redeem shares and deposit underlying directly to shared storage, then transfer to signer's personal wallet
-            //Liquidity::withdraw_token(shared, _token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            Liquidity::remove_stake(_token, _chain, _provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-            
-            //What was this for? (all the token stuff is handled in withdraw_token?)
-            //let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(_token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-            //let fa = TokensCore::withdraw(shared, user_shared_store, (_amount as u64), _chain);
-            //TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(_token)), fa, _chain);
-            
-            vector::push_back(&mut vect_amnt, amount_u256_taxed);
-            Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), _token, _chain, _provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+        // Calculate proportional fee refund and new remaining stake_locked_fee
+        let (fee_refund, new_stake_locked_fee) = if (user_staked == 0 || amount_u256 >= user_staked) {
+            (user_stake_locked_fee, 0)
+        } else {
+            let refund = (user_stake_locked_fee * amount_u256) / user_staked;
+            (refund, user_stake_locked_fee - refund)
         };
 
-        Margin::remove_stake(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, vect_amnt, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        // Update remaining stake_locked_fee for user
+        Margin::update_stake_locked_fee(shared, sender, token, chain, provider, new_stake_locked_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         
-        let data = vector[
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"token"), utf8(b"vector<String>"), bcs::to_bytes(&token)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"vector<String>"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"provider"), utf8(b"vector<String>"), bcs::to_bytes(&provider)),
-            Event::create_data_struct(utf8(b"amount"), utf8(b"vector<u256>"), bcs::to_bytes(&vect_amnt)),
+        // Deduct overall locked fee in Liquidity (if tracked in Liquidity module)
+        // Liquidity::remove_staked_locked_fee(token, chain, provider, fee_refund, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
+        // Redeem/remove stake from Liquidity and update rewards index
+        Liquidity::remove_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Margin::update_reward_index(shared, sender, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+        Margin::remove_stake(shared, sender, token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), sender),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256)),
+            Event::create_data_struct(utf8(b"fee_refund"), utf8(b"u256"), bcs::to_bytes(&fee_refund)),
         ];
         Event::emit_market_event(utf8(b"Unstake"), data);
     }

@@ -1,4 +1,4 @@
-module dev::QiaraMarginV51 {
+module dev::QiaraMarginV52 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraMarginV51 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV51::{Self as Ranks};
+    use dev::QiaraRanksV52::{Self as Ranks};
     use dev::QiaraTokensMetadataV50::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV50::{Self as TokensType};
     
@@ -244,46 +244,38 @@ module dev::QiaraMarginV51 {
         {
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
             balance.staked = balance.staked + value;
-            balance.stake_lock = (Genesis::return_epoch() as u64);
         };
         let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev),token,chain,provider);
         *staked_value = *staked_value + value;
     }
 
-    public fun remove_stake(shared: String, user: vector<u8>,  token: vector<String>, chain: vector<String>,provider: vector<String>, value: vector<u256>, cap: Permission) acquires TokenHoldings, TotalStaked { 
+    public fun update_user_lock_period(shared: String, user: vector<u8>, token: String, chain: String,provider: String, period: u64, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
-        assert!(
-            vector::length(&token) == vector::length(&chain) && 
-            vector::length(&token) == vector::length(&provider) && 
-            vector::length(&token) == vector::length(&value), 
-            ERROR_ARGUMENT_LENGHT_MISSMATCH
-        );
+        {
+        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
+            balance.stake_lock = period;
+        };
+    }
 
-        let len = vector::length(&token);
-        while(len > 0){
-            let token = vector::borrow(&token, len-1);
-            let chain = vector::borrow(&chain, len-1);
-            let provider = vector::borrow(&provider, len-1);
-            let value = vector::borrow(&value, len-1);
-            let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev), shared, *token, *chain, *provider);
+    public fun remove_stake(shared: String, user: vector<u8>, token: String, chain: String, provider: String, value: u256, cap: Permission) acquires TokenHoldings, TotalStaked { 
+        Shared::assert_is_sub_owner(shared, user);
 
-            assert!(balance.stake_lock+2 <= (Genesis::return_epoch() as u64), ERROR_STAKE_LOCKED);
+        let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev), shared, token, chain, provider);
 
-            if(*value > balance.staked){
-                balance.staked = 0;
-            } else {
-                balance.staked = balance.staked - *value;
-            };
+        assert!(balance.stake_lock + 2 <= (Genesis::return_epoch() as u64), ERROR_STAKE_LOCKED);
 
-            let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev), *token, *chain, *provider);
-            
-            if (*value > *staked_value) {
-                *staked_value = 0;
-            } else {
-                *staked_value = *staked_value - *value;
-            };
+        if (value > balance.staked) {
+            balance.staked = 0;
+        } else {
+            balance.staked = balance.staked - value;
+        };
 
-            len = len-1;
+        let staked_value = find_staked_entry(borrow_global_mut<TotalStaked>(@dev), token, chain, provider);
+        
+        if (value > *staked_value) {
+            *staked_value = 0;
+        } else {
+            *staked_value = *staked_value - value;
         };
     }
 
