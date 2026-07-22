@@ -373,7 +373,7 @@ module dev::QiaraVaultsV70 {
 
     public entry fun c_bridge_claim_rewards(validator: &signer,  shared: String, sender: vector<u8>,  token: String, chain: String, provider: String) acquires Permissions {
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -1084,7 +1084,7 @@ module dev::QiaraVaultsV70 {
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
-        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -1175,7 +1175,10 @@ module dev::QiaraVaultsV70 {
             user_incentive_deposit_index,       // <--- FIXED: Split Lender Checkpoint
             user_incentive_borrow_index,        // <--- FIXED: Split Borrower Checkpoint
             user_accumulated_rewards_index_snapshot, // <--- FIXED: Gated Checkpoint
+            user_stake_locked_fee,
+            user_stake_lock,
             user_last_interacted
+
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
         let (
             total_liquidity,
