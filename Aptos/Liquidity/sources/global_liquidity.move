@@ -400,7 +400,11 @@ public fun withdraw_token(
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (net_scaled / 1000000000000000000 as u64), chain);
         
         // Deposits the raw underlying assets directly to the user's wallet
-        primary_fungible_store::deposit(signer::address_of(signer), underlying_fa);
+        //tttta(100);
+        let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
+        TokensCore::deposit(shared, shared_lp_store_token,  underlying_fa, chain);
+        //tttta(101);
+        //primary_fungible_store::deposit(signer::address_of(signer), underlying_fa);
     }
     public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);

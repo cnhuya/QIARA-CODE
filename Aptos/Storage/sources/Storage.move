@@ -155,7 +155,7 @@ module dev::QiaraStorageV21 {
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"), 50_000_000, true, &give_permission(&give_access(admin))); // 50%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH"), 52, true, &give_permission(&give_access(admin))); // 50%
 
-        //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
         //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_EFFICIENCY_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
         //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_PENALTY_TIME"), 604_800, true, &give_permission(&give_access(admin)));
 
@@ -228,7 +228,7 @@ module dev::QiaraStorageV21 {
 
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH"), 52, true, &give_permission(&give_access(admin))); // 10%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), 200, true, &give_permission(&give_access(admin))); // 10%
     }
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{

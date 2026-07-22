@@ -69,7 +69,8 @@ module dev::QiaraVaultsV72 {
     const ERROR_ARGUMENT_LENGHT_MISSMATCH: u64 = 22;
     const ERROR_NOT_ENOUGH_CREDITS: u64 = 23;
     const ERROR_STAKE_EXCEEDS_MAX_ALLOWED_EPOCH: u64 = 24;
-
+    const ERROR_INSUFFICIENT_STAKE : u64 = 25;
+    const ERROR_STAKE_LOCKED: u64 = 26;
 
     const ERROR_A: u64 = 101;
     const ERROR_B: u64 = 102;
@@ -459,20 +460,17 @@ module dev::QiaraVaultsV72 {
         let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        
         let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
         if (amount_u256_taxed == 0) { return };
 
         let obj = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
-        
         // 1. Deposit underlying assets and retrieve physical LP shares
         let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Retrieve existing user balance and absolute unlock epoch
         let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, _, _, user_lock_period) = Margin::get_user_raw_balance(shared, token, chain, provider);
-        
         let current_epoch = Genesis::return_epoch();
         let current_epoch_u256 = (current_epoch as u256);
         let epoch_u256 = (epoch as u256);
@@ -503,7 +501,6 @@ module dev::QiaraVaultsV72 {
 
             (target_unlock, duration)
         };
-
         // Calculate stake fee using weighted lock DURATION
         let (stake_fee, _) = calculate_stake_fee(amount_u256_taxed, (weighted_duration as u64));
         Margin::update_stake_locked_fee(shared, sender, token, chain, provider, stake_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -563,22 +560,32 @@ module dev::QiaraVaultsV72 {
 
         // Fetch user's current staked balance and stake_locked_fee
         let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, user_stake_locked_fee, _, stake_lock) = Margin::get_user_raw_balance(shared, token, chain, provider);
+        assert!(user_staked >= amount_u256, ERROR_INSUFFICIENT_STAKE);
+        assert!(stake_lock + 2 <= (Genesis::return_epoch() as u64), ERROR_STAKE_LOCKED);
+        let stake_fee_refund = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"))) as u256); // 500_000 for 50%
 
-        // Calculate proportional fee refund and new remaining stake_locked_fee
-        let (fee_refund, new_stake_locked_fee) = if (user_staked == 0 || amount_u256 >= user_staked) {
-            (user_stake_locked_fee, 0)
+        // Proportional fee corresponding to the unstaked portion
+        let proportional_fee = if (user_staked == 0 || amount_u256 >= user_staked) {
+            user_stake_locked_fee
         } else {
-            let refund = (user_stake_locked_fee * amount_u256) / user_staked;
-            (refund, user_stake_locked_fee - refund)
+            (user_stake_locked_fee * amount_u256) / user_staked
+        };
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+        // Refund only 50% (STAKE_FEE_REFUND) of that proportional fee to the user
+        let fee_refund = (proportional_fee * stake_fee_refund) / 100_000_000;
+
+        // Deduct the full proportional fee from the user's locked fee state
+        let new_stake_locked_fee = if (proportional_fee >= user_stake_locked_fee) {
+            0
+        } else {
+            user_stake_locked_fee - proportional_fee
         };
 
-        // Update remaining stake_locked_fee for user
         Margin::update_stake_locked_fee(shared, sender, token, chain, provider, new_stake_locked_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        
-        // Deduct overall locked fee in Liquidity (if tracked in Liquidity module)
-        // Liquidity::remove_staked_locked_fee(token, chain, provider, fee_refund, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Redeem/remove stake from Liquidity and update rewards index
+        Liquidity::remove_staked_locked_fee(token, chain, provider, fee_refund, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::remove_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Margin::update_reward_index(shared, sender, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::remove_stake(shared, sender, token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1371,7 +1378,7 @@ module dev::QiaraVaultsV72 {
             price,
             actual_gas_reduction_for_ref_code_user,
             actual_xp_earned_for_ref_code_user,
-            calculate_mint_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_staked_locked_fee, total_shares)
+            calculate_redeem_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_staked_locked_fee, total_shares)
         )
     }
     
@@ -1385,7 +1392,9 @@ module dev::QiaraVaultsV72 {
     // FEE MUST be atleast 1 FRACTION of a token (1/1e6)
     fun assert_minimal_fee(token: String, chain: String, provider: String, amount: u256, fee: u256): (u256, u256) acquires Permissions{
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+        //tttta(100);
         let w_fee_percentage = TokensMetadata::get_coin_metadata_market_w_fee(&metadata);
+        //tttta(101);
         let w_fee = (amount*(w_fee_percentage as u256))/100_000_000;
         let combined_fee = fee+w_fee;
         if (combined_fee < 1 * 1000000000000000000) {
@@ -1458,19 +1467,31 @@ module dev::QiaraVaultsV72 {
 // === VIEWS === //
     #[view]
     public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, shares: u256): u256 {
-         shares / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)
+         shares*1000000000000000000 / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)
     }
+
     #[view]
-    public fun calculate_stake_fee(stake: u256, epoch: u64): (u256,u256)  {
-        let stake_fee_per_epoch = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"))) as u256);
-        let stake_fee_refund = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"))) as u256);
-
-        //1_000_000
-
-        let total_stake_fee = (epoch as u256)*stake_fee_per_epoch;
-        let refund_amount = total_stake_fee*stake_fee_refund/1_000_000/100;
-        (stake*total_stake_fee/1_000_000, refund_amount)
+    public fun calculate_redeem_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, shares: u256): u256 {
+        (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)*1000000000000000000 /  shares
     }
+
+    #[view]
+    public fun calculate_stake_fee(stake: u256, epoch: u64): (u256, u256) {
+        let stake_fee_per_epoch = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"))) as u256);
+        let stake_fee_refund = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"))) as u256); // e.g. 500_000 for 50%
+
+        // Fee rate calculated per epoch
+        let total_stake_fee_rate = (epoch as u256) * stake_fee_per_epoch / 100;
+        
+        // Total fee in token units
+        let total_fee = (stake * total_stake_fee_rate) / 1_000_000;
+        
+        // 50% (or STAKE_FEE_REFUND %) refundable amount in token units
+        let refund_amount = (total_fee * stake_fee_refund) / 1_000_000 / 100;
+
+        (total_fee, refund_amount)
+    }
+
 
     #[view]
     public fun get_withdraw_fee(multiply: u256, limit: u256, amount: u256): u256 {
