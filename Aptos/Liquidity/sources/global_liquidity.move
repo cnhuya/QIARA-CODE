@@ -966,7 +966,7 @@ public fun withdraw_token(
 
     // === NEW HELPER: Standardizes Asset Accumulation pricing calculation ===
     fun get_total_assets(vault: &Vault): u256 {
-        vault.total_deposited + vault.total_accumulated_interest + vault.total_native_accumulated_rewards
+        vault.total_deposited + vault.total_accumulated_interest + vault.total_native_accumulated_rewards + vault.total_staked_locked_fee
     }
 
     /// Converts a hex string representation of an address (with or without '0x') to an actual address type.
