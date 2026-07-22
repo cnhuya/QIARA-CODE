@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV68 {
+module dev::QiaraLiquidityV69 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -18,9 +18,9 @@ module dev::QiaraLiquidityV68 {
     use dev::QiaraTokensCoreV50::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensTiersV50::{Self as TokensTiers};
 
-    use dev::QiaraMarginV50::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV50::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV50::{Self as BurnedQiara};
+    use dev::QiaraMarginV51::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV51::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV51::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV50::{Self as ChainTypes};
     use dev::QiaraProviderTypesV50::{Self as ProviderTypes};
@@ -84,6 +84,7 @@ module dev::QiaraLiquidityV68 {
         total_accumulated_rewards: u256,        // Global tracking of collected fees (for burned qiara holders)
         accumulated_rewards_index: u128,        // Discrete Jump-Index for fees (for burned qiara holders)
         total_accumulated_interest: u256,       // Lending interest (for everyone)
+        total_staked_locked_fee: u256,
         virtual_borrowed: u256, 
         virtual_deposited: u256, 
         storage: Object<FungibleStore>,         // Storage of the underlying asset
@@ -503,6 +504,20 @@ public fun withdraw_token(
         };
     }
 
+    public fun add_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+        {
+        let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
+            vault.total_staked_locked_fee = vault.total_staked_locked_fee + value;
+        };
+    }
+
+    public fun remove_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+        {
+        let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
+            vault.total_staked_locked_fee = vault.total_staked_locked_fee - value;
+        };
+    }
+
     public fun add_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
@@ -657,7 +672,7 @@ public fun withdraw_token(
     }
 
     #[view]
-    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256,u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault, GlobalLPCapabilities {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
         return (
@@ -671,6 +686,7 @@ public fun withdraw_token(
             vault.virtual_borrowed, 
             vault.virtual_deposited, 
             vault.total_shares,             // Return actual LP share supply
+            vault.total_staked_locked_fee,
             vault.last_update
         )
     }
@@ -903,6 +919,7 @@ public fun withdraw_token(
                 virtual_borrowed: 0,
                 total_borrowed: 0,
                 total_deposited: 0,
+                total_staked_locked_fee: 0,
                 w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
                 storage: vault_store,
                 incentive: Incentive {

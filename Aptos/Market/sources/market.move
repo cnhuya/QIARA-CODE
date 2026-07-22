@@ -1415,8 +1415,8 @@ module dev::QiaraVaultsV69 {
 
 // === VIEWS === //
     #[view]
-    public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, shares: u256): u256 {
-         shares / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards)
+    public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, shares: u256): u256 {
+         shares / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)
     }
 
     #[view]

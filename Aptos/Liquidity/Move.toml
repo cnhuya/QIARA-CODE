@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraLiquidityV68"
+    name = "QiaraLiquidityV69"
     version = "2.1.1"
     authors = []
 
@@ -32,7 +32,7 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV50]
+    [dependencies.QiaraMarginV51]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
