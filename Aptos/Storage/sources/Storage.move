@@ -151,6 +151,10 @@ module dev::QiaraStorageV21 {
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), 100_000, true, &give_permission(&give_access(admin))); // 0.5%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR"), 10_00_000, true, &give_permission(&give_access(admin))); // 10x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT"), 5_000_000, true, &give_permission(&give_access(admin))); // 0.1x
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), 250_000, true, &give_permission(&give_access(admin))); // 0.0025%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"), 50_000_000, true, &give_permission(&give_access(admin))); // 50%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH"), 52, true, &give_permission(&give_access(admin))); // 50%
+
         //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
         //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_EFFICIENCY_HANDICAP"), 200, true, &give_permission(&give_access(admin)));
         //register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"NEW_PENALTY_TIME"), 604_800, true, &give_permission(&give_access(admin)));
@@ -224,13 +228,12 @@ module dev::QiaraStorageV21 {
 
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"), 250_000, true, &give_permission(&give_access(admin))); // 10%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH"), 52, true, &give_permission(&give_access(admin))); // 10%
     }
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        change_constant(admin, utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"), bc::to_bytes(&250_000u64), &give_permission(&give_access(admin))); // 0.001%  
-        change_constant(admin, utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"), bc::to_bytes(&110_000_000u64), &give_permission(&give_access(admin))); // 0.001%  
+        change_constant(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"), bc::to_bytes(&50_000_000), &give_permission(&give_access(admin))); // 0.001%  
     }
 
 
