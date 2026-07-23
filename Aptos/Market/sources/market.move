@@ -791,7 +791,7 @@ module dev::QiaraVaultsV73 {
 
         // Burn gross, send net
         Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::remove_deposit(token, chain, provider, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Margin: remove gross, NO locked_fee
         Margin::remove_deposit(shared, sender_bytes, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1382,7 +1382,7 @@ module dev::QiaraVaultsV73 {
             price,
             actual_gas_reduction_for_ref_code_user,
             actual_xp_earned_for_ref_code_user,
-            calculate_redeem_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_staked_locked_fee, total_shares)
+            calculate_redeem_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_staked_locked_fee, total_staked, total_shares)
         )
     }
     
