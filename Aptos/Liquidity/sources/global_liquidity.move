@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV70 {
+module dev::QiaraLiquidityV71 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -328,7 +328,7 @@ module dev::QiaraLiquidityV70 {
         assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
         // 2. Deposit underlying asset to storage
-        vault.total_deposited = vault.total_deposited + deposit_amount;
+        //vault.total_deposited = vault.total_deposited + deposit_amount; -> accruing deposits directly in deposit function in market via add_deposit function
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
 
         // 3. Resolve the vault's resource address to locate Mint capabilities
@@ -394,7 +394,7 @@ public fun withdraw_token(
 
         // LP pot loses gross, fee pot gains fee (already done in handle_withdrawal_fee)
         // So total_deposited -= gross, NOT net
-        vault.total_deposited = vault.total_deposited - raw_scaled;
+        //vault.total_deposited = vault.total_deposited - raw_scaled;  // decreasing the deposited value directly in withdraw function in market module via remove_deposit
 
         // Send only NET to user, fee stays in vault.storage
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (net_scaled / 1000000000000000000 as u64), chain);
@@ -970,7 +970,7 @@ public fun withdraw_token(
 
     // === NEW HELPER: Standardizes Asset Accumulation pricing calculation ===
     fun get_total_assets(vault: &Vault): u256 {
-        vault.total_deposited + vault.total_accumulated_interest + vault.total_native_accumulated_rewards + vault.total_staked_locked_fee
+        vault.total_deposited + vault.total_accumulated_interest + vault.total_native_accumulated_rewards + vault.total_staked_locked_fee + vault.total_staked
     }
 
     /// Converts a hex string representation of an address (with or without '0x') to an actual address type.

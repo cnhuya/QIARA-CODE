@@ -131,6 +131,7 @@ module dev::QiaraVaultsV72 {
 
         // 1. Deposit standard assets and retrieve physical LP shares
         let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Deposit physical LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -197,7 +198,7 @@ module dev::QiaraVaultsV72 {
         Margin::remove_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
+        Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Withdraw from shared storage and transfer to the recipient's primary store
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -654,6 +655,7 @@ module dev::QiaraVaultsV72 {
 
         // 1. Deposit underlying assets and retrieve physical LP shares
         let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //tttta(1);
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -716,6 +718,7 @@ module dev::QiaraVaultsV72 {
 
         // 1. Redeem shares and deposit underlying into shared storage
         Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Withdraw custom wrapped token from shared storage
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -788,6 +791,7 @@ module dev::QiaraVaultsV72 {
 
         // Burn gross, send net
         Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Margin: remove gross, NO locked_fee
         Margin::remove_deposit(shared, sender_bytes, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
@@ -1466,13 +1470,13 @@ module dev::QiaraVaultsV72 {
 
 // === VIEWS === //
     #[view]
-    public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, shares: u256): u256 {
-         shares*1000000000000000000 / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)
+    public fun calculate_mint_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, total_staked: u256, shares: u256): u256 {
+         shares*1000000000000000000 / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee + total_staked)
     }
 
     #[view]
-    public fun calculate_redeem_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, shares: u256): u256 {
-        (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee)*1000000000000000000 /  shares
+    public fun calculate_redeem_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, total_staked: u256, shares: u256): u256 {
+        (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee + total_staked)*1000000000000000000 /  shares
     }
 
     #[view]
