@@ -1,5 +1,5 @@
-solana address -k ~/solana/target/deploy/qiara-keypair.json
+solana address -k ~/solana/target/deploy/unified_faucet-keypair.json
 
 cp /home/kristian/solana/target/idl/qiara.json /mnt/x/project/QIARA-CODE/Solana/target/idl/qiara.json
 
- solana program close FUcB68BawaTk6Ui9UwgeEpeUkucyWeYZEfams9t8A8yi --url devnet --bypass-warning
+ solana program close BcoJ47x5YSEbrfTy5Fm3RvVC15Xj8Z4U7AcxPB88kCar --url devnet --bypass-warning

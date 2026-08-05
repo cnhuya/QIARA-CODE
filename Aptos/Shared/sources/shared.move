@@ -533,11 +533,7 @@ module dev::QiaraSharedV17 {
         ownership_record.last_updated = timestamp::now_seconds();
     }
 
-    public fun ensure_shared_fungible_storage(
-        shared_name: String, 
-        asset_metadata: Object<Metadata>, 
-        _perm: Permission
-    ): Object<FungibleStore> acquires SharedStorage {
+    public fun ensure_shared_fungible_storage(shared_name: String, asset_metadata: Object<Metadata>, _perm: Permission): Object<FungibleStore> acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         assert!(table::contains(&shared.storage, shared_name), ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS);
         

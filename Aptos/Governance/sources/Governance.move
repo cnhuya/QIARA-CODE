@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV8 {
+module dev::QiaraGovernanceV9 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -10,12 +10,12 @@ module dev::QiaraGovernanceV8 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV19::{Self as Margin};
+    use dev::QiaraMarginV52::{Self as Margin};
 
-    use dev::QiaraStorageV11::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV11::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV11::{Self as functions, Access as FunctionAccess};
-    use dev::QiaraSharedV8::{Self as TokensShared};
+    use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV21::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV21::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraSharedV17::{Self as TokensShared};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
     const OWNER: address = @dev;
@@ -364,6 +364,64 @@ module dev::QiaraGovernanceV8 {
                 Event::emit_governance_event(utf8(b"Proposal Result"), data);
     }
 
+/// 1. Test entry function to emit a "Create Proposal" event
+    public entry fun test_create_proposal(user: &signer, proposal_id: u64) {
+        let sender_addr = signer::address_of(user);
+        let sender_bytes = bcs::to_bytes(&sender_addr);
+        let shared_name = utf8(b"test_storage");
+
+        let type = vector[utf8(b"Constant"), utf8(b"Constant"), utf8(b"Constant")];
+        let headers = vector[utf8(b"QiaraStorage"), utf8(b"QiaraCapabilities"), utf8(b"QiaraFunctions")];
+        let constants = vector[utf8(b"QiaraStorage"), utf8(b"QiaraCapabilities"), utf8(b"QiaraFunctions")];
+        let new_value = vector[
+            bcs::to_bytes(&utf8(b"TestConstantValue1")), 
+            bcs::to_bytes(&utf8(b"TestConstantValue2")), 
+            bcs::to_bytes(&utf8(b"TestConstantValue3"))
+        ];
+        let value_type = vector[utf8(b"string"), utf8(b"string"), utf8(b"string")];
+        let isChange = vector[false, false, false];
+        let editable = vector[true, true, true];
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), sender_bytes),
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&utf8(b"Test Proposal"))),
+            Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&utf8(b"This is a live test proposal description."))),
+            Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&0)),
+            Event::create_data_struct(utf8(b"proposer"), utf8(b"address"), bcs::to_bytes(&sender_addr)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_name)),
+            Event::create_data_struct(utf8(b"type"), utf8(b"vector<string>"), bcs::to_bytes(&type)),
+            Event::create_data_struct(utf8(b"isChange"), utf8(b"vector<bool>"), bcs::to_bytes(&isChange)),
+            Event::create_data_struct(utf8(b"header"), utf8(b"vector<string>"), bcs::to_bytes(&headers)),
+            Event::create_data_struct(utf8(b"constant"), utf8(b"vector<string>"), bcs::to_bytes(&constants)),
+            Event::create_data_struct(utf8(b"new_value"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&new_value)),
+            Event::create_data_struct(utf8(b"value_type"), utf8(b"vector<string>"), bcs::to_bytes(&value_type)),
+            Event::create_data_struct(utf8(b"editable"), utf8(b"vector<bool>"), bcs::to_bytes(&editable)),
+            Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&100000)),
+            Event::create_data_struct(utf8(b"created"), utf8(b"u64"), bcs::to_bytes(&timestamp::now_seconds())),
+            Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&0)),
+        ];
+
+        Event::emit_governance_event(utf8(b"Create Proposal"), data);
+    }
+
+    /// 2. Test entry function to emit a "Vote" event
+    public entry fun test_vote(user: &signer, proposal_id: u64, is_yes: bool, vote_weight: u256) {
+        let sender_addr = signer::address_of(user);
+        let sender_bytes = bcs::to_bytes(&sender_addr);
+        let shared_name = utf8(b"test_storage");
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sender_bytes),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_name)),
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u256"), bcs::to_bytes(&vote_weight)),
+            Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&is_yes)),
+        ];
+
+        Event::emit_governance_event(utf8(b"Vote"), data);
+    }
+
     fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String, name: String, desc: String, type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
         TokensShared::assert_is_owner(user, shared);
         assert!(!capabilities::assert_wallet_capability(shared, std::string::utf8(b"QiaraGovernance"), std::string::utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
@@ -419,7 +477,7 @@ module dev::QiaraGovernanceV8 {
     fun vote_internal(shared_storage_name: String, proposal_id: u64, isYes: bool): u256 acquires PendingProposals {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
-        let (_, _, _, _, _, _, _, _, vote_value, _, _) = Margin::get_user_total_usd(shared_storage_name);
+        let (_, _, _, _, _, _, _, _, vote_value, _) = Margin::get_user_total_usd(shared_storage_name);
 
         while (len > 0) {
             len = len - 1;

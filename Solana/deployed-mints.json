@@ -1,0 +1,38 @@
+[
+  {
+    "symbol": "SOL",
+    "name": "Solana",
+    "mint": "ACcV24f4noYrZJuu98Hbk4RPBeBGoQmotnhiQiNBtbVC",
+    "tokenConfig": "3jPR13E1XPkk1qrRvFjt5rZXUidTZg9VMztbQHRB5p1s"
+  },
+  {
+    "symbol": "USDC",
+    "name": "USDC",
+    "mint": "5vogighKNka5pgNqrSJa98okb3XZSAPeA1qmTT6MyjJP",
+    "tokenConfig": "6sXwJdA3ZZ2pLANiqJgrTz1UaCe8DQ6asmXxbUiqKnFC"
+  },
+  {
+    "symbol": "USDT",
+    "name": "USDT",
+    "mint": "J4y859GFpfnppXpWLxfAJ3YqwF7xyDBL5nqY8PShMn6g",
+    "tokenConfig": "H6LHrFCwzLfcAWJRN21TghYCDTJginNmfFcDaf3vTU68"
+  },
+  {
+    "symbol": "USDG",
+    "name": "USDG",
+    "mint": "Cv59tcAe74JKpctuhfQzX5LZJkhrMTFWZ9yWs8FyUjV4",
+    "tokenConfig": "Ay1gV5GAuj7SujZJ6CK7y1iSyLq8E7PuT35wag5GXdFP"
+  },
+  {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "mint": "8HZ3w5xRnEBMEnngCyxwWFSwMwGEvBzmnDduaUh8zmQG",
+    "tokenConfig": "EzxL5TdcvzppUCW6zpqc8ACjDcVszyqaM3k3ujyehJWL"
+  },
+  {
+    "symbol": "JLP",
+    "name": "JLP",
+    "mint": "AMx8G5CT5EdNvcZ16RUfKUDHrvm3PwmE73DSLQeSbFk5",
+    "tokenConfig": "9jgiETG12aFamzstLL9xzMn2TewLfjuGBku9x4y1AFPQ"
+  }
+]
