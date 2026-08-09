@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV52{
+module dev::QiaraBridgeV53{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -24,15 +24,15 @@ module dev::QiaraBridgeV52{
     use dev::QiaraTokensCoreV50::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV50::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV72::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV73::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV52::{Self as Margin};
 
-    use dev::QiaraPayloadV52::{Self as Payload};
-    use dev::QiaraValidatorsV52::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV53::{Self as Payload};
+    use dev::QiaraValidatorsV53::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV39::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV39::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV40::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV40::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -741,6 +741,23 @@ module dev::QiaraBridgeV52{
             if (event_type == utf8(b"Bridge Deposit")) {
                 // Handle Deposit specific logic here
                 let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
+                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+            } else if (event_type == utf8(b"Bridge Stake")) {
+                // Handle Deposit specific logic here
+                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
+                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+            } else if (event_type == utf8(b"Bridge Unstake")) {
+                // Handle Deposit specific logic here
+                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
+                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+            } else if (event_type == utf8(b"Bridge Borrow")) {
+                // Handle Deposit specific logic here
+                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
                 //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
                 TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
                 Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
@@ -897,6 +914,28 @@ module dev::QiaraBridgeV52{
                   //             tttta(100);
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(type_names, payload);
                 //tttta(45454);
+                Validators::acrue_modularity_fee(shared, Shared::return_shared_owner(shared));
+                TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+                TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
+                let data = vector[
+                    Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
+                    Event::create_data_struct(utf8(b"event_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
+                    Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+                    Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+                    Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
+                    Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+                    Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+                    Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u256"), bcs::to_bytes(&total_outflow)),
+                    Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u256"), bcs::to_bytes(&(amount as u256))),
+                    Event::create_data_struct(utf8(b"validator_root"), utf8(b"string"), bcs::to_bytes(&validator_root)),
+                    Event::create_data_struct(utf8(b"old_root"), utf8(b"string"), bcs::to_bytes(&old_root)),
+                    Event::create_data_struct(utf8(b"new_root"), utf8(b"string"), bcs::to_bytes(&new_root)),
+                    Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+                ];
+                Event::emit_crosschain_event(utf8(b"Crosschain Event"), data); 
+           } else if (event_type == utf8(b"Request Unstake")) {
+                let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_c_unstake(type_names, payload);
+
                 Validators::acrue_modularity_fee(shared, Shared::return_shared_owner(shared));
                 TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 

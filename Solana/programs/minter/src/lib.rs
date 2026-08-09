@@ -5,7 +5,7 @@ use mpl_token_metadata::{
     types::DataV2,
 };
 
-declare_id!("BS5KzFFWnvyV2gJ2V6RoDaf4a3pxFv8E8VENyoGcHvKo");
+declare_id!("BAV6p4S5XEf86UQD9hbGkrE8cks41H77kLEyQ9QmCbC");
 
 #[program]
 pub mod unified_faucet {
@@ -40,7 +40,8 @@ pub mod unified_faucet {
 
         let mint_key = ctx.accounts.mint.key();
         let bump_arr = [ctx.bumps.token_config];
-        let signer_seeds: &[&[u8]] = &[b"token_config", mint_key.as_ref(), &bump_arr];
+        let signer_seeds = &[b"token_config".as_ref(), mint_key.as_ref(), bump_arr.as_ref()];
+        let signer = &[&signer_seeds[..]];
 
         let data = DataV2 {
             name,
@@ -77,13 +78,8 @@ pub mod unified_faucet {
             collection_details: None,
         };
 
-        CreateMetadataAccountV3Cpi::new(
-            &token_metadata_program_info,
-            cpi_accounts,
-            args,
-        )
-        .invoke_signed(&[signer_seeds])?;
-
+        CreateMetadataAccountV3Cpi::new(&token_metadata_program_info, cpi_accounts, args)
+           .invoke_signed(signer)?;
         Ok(())
     }
 
@@ -100,13 +96,12 @@ pub mod unified_faucet {
     }
 
     pub fn claim_token(ctx: Context<ClaimToken>) -> Result<()> {
-        let faucet = &ctx.accounts.faucet_config;
         let token_config = &ctx.accounts.token_config;
         require!(token_config.enabled, FaucetError::TokenDisabled);
         let clock = Clock::get()?;
         if ctx.accounts.user_claim.last_claim_timestamp > 0 {
             let passed = clock.unix_timestamp.saturating_sub(ctx.accounts.user_claim.last_claim_timestamp);
-            require!(passed >= faucet.cooldown_seconds, FaucetError::CooldownNotMet);
+            require!(passed >= ctx.accounts.faucet_config.cooldown_seconds, FaucetError::CooldownNotMet);
         }
         if ctx.accounts.user_claim.bump == 0 {
             ctx.accounts.user_claim.bump = ctx.bumps.user_claim;
@@ -115,21 +110,68 @@ pub mod unified_faucet {
 
         let mint_key = ctx.accounts.mint.key();
         let bump_arr = [token_config.bump];
-        let seeds: &[&[u8]] = &[b"token_config", mint_key.as_ref(), &bump_arr];
-        let signer = &[seeds];
-
-        let mint_info = ctx.accounts.mint.to_account_info();
-        let user_token_info = ctx.accounts.user_token_account.to_account_info();
-        let authority_info = ctx.accounts.token_config.to_account_info();
-        let token_program_info = ctx.accounts.token_program.to_account_info();
+        let signer_seeds = &[b"token_config".as_ref(), mint_key.as_ref(), bump_arr.as_ref()];
+        let signer = &[&signer_seeds[..]];
 
         let cpi_accounts = MintTo {
-            mint: mint_info,
-            to: user_token_info,
-            authority: authority_info,
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.user_token_account.to_account_info(),
+            authority: ctx.accounts.token_config.to_account_info(),
         };
-        let cpi_ctx = CpiContext::new_with_signer(token_program_info, cpi_accounts, signer);
+        let cpi_ctx = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_accounts, signer);
         token::mint_to(cpi_ctx, token_config.claim_amount)?;
+        Ok(())
+    }
+
+    pub fn claim_all<'info>(ctx: Context<'_, '_, '_, 'info, ClaimAll<'info>>) -> Result<()> {
+        let cooldown = ctx.accounts.faucet_config.cooldown_seconds;
+        let bump_all = ctx.bumps.user_claim_all;
+        {
+            let claim_acc = &mut ctx.accounts.user_claim_all;
+            let clock = Clock::get()?;
+            if claim_acc.last_claim_timestamp > 0 {
+                let passed = clock.unix_timestamp.saturating_sub(claim_acc.last_claim_timestamp);
+                require!(passed >= cooldown, FaucetError::CooldownNotMet);
+            }
+            claim_acc.last_claim_timestamp = clock.unix_timestamp;
+            if claim_acc.bump == 0 {
+                claim_acc.bump = bump_all;
+            }
+        }
+
+        let token_program_info = ctx.accounts.token_program.to_account_info();
+        let remaining: &[AccountInfo<'info>] = unsafe {
+            std::mem::transmute::<&[AccountInfo<'info>], &[AccountInfo<'info>]>(ctx.remaining_accounts)
+        };
+
+        require!(remaining.len() % 3 == 0 &&!remaining.is_empty(), FaucetError::InvalidRemainingAccounts);
+
+        for chunk in remaining.chunks(3) {
+            let mint_info = chunk[0].clone();
+            let config_info = chunk[1].clone();
+            let ata_info = chunk[2].clone();
+
+            let config = {
+                let data = config_info.try_borrow_data()?;
+                let mut slice = data.as_ref();
+                TokenConfig::try_deserialize(&mut slice)?
+            };
+
+            require!(config.enabled, FaucetError::TokenDisabled);
+            require!(config.mint == *mint_info.key, FaucetError::InvalidMint);
+
+            let bump_arr = [config.bump];
+            let signer_seeds = &[b"token_config".as_ref(), config.mint.as_ref(), bump_arr.as_ref()];
+            let signer = &[&signer_seeds[..]];
+
+            let cpi_accounts = MintTo {
+                mint: mint_info,
+                to: ata_info,
+                authority: config_info,
+            };
+            let cpi_ctx = CpiContext::new_with_signer(token_program_info.clone(), cpi_accounts, signer);
+            token::mint_to(cpi_ctx, config.claim_amount)?;
+        }
         Ok(())
     }
 
@@ -160,14 +202,14 @@ pub struct CreateTokenMint<'info> {
     pub mint: Account<'info, Mint>,
     #[account(init, payer=admin, space=300, seeds=[b"token_config", mint.key().as_ref()], bump)]
     pub token_config: Account<'info, TokenConfig>,
-    /// CHECK: Metaplex metadata account, will be created by token-metadata program
+    /// CHECK: Metaplex metadata PDA - seeds checked, created via CPI
     #[account(mut, seeds=[b"metadata", mpl_token_metadata::ID.as_ref(), mint.key().as_ref()], bump, seeds::program=mpl_token_metadata::ID)]
     pub metadata: UncheckedAccount<'info>,
     #[account(mut)] pub admin: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
-    /// CHECK: Metaplex token metadata program
+    /// CHECK: Metaplex token metadata program - address constant checked
     #[account(address=mpl_token_metadata::ID)]
     pub token_metadata_program: UncheckedAccount<'info>,
 }
@@ -211,6 +253,17 @@ pub struct AddToken<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct ClaimAll<'info> {
+    #[account(seeds=[b"faucet_config"], bump=faucet_config.bump)]
+    pub faucet_config: Account<'info, FaucetConfig>,
+    #[account(init_if_needed, payer=user, space=8+8+1, seeds=[b"user_claim_all", user.key().as_ref()], bump)]
+    pub user_claim_all: Account<'info, UserClaim>,
+    #[account(mut)] pub user: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account] pub struct FaucetConfig { pub admin: Pubkey, pub cooldown_seconds: i64, pub bump: u8 }
 #[account] pub struct TokenConfig {
     pub mint: Pubkey, pub claim_amount: u64, pub enabled: bool, pub bump: u8, pub decimals: u8,
@@ -224,4 +277,7 @@ pub struct AddToken<'info> {
     #[msg("Unauthorized")] Unauthorized,
     #[msg("Name too long")] NameTooLong,
     #[msg("Symbol too long")] SymbolTooLong,
+    #[msg("Invalid remaining accounts")] InvalidRemainingAccounts,
+    #[msg("No tokens")] NoTokensProvided,
+    #[msg("Invalid mint")] InvalidMint,
 }

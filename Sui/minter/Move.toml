@@ -1,5 +1,5 @@
 [package]
-name = "qiara_faucet"
+name = "qiara_faucetV2"
 version = "0.0.1"
 edition = "2024.beta"
 

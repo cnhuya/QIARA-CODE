@@ -1,38 +1,32 @@
 [
   {
     "symbol": "SOL",
-    "name": "Solana",
-    "mint": "ACcV24f4noYrZJuu98Hbk4RPBeBGoQmotnhiQiNBtbVC",
-    "tokenConfig": "3jPR13E1XPkk1qrRvFjt5rZXUidTZg9VMztbQHRB5p1s"
+    "mint": "AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754",
+    "tokenConfig": "EF7GCV7zhEb5sHMt4Y8vXqhVKD8NUUo43XMjRBgromTJ"
   },
   {
     "symbol": "USDC",
-    "name": "USDC",
-    "mint": "5vogighKNka5pgNqrSJa98okb3XZSAPeA1qmTT6MyjJP",
-    "tokenConfig": "6sXwJdA3ZZ2pLANiqJgrTz1UaCe8DQ6asmXxbUiqKnFC"
+    "mint": "9LPXvqdXQdLiFSSFqMsRzwiABpoNNh2oLrMc5vk84RB",
+    "tokenConfig": "FgyvMdYJ8s2vD4HvsjPqbwVoBPd9cTEqnnJpMUJpArRD"
   },
   {
     "symbol": "USDT",
-    "name": "USDT",
-    "mint": "J4y859GFpfnppXpWLxfAJ3YqwF7xyDBL5nqY8PShMn6g",
-    "tokenConfig": "H6LHrFCwzLfcAWJRN21TghYCDTJginNmfFcDaf3vTU68"
+    "mint": "DWRhorhZnoxWHSe3fpJF5Gtz4YoAfevRZgyt3JnwF4i3",
+    "tokenConfig": "8Znxph2FwbiRcLSZADqcdnT7PmLdhCjU2MMPzLoMQ8Yx"
   },
   {
     "symbol": "USDG",
-    "name": "USDG",
-    "mint": "Cv59tcAe74JKpctuhfQzX5LZJkhrMTFWZ9yWs8FyUjV4",
-    "tokenConfig": "Ay1gV5GAuj7SujZJ6CK7y1iSyLq8E7PuT35wag5GXdFP"
+    "mint": "77fFeadUKQfgr6uKh1uZyCUVYZsdM4qQrm9mSsxxCdj2",
+    "tokenConfig": "2iDMUSryBVsZPqEJ9fMPcHXmSyz5FXqZQVZqNhY8kJWY"
   },
   {
     "symbol": "BTC",
-    "name": "Bitcoin",
-    "mint": "8HZ3w5xRnEBMEnngCyxwWFSwMwGEvBzmnDduaUh8zmQG",
-    "tokenConfig": "EzxL5TdcvzppUCW6zpqc8ACjDcVszyqaM3k3ujyehJWL"
+    "mint": "Drsao83oXx9aiCxtfpQXs8jNSggjLxFuwM3hYid8CpgQ",
+    "tokenConfig": "9xHmmGdR8kVwXaSm7DchibJ5cdMbVChuABLtt9hvRnqM"
   },
   {
     "symbol": "JLP",
-    "name": "JLP",
-    "mint": "AMx8G5CT5EdNvcZ16RUfKUDHrvm3PwmE73DSLQeSbFk5",
-    "tokenConfig": "9jgiETG12aFamzstLL9xzMn2TewLfjuGBku9x4y1AFPQ"
+    "mint": "CVi7oUumG14WjyWPSpdEQiHTBTfZTRX76c2KEKjQKRUr",
+    "tokenConfig": "4uxhEc8kd8mse3CF4ohX7wx1T3bU3nsiwYNEroxdeLGt"
   }
 ]

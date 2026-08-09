@@ -7,7 +7,7 @@ use qiara::program::Qiara;
 
 pub mod extractor;
 //AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y
-declare_id!("AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y");
+declare_id!("FzAc2qsSawpAXb5PZzamWPjfL6CxKjSLe2HX6B4SQteN");
 
 const MIN_RATE: u64 = 2_750_000;
 const MAX_RATE: u64 = 11_275_000;
@@ -55,8 +55,10 @@ pub mod vault {
 
         Ok(())
     }
-pub fn deposit(
+
+    pub fn deposit(
         ctx: Context<DepositYieldToken>,
+        addr: String,
         shared: String,
         _token_name: String,
         amount: u64,
@@ -86,6 +88,7 @@ pub fn deposit(
         // 1. Pack deposit parameters into your dynamic Data structure
         let data = vec![
             Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
+            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: "Solana".as_bytes().to_vec() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
@@ -103,7 +106,7 @@ pub fn deposit(
         Ok(())
     }
 
-   pub fn direct_withdraw(
+    pub fn direct_withdraw(
         ctx: Context<DirectWithdrawYieldToken>,
         _shared: String,
         token_name: String,
@@ -167,6 +170,125 @@ pub fn deposit(
 
         Ok(())
     }
+
+    pub fn stake(
+        ctx: Context<Stake>,
+        addr: String,
+        shared: String,
+        token_name: String,
+        amount: u64,
+        epoch: u64,
+    ) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_ata.to_account_info(),
+            to: ctx.accounts.vault_ata.to_account_info(),
+            authority: ctx.accounts.payer.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
+
+        let data = vec![
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
+            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "epoch".to_string(), type_name: "u64".to_string(), value: epoch.to_le_bytes().to_vec() },
+        ];
+
+        emit!(VaultEvent {
+            name: "Stake".to_string(),
+            aux: data,
+        });
+
+        Ok(())
+    }
+
+    pub fn unstake(
+        ctx: Context<Unstake>,
+        addr: String,
+        shared: String,
+        token_name: String,
+        amount: u64,
+    ) -> Result<()> {
+        let provider_name_bytes = ctx.accounts.vault.provider_name.as_bytes();
+        let vault_bump = ctx.accounts.vault.bump;
+        let seeds = &[
+            b"vault",
+            provider_name_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_ata.to_account_info(),
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, amount)?;
+
+        let data = vec![
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+        ];
+
+        emit!(VaultEvent {
+            name: "Unstake".to_string(),
+            aux: data,
+        });
+
+        Ok(())
+    }
+
+    pub fn borrow(
+        ctx: Context<Borrow>,
+        addr: String,
+        shared: String,
+        token_name: String,
+        amount: u64,
+    ) -> Result<()> {
+        let provider_name_bytes = ctx.accounts.vault.provider_name.as_bytes();
+        let vault_bump = ctx.accounts.vault.bump;
+        let seeds = &[
+            b"vault",
+            provider_name_bytes,
+            &[vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_ata.to_account_info(), 
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, amount)?;
+
+        let data = vec![
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+        ];
+
+        emit!(VaultEvent {
+            name: "Borrow".to_string(),
+            aux: data,
+        });
+
+        Ok(())
+    }
 }
 
 // ==========================================
@@ -206,7 +328,7 @@ pub struct CreateVault<'info> {
         bump
     )]
     pub vault: Account<'info, Vault>,
- pub registry: Account<'info, qiara::Registry>, // Removed state:: [1.2.3]
+    pub registry: Account<'info, qiara::Registry>, // Removed state:: [1.2.3]
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -307,6 +429,87 @@ pub struct DirectWithdrawYieldToken<'info> {
     pub verifier_program: Program<'info, Qiara>,
 }
 
+#[derive(Accounts)]
+#[instruction(shared: String)]
+pub struct Stake<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        seeds = [b"vault", vault.provider_name.as_bytes()],
+        bump = vault.bump
+    )]
+    pub vault: Account<'info, Vault>,
+
+    #[account(
+        seeds = [b"supported-token", vault.key().as_ref(), user_ata.mint.as_ref()],
+        bump
+    )]
+    pub supported_token: Account<'info, SupportedToken>,
+
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(shared: String)]
+pub struct Unstake<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(
+        seeds = [b"vault", vault.provider_name.as_bytes()],
+        bump = vault.bump
+    )]
+    pub vault: Account<'info, Vault>,
+
+    #[account(
+        seeds = [b"supported-token", vault.key().as_ref(), user_ata.mint.as_ref()],
+        bump
+    )]
+    pub supported_token: Account<'info, SupportedToken>,
+
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(shared: String)]
+pub struct Borrow<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(
+        seeds = [b"vault", vault.provider_name.as_bytes()],
+        bump = vault.bump
+    )]
+    pub vault: Account<'info, Vault>,
+
+    #[account(
+        seeds = [b"supported-token", vault.key().as_ref(), user_ata.mint.as_ref()],
+        bump
+    )]
+    pub supported_token: Account<'info, SupportedToken>,
+
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
 // Helpers
 pub fn get_pseudo_random_rate(payer: &Pubkey) -> Result<u64> {
     let clock = Clock::get()?;
@@ -364,7 +567,6 @@ pub struct TokenListed {
     pub token_mint: Pubkey,
     pub provider_name: String,
 }
-
 
 #[event]
 pub struct DepositEvent {

@@ -1,11 +1,119 @@
 {
-  "address": "AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y",
+  "address": "FzAc2qsSawpAXb5PZzamWPjfL6CxKjSLe2HX6B4SQteN",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
     "spec": "0.1.0"
   },
   "instructions": [
+    {
+      "name": "borrow",
+      "discriminator": [
+        228,
+        253,
+        131,
+        202,
+        207,
+        116,
+        89,
+        18
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.provider_name",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "supported_token",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  112,
+                  112,
+                  111,
+                  114,
+                  116,
+                  101,
+                  100,
+                  45,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "addr",
+          "type": "string"
+        },
+        {
+          "name": "shared",
+          "type": "string"
+        },
+        {
+          "name": "token_name",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
     {
       "name": "create_vault",
       "discriminator": [
@@ -187,6 +295,10 @@
         }
       ],
       "args": [
+        {
+          "name": "addr",
+          "type": "string"
+        },
         {
           "name": "shared",
           "type": "string"
@@ -420,6 +532,226 @@
         {
           "name": "asset_name",
           "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "stake",
+      "discriminator": [
+        206,
+        176,
+        202,
+        18,
+        200,
+        209,
+        179,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.provider_name",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "supported_token",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  112,
+                  112,
+                  111,
+                  114,
+                  116,
+                  101,
+                  100,
+                  45,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "addr",
+          "type": "string"
+        },
+        {
+          "name": "shared",
+          "type": "string"
+        },
+        {
+          "name": "token_name",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "epoch",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unstake",
+      "discriminator": [
+        90,
+        95,
+        107,
+        42,
+        205,
+        124,
+        50,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.provider_name",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "supported_token",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  112,
+                  112,
+                  111,
+                  114,
+                  116,
+                  101,
+                  100,
+                  45,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "addr",
+          "type": "string"
+        },
+        {
+          "name": "shared",
+          "type": "string"
+        },
+        {
+          "name": "token_name",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
         }
       ]
     }

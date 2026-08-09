@@ -1,4 +1,4 @@
-module qiara_faucet::unified_faucet {
+module qiara_faucet::unified_faucetV2 {
     use sui::coin::{Self, TreasuryCap};
     use sui::clock::{Self, Clock};
     use sui::table::{Self, Table};

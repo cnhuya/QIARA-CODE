@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV52
+module dev::QiaraPayloadV53
 
 {
     use std::signer;
@@ -457,6 +457,49 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
     }
 
 public fun prepare_finalize_bridge(
+    type_names: vector<String>, 
+    payload: vector<vector<u8>>
+): (vector<u8>, String, String, String, String, String, String, String, u64, u256, u256)  acquires Permissions  {
+    
+    // 1. Extract raw byte chunks using your existing finder
+    let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
+    let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+    //let (_, val_root_raw) = find_payload_value(utf8(b"validator_root"), type_names, payload);
+    let (_, old_root_raw) = find_payload_value(utf8(b"old_root"), type_names, payload);
+    let (_, new_root_raw) = find_payload_value(utf8(b"new_root"), type_names, payload);
+    let (_, symbol_raw) = find_payload_value(utf8(b"token"), type_names, payload);
+    let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
+    let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
+    let (_, total_outflow_raw) = find_payload_value(utf8(b"total_outflow"), type_names, payload);
+    let (_, amount_raw) = find_payload_value(utf8(b"additional_outflow"), type_names, payload);
+    let (_, nonce_raw) = find_payload_value(utf8(b"nonce"), type_names, payload);
+
+    // 2. Decode each chunk into Move types using BCS streams
+        let addr_stream = &mut bcs_stream::new(addr);
+        let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
+        let y = addr_bytes;
+    let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+    let x = utf8(b"");
+    let a = bcs_stream::deserialize_string(&mut bcs_stream::new(old_root_raw));
+    let b = bcs_stream::deserialize_string(&mut bcs_stream::new(new_root_raw));
+    let c = bcs_stream::deserialize_string(&mut bcs_stream::new(symbol_raw));
+    let d = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+    let h = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+    // Numbers
+    let e = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
+     //              tttta(100);
+    let n = bcs_stream::deserialize_u256(&mut bcs_stream::new(total_outflow_raw));
+     //          tttta(0);
+    let f = bcs_stream::deserialize_u256(&mut bcs_stream::new(nonce_raw));
+      //          tttta(0);
+              let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+    return (y, k, x, a, b, c, d, h, e, n, f)
+}
+
+
+public fun prepare_c_unstake(
     type_names: vector<String>, 
     payload: vector<vector<u8>>
 ): (vector<u8>, String, String, String, String, String, String, String, u64, u256, u256)  acquires Permissions  {
