@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV74 {
+module dev::QiaraVaultsV75 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -111,8 +111,6 @@ module dev::QiaraVaultsV74 {
     }
 
 // === CONSENSUS INTERFACE === //
-    /// Deposit on behalf of `recipient`
-    /// No need for recipient to have signed anything.
 
     public fun c_bridge_deposit(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, reward: u64, permission: Permission) acquires Permissions {
         Shared::assert_is_sub_owner(shared, sender);
@@ -408,7 +406,7 @@ module dev::QiaraVaultsV74 {
         Event::emit_market_event(utf8(b"Bridge Unstake"), data);
     }
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
-    public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64,permission: Permission) acquires Permissions {
+    public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64,permission: Permission) acquires Permissions {
         let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         //Liquidity::admin_accrue_rewards_from_lz(validator, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
@@ -430,19 +428,16 @@ module dev::QiaraVaultsV74 {
         // 2. Withdraw from shared storage and transfer to the recipient's primary store
         let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, user_shared_store, amount, chain);
-        let user_storage = primary_fungible_store::ensure_primary_store_exists(recipient, TokensCore::get_metadata(token));
-        TokensCore::deposit(shared, user_storage, fa, chain);
+        TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
-            Event::create_data_struct(utf8(b"recipient"), utf8(b"vector<u8>"), bcs::to_bytes(&sender)),
             Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
-            Event::create_data_struct(utf8(b"recipient"), utf8(b"address"), bcs::to_bytes(&recipient)),
 
             Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
@@ -474,7 +469,7 @@ module dev::QiaraVaultsV74 {
     }
 
     // Recipient needs to be address here, in case permissioneless user wants to borrow to existing Supra wallet.
-    public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>, recipient: address, token: String, chain: String, provider: String, amount: u64, permission: Permission) acquires Permissions {
+    public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>,token: String, chain: String, provider: String, amount: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
@@ -497,7 +492,8 @@ module dev::QiaraVaultsV74 {
         let storage_address_string = non_user_storage_helper(validator, &storage);
 
         let fa = TokensCore::withdraw(storage_address_string, storage, amount, chain);
-        TokensCore::deposit(shared, primary_fungible_store::ensure_primary_store_exists(recipient,TokensCore::get_metadata(token)), fa, chain);
+        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+        TokensCore::deposit(shared,obj, fa, chain);
 
         assert!(total_deposited >= (amount as u256), ERROR_NOT_ENOUGH_LIQUIDITY);
         Liquidity::remove_deposit(token, chain, provider, amount_u256, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -512,7 +508,6 @@ module dev::QiaraVaultsV74 {
             Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
-            Event::create_data_struct(utf8(b"recipient"), utf8(b"address"), bcs::to_bytes(&recipient)),
 
             Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
             Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),

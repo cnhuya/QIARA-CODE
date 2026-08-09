@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV54{
+module dev::QiaraBridgeV55{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -24,15 +24,15 @@ module dev::QiaraBridgeV54{
     use dev::QiaraTokensCoreV50::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV50::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV74::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV75::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV52::{Self as Margin};
 
-    use dev::QiaraPayloadV54::{Self as Payload};
-    use dev::QiaraValidatorsV54::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV55::{Self as Payload};
+    use dev::QiaraValidatorsV55::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV41::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV41::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV42::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV42::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
@@ -754,7 +754,7 @@ module dev::QiaraBridgeV54{
             } else if (event_type == utf8(b"Bridge Borrow")) {
                 let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared,name);
-                Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+                Market::c_bridge_borrow(signer, shared, name, receiver symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (name, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);

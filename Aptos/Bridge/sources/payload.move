@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV54
+module dev::QiaraPayloadV55
 
 {
     use std::signer;
@@ -192,6 +192,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         
         // 1. Extract raw byte chunks
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, recepient_raw) = find_payload_value(utf8(b"recepient"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, token_raw) = find_payload_value(utf8(b"token"), type_names, payload);
         let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
@@ -203,9 +204,13 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let addr_stream = &mut bcs_stream::new(addr_raw);
         let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let recepient_stream = &mut bcs_stream::new(recepient_raw);
+        let recepient_bytes = bcs_stream::deserialize_vector(recepient_stream, |s| bcs_stream::deserialize_u8(s));
         
         let a = addr_bytes;
         let x = addr_bytes;
+        let u = recepient_bytes;
 
         // Extract Strings
         let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
@@ -219,7 +224,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-        return (a, x, k, b, c, d, e, f)
+        return (a, x, k, b, c, d, e,  f)
     }
 
 
