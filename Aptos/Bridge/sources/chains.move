@@ -739,31 +739,24 @@ module dev::QiaraBridgeV53{
 
             // 5. Execute Bridging Logic (Main Event Specific)
             if (event_type == utf8(b"Bridge Deposit")) {
-                // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
-                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+                let (name, user, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
+                Validators::acrue_modularity_fee(shared,name);
+                TokensCore::c_bridge_to_supra(signer, shared, name, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
+                Market::c_bridge_deposit(signer, shared, name, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Stake")) {
-                // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
-                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+                let (name, user, shared, symbol, chain, provider, amount, epoch, hash) = Payload::prepare_bridge_stake(type_names, payload);                
+                Validators::acrue_modularity_fee(shared,name);
+                Market::c_bridge_stake(signer, shared, name, symbol, chain, provider, amount, epoch, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Unstake")) {
-                // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
-                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
+                let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_c_unstake(type_names, payload);                
+                Validators::acrue_modularity_fee(shared,name);
+                Market::c_bridge_unstake(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Borrow")) {
-                // Handle Deposit specific logic here
-                let (receiver, x, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                //tttta(0);                //TokensOmnichain::increment_UserInflow(receiver, TokensOmnichain::give_permission(&cap.tokens_omnichain));
-                TokensCore::c_bridge_to_supra(signer, shared, receiver, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
-                Market::c_bridge_deposit(signer, shared, receiver, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
-
+                let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_borrow(type_names, payload);
+                Validators::acrue_modularity_fee(shared,name);
+                Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Withdraw")) {
-                let (name, user, synbol, chain, provider, amount, receiver) = Payload::prepare_modular_withdraw(type_names, payload);
+                let (name, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(name,user);
                 TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
