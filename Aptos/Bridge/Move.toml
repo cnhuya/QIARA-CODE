@@ -57,7 +57,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraPerpsV40]
+    [dependencies.QiaraPerpsV41]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Perpetuals'

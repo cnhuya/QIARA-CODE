@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV40"
+    name = "QiaraPerpsV41"
     version = "2.1.1"
     authors = []
 
@@ -59,7 +59,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV73]
+    [dependencies.QiaraVaultsV74]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
