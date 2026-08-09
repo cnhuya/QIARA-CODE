@@ -528,6 +528,28 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
         return (name, user_bytes, symbol, chain, provider, amount, user_bytes)
     }
 
+    public fun prepare_modular_unstake(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,  String, String, String, u64, vector<u8>)  acquires Permissions {
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, symbol_raw) = find_payload_value(utf8(b"token"), type_names, payload);
+        let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
+        let (_, provider_raw) = find_payload_value(utf8(b"provider"), type_names, payload);
+        let (_, amount_raw) = find_payload_value(utf8(b"amount"), type_names, payload);
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let symbol = bcs_stream::deserialize_string(&mut bcs_stream::new(symbol_raw));
+        let chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+        let provider = bcs_stream::deserialize_string(&mut bcs_stream::new(provider_raw));
+        //assert!(provider == utf8(b"Bluefin"), 100);
+        let amount = bcs_stream::deserialize_u64(&mut bcs_stream::new(amount_raw));
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        return (name, user_bytes, symbol, chain, provider, amount, user_bytes)
+    }
+
 public fun prepare_finalize_bridge(
     type_names: vector<String>, 
     payload: vector<vector<u8>>

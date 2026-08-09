@@ -748,9 +748,9 @@ module dev::QiaraBridgeV53{
                 Validators::acrue_modularity_fee(shared,name);
                 Market::c_bridge_stake(signer, shared, name, symbol, chain, provider, amount, epoch, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Unstake")) {
-                let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_c_unstake(type_names, payload);                
-                Validators::acrue_modularity_fee(shared,name);
-                Market::c_bridge_unstake(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+                let (shared, user, symbol, chain, provider, amount, hash) = Payload::prepare_modular_unstake(type_names, payload);                
+                Validators::acrue_modularity_fee(shared,user);
+                Market::c_bridge_unstake(signer, shared, user, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Borrow")) {
                 let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared,name);
@@ -930,7 +930,7 @@ module dev::QiaraBridgeV53{
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_c_unstake(type_names, payload);
 
                 Validators::acrue_modularity_fee(shared, Shared::return_shared_owner(shared));
-                TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+                Market::c_bridge_withdraw(signer, shared, sender, recipient, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 let data = vector[
                     Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
