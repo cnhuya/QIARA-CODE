@@ -7,7 +7,7 @@ use qiara::program::Qiara;
 
 pub mod extractor;
 //AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y
-declare_id!("FzAc2qsSawpAXb5PZzamWPjfL6CxKjSLe2HX6B4SQteN");
+declare_id!("6EimpRwDNpSdoxqKercGcqyo6ntqwa1u38nv7WdtPqCt");
 
 const MIN_RATE: u64 = 2_750_000;
 const MAX_RATE: u64 = 11_275_000;
@@ -58,7 +58,6 @@ pub mod vault {
 
     pub fn deposit(
         ctx: Context<DepositYieldToken>,
-        addr: String,
         shared: String,
         _token_name: String,
         amount: u64,
@@ -85,10 +84,8 @@ pub mod vault {
             .unwrap();
         user_state.last_interacted_timestamp = clock.unix_timestamp;
 
-        // 1. Pack deposit parameters into your dynamic Data structure
         let data = vec![
-            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
-            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: "Solana".as_bytes().to_vec() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
@@ -97,7 +94,6 @@ pub mod vault {
             Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: rewards.to_le_bytes().to_vec() },
         ];
 
-        // 2. Emit the event natively as a VaultEvent [1]
         emit!(VaultEvent {
             name: "Deposit".to_string(),
             aux: data,
@@ -153,16 +149,15 @@ pub mod vault {
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
         token::transfer(cpi_ctx, amount)?;
 
-        // 1. Pack withdrawal parameters into your dynamic Data structure
         let data = vec![
-            Data { name: "addr".to_string(), type_name: "address".to_string(), value: user_address.to_bytes().to_vec() },
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: user_address.to_bytes().to_vec() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: proof_provider_name.into_bytes() },
             Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
             Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: rewards.to_le_bytes().to_vec() },
         ];
 
-        // 2. Emit the event natively as a VaultEvent [1]
         emit!(VaultEvent {
             name: "DirectWithdraw".to_string(),
             aux: data,
@@ -173,7 +168,6 @@ pub mod vault {
 
     pub fn stake(
         ctx: Context<Stake>,
-        addr: String,
         shared: String,
         token_name: String,
         amount: u64,
@@ -189,8 +183,7 @@ pub mod vault {
         token::transfer(cpi_ctx, amount)?;
 
         let data = vec![
-            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
-            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
@@ -208,7 +201,6 @@ pub mod vault {
 
     pub fn unstake(
         ctx: Context<Unstake>,
-        addr: String,
         shared: String,
         token_name: String,
         amount: u64,
@@ -232,8 +224,7 @@ pub mod vault {
         token::transfer(cpi_ctx, amount)?;
 
         let data = vec![
-            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
-            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
@@ -250,7 +241,6 @@ pub mod vault {
 
     pub fn borrow(
         ctx: Context<Borrow>,
-        addr: String,
         shared: String,
         token_name: String,
         amount: u64,
@@ -274,8 +264,7 @@ pub mod vault {
         token::transfer(cpi_ctx, amount)?;
 
         let data = vec![
-            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
-            Data { name: "addr".to_string(), type_name: "string".to_string(), value: addr.into_bytes() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
@@ -328,7 +317,7 @@ pub struct CreateVault<'info> {
         bump
     )]
     pub vault: Account<'info, Vault>,
-    pub registry: Account<'info, qiara::Registry>, // Removed state:: [1.2.3]
+    pub registry: Account<'info, qiara::Registry>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -338,7 +327,7 @@ pub struct CreateVault<'info> {
 #[instruction(asset_name: String)]
 pub struct ListNewToken<'info> {
     pub vault: Account<'info, Vault>,
-    pub registry: Account<'info, qiara::Registry>, // Removed state:: [1.2.3]
+    pub registry: Account<'info, qiara::Registry>,
     #[account(
         init,
         payer = payer,
@@ -425,7 +414,7 @@ pub struct DirectWithdrawYieldToken<'info> {
     pub vault_ata: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
-    pub validator_state: Account<'info, qiara::ValidatorState>, // Removed state:: [1.2.3]
+    pub validator_state: Account<'info, qiara::ValidatorState>,
     pub verifier_program: Program<'info, Qiara>,
 }
 
@@ -537,15 +526,16 @@ pub fn accrue_user_yield(user_state: &UserState, rate: u64) -> Result<u64> {
     if user_state.balance > 0 && current_time_seconds > user_state.last_interacted_timestamp {
         let elapsed = current_time_seconds - user_state.last_interacted_timestamp;
         let scale: u128 = 100_000_000;
-        let seconds_per_year: u128 = 31_536_000;
-        let calculated_rewards = ((user_state.balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_year);
+        // Updated to 3,600 (1 hour in seconds) for testing yield hourly
+        let seconds_per_hour: u128 = 3_600;
+        let calculated_rewards = ((user_state.balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_hour);
         rewards = calculated_rewards as u64;
     }
     Ok(rewards)
 }
 
 // ==========================================
-// 8. CUSTOM EVENTS
+// CUSTOM EVENTS
 // ==========================================
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -599,7 +589,7 @@ pub enum QiaraError {
     #[msg("Caller is not authorized.")]
     NotValidator,
     #[msg("ZK variables proof validation failed.")]
-    InvalidProof,                  // Added variant [1.1.2]
+    InvalidProof,
     #[msg("Contiguous input parser out of bounds.")]
-    InvalidInputLength,            // Added variant [1.1.2]
+    InvalidInputLength,
 }

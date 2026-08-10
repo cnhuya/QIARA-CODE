@@ -744,6 +744,7 @@ module dev::QiaraBridgeV55{
                 TokensCore::c_bridge_to_supra(signer, shared, name, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
                 Market::c_bridge_deposit(signer, shared, name, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Stake")) {
+                //tttta(100);
                 let (name, user, shared, symbol, chain, provider, amount, epoch, hash) = Payload::prepare_bridge_stake(type_names, payload);                
                 Validators::acrue_modularity_fee(shared,name);
                 Market::c_bridge_stake(signer, shared, name, symbol, chain, provider, amount, epoch, Market::give_permission(&cap.market));
@@ -754,11 +755,11 @@ module dev::QiaraBridgeV55{
             } else if (event_type == utf8(b"Bridge Borrow")) {
                 let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared,name);
-                Market::c_bridge_borrow(signer, shared, name, receiver symbol, chain, provider, amount, Market::give_permission(&cap.market));
+                Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Withdraw")) {
-                let (name, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
-                TokensCore::p_request_bridge(signer, name, user, synbol, chain, provider, amount, receiver, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
+                let (shared, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
+                Validators::acrue_modularity_fee(shared,user);
+                TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, user, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
@@ -927,16 +928,16 @@ module dev::QiaraBridgeV55{
                 ];
                 Event::emit_crosschain_event(utf8(b"Crosschain Event"), data); 
            } else if (event_type == utf8(b"Request Unstake")) {
-                let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_c_unstake(type_names, payload);
+                let (sender, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_c_unstake(type_names, payload);
 
                 Validators::acrue_modularity_fee(shared, Shared::return_shared_owner(shared));
-                Market::c_bridge_withdraw(signer, shared, sender, recipient, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-                TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
+                Market::c_bridge_withdraw(signer, shared, sender, symbol, chain, provider, amount, Market::give_permission(&borrow_global<Permissions>(@dev).market));
+                TokensOmnichain::increment_UserOutflow(symbol, chain, shared, sender, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 let data = vector[
                     Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
                     Event::create_data_struct(utf8(b"event_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
                     Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-                    Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+                    Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), sender),
                     Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
                     Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
                     Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
