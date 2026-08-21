@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV56{
+module dev::QiaraBridgeV57{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,8 +29,8 @@ module dev::QiaraBridgeV56{
     use dev::QiaraMarginV53::{Self as Margin};
     use dev::QiaraGovernanceV11::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV56::{Self as Payload};
-    use dev::QiaraValidatorsV56::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV57::{Self as Payload};
+    use dev::QiaraValidatorsV57::{Self as Validators, Access as ValidatorsAccess};
 
     use dev::QiaraPerpsOrdersV44::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV44::{Self as Perps, Access as PerpAccess};
@@ -770,12 +770,12 @@ fun handle_main_event(
                 let (user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables) = Payload::prepare_modular_governance_proposal(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 // Calls m_propose (or Governance::m_propose if in another module)
-                m_propose(signer, user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables,  Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
+                Governance::m_propose(signer, user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables,  Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
             } else if (event_type == utf8(b"Modular Governance Vote")) {
                 let (user, shared, proposal_id, is_yes) = Payload::prepare_modular_governance_vote(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 // Calls m_vote (or Governance::m_vote if in another module)
-                m_vote(signer, user, shared, proposal_id, is_yes,  Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
+                Governance::m_vote(signer, user, shared, proposal_id, is_yes,  Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
             } else {
                 abort(ERROR_INVALID_MESSAGE);
             };
