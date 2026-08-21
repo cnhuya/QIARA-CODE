@@ -174,7 +174,8 @@ module dev::QiaraStorageV21 {
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"), 250_000, true, &give_permission(&give_access(admin))); // 10%
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"), 110_000_000, true, &give_permission(&give_access(admin))); // 99%
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"CREDIT_SWAP_FEE"), 1_000_000, true, &give_permission(&give_access(admin))); // 99%
- 
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 5%
 
         register_constant<u64>(admin, utf8(b"QiaraGovernance"), utf8(b"MINIMUM_TOKENS_TO_PROPOSE"), 100_000_000, true, &give_permission(&give_access(admin))); // 100 Qiara Tokens
         register_constant<u64>(admin, utf8(b"QiaraGovernance"), utf8(b"BURN_TAX"), 1_000_000, true, &give_permission(&give_access(admin))); // 1 Qiara Token
@@ -228,7 +229,8 @@ module dev::QiaraStorageV21 {
     }
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"XP_PER_0001_PRICE_SHIFT"), 100_000_000, true, &give_permission(&give_access(admin))); // 10%
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 5%
     }
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
