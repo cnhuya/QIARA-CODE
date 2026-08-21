@@ -639,5 +639,83 @@ public fun prepare_c_unstake(
         Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
     return (y, k, x, a, b, c, d, h, e, n, f)
 }
+public fun prepare_modular_governance_proposal(
+        type_names: vector<String>, 
+        payload: vector<vector<u8>>
+    ): (vector<u8>, String, String, String, vector<String>, vector<bool>, vector<String>, vector<String>, vector<vector<u8>>, vector<String>, u64, vector<bool>) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, name_raw) = find_payload_value(utf8(b"name"), type_names, payload);
+        let (_, desc_raw) = find_payload_value(utf8(b"desc"), type_names, payload);
+        let (_, type_raw) = find_payload_value(utf8(b"type"), type_names, payload);
+        let (_, is_change_raw) = find_payload_value(utf8(b"isChange"), type_names, payload);
+        let (_, header_raw) = find_payload_value(utf8(b"header"), type_names, payload);
+        let (_, const_raw) = find_payload_value(utf8(b"constant_name"), type_names, payload);
+        let (_, new_val_raw) = find_payload_value(utf8(b"new_value"), type_names, payload);
+        let (_, val_type_raw) = find_payload_value(utf8(b"value_type"), type_names, payload);
+        let (_, duration_raw) = find_payload_value(utf8(b"duration"), type_names, payload);
+        let (_, editable_raw) = find_payload_value(utf8(b"editable"), type_names, payload);
 
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+        let desc = bcs_stream::deserialize_string(&mut bcs_stream::new(desc_raw));
+
+        let type_stream = &mut bcs_stream::new(type_raw);
+        let types = bcs_stream::deserialize_vector(type_stream, |s| bcs_stream::deserialize_string(s));
+
+        let is_change_stream = &mut bcs_stream::new(is_change_raw);
+        let is_change = bcs_stream::deserialize_vector(is_change_stream, |s| bcs_stream::deserialize_bool(s));
+
+        let header_stream = &mut bcs_stream::new(header_raw);
+        let headers = bcs_stream::deserialize_vector(header_stream, |s| bcs_stream::deserialize_string(s));
+
+        let const_stream = &mut bcs_stream::new(const_raw);
+        let constant_names = bcs_stream::deserialize_vector(const_stream, |s| bcs_stream::deserialize_string(s));
+
+        let new_val_stream = &mut bcs_stream::new(new_val_raw);
+        let new_values = bcs_stream::deserialize_vector(new_val_stream, |s| {
+            bcs_stream::deserialize_vector(s, |inner_s| bcs_stream::deserialize_u8(inner_s))
+        });
+
+        let val_type_stream = &mut bcs_stream::new(val_type_raw);
+        let value_types = bcs_stream::deserialize_vector(val_type_stream, |s| bcs_stream::deserialize_string(s));
+
+        let duration = bcs_stream::deserialize_u64(&mut bcs_stream::new(duration_raw));
+
+        let editable_stream = &mut bcs_stream::new(editable_raw);
+        let editables = bcs_stream::deserialize_vector(editable_stream, |s| bcs_stream::deserialize_bool(s));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables)
+    }
+
+    public fun prepare_modular_governance_vote(
+        type_names: vector<String>, 
+        payload: vector<vector<u8>>
+    ): (vector<u8>, String, u64, bool) acquires Permissions {
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+        let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
+        let (_, proposal_id_raw) = find_payload_value(utf8(b"proposal_id"), type_names, payload);
+        
+        // Note: ensure your key name here matches your payload model ("is_yes" or "isYes")
+        let (_, is_yes_raw) = find_payload_value(utf8(b"is_yes"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+        let shared = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));
+        let proposal_id = bcs_stream::deserialize_u64(&mut bcs_stream::new(proposal_id_raw));
+        let is_yes = bcs_stream::deserialize_bool(&mut bcs_stream::new(is_yes_raw));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+
+        return (user_bytes, shared, proposal_id, is_yes)
+    }
 }

@@ -604,10 +604,22 @@ module dev::QiaraBridgeV56{
             Event::emit_validation_event(utf8(b"Validated Omnichain Event"), data);
         };
     }
-    fun handle_main_event(signer: &signer, validator: String, pending_table: &mut table::Table<vector<u8>, MainVotes>, validated_table: &mut table::Table<vector<u8>, MainVotes>, identifier: vector<u8>, type_names: vector<String>, payload: vector<vector<u8>>,signature: vector<u8>,  event_type: String, vote_weight: u128 ) acquires Permissions {
+fun handle_main_event(
+        signer: &signer, 
+        validator: String, 
+        pending_table: &mut table::Table<vector<u8>, MainVotes>, 
+        validated_table: &mut table::Table<vector<u8>, MainVotes>, 
+        identifier: vector<u8>, 
+        type_names: vector<String>, 
+        payload: vector<vector<u8>>,
+        signature: vector<u8>,  
+        event_type: String, 
+        vote_weight: u128 
+    ) acquires Permissions {
         // 1. Load configuration constants
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
+
         // 2. Already validated?
         if (table::contains(validated_table, identifier)) {
             abort(ERROR_DUPLICATE_EVENT);
@@ -616,7 +628,7 @@ module dev::QiaraBridgeV56{
         if (vote_weight == 0) {
             abort(ERROR_INVALID_VOTING_POWER);
         };
-        //tttta(1);
+
         // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
@@ -628,7 +640,7 @@ module dev::QiaraBridgeV56{
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
                 Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
-                     //   tttta(100);
+
                 // Emit Vote Event
                 let data = vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -643,7 +655,6 @@ module dev::QiaraBridgeV56{
         } else {
             // First vote for this message
             let validator_vote = Vote { signature: signature, weight: vote_weight };
-            let vect = vector[validator];
             let vote_map = map::new<String, Vote>();
             map::add(&mut vote_map, validator, validator_vote);
             let new_votes = MainVotes {
@@ -666,6 +677,7 @@ module dev::QiaraBridgeV56{
             ];
             Event::emit_consensus_register_event(data);
         };
+
         // 4. Consensus Check & Promotion
         let ready_to_finalize = {
             let votes_ref = table::borrow(pending_table, identifier);
@@ -682,78 +694,87 @@ module dev::QiaraBridgeV56{
             assert!(exists<Permissions>(@dev), ERROR_CAPS_NOT_PUBLISHED);
             let cap = borrow_global<Permissions>(@dev);
 
-            // 5. Execute Bridging Logic (Main Event Specific)
+            // 5. Execute Bridging & Governance Logic
             if (event_type == utf8(b"Bridge Deposit")) {
                 let (name, user, shared, symbol, chain, provider, amount, rate, rewards, hash) = Payload::prepare_bridge_deposit(type_names, payload);
-                Validators::acrue_modularity_fee(shared,name);
+                Validators::acrue_modularity_fee(shared, name);
                 TokensCore::c_bridge_to_supra(signer, shared, name, symbol, chain, provider, amount, 0, TokensCore::give_permission(&cap.tokens_core));
                 Market::c_bridge_deposit(signer, shared, name, symbol, chain, provider, amount, rate, rewards, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Stake")) {
-                //tttta(100);
                 let (name, user, shared, symbol, chain, provider, amount, epoch, hash) = Payload::prepare_bridge_stake(type_names, payload);                
-                Validators::acrue_modularity_fee(shared,name);
+                Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_stake(signer, shared, name, symbol, chain, provider, amount, epoch, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Unstake")) {
                 let (shared, user, symbol, chain, provider, amount, hash) = Payload::prepare_modular_unstake(type_names, payload);                
-                Validators::acrue_modularity_fee(shared,user);
+                Validators::acrue_modularity_fee(shared, user);
                 Market::c_bridge_unstake(signer, shared, user, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Bridge Borrow")) {
                 let (name, user, shared, symbol, chain, provider, amount, hash) = Payload::prepare_bridge_borrow(type_names, payload);
-                Validators::acrue_modularity_fee(shared,name);
+                Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
-                Validators::acrue_modularity_fee(shared,user);
+                Validators::acrue_modularity_fee(shared, user);
                 TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, user, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(name, user);
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(name, user);
                 Shared::p_allow_sub_owner(signer, user, name, sub_owner, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Storage Sub Owner Removed")) {
                 let (name, user, sub_owner) = Payload::prepare_p_remove_sub_owner(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(name, user);
                 Shared::p_remove_sub_owner(signer, user, name, sub_owner, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Storage Used Ref Code Updated")) {
                 let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
-                Validators::acrue_modularity_fee(name,user);
+                Validators::acrue_modularity_fee(name, user);
                 Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
             } else if (event_type == utf8(b"Modular Interest Accrue")) {
                 let (name, user, asset) = Payload::prepare_p_accrue_interest(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 Perps::p_accrue_interest(signer, name, user, asset, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
-            }  else if (event_type == utf8(b"Modular Trade")) {
+            } else if (event_type == utf8(b"Modular Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_trade(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 Perps::p_trade(signer, name, user, asset, (size as u256), leverage, is_long, reserve_chain, reserve_provider, reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
-            }  else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
+            } else if (event_type == utf8(b"Modular Oracle Update and Trade")) {
                 let (name, user, asset, size, leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data) = Payload::prepare_p_update_oracle_and_trade(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 Perps::p_update_oracle_and_trade(signer, name, user, asset, (size as u256), leverage, is_long, reserve_chain, reserve_provider, reserve_token, price_update_data, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
-            }  else if (event_type == utf8(b"Modular Reserve Change")) {
+            } else if (event_type == utf8(b"Modular Reserve Change")) {
                 let (name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token) = Payload::prepare_p_change_reserve(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 Perps::p_change_reserve(signer, name, user, asset, new_reserve_chain, new_reserve_provider, new_reserve_token, Perps::give_permission(&borrow_global<Permissions>(@dev).perps));
-            }  else if (event_type == utf8(b"Modular Limit Order Created")) {
+            } else if (event_type == utf8(b"Modular Limit Order Created")) {
                 let (name, user, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_limit_order(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_create_limit_order(signer, user, name, asset, size, desired_price, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
-            }  else if (event_type == utf8(b"Modular TWAP Order Created")) {
+            } else if (event_type == utf8(b"Modular TWAP Order Created")) {
                 let (name, user, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token) = Payload::prepare_p_create_twap_order(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_create_twap_order(signer, user, name, asset, periods, sizes, is_long, leverage, reserve_chain, reserve_provider, reserve_token, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
-            }  else if (event_type == utf8(b"Modular Limit Order Deleted")) {
+            } else if (event_type == utf8(b"Modular Limit Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_limit_order(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_remove_limit_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
-            }  else if (event_type == utf8(b"Modular TWAP Order Deleted")) {
+            } else if (event_type == utf8(b"Modular TWAP Order Deleted")) {
                 let (name, user, id) = Payload::prepare_p_remove_twap_order(type_names, payload);
-                Validators::acrue_modularity_fee(user,name);
+                Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
-            }  else {
+            } else if (event_type == utf8(b"Modular Governance Proposal")) {
+                let (user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables) = Payload::prepare_modular_governance_proposal(type_names, payload);
+                Validators::acrue_modularity_fee(shared, user);
+                // Calls m_propose (or Governance::m_propose if in another module)
+                m_propose(signer, user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables);
+            } else if (event_type == utf8(b"Modular Governance Vote")) {
+                let (user, shared, proposal_id, is_yes) = Payload::prepare_modular_governance_vote(type_names, payload);
+                Validators::acrue_modularity_fee(shared, user);
+                // Calls m_vote (or Governance::m_vote if in another module)
+                m_vote(signer, user, shared, proposal_id, is_yes);
+            } else {
                 abort(ERROR_INVALID_MESSAGE);
             };
             
