@@ -374,7 +374,13 @@ module dev::QiaraMarginV53 {
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
             let efficiency = (TokensMetadata::get_coin_metadata_tier_efficiency(&metadata) as u256);
-            let (deflation_ltv_increase, deflation_ltv_increase_missing) = = (TokensMetadata::calculate_deflationary_bonus(TokensMetadata::get_coin_metadata_deflation_tier(&metadata)) as u256);
+            let (deflation_ltv_increase, deflation_ltv_increase_missing) = 
+                TokensMetadata::calculate_deflationary_bonus(
+                    TokensMetadata::get_coin_metadata_deflation_tier(&metadata)
+                );
+
+            let deflation_ltv_increase = (deflation_ltv_increase as u256);
+            let deflation_ltv_increase_missing = (deflation_ltv_increase_missing as u256);
             let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
             efficiency = calculate_increased_efficiency(efficiency+deflation_ltv_increase_missing, ltv_increase+deflation_ltv_increase);
             let staked_efficiency = calculate_increased_efficiency_by_staking(efficiency, staked_ltv_increase);

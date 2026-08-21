@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV42 {
+module dev::QiaraPerpsV44 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -7,28 +7,28 @@ module dev::QiaraPerpsV42 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV52::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV52::{Self as RI};
-    use dev::QiaraRanksV52::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV53::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV53::{Self as RI};
+    use dev::QiaraRanksV53::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV50::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV51::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV75::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV76::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV71::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV71::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV72::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV72::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};
     use dev::QiaraOracleV7::{Self as oracle};
-    use dev::QiaraChainTypesV50::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV50::{Self as TokensTypes};
+    use dev::QiaraChainTypesV51::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV51::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV42::{Self as Orders};
+    use dev::QiaraPerpsOrdersV44::{Self as Orders};
 
 
 // === ERRORS === //
