@@ -51,6 +51,7 @@ module dev::QiaraTokensMetadataV50{
     struct Metadata has key, store, copy,drop{
         symbol: String,
         tier:u8,
+        deflation_tier:u8,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -61,6 +62,7 @@ module dev::QiaraTokensMetadataV50{
     struct VMetadata has key, store, copy, drop {
         symbol: String,
         tier:u8,
+        deflation_tier:u8,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -132,6 +134,7 @@ public entry fun create_metadata(
     admin: &signer, 
     symbol: String, 
     creation: u64, 
+    deflation_tier:u8,
     oracleID: vector<u8>, 
     max_supply: u128, 
     circulating_supply: u128, 
@@ -181,6 +184,7 @@ public entry fun create_metadata(
     let metadata = Metadata {
         symbol,
         tier,
+        deflation_tier,
         decimals: 8,
         oracleID,
         creation,
@@ -244,6 +248,25 @@ public entry fun create_metadata(
         abort(ERROR_COIN_RESOURCE_NOT_FOUND_IN_LIST)
     }
 
+    public entry fun update_deflation_tier(admin: &signer, symbol: String, definition_tier: u8) acquires Tokens {
+       
+        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
+
+        let vault_list = borrow_global_mut<Tokens>(@dev);
+        let len = vector::length(&vault_list.list);
+
+        while (len > 0) {
+            let metadat = vector::borrow_mut(&mut vault_list.list, len - 1);
+            if (metadat.symbol == symbol) {
+                metadat.definition_tier = definition_tier;
+                return;
+            };
+            len = len - 1;
+        };
+
+        abort(ERROR_COIN_RESOURCE_NOT_FOUND_IN_LIST)
+
+    }
 
     public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: vector<u8>) acquires Tokens {
        
@@ -521,6 +544,7 @@ public entry fun create_metadata(
                     return VMetadata { 
                         symbol: metadat.symbol,
                         tier: metadat.tier,
+                        definition_tier: metadat.definition_tier,
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
@@ -565,6 +589,10 @@ public entry fun create_metadata(
 
         public fun get_coin_metadata_oracleID(metadata: &VMetadata): vector<u8> {
             metadata.oracleID
+        }
+    
+        public fun get_coin_metadata_deflation_tier(metadata: &VMetadata): u8 {
+            metadata.definition_tier
         }
 
         public fun get_coin_metadata_creation(metadata: &VMetadata): u64 {
@@ -736,6 +764,7 @@ public entry fun create_metadata(
                     return VMetadata { 
                         symbol: metadat.symbol,
                         tier: metadat.tier,
+                        definition_tier: metadat.definition_tier,
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
