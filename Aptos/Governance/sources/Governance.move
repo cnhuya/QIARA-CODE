@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV10 {
+module dev::QiaraGovernanceV11 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -287,7 +287,7 @@ module dev::QiaraGovernanceV10 {
     }
 
 // Modular Interface
-    public entry fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Access {
+    public fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>, perm: Permission) acquires PendingProposals, ProposalCount, Pending, Access {
         process_pending_constants(validator); // Ensure pending constants are processed before finalizing any proposal
         propose_internal(
             bcs::to_bytes(&signer::address_of(validator)),
@@ -306,7 +306,7 @@ module dev::QiaraGovernanceV10 {
         );
     }
 
-    public entry fun m_vote(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, proposal_id: u64, isYes: bool) acquires PendingProposals {
+    public fun m_vote(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, proposal_id: u64, isYes: bool, perm: Permission) acquires PendingProposals {
         TokensShared::assert_is_owner(sub_owner, shared_storage_name);
 
         // Call state helper
