@@ -1,12 +1,12 @@
-module dev::QiaraRanksV52{
+module dev::QiaraRanksV53{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV50::{Self as TokensType};
-    use dev::QiaraChainTypesV50::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV51::{Self as TokensType};
+    use dev::QiaraChainTypesV51::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
 

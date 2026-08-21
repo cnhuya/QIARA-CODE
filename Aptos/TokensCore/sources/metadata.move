@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV50{
+module dev::QiaraTokensMetadataV51{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,7 +12,7 @@ module dev::QiaraTokensMetadataV50{
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensTiersV50::{Self as tier};
+    use dev::QiaraTokensTiersV51::{Self as tier};
 
     use dev::QiaraOracleV7::{Self as oracle, Access as OracleAccess};
 
@@ -248,7 +248,7 @@ public entry fun create_metadata(
         abort(ERROR_COIN_RESOURCE_NOT_FOUND_IN_LIST)
     }
 
-    public entry fun update_deflation_tier(admin: &signer, symbol: String, definition_tier: u8) acquires Tokens {
+    public entry fun update_deflation_tier(admin: &signer, symbol: String, deflation_tier: u8) acquires Tokens {
        
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
@@ -258,7 +258,7 @@ public entry fun create_metadata(
         while (len > 0) {
             let metadat = vector::borrow_mut(&mut vault_list.list, len - 1);
             if (metadat.symbol == symbol) {
-                metadat.definition_tier = definition_tier;
+                metadat.deflation_tier = deflation_tier;
                 return;
             };
             len = len - 1;
@@ -331,6 +331,13 @@ public entry fun create_metadata(
         let x: u256 = ((mc + mc) + (mc*(days_u128))) - (fdv*2);
 
         (x, mc, fdv, (creation as u256), x)
+    }
+
+    
+    #[view]
+    public fun calculate_deflationary_bonus(id: u8): (u128, u128) {
+
+        (((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"))) as u128),  ((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"))) as u128))
     }
 
 
@@ -544,7 +551,7 @@ public entry fun create_metadata(
                     return VMetadata { 
                         symbol: metadat.symbol,
                         tier: metadat.tier,
-                        definition_tier: metadat.definition_tier,
+                        deflation_tier: metadat.deflation_tier,
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
@@ -592,7 +599,7 @@ public entry fun create_metadata(
         }
     
         public fun get_coin_metadata_deflation_tier(metadata: &VMetadata): u8 {
-            metadata.definition_tier
+            metadata.deflation_tier
         }
 
         public fun get_coin_metadata_creation(metadata: &VMetadata): u64 {
@@ -764,7 +771,7 @@ public entry fun create_metadata(
                     return VMetadata { 
                         symbol: metadat.symbol,
                         tier: metadat.tier,
-                        definition_tier: metadat.definition_tier,
+                        deflation_tier: metadat.deflation_tier,
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,

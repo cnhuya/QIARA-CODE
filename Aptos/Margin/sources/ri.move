@@ -1,11 +1,11 @@
-module dev::QiaraRIV52{
+module dev::QiaraRIV53{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::table::{Self, Table};
 
-    use dev::QiaraTokenTypesV50::{Self as TokensType};
-    use dev::QiaraChainTypesV50::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV51::{Self as TokensType};
+    use dev::QiaraChainTypesV51::{Self as ChainTypes};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

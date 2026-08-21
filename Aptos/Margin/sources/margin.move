@@ -1,4 +1,4 @@
-module dev::QiaraMarginV52 {
+module dev::QiaraMarginV53 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,9 +8,9 @@ module dev::QiaraMarginV52 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV52::{Self as Ranks};
-    use dev::QiaraTokensMetadataV50::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV50::{Self as TokensType};
+    use dev::QiaraRanksV53::{Self as Ranks};
+    use dev::QiaraTokensMetadataV51::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV51::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
@@ -374,8 +374,9 @@ module dev::QiaraMarginV52 {
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
             let efficiency = (TokensMetadata::get_coin_metadata_tier_efficiency(&metadata) as u256);
+            let (deflation_ltv_increase, deflation_ltv_increase_missing) = = (TokensMetadata::calculate_deflationary_bonus(TokensMetadata::get_coin_metadata_deflation_tier(&metadata)) as u256);
             let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
-            efficiency = calculate_increased_efficiency(efficiency, ltv_increase);
+            efficiency = calculate_increased_efficiency(efficiency+deflation_ltv_increase_missing, ltv_increase+deflation_ltv_increase);
             let staked_efficiency = calculate_increased_efficiency_by_staking(efficiency, staked_ltv_increase);
             
             let vect_chain = vector::empty<String>();
