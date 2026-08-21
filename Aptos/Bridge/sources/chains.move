@@ -27,13 +27,13 @@ module dev::QiaraBridgeV56{
     use dev::QiaraVaultsV76::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV53::{Self as Margin};
-    use dev::QiaraGovernanceV10::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraGovernanceV11::{Self as Governance, Access as GovernanceAccess};
 
     use dev::QiaraPayloadV56::{Self as Payload};
     use dev::QiaraValidatorsV56::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV43::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV43::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV44::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV44::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
