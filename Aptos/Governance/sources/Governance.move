@@ -29,9 +29,25 @@ module dev::QiaraGovernanceV11 {
     const ERROR_ALREADY_VOTED: u64 = 7;
     const ERROR_BLACKLISTED: u64 = 8;
 
+// === ACCESS === //
+    struct Access has store, key, drop {}
+    struct Permission has store, key, drop, copy {}
+
+    public fun give_access(s: &signer): Access {
+        assert!(signer::address_of(s) == @dev, ERROR_NOT_ADMIN);
+        //capabilities::assert_wallet_capability(utf8(b"QiaraVault"), utf8(b"PERMISSION_TO_INITIALIZE_VAULTS"));
+        Access {}
+    }
+
+    public fun give_permission(access: &Access): Permission {
+        Permission {}
+    }
+
+
+
     struct ProposalCount has store, key, copy { count: u64 }
 
-    struct Access has key, store, drop {
+    struct Permissions has key, store, drop {
         storage_access: StorageAccess,
         capabilities_access: CapabilitiesAccess,
         function_access: FunctionAccess
@@ -100,8 +116,8 @@ module dev::QiaraGovernanceV11 {
             move_to(admin, ProposalCount { count: 0 });
         };
 
-        if (!exists<Access>(OWNER)) {
-            move_to(admin, Access {
+        if (!exists<Permissions>(OWNER)) {
+            move_to(admin, Permissions {
                 storage_access: storage::give_access(admin),
                 capabilities_access: capabilities::give_access(admin),
                 function_access: functions::give_access(admin)
@@ -110,7 +126,7 @@ module dev::QiaraGovernanceV11 {
     }
 
     // finalize_proposal: remove proposal, destructure into locals, then operate on locals
-    public entry fun finalize_proposal(user: &signer, proposal_id: u64) acquires PendingProposals, Pending, Access {
+    public entry fun finalize_proposal(user: &signer, proposal_id: u64) acquires PendingProposals, Pending, Permissions {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
         process_pending_constants(user); // Ensure pending constants are processed before finalizing any proposal
@@ -187,7 +203,7 @@ module dev::QiaraGovernanceV11 {
                                         to_string_multi(new_value),
                                         header,
                                         constant,
-                                        &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
+                                        &capabilities::give_permission(&borrow_global<Permissions>(OWNER).capabilities_access)
                                     );
                                 } else {
                                     capabilities::create_capability_multi(
@@ -195,7 +211,7 @@ module dev::QiaraGovernanceV11 {
                                         header,
                                         constant,
                                         editable,
-                                        &capabilities::give_permission(&borrow_global<Access>(OWNER).capabilities_access)
+                                        &capabilities::give_permission(&borrow_global<Permissions>(OWNER).capabilities_access)
                                     );
                                 };
                             } else if (*_type == utf8(b"Function")) {
@@ -204,14 +220,14 @@ module dev::QiaraGovernanceV11 {
                                         user,
                                         header,
                                         constant,
-                                        &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
+                                        &functions::give_permission(&borrow_global<Permissions>(OWNER).function_access)
                                     );
                                 } else {
                                     functions::register_function_multi(
                                         user,
                                         header,
                                         constant,
-                                        &functions::give_permission(&borrow_global<Access>(OWNER).function_access)
+                                        &functions::give_permission(&borrow_global<Permissions>(OWNER).function_access)
                                     );
                                 };
                             };
@@ -249,7 +265,7 @@ module dev::QiaraGovernanceV11 {
 
 
 // Native Interface
-    public entry fun propose(user: &signer, sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Access {
+    public entry fun propose(user: &signer, sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Permissions {
         process_pending_constants(user);
         propose_internal(
             b"0x0",
@@ -287,7 +303,7 @@ module dev::QiaraGovernanceV11 {
     }
 
 // Modular Interface
-    public fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>, perm: Permission) acquires PendingProposals, ProposalCount, Pending, Access {
+    public fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>, perm: Permission) acquires PendingProposals, ProposalCount, Pending, Permissions {
         process_pending_constants(validator); // Ensure pending constants are processed before finalizing any proposal
         propose_internal(
             bcs::to_bytes(&signer::address_of(validator)),
@@ -499,7 +515,7 @@ module dev::QiaraGovernanceV11 {
         (vote_value)
     }
 
-    fun process_pending_constants(user: &signer) acquires Pending, Access {
+    fun process_pending_constants(user: &signer) acquires Pending, Permissions {
         let pending = borrow_global_mut<Pending>(OWNER);
         let current_epoch = Genesis::return_epoch();
         if((pending.last_checked_epoch as u256) >= current_epoch) {
@@ -538,7 +554,7 @@ module dev::QiaraGovernanceV11 {
                                 headers,
                                 constants,
                                 new_value,
-                                &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
+                                &storage::give_permission(&borrow_global<Permissions>(OWNER).storage_access)
                             );
                         } else {
                             storage::handle_registration_multi(
@@ -548,7 +564,7 @@ module dev::QiaraGovernanceV11 {
                                 new_value,
                                 types,
                                 editable,
-                                &storage::give_permission(&borrow_global<Access>(OWNER).storage_access)
+                                &storage::give_permission(&borrow_global<Permissions>(OWNER).storage_access)
                             );
                     };
                 };
