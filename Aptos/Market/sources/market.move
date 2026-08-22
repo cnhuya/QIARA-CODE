@@ -870,7 +870,7 @@ module dev::QiaraVaultsV76 {
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
-
+        tttta(200);
 
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
