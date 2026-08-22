@@ -16,8 +16,8 @@ module dev::QiaraBurnedQiaraV53 {
     use aptos_std::smart_table::{Self, SmartTable};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV51::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV51::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV52::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV52::{Self as TokensQiara};
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraRanksV53::{Self as Ranks};
 
