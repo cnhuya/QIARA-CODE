@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV57{
+module dev::QiaraBridgeV58{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,11 +29,11 @@ module dev::QiaraBridgeV57{
     use dev::QiaraMarginV55::{Self as Margin};
     use dev::QiaraGovernanceV12::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV57::{Self as Payload};
-    use dev::QiaraValidatorsV57::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV58::{Self as Payload};
+    use dev::QiaraValidatorsV58::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV44::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV44::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV45::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV45::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant

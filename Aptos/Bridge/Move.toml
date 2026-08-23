@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraBridgeV57"
+    name = "QiaraBridgeV58"
     version = "2.1.1"
     authors = []
 
@@ -62,7 +62,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraPerpsV44]
+    [dependencies.QiaraPerpsV45]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Perpetuals'
