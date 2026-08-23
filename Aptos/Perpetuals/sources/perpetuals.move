@@ -7,18 +7,18 @@ module dev::QiaraPerpsV44 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV53::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV53::{Self as RI};
-    use dev::QiaraRanksV53::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV55::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV55::{Self as RI};
+    use dev::QiaraRanksV55::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV52::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV76::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV77::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV72::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV72::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV73::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV73::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};

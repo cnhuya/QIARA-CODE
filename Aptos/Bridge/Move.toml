@@ -27,7 +27,7 @@
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraGovernanceV11]
+    [dependencies.QiaraGovernanceV12]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Governance'
@@ -37,12 +37,12 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV53]
+    [dependencies.QiaraMarginV55]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraVaultsV76]
+    [dependencies.QiaraVaultsV77]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'

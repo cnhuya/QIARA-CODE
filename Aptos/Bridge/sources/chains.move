@@ -24,10 +24,10 @@ module dev::QiaraBridgeV57{
     use dev::QiaraTokensCoreV52::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV52::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV76::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV77::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV53::{Self as Margin};
-    use dev::QiaraGovernanceV11::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraMarginV55::{Self as Margin};
+    use dev::QiaraGovernanceV12::{Self as Governance, Access as GovernanceAccess};
 
     use dev::QiaraPayloadV57::{Self as Payload};
     use dev::QiaraValidatorsV57::{Self as Validators, Access as ValidatorsAccess};

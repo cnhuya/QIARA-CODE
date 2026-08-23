@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV53 {
+module dev::QiaraBurnedQiaraV55 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,7 +19,7 @@ module dev::QiaraBurnedQiaraV53 {
     use dev::QiaraTokensCoreV52::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV52::{Self as TokensQiara};
     use dev::QiaraStorageV21::{Self as storage};
-    use dev::QiaraRanksV53::{Self as Ranks};
+    use dev::QiaraRanksV55::{Self as Ranks};
 
     use event::QiaraEventV1::{Self as Event};
 // === CONSTANTS === //
