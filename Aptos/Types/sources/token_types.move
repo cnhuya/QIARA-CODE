@@ -19,6 +19,7 @@ module dev::QiaraTokenTypesV52 {
     const ERROR_TOKEN_ADDR_ALREADY_REGISTERED: u64 = 7;
     const ERROR_CHAIN_ALREADY_REGISTERED_FOR_THIS_TKN: u64 = 8;
     const ERORR_ARGUMENT_LENGHT_MISSMATCH: u64 = 9;
+    const ERROR_NOT_AUTHORIZED: u64 = 10;
 
 // === STRUCTS === //
 
@@ -244,7 +245,76 @@ module dev::QiaraTokenTypesV52 {
         );
     }
 
-// === FUNCTIONS === //
+// === ADMIN / UPDATE FUNCTIONS === //
+
+    /// 🟢 Admin function to change/update a token address for any chain (e.g. Bitcoin on Base)
+    public entry fun update_token_address(
+        admin: &signer,
+        token_name_or_nickname: String,
+        chain: String,
+        new_token_address: String
+    ) acquires Tokens {
+        assert!(signer::address_of(admin) == @dev, ERROR_NOT_AUTHORIZED);
+        ChainTypes::ensure_valid_chain_name(chain);
+
+        let full_name = resolve_full_token_name(token_name_or_nickname);
+        let tokens = borrow_global_mut<Tokens>(@dev);
+
+        assert!(map::contains_key(&tokens.map, &full_name), ERROR_INVALID_TOKEN);
+        let token_inner_map = map::borrow_mut(&mut tokens.map, &full_name);
+
+        // Clean up old address from reverse lookup map if it was previously set
+        if (map::contains_key(token_inner_map, &chain)) {
+            let old_addr = *map::borrow(token_inner_map, &chain);
+            if (old_addr != utf8(b"0x0")) {
+                let old_rev_key = create_reverse_key(chain, old_addr);
+                if (map::contains_key(&tokens.reverse_map, &old_rev_key)) {
+                    let (_, _) = map::remove(&mut tokens.reverse_map, &old_rev_key);
+                };
+            };
+        };
+
+        // 1. Update Forward Map
+        map::upsert(token_inner_map, chain, new_token_address);
+
+        // 2. Update Reverse Map (only if non-placeholder)
+        if (new_token_address != utf8(b"0x0")) {
+            let new_rev_key = create_reverse_key(chain, new_token_address);
+            map::upsert(&mut tokens.reverse_map, new_rev_key, full_name);
+        };
+    }
+
+    /// 🟢 Batch update multiple addresses at once
+    public entry fun batch_update_token_addresses(
+        admin: &signer,
+        token_names_or_nicknames: vector<String>,
+        chains: vector<String>,
+        new_token_addresses: vector<String>
+    ) acquires Tokens {
+        assert!(signer::address_of(admin) == @dev, ERROR_NOT_AUTHORIZED);
+        let len = vector::length(&token_names_or_nicknames);
+        assert!(len == vector::length(&chains), ERORR_ARGUMENT_LENGHT_MISSMATCH);
+        assert!(len == vector::length(&new_token_addresses), ERORR_ARGUMENT_LENGHT_MISSMATCH);
+
+        let i = 0;
+        while (i < len) {
+            let token = *vector::borrow(&token_names_or_nicknames, i);
+            let chain = *vector::borrow(&chains, i);
+            let addr = *vector::borrow(&new_token_addresses, i);
+            update_token_address(admin, token, chain, addr);
+            i = i + 1;
+        };
+    }
+
+    fun resolve_full_token_name(token_or_nick: String): String acquires Tokens {
+        let tokens = borrow_global<Tokens>(@dev);
+        if (map::contains_key(&tokens.map, &token_or_nick)) {
+            return token_or_nick
+        };
+        convert_token_nickName_to_name(token_or_nick)
+    }
+
+// === VIEW & LOOKUP FUNCTIONS === //
 
     public entry fun register_token_with_chains(signer: &signer, token: String, nick_name: String, token_address: vector<String>, chains: vector<String>) acquires Tokens {
         let tokens = borrow_global_mut<Tokens>(@dev);
