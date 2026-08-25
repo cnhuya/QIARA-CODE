@@ -7,7 +7,7 @@ use qiara::program::Qiara;
 
 pub mod extractor;
 //AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y
-declare_id!("6EimpRwDNpSdoxqKercGcqyo6ntqwa1u38nv7WdtPqCt");
+declare_id!("HtMeWHq5oJXffnZsXpUZDE1qQUiKXTnv4hm4eHAuz7Lw");
 
 const MIN_RATE: u64 = 2_750_000;
 const MAX_RATE: u64 = 11_275_000;

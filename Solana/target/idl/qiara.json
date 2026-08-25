@@ -1,5 +1,5 @@
 {
-  "address": "gJQs9vx9y4zvxNeVqRzZX8iQiZ2y4sLb6X3tKwe3yW1",
+  "address": "14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo",
   "metadata": {
     "name": "qiara",
     "version": "0.1.0",
@@ -51,6 +51,9 @@
         {
           "name": "validator_state",
           "writable": true
+        },
+        {
+          "name": "registry"
         },
         {
           "name": "epoch_config"
@@ -285,7 +288,7 @@
     {
       "name": "verify_balance_proof",
       "docs": [
-        "CPI TARGET: Verifies balance proof and signatures, returning Ok(()) to Vault [2]"
+        "CPI TARGET: Verifies balance proof, enforces dynamic validator threshold, and checks signatures"
       ],
       "discriminator": [
         16,
@@ -300,6 +303,9 @@
       "accounts": [
         {
           "name": "validator_state"
+        },
+        {
+          "name": "registry"
         }
       ],
       "args": [
@@ -406,6 +412,16 @@
       "code": 6008,
       "name": "WrongChainId",
       "msg": "Wrong chain ID."
+    },
+    {
+      "code": 6009,
+      "name": "InsufficientSignatures",
+      "msg": "Insufficient validator signatures for threshold."
+    },
+    {
+      "code": 6010,
+      "name": "DuplicateSigner",
+      "msg": "Duplicate validator signature detected."
     }
   ],
   "types": [

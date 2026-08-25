@@ -1,4 +1,3 @@
-// programs/qiara/src/lib.rs
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::secp256k1_recover::secp256k1_recover;
 use anchor_lang::solana_program::keccak;
@@ -6,7 +5,7 @@ use anchor_lang::solana_program::keccak;
 pub mod extractor;
 pub mod verifier;
 
-declare_id!("gJQs9vx9y4zvxNeVqRzZX8iQiZ2y4sLb6X3tKwe3yW1");
+declare_id!("14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo");
 
 #[program]
 pub mod qiara {
@@ -28,7 +27,6 @@ pub mod qiara {
         config.genesis_timestamp_ms = genesis_ms;
         config.epoch_duration_ms = epoch_duration_sec * 1000;
         config.authority = ctx.accounts.authority.key();
-
         Ok(())
     }
 
@@ -70,7 +68,8 @@ pub mod qiara {
         let registry = &mut ctx.accounts.registry;
         require!(!registry.is_locked, QiaraError::RegistryLocked);
 
-        verify_signatures(&ctx.accounts.validator_state, &signatures, &public_inputs)?;
+        // Enforce threshold and signature validity
+        verify_signatures_with_threshold(&ctx.accounts.validator_state, registry, &signatures, &public_inputs)?;
 
         let is_valid = verifier::verify_variable_proof(&public_inputs, &proof_points)?;
         require!(is_valid, QiaraError::InvalidProof);
@@ -95,7 +94,7 @@ pub mod qiara {
     ) -> Result<()> {
         let validator_state = &mut ctx.accounts.validator_state;
 
-        verify_signatures(validator_state, &signatures, &public_inputs)?;
+        verify_signatures_with_threshold(validator_state, &ctx.accounts.registry, &signatures, &public_inputs)?;
 
         let is_valid = verifier::verify_validator_proof(&public_inputs, &proof_points)?;
         require!(is_valid, QiaraError::InvalidProof);
@@ -117,15 +116,20 @@ pub mod qiara {
         Ok(())
     }
 
-    /// CPI TARGET: Verifies balance proof and signatures, returning Ok(()) to Vault [2]
+    /// CPI TARGET: Verifies balance proof, enforces dynamic validator threshold, and checks signatures
     pub fn verify_balance_proof(
         ctx: Context<VerifyBalanceProof>,
         public_inputs: Vec<u8>,
         proof_points: Vec<u8>,
         signatures: Vec<Vec<u8>>,
     ) -> Result<()> {
-        // 1. Verify signatures against active validator state [2]
-        verify_signatures(&ctx.accounts.validator_state, &signatures, &public_inputs)?;
+        // 1. Dynamic signature threshold and validity verification [2]
+        verify_signatures_with_threshold(
+            &ctx.accounts.validator_state,
+            &ctx.accounts.registry,
+            &signatures,
+            &public_inputs,
+        )?;
 
         // 2. Verify ZK Balance Proof
         let is_valid = verifier::verify_proof_with_vk::<6>(verifier::BALANCE_RAW_VK, &public_inputs, &proof_points)?;
@@ -187,6 +191,16 @@ impl Registry {
         }
         None
     }
+
+    /// Fetches MINIMUM_UNIQUE_VALIDATORS dynamically with fallback
+    pub fn get_min_unique_validators(&self) -> usize {
+        if let Some(data) = self.get_active_variable("QiaraBridge", "MINIMUM_UNIQUE_VALIDATORS") {
+            if !data.is_empty() {
+                return data[data.len() - 1] as usize;
+            }
+        }
+        1
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -203,14 +217,9 @@ pub struct ValidatorState {
 }
 
 #[derive(Accounts)]
-pub struct VerifyProof<'info> {
-    /// CHECK: Dummy account
-    pub signer: UncheckedAccount<'info>,
-}
-
-#[derive(Accounts)]
 pub struct VerifyBalanceProof<'info> {
-    pub validator_state: Account<'info, ValidatorState>, // Needed to verify signatures [2]
+    pub validator_state: Account<'info, ValidatorState>,
+    pub registry: Account<'info, Registry>, // 👈 Added Registry to fetch threshold dynamically
 }
 
 #[derive(Accounts)]
@@ -267,6 +276,7 @@ pub struct LockRegistry<'info> {
 pub struct AddPendingPubkey<'info> {
     #[account(mut)]
     pub validator_state: Account<'info, ValidatorState>,
+    pub registry: Account<'info, Registry>,
     pub epoch_config: Account<'info, EpochConfig>,
     pub signer: Signer<'info>,
 }
@@ -337,14 +347,21 @@ fn check_and_handle_validator_rollover(state: &mut ValidatorState, epoch_config:
     Ok(())
 }
 
-pub fn verify_signatures(
+pub fn verify_signatures_with_threshold(
     state: &ValidatorState,
+    registry: &Registry,
     signatures: &[Vec<u8>],
     inputs: &[u8],
 ) -> Result<()> {
+    let sig_count = signatures.len();
+    let min_required = registry.get_min_unique_validators();
+    require!(sig_count >= min_required, QiaraError::InsufficientSignatures);
+
+    let mut seen_signers = Vec::with_capacity(sig_count);
+
     for sig in signatures {
         require!(sig.len() == 65, QiaraError::InvalidSignatureLength);
-        
+
         let mut sig_bytes = [0u8; 64];
         sig_bytes.copy_from_slice(&sig[0..64]);
         let recovery_id = sig[64];
@@ -356,10 +373,18 @@ pub fn verify_signatures(
         let mut recovered_uncompressed = vec![0x04];
         recovered_uncompressed.extend_from_slice(&recovered_raw.to_bytes());
 
+        // Check active validator
         require!(
             state.active_pubkeys.contains(&recovered_uncompressed),
             QiaraError::NotValidator
         );
+
+        // Prevent duplicate signatures to enforce unique threshold
+        require!(
+            !seen_signers.contains(&recovered_uncompressed),
+            QiaraError::DuplicateSigner
+        );
+        seen_signers.push(recovered_uncompressed);
     }
     Ok(())
 }
@@ -384,4 +409,8 @@ pub enum QiaraError {
     NotValidator,
     #[msg("Wrong chain ID.")]
     WrongChainId,
+    #[msg("Insufficient validator signatures for threshold.")]
+    InsufficientSignatures,
+    #[msg("Duplicate validator signature detected.")]
+    DuplicateSigner,
 }

@@ -1,5 +1,5 @@
 {
-  "address": "6EimpRwDNpSdoxqKercGcqyo6ntqwa1u38nv7WdtPqCt",
+  "address": "HtMeWHq5oJXffnZsXpUZDE1qQUiKXTnv4hm4eHAuz7Lw",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -430,7 +430,7 @@
         },
         {
           "name": "verifier_program",
-          "address": "gJQs9vx9y4zvxNeVqRzZX8iQiZ2y4sLb6X3tKwe3yW1"
+          "address": "14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo"
         }
       ],
       "args": [
