@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV52
+module dev::QiaraTokensQiaraV53
  {
     use std::signer;
     use std::option;
