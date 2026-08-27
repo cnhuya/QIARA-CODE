@@ -1,4 +1,4 @@
-module dev::QiaraPerpsOrdersV46 {
+module dev::QiaraPerpsOrdersV47 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::table::{Self, Table};
