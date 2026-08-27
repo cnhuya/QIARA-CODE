@@ -1,163 +1,137 @@
-module 0x0::QiaraBluefinInterfaceV1 {
+module 0x0::QiaraVaultInterfaceV1 {
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
-    use sui::object::{Self, UID, ID};
-    use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::dynamic_field as df;
     use std::string::{Self, String};
     use std::type_name::{Self, TypeName};
-    use sui::table::{Self, Table};
-    use sui::event;
     use sui::bcs;
     use sui::clock::{Self, Clock}; 
     use sui::hash; 
+    use sui::transfer;
     
-    use Qiara::QiaraDelegatorV1::{Self as delegator, AdminCap, Vault, SupportedTokenKey, Nullifiers, ProviderManager};
+    use Qiara::QiaraDelegatorV1::{Self as delegator, Vault, Nullifiers, ProviderManager};
+    use Qiara::QiaraVariablesV1::Registry; // 👈 Imported Registry
     use Qiara::QiaraEventsV1::{Self as Event};
-    use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState};
+    use Qiara::QiaraValidatorsV1::ValidatorState;
 
     // --- Errors ---
     const ENotSupported: u64 = 0;
-    const EInsufficientPermission: u64 = 1;
-    const ENotAuthorized: u64 = 2;
-    const EAssetNotMatchedByRegistry: u64 = 3;
-    const EDelegatorAlreadySet: u64 = 4;
-    const EDelegatorNotSet: u64 = 5;
     const EInsufficientBalance: u64 = 6;
-    const EVaultAlreadyExists: u64 = 7;
     const EWrongProviderProvided: u64 = 8;
-
-    const PROVIDER_NAME: vector<u8> = b"Bluefin";
 
     // --- Range Constants ---
     const MIN_RATE: u64 = 2_750_000;
     const MAX_RATE: u64 = 11_275_000;
 
-    /// Key for allowance tracking
-    public struct AllowanceKey has copy, drop, store { 
-        user: address, 
-        token_type: TypeName 
-    }
-
-    // === NEW ACCRUAL DYNAMIC FIELD KEYS === [1]
-    
-    /// Key mapping a user to their active compounded balance
     public struct UserBalanceKey has copy, drop, store {
         user: address,
         token_type: TypeName
     }
-
-    /// Key mapping a user to their last interaction timestamp (in seconds)
     public struct LastInteractedKey has copy, drop, store {
         user: address,
         token_type: TypeName
     }
 
-    // --- Initialization ---
-
-    fun init(_ctx: &mut TxContext) {
-    }
+    fun init(_ctx: &mut TxContext) {}
 
     // --- User Functions ---
-    
-    public entry fun deposit<T>(
+    public fun deposit<T>(
         vault: &mut Vault, 
         mut coin: Coin<T>, 
-        addr: String, 
         shared: String, 
         amount: u64, 
-        clock: &sui::clock::Clock,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
         let sender = tx_context::sender(ctx);
-        
-        // 1. Ensure the coin has enough balance
         assert!(coin::value(&coin) >= amount, EInsufficientBalance);
 
-        // 2. Generate the pseudo-random APR rate
         let rate = get_pseudo_random_range(clock, ctx);
-
-        // 3. Accrue pending rewards on existing balance [1, 2]
         let rewards = accrue_user_yield<T>(vault, sender, rate, clock);
 
-        // 4. Handle the amount splitting
         let deposit_coin = if (coin::value(&coin) == amount) {
             coin
         } else {
             let split_off = coin::split(&mut coin, amount, ctx);
-            transfer::public_transfer(coin, sender); // Send leftover back to user
+            transfer::public_transfer(coin, sender);
             split_off
         };
 
-        // 5. Hand over the balance to the Delegator
         delegator::increase_reserve<T>(vault, deposit_coin);
 
-        // 6. Update user's compounded balance and last interaction timestamp [1]
-        let token_type = type_name::get<T>();
+        let token_type = type_name::with_defining_ids<T>();
         let balance_key = UserBalanceKey { user: sender, token_type };
         let time_key = LastInteractedKey { user: sender, token_type };
         let vault_uid_mut = delegator::borrow_id_mut(vault);
         let current_time_seconds = clock::timestamp_ms(clock) / 1000;
 
-        if (df::exists_(vault_uid_mut, balance_key)) {
+        if (df::exists(vault_uid_mut, balance_key)) {
             let current_balance = df::borrow_mut<UserBalanceKey, u64>(vault_uid_mut, balance_key);
             *current_balance = *current_balance + amount + rewards;
         } else {
             df::add(vault_uid_mut, balance_key, amount + rewards);
         };
 
-        if (df::exists_(vault_uid_mut, time_key)) {
+        if (df::exists(vault_uid_mut, time_key)) {
             let last_time = df::borrow_mut<LastInteractedKey, u64>(vault_uid_mut, time_key);
             *last_time = current_time_seconds;
         } else {
             df::add(vault_uid_mut, time_key, current_time_seconds);
         };
 
-        // 7. Emit the event including rate and newly accrued rewards [1, 2]
-        let mut data = vector[
-            Event::create_data_struct(std::string::utf8(b"sender"), std::string::utf8(b"address"), bcs::to_bytes(&sender)),
-            Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"string"), bcs::to_bytes(&addr)),
-            Event::create_data_struct(std::string::utf8(b"shared"), std::string::utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
-            Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&std::string::utf8(PROVIDER_NAME))),
-            Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(std::string::utf8(b"rate"), std::string::utf8(b"u64"), bcs::to_bytes(&rate)),
-            Event::create_data_struct(std::string::utf8(b"rewards"), std::string::utf8(b"u64"), bcs::to_bytes(&rewards)), // ✅ Added rewards
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::with_defining_ids<T>())))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(string::utf8(b"rate"), string::utf8(b"u64"), bcs::to_bytes(&rate)),
+            Event::create_data_struct(string::utf8(b"rewards"), string::utf8(b"u64"), bcs::to_bytes(&rewards)),
         ];
 
-        Event::emit_event(clock, std::string::utf8(b"Deposit"), data);
+        Event::emit_event(clock, string::utf8(b"Deposit"), data);
     }
 
-    public entry fun m_withdraw<T>(vault: &Vault, user: address, shared: String, asset_name: String, amount: u64, clock: &sui::clock::Clock) {
+    public fun m_withdraw<T>(
+        vault: &Vault, 
+        shared: String, 
+        asset_name: String, 
+        amount: u64, 
+        clock: &Clock,
+        ctx: &TxContext
+    ) {
         assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+        let sender = tx_context::sender(ctx);
        
         let data = vector[
-            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&sender)),
             Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(string::utf8(b"chain"), string::utf8(b"string"), bcs::to_bytes(&string::utf8(b"sui"))),
             Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
             Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&asset_name)),
         ];
 
-        Event::emit_event(clock,string::utf8(b"Modular Withdraw"), data);
+        Event::emit_event(clock, string::utf8(b"Modular Withdraw"), data);
     }
 
-    public entry fun direct_withdraw<T>(
+    public fun direct_withdraw<T>(
         vault: &mut Vault, 
         state: &ValidatorState, 
         manager: &ProviderManager, 
+        registry: &Registry, // 👈 Added Registry
         nullifiers: &mut Nullifiers, 
         public_inputs: vector<u8>,
         proof_points: vector<u8>, 
         signatures: vector<vector<u8>>,
-        clock: &sui::clock::Clock,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
+        let sender = tx_context::sender(ctx);
         let (user_address, amount, _nullifier, proof_provider_name) = delegator::grant_permission<T>(
             manager, 
             state, 
+            registry, // 👈 Forwarded to delegator
             nullifiers, 
             public_inputs, 
             proof_points, 
@@ -167,36 +141,31 @@ module 0x0::QiaraBluefinInterfaceV1 {
         assert!(delegator::provider_name(vault) == proof_provider_name, EWrongProviderProvided);
         assert!(delegator::is_token_supported<T>(vault), ENotSupported);
 
-        // 1. Accrue pending interest on withdrawal [1, 2]
         let rate = get_pseudo_random_range(clock, ctx);
         let rewards = accrue_user_yield<T>(vault, user_address, rate, clock);
 
-        // 2. Reduce their balance and update checkpoints [1]
-        let token_type = type_name::get<T>();
+        let token_type = type_name::with_defining_ids<T>();
         let balance_key = UserBalanceKey { user: user_address, token_type };
         let time_key = LastInteractedKey { user: user_address, token_type };
         let vault_uid_mut = delegator::borrow_id_mut(vault);
         let current_time_seconds = clock::timestamp_ms(clock) / 1000;
 
-        assert!(df::exists_(vault_uid_mut, balance_key), EInsufficientBalance);
+        assert!(df::exists(vault_uid_mut, balance_key), EInsufficientBalance);
         
         let previous_balance = *df::borrow<UserBalanceKey, u64>(vault_uid_mut, balance_key);
         let total_available = previous_balance + rewards;
         assert!(total_available >= amount, EInsufficientBalance);
 
-        // Deduct amount
         let current_balance = df::borrow_mut<UserBalanceKey, u64>(vault_uid_mut, balance_key);
         *current_balance = total_available - amount;
 
-        // Reset timestamp checkpoint
-        if (df::exists_(vault_uid_mut, time_key)) {
+        if (df::exists(vault_uid_mut, time_key)) {
             let last_time = df::borrow_mut<LastInteractedKey, u64>(vault_uid_mut, time_key);
             *last_time = current_time_seconds;
         } else {
             df::add(vault_uid_mut, time_key, current_time_seconds);
         };
 
-        // 3. Decrease reserve and execute physical transfer
         let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
         
         transfer::public_transfer(
@@ -205,25 +174,107 @@ module 0x0::QiaraBluefinInterfaceV1 {
         );
 
         let data = vector[
-            Event::create_data_struct(std::string::utf8(b"addr"), std::string::utf8(b"address"), bcs::to_bytes(&user_address)),
-            Event::create_data_struct(std::string::utf8(b"token"), std::string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::get<T>())))),
-            Event::create_data_struct(std::string::utf8(b"provider"), std::string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
-            Event::create_data_struct(std::string::utf8(b"amount"), std::string::utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(std::string::utf8(b"rewards"), std::string::utf8(b"u64"), bcs::to_bytes(&rewards)), // ✅ Added rewards
+            Event::create_data_struct(string::utf8(b"sender"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&user_address)),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::with_defining_ids<T>())))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&proof_provider_name)),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(string::utf8(b"rewards"), string::utf8(b"u64"), bcs::to_bytes(&rewards)),
         ];
-        Event::emit_event(clock,std::string::utf8(b"DirectWithdraw"), data);
+        Event::emit_event(clock, string::utf8(b"DirectWithdraw"), data);
     }
 
-    // --- Internal Helpers ---
+    public fun stake<T>(
+        vault: &mut Vault,
+        mut coin: Coin<T>,
+        shared: String,
+        amount: u64,
+        epoch: u64,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        let sender = tx_context::sender(ctx);
+        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+        assert!(coin::value(&coin) >= amount, EInsufficientBalance);
 
-    /// Calculates and returns accrued interest on existing balances using dynamic fields [1, 2]
-    fun accrue_user_yield<T>(
-        vault: &mut Vault, 
-        user: address, 
-        rate: u64, 
-        clock: &Clock
-    ): u64 {
-        let token_type = type_name::get<T>();
+        let stake_coin = if (coin::value(&coin) == amount) {
+            coin
+        } else {
+            let split_off = coin::split(&mut coin, amount, ctx);
+            transfer::public_transfer(coin, sender);
+            split_off
+        };
+
+        delegator::increase_reserve<T>(vault, stake_coin);
+
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::with_defining_ids<T>())))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(string::utf8(b"epoch"), string::utf8(b"u64"), bcs::to_bytes(&epoch)),
+        ];
+
+        Event::emit_event(clock, string::utf8(b"Stake"), data);
+    }
+
+    public fun unstake<T>(
+        vault: &mut Vault,
+        shared: String,
+        amount: u64,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        let sender = tx_context::sender(ctx);
+        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+
+        let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
+        transfer::public_transfer(
+            coin::from_balance(withdrawn_balance, ctx), 
+            sender
+        );
+
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::with_defining_ids<T>())))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+        ];
+
+        Event::emit_event(clock, string::utf8(b"Unstake"), data);
+    }
+
+    public fun borrow<T>(
+        vault: &mut Vault,
+        shared: String,
+        amount: u64,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        let sender = tx_context::sender(ctx);
+        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
+
+        let withdrawn_balance = delegator::decrease_reserve<T>(vault, amount);
+        transfer::public_transfer(
+            coin::from_balance(withdrawn_balance, ctx), 
+            sender
+        );
+
+        let data = vector[
+            Event::create_data_struct(string::utf8(b"user"), string::utf8(b"address"), bcs::to_bytes(&sender)),
+            Event::create_data_struct(string::utf8(b"shared"), string::utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(string::utf8(b"token"), string::utf8(b"string"), bcs::to_bytes(&string::from_ascii(type_name::into_string(type_name::with_defining_ids<T>())))),
+            Event::create_data_struct(string::utf8(b"provider"), string::utf8(b"string"), bcs::to_bytes(&delegator::provider_name(vault))),
+            Event::create_data_struct(string::utf8(b"amount"), string::utf8(b"u64"), bcs::to_bytes(&amount)),
+        ];
+
+        Event::emit_event(clock, string::utf8(b"Borrow"), data);
+    }
+
+    fun accrue_user_yield<T>(vault: &mut Vault, user: address, rate: u64, clock: &Clock): u64 {
+        let token_type = type_name::with_defining_ids<T>();
         let balance_key = UserBalanceKey { user, token_type };
         let time_key = LastInteractedKey { user, token_type };
         
@@ -232,42 +283,30 @@ module 0x0::QiaraBluefinInterfaceV1 {
 
         let mut rewards = 0;
 
-        if (df::exists_(vault_uid_mut, balance_key) && df::exists_(vault_uid_mut, time_key)) {
+        if (df::exists(vault_uid_mut, balance_key) && df::exists(vault_uid_mut, time_key)) {
             let last_time = *df::borrow<LastInteractedKey, u64>(vault_uid_mut, time_key);
             let previous_balance = *df::borrow<UserBalanceKey, u64>(vault_uid_mut, balance_key);
 
             if (previous_balance > 0 && current_time_seconds > last_time) {
                 let elapsed = current_time_seconds - last_time;
-                // Interest = (Balance * APR * elapsed) / (10^8 percentage scale * seconds per year) [3]
                 let scale: u128 = 100_000_000;
-                let seconds_per_year: u128 = 31_536_000;
-                rewards = (((previous_balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_year) as u64);
+                let seconds_per_hour: u128 = 3_600;
+                rewards = (((previous_balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_hour) as u64);
             };
         };
 
         rewards
     }
 
-    /// Generates a pseudo-random range from clock and transaction digest details [1, 2]
     fun get_pseudo_random_range(clock: &Clock, ctx: &TxContext): u64 {
-        let mut msg_bytes = vector::empty<u8>();
-
-        // 1. Pack current clock timestamp in milliseconds [2]
+        let mut msg_bytes = vector[];
         let timestamp = clock::timestamp_ms(clock);
         vector::append(&mut msg_bytes, bcs::to_bytes(&timestamp));
+        vector::append(&mut msg_bytes, *tx_context::digest(ctx));
+        vector::append(&mut msg_bytes, bcs::to_bytes(&tx_context::sender(ctx)));
 
-        // 2. Pack unique transaction digest bytes [2]
-        let digest = tx_context::digest(ctx);
-        vector::append(&mut msg_bytes, *digest);
-
-        // 3. Pack message sender address [2]
-        let sender = tx_context::sender(ctx);
-        vector::append(&mut msg_bytes, bcs::to_bytes(&sender));
-
-        // 4. Generate Keccak256 hash [2]
         let hash_bytes = hash::keccak256(&msg_bytes);
 
-        // 5. Convert first 8 bytes of the hash into a u64 value [2]
         let mut val_u64: u64 = 0;
         let mut i = 0;
         while (i < 8) {
@@ -276,30 +315,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
             i = i + 1;
         };
 
-        // 6. Map the value into the range [MIN_RATE, MAX_RATE] [1]
         let range_span = MAX_RATE - MIN_RATE + 1;
         MIN_RATE + (val_u64 % range_span)
-    }
-
-    fun internal_grant<T>(vault: &mut Vault, user: address, amount: u64) {
-        let _token_type = type_name::get<T>();
-        let _vault_uid = delegator::borrow_id(vault);
-        assert!(delegator::is_token_supported<T>(vault), ENotSupported);
-        
-        update_allowance<T>(vault, user, amount);
-    }
-
-    fun update_allowance<T>(vault: &mut Vault, user: address, amount: u64) {
-        let token_type = type_name::get<T>();
-        let key = AllowanceKey { user, token_type };
-        
-        let vault_uid_mut = delegator::borrow_id_mut(vault);
-
-        if (df::exists_(vault_uid_mut, key)) {
-            let current = df::borrow_mut<AllowanceKey, u64>(vault_uid_mut, key);
-            *current = *current + amount;
-        } else {
-            df::add(vault_uid_mut, key, amount);
-        };
     }
 }

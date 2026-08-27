@@ -21,8 +21,8 @@ module dev::QiaraBridgeV59{
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraTokensCoreV53::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV53::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV54::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV54::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
     use dev::QiaraVaultsV78::{Self as Market, Access as MarketAccess};
 

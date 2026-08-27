@@ -7,7 +7,7 @@ use qiara::program::Qiara;
 
 pub mod extractor;
 //AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y
-declare_id!("HtMeWHq5oJXffnZsXpUZDE1qQUiKXTnv4hm4eHAuz7Lw");
+declare_id!("4r8fpddV65nBCZ3XQkLVubEbu6iHXpuqAPn4feke3Sd6");
 
 const MIN_RATE: u64 = 2_750_000;
 const MAX_RATE: u64 = 11_275_000;
@@ -105,12 +105,28 @@ pub mod vault {
     pub fn direct_withdraw(
         ctx: Context<DirectWithdrawYieldToken>,
         _shared: String,
+        nullifier_bytes: [u8; 32],
         token_name: String,
         public_inputs: Vec<u8>,
-        _proof_points: Vec<u8>,
+        proof_points: Vec<u8>,
+        signatures: Vec<Vec<u8>>,
     ) -> Result<()> {
-        require!(ctx.accounts.verifier_program.key() == qiara::id(), QiaraError::NotValidator);
 
+        let expected_nullifier = anchor_lang::solana_program::keccak::hash(&public_inputs).to_bytes();
+        require!(nullifier_bytes == expected_nullifier, QiaraError::InvalidProof);
+
+        // 1. CPI Call to Qiara Program to verify ZK proof & validator signatures
+        let cpi_accounts = qiara::cpi::accounts::VerifyBalanceProof {
+            validator_state: ctx.accounts.validator_state.to_account_info(),
+            registry: ctx.accounts.registry.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.verifier_program.to_account_info(), cpi_accounts);
+        qiara::cpi::verify_balance_proof(cpi_ctx, public_inputs.clone(), proof_points, signatures)?;
+
+        // 2. Mark Nullifier as Used (prevent replay)
+        ctx.accounts.nullifier_record.is_used = true;
+
+        // 3. Extract verified data
         let user_address = extractor::extract_user_address(&public_inputs)?;
         let tx_data = extractor::extract_all_tx_data(&public_inputs)?;
         let proof_provider_name = extractor::extract_provider(&public_inputs)?;
@@ -118,8 +134,8 @@ pub mod vault {
         require!(ctx.accounts.vault.provider_name == proof_provider_name, QiaraError::WrongProviderProvided);
         require!(ctx.accounts.user.key() == user_address, QiaraError::NotValidator);
 
+        // 4. Yield accounting
         let user_state = &mut ctx.accounts.user_state;
-
         let rate = get_pseudo_random_rate(&ctx.accounts.user.key())?;
         let rewards = accrue_user_yield(user_state, rate)?;
 
@@ -131,6 +147,7 @@ pub mod vault {
         user_state.balance = total_available.checked_sub(amount).unwrap();
         user_state.last_interacted_timestamp = clock.unix_timestamp;
 
+        // 5. Transfer tokens directly from Vault PDA to User ATA
         let provider_name_bytes = ctx.accounts.vault.provider_name.as_bytes();
         let vault_bump = ctx.accounts.vault.bump;
         let seeds = &[
@@ -149,8 +166,9 @@ pub mod vault {
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
         token::transfer(cpi_ctx, amount)?;
 
+        // 6. Emit event
         let data = vec![
-            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
             Data { name: "user".to_string(), type_name: "address".to_string(), value: user_address.to_bytes().to_vec() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: proof_provider_name.into_bytes() },
@@ -382,10 +400,14 @@ pub struct DepositYieldToken<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(shared: String)]
+#[instruction(shared: String, nullifier_bytes: [u8; 32])]
 pub struct DirectWithdrawYieldToken<'info> {
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub payer: Signer<'info>, // Can be user or relayer paying gas
+
+    /// CHECK: User receiving the tokens
+    #[account(mut)]
+    pub user: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -407,6 +429,16 @@ pub struct DirectWithdrawYieldToken<'info> {
     )]
     pub supported_token: Account<'info, SupportedToken>,
 
+    // 👈 Replay attack protection: Creates PDA on first use, fails if already exists
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + 1,
+        seeds = [b"nullifier", nullifier_bytes.as_ref()],
+        bump
+    )]
+    pub nullifier_record: Account<'info, NullifierRecord>,
+
     #[account(mut)]
     pub user_ata: Account<'info, TokenAccount>,
 
@@ -414,8 +446,17 @@ pub struct DirectWithdrawYieldToken<'info> {
     pub vault_ata: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+
+    // Verification accounts
+    pub registry: Account<'info, qiara::Registry>,
     pub validator_state: Account<'info, qiara::ValidatorState>,
     pub verifier_program: Program<'info, Qiara>,
+}
+
+#[account]
+pub struct NullifierRecord {
+    pub is_used: bool,
 }
 
 #[derive(Accounts)]

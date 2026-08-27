@@ -41,6 +41,8 @@ module Qiara::QiaraDelegatorV1 {
     const ENotValidator: u64 = 11;
     const EInvalidSignatureLength: u64 = 12;
     const EProviderMissmatch: u64 = 13;
+    const EInsufficientSignatures: u64 = 14;
+
     // Events
     public struct TokenListed has copy, drop {
         vault_id: ID,
@@ -183,26 +185,38 @@ module Qiara::QiaraDelegatorV1 {
         balance::split(reserve, amount)
     }
 
-    public fun grant_permission<T>(config: &ProviderManager, state: &ValidatorState, nullifiers: &mut Nullifiers, public_inputs: vector<u8>,proof_points: vector<u8>,signatures: vector<vector<u8>>): (address, u64, u256, String) {
-        // 1. Verify the proof and extract values
+    public fun grant_permission<T>(
+        config: &ProviderManager,
+        state: &ValidatorState,
+        registry: &vars::Registry, // 👈 1. Pass the Registry
+        nullifiers: &mut Nullifiers,
+        public_inputs: vector<u8>,
+        proof_points: vector<u8>,
+        signatures: vector<vector<u8>>
+    ): (address, u64, u256, String) {
+        // 👈 2. Read MINIMUM_UNIQUE_VALIDATORS from the Registry & assert threshold
+        let min_required = (vars::get_variable_to_u8(
+            registry, 
+            string::utf8(b"QiaraBridge"), 
+            string::utf8(b"MINIMUM_UNIQUE_VALIDATORS")
+        ) as u64);
+        assert!(vector::length(&signatures) >= min_required, EInsufficientSignatures);
+
+        // 3. Verify ZK Balance Proof
         let (user, amount, vault_provider, nullifier) = zk::verify_balance(public_inputs, proof_points);
 
-        // 2. Verify signatures from validators and ensure they are valid and from active validators
+        // 4. Verify Validator Signatures (and ensure no duplicates)
         validators::verify_signatures(state, signatures, public_inputs);
 
-        // 3. Check if nullifier has been used before to prevent double-withdrawals
-        if(table::contains(&nullifiers.table, nullifier)) {
-            abort ENullifierUsed;
-        };  
+        // 5. Replay attack check
+        assert!(!table::contains(&nullifiers.table, nullifier), ENullifierUsed);
         table::add(&mut nullifiers.table, nullifier, true);
 
-        // 4. Safety check, if provider is supported
+        // 6. Check authorized provider
         assert!(table::contains(&config.vaults, vault_provider), EProviderMissmatch);
 
-        // 5. Return values 
-        return (user, amount, nullifier, vault_provider)
+        (user, amount, nullifier, vault_provider)
     }
-
 
     public fun borrow_id(vault: &Vault): &UID {
         &vault.id

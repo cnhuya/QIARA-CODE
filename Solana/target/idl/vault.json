@@ -1,5 +1,5 @@
 {
-  "address": "HtMeWHq5oJXffnZsXpUZDE1qQUiKXTnv4hm4eHAuz7Lw",
+  "address": "4r8fpddV65nBCZ3XQkLVubEbu6iHXpuqAPn4feke3Sd6",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -319,9 +319,13 @@
       ],
       "accounts": [
         {
-          "name": "user",
+          "name": "payer",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "user",
+          "writable": true
         },
         {
           "name": "user_state",
@@ -414,6 +418,32 @@
           }
         },
         {
+          "name": "nullifier_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  117,
+                  108,
+                  108,
+                  105,
+                  102,
+                  105,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nullifier_bytes"
+              }
+            ]
+          }
+        },
+        {
           "name": "user_ata",
           "writable": true
         },
@@ -424,6 +454,13 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "registry"
         },
         {
           "name": "validator_state"
@@ -439,6 +476,15 @@
           "type": "string"
         },
         {
+          "name": "nullifier_bytes",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
           "name": "token_name",
           "type": "string"
         },
@@ -447,8 +493,14 @@
           "type": "bytes"
         },
         {
-          "name": "_proof_points",
+          "name": "proof_points",
           "type": "bytes"
+        },
+        {
+          "name": "signatures",
+          "type": {
+            "vec": "bytes"
+          }
         }
       ]
     },
@@ -742,6 +794,19 @@
   ],
   "accounts": [
     {
+      "name": "NullifierRecord",
+      "discriminator": [
+        56,
+        18,
+        57,
+        175,
+        69,
+        202,
+        189,
+        70
+      ]
+    },
+    {
       "name": "Registry",
       "discriminator": [
         47,
@@ -996,6 +1061,18 @@
           {
             "name": "rewards",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NullifierRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_used",
+            "type": "bool"
           }
         ]
       }

@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV53 {
+module dev::QiaraProviderTypesV54 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -36,64 +36,64 @@ module dev::QiaraProviderTypesV53 {
         x_init(admin);
     }
 
-fun x_init(signer: &signer) acquires Providers, ReverseProviders {
-    // === 1. Register Vaults ===
+    fun x_init(signer: &signer) acquires Providers, ReverseProviders {
+        // === 1. Register Vaults ===
 
-    // Robinhood Vaults
-    register_vault(signer, utf8(b"Morpho"), utf8(b"Robinhood"), utf8(b"0x8CF23E7B6cF0Ab28ea9D2510C227Ca122f8a76b1"));
+        // Robinhood Vaults
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Robinhood"), utf8(b"0x3B0B67B3E6e5E33198285950CB0518cb18f069E4"));
 
-    // Monad Vaults
-    register_vault(signer, utf8(b"Curvance"), utf8(b"Monad"), utf8(b"0xF6cd54715F27f0A0854Fe7B6aB1dbb03073720Ea"));
-    register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0xD3D784911d1697e29e58FBa570C813fa2cbc02b6"));
-    register_vault(signer, utf8(b"Morpho"), utf8(b"Monad"), utf8(b"0x014e8F184D5b752F589A4481Ba484296072E9D48"));
+        // Monad Vaults
+        register_vault(signer, utf8(b"Curvance"), utf8(b"Monad"), utf8(b"0xFa1237dd9eCC34319ee73bC30CB1d2763c13377C"));
+        register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0xECD9c626565514Ea524e10fbB16E22cdED541C30"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Monad"), utf8(b"0x5Fb40e61756A93085C2051dE2CBd8D5321239857"));
 
-    // Ethereum (Sepolia) Vaults
-    register_vault(signer, utf8(b"Aave"), utf8(b"Ethereum"), utf8(b"0x215d0d089FDc14837fBaa213b0E7266d8D9dE152"));
-    register_vault(signer, utf8(b"Morpho"), utf8(b"Ethereum"), utf8(b"0x0FE607b4824Ac62a48c83cD5247A0eC207620003"));
+        // Ethereum (Sepolia) Vaults
+        register_vault(signer, utf8(b"Aave"), utf8(b"Ethereum"), utf8(b"0xA18526D54cb9778A16f1d27c0E03f62588a6B1eA"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Ethereum"), utf8(b"0x11e5E72730Cf7dc0f9A6fD01266c0A2c5329fc4e"));
 
-    // Base Vaults
-    register_vault(signer, utf8(b"Aave"), utf8(b"Base"), utf8(b"0x75D72FE5aFcFe3Af6e7546766196598CA107B588"));
-    register_vault(signer, utf8(b"Moonwell"), utf8(b"Base"), utf8(b"0x2Bfec4481B640Ada65B79878E5f156969A2FaBE3"));
-    register_vault(signer, utf8(b"Morpho"), utf8(b"Base"), utf8(b"0xFa429bcb45738815ca54b8A6e5d8Fb9938AaAc53"));
+        // Base Vaults
+        register_vault(signer, utf8(b"Aave"), utf8(b"Base"), utf8(b"0xcC609edc2aB4b4373296a1F61F18B2b502d050Ca"));
+        register_vault(signer, utf8(b"Moonwell"), utf8(b"Base"), utf8(b"0x86D555771c6da5658079877b1e5286bba94F5c9F"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Base"), utf8(b"0xbd3A54883B827e37f7a8f0959d013BE8ed11E63F"));
 
-    // Sui Vaults (Updated)
-    register_vault(signer, utf8(b"Suilend"), utf8(b"Sui"), utf8(b"0x1de788a3e30fae39f8e0453c15fe2e5ad9bcb528cab307c6f9fd7a6dfceadb4c"));
-    register_vault(signer, utf8(b"Alphalend"), utf8(b"Sui"), utf8(b"0x87582743a0f7d461789f55c087fddd5ba3424c528b590860da78fd0c3db55d41"));
-    register_vault(signer, utf8(b"Navi"), utf8(b"Sui"), utf8(b"0x993372c31df39a839e93fa72dab58fdd44c8ad13233f0720f69d6fa7c7a559de"));
-    register_vault(signer, utf8(b"Bluefin"), utf8(b"Sui"), utf8(b"0x3365765f9bdc6fb88c75200a56ccdee0bb0b4cadd58ab7ceb5da2d33585a4de3"));
+        // Sui Vaults
+        register_vault(signer, utf8(b"Suilend"), utf8(b"Sui"), utf8(b"0x974f50b56e30d9cd33d9dd962c10cffd6c6c088e4e6f9c16cbfc6c26b129f748"));
+        register_vault(signer, utf8(b"Alphalend"), utf8(b"Sui"), utf8(b"0x03ca8de6a024eeecbc4e11eb33fb2f90c7f7c9be55416082df7e4d794453c7dd"));
+        register_vault(signer, utf8(b"Navi"), utf8(b"Sui"), utf8(b"0x6d627f42b39cdf1d77f4037aa49b243eff9a95b1f370c675a951d96261fa0733"));
+        register_vault(signer, utf8(b"Bluefin"), utf8(b"Sui"), utf8(b"0x686b848b7c230efba497b1535afc11dda7865ec972a24f3b121356733b0aeea6"));
 
-    // Aptos Vaults
-    register_vault(signer, utf8(b"Echelon"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
-    register_vault(signer, utf8(b"Aave"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
-    register_vault(signer, utf8(b"Qiara"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
+        // Aptos Vaults
+        register_vault(signer, utf8(b"Echelon"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
+        register_vault(signer, utf8(b"Aave"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
+        register_vault(signer, utf8(b"Qiara"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
 
-    // Solana Vaults (Real PDAs)
-    register_vault(signer, utf8(b"Juplend"), utf8(b"Solana"), utf8(b"FS2UEzMMJYzE6QSwG2eGcXVz6V5DCdbC1yzsLGkEDCYd"));
-    register_vault(signer, utf8(b"Kamino"), utf8(b"Solana"), utf8(b"2jD7Vp9fjZUaJkTdzskyrgTpWWoGXQhbuh9NvhDRgnD8"));
+        // Solana Vaults (Real PDAs)
+        register_vault(signer, utf8(b"Juplend"), utf8(b"Solana"), utf8(b"3Khp3aJddTh5k525iYdT7i41smfQDJ4mfb9iKVNSzuRA"));
+        register_vault(signer, utf8(b"Kamino"), utf8(b"Solana"), utf8(b"HMVmEzQ1UiPnJmykdq1JEohcyg1PcT5NuZ1aHuyKhVVk"));
 
-    // === 2. Allow Tokens ===
-    allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
-    allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
-    allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Robinhood"), vector[utf8(b"USDG")]);
-    allow_tokens_for_provider(signer, utf8(b"Curvance"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD"), utf8(b"earnAUSD")]);
-    allow_tokens_for_provider(signer, utf8(b"Neverland"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD")]);
-    allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"AUSD")]);
-    allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
-    allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"USDT"), utf8(b"Bitcoin")]);
-    allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
-    allow_tokens_for_provider(signer, utf8(b"Moonwell"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Virtuals")]);
-    allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Virtuals")]);
-    allow_tokens_for_provider(signer, utf8(b"Suilend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
-    allow_tokens_for_provider(signer, utf8(b"Alphalend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
-    allow_tokens_for_provider(signer, utf8(b"Navi"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
-    allow_tokens_for_provider(signer, utf8(b"Bluefin"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
-    allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
-    allow_tokens_for_provider(signer, utf8(b"Echelon"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
-    allow_tokens_for_provider(signer, utf8(b"Qiara"), utf8(b"Aptos"), vector[utf8(b"Qiara"), utf8(b"Burned Qiara")]);
-}
+        // === 2. Allow Tokens ===
+        allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
+        allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
+        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Robinhood"), vector[utf8(b"USDG")]);
+        allow_tokens_for_provider(signer, utf8(b"Curvance"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD"), utf8(b"earnAUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Neverland"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"AUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
+        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"USDT"), utf8(b"Bitcoin")]);
+        allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
+        allow_tokens_for_provider(signer, utf8(b"Moonwell"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Virtuals")]);
+        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Virtuals")]);
+        allow_tokens_for_provider(signer, utf8(b"Suilend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
+        allow_tokens_for_provider(signer, utf8(b"Alphalend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
+        allow_tokens_for_provider(signer, utf8(b"Navi"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
+        allow_tokens_for_provider(signer, utf8(b"Bluefin"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
+        allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
+        allow_tokens_for_provider(signer, utf8(b"Echelon"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
+        allow_tokens_for_provider(signer, utf8(b"Qiara"), utf8(b"Aptos"), vector[utf8(b"Qiara"), utf8(b"Burned Qiara")]);
+    }
 
     public entry fun reg_bluefin(signer: &signer) acquires ReverseProviders, Providers {
-        register_vault(signer, utf8(b"Bluefin"), utf8(b"Sui"), utf8(b"0xBL_SUI_VAULT"));
+        register_vault(signer, utf8(b"Bluefin"), utf8(b"Sui"), utf8(b"0x686b848b7c230efba497b1535afc11dda7865ec972a24f3b121356733b0aeea6"));
         allow_tokens_for_provider(signer, utf8(b"Bluefin"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
     }
 
