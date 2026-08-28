@@ -694,6 +694,16 @@ module dev::QiaraSharedV17 {
         return table::contains(&shared.storage, name)
     }
 
+#[view]
+    public fun return_shared_derived_address(name: String): address acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+        if (!table::contains(&shared.storage, name)) {
+            return @0x0
+        };
+        let ownership = table::borrow(&shared.storage, name);
+        object::address_from_extend_ref(&ownership.metadata.extend_ref)
+    }
+
     #[view]
     public fun return_fungible_store(shared_name: String, asset_metadata: Object<Metadata>): Object<FungibleStore> acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);

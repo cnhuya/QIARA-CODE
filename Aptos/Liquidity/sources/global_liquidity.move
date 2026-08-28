@@ -418,6 +418,71 @@ public fun withdraw_token(
     let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
     TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
 }
+
+
+/// 🟢 1. Returns the user's LP Shares balance (Reconstructs LP Metadata from token, chain, provider)
+#[view]
+public fun get_shared_lp_balance(
+    shared: String, 
+    token: String, 
+    chain: String, 
+    provider: String
+): u64 acquires GlobalLPCapabilities {
+    // 1. Rebuild vault address from strings
+    let vault_seed = *String::bytes(&token);
+    vector::append(&mut vault_seed, *String::bytes(&chain));
+    vector::append(&mut vault_seed, *String::bytes(&provider));
+    let vault_address = account::create_resource_address(&@dev, vault_seed);
+
+    if (!exists<GlobalLPCapabilities>(@dev)) {
+        return 0
+    };
+
+    let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+    if (!table::contains(&lp_caps.caps, vault_address)) {
+        return 0
+    };
+    let cap = table::borrow(&lp_caps.caps, vault_address);
+
+    // 2. Fetch user's shared storage object address
+    let derived_address = Shared::return_shared_derived_address(shared);
+    if (derived_address == @0x0) {
+        return 0
+    };
+
+    // 3. Query primary store balance directly without aborting
+    primary_fungible_store::balance(derived_address, cap.lp_metadata)
+}
+
+/// 🟢 2. Returns the user's Underlying Asset balance (e.g. QAUSD / QMON) in their shared storage
+#[view]
+public fun get_shared_underlying_balance(
+    shared: String, 
+    token: String
+): u64 {
+    let derived_address = Shared::return_shared_derived_address(shared);
+    if (derived_address == @0x0) {
+        return 0
+    };
+    
+    // Reconstructs underlying token metadata
+    let metadata = TokensCore::get_metadata(token);
+    primary_fungible_store::balance(derived_address, metadata)
+}
+
+/// 🟢 3. Combined View: Returns (LP_Shares, Underlying_Tokens) in one single call
+#[view]
+public fun get_all_shared_balances(
+    shared: String, 
+    token: String, 
+    chain: String, 
+    provider: String
+): (u64, u64) acquires GlobalLPCapabilities {
+    let lp_balance = get_shared_lp_balance(shared, token, chain, provider);
+    let underlying_balance = get_shared_underlying_balance(shared, token);
+    (lp_balance, underlying_balance)
+}
+
     public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
