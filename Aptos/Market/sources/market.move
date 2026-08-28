@@ -74,6 +74,8 @@ module dev::QiaraVaultsV79 {
     const ERROR_INSUFFICIENT_STAKE : u64 = 25;
     const ERROR_STAKE_LOCKED: u64 = 26;
 
+const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
+
     const ERROR_A: u64 = 101;
     const ERROR_B: u64 = 102;
     const ERROR_C: u64 = 103;
@@ -406,31 +408,46 @@ module dev::QiaraVaultsV79 {
         Event::emit_market_event(utf8(b"Bridge Unstake"), data);
     }
     // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
-    public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64,permission: Permission) acquires Permissions {
-        let (total_liquidity,total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        //Liquidity::admin_accrue_rewards_from_lz(validator, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+public fun c_bridge_withdraw(
+    validator: &signer, 
+    shared: String, 
+    sender: vector<u8>, 
+    token: String, 
+    chain: String, 
+    provider: String, 
+    amount: u64,
+    permission: Permission
+) acquires Permissions {
+    let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
 
-        let amount_u256 = (amount as u256)*1000000000000000000;
-        
-        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
-      
-        let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
-        
-        let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
-        if(amount_u256_taxed == 0) { return };
+    let amount_u256 = (amount as u256) * 1000000000000000000;
+    
+    let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+  
+    let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+    
+    let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
+    if (amount_u256_taxed == 0) { return };
 
-        Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-        Margin::remove_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+    Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+    Margin::remove_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    // 1. Burns LP shares and transfers net underlying tokens to user_shared_store
+    Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
-        // 2. Withdraw from shared storage and transfer to the recipient's primary store
-        let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        let fa = TokensCore::withdraw(shared, user_shared_store, amount, chain);
-        TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+    // 2. Withdraw the NET amount from user_shared_store and burn it (since tokens are bridged out)
+    let net_amount_u64 = (amount_u256_taxed / 1000000000000000000 as u64);
+    let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+    
+    // 🛡️ CHECK 3: Ensure user_shared_store holds the tokens before burning
+    let store_balance = fungible_asset::balance(user_shared_store);
+    assert!(store_balance >= net_amount_u64, ERROR_SHARED_STORE_INSUFFICIENT_BALANCE);
 
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
+    let fa = TokensCore::withdraw(shared, user_shared_store, net_amount_u64, chain);
+    TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+
+    let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),

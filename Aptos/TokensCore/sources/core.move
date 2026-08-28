@@ -441,14 +441,16 @@ module dev::QiaraTokensCoreV54{
     // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
     // Later implement function to claim locked tokens if the bridge tx fails
     public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&user));
+        
+        Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
-        //assert!(provider == utf8(b"Bluefin"), 100);
+                                     //   tttta(110);
+        //assert!(provider == utf8(b"Bluefin"), 100);;
         ProviderTypes::ensure_valid_provider(provider, chain);
         //let legit_amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
         //assert!(legit_amount >= amount, ERROR_SUFFICIENT_BALANCE);
         let total_outflow = (TokensOmnichain::return_specified_outflow_path(receiver, chain, symbol) as u64);
-       
+        
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
         //TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 

@@ -60,6 +60,8 @@ module dev::QiaraBridgeV61{
     const ERROR_PROOF_VALIDATED: u64 = 77;
     const ERROR_VALIDATOR_NOT_ACTIVE: u64 = 88;
 
+
+
 // === ACCESS === //
     struct Access has store, key, drop {}
     struct Permission has store, key, drop, copy {}
@@ -352,7 +354,8 @@ module dev::QiaraBridgeV61{
 
             if (event_type == utf8(b"Balances")) {
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
-                
+           //public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64,permission: Permission) acquires Permissions {
+            Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&borrow_global<Permissions>(@dev).market));
                 TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 
@@ -718,7 +721,6 @@ fun handle_main_event(
                 let (shared, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, user, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-                                tttta(110)
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
