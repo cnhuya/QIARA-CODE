@@ -260,21 +260,26 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
         };
     }
 
-    public fun admin_accrue_rewards_from_lz(signer: &signer,token: String, chain: String, provider: String, yield: u64, _cap: Permission) acquires Permissions, GlobalVault , GlobalLPCapabilities {
-        let vaults = borrow_global_mut<GlobalVault>(@dev);
-        let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
+public fun admin_accrue_rewards_from_lz(
+    signer: &signer,
+    token: String, 
+    chain: String, 
+    provider: String, 
+    yield: u64, 
+    _cap: Permission
+) acquires Permissions, GlobalVault, GlobalLPCapabilities {
+    let vaults = borrow_global_mut<GlobalVault>(@dev);
+    let vault = find_vault(vaults, token, chain, provider);
+    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        let yield_fa = TokensCore::mint(token, chain, yield, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-        let yield_amount = (fungible_asset::amount(&yield_fa) as u256);
-        
-        // 1. Physically store the assets in the vault
-        TokensCore::deposit(storage_address_string, vault.storage, yield_fa, chain);
+    // 1. Physically mint and deposit the 6-decimal tokens
+    let yield_fa = TokensCore::mint(token, chain, yield, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+    TokensCore::deposit(storage_address_string, vault.storage, yield_fa, chain);
 
-        // 2. Increment the rewards counter (which inflates the share price for existing LPs)
-        vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + yield_amount;
-    }
-
+    // 2. Scale the rewards accounting by 10^18 so it matches total_deposited in get_total_assets()
+    let yield_scaled = (yield as u256) * 1000000000000000000;
+    vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + yield_scaled;
+}
     public fun claim_accumulated_fee_rewards(signer: &signer, shared: String, user: vector<u8>, token: String, chain: String, provider: String, user_shares: u256, user_last_fee_index: u128, _cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
