@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV60{
+module dev::QiaraBridgeV61{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,8 +29,8 @@ module dev::QiaraBridgeV60{
     use dev::QiaraMarginV57::{Self as Margin};
     use dev::QiaraGovernanceV14::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV60::{Self as Payload};
-    use dev::QiaraValidatorsV60::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV61::{Self as Payload};
+    use dev::QiaraValidatorsV61::{Self as Validators, Access as ValidatorsAccess};
 
     use dev::QiaraPerpsOrdersV47::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV47::{Self as Perps, Access as PerpAccess};
@@ -717,7 +717,8 @@ fun handle_main_event(
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, synbol, chain, provider, amount, name) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
-                TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, user, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core))
+                TokensCore::p_request_bridge(signer, shared, user, synbol, chain, provider, amount, user, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+                                tttta(110)
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&borrow_global<Permissions>(@dev).shared));

@@ -137,7 +137,7 @@ module event::QiaraEventV1 {
         assert!(signer::address_of(admin) == @event, 1);
     }
 
-  public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {
+    public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {
         let vect = vector::empty<u8>();
     
         // 1. Convert vectors to u256 first so your BE function can process them
