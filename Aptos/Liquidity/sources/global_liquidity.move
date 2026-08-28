@@ -400,7 +400,16 @@ public fun withdraw_token(
         shares_to_burn_u64 = user_lp_balance;
     };
     
-    assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+    //assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+
+
+    if (user_lp_balance == 0) {
+        abort 88888 // 👈 Aborts with 88888 if the store balance is literally 0
+    };
+
+    if (user_lp_balance < shares_to_burn_u64) {
+        abort (shares_to_burn_u64 as u64) // 👈 Aborts with the exact shares it calculated!
+    };
 
     // 2. Withdraw & Burn LP shares
     let shares_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64);
