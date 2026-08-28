@@ -314,49 +314,51 @@ public fun admin_accrue_rewards_from_lz(
     }
 
     /// Deposits underlying assets, mints matching LP shares, and returns them to the user.
-    public fun deposit_token(signer: &signer, token: String, chain: String,provider: String, fa: FungibleAsset, _cap: Permission): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
-        let vaults = borrow_global_mut<GlobalVault>(@dev);
-        let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
+public fun deposit_token(
+    signer: &signer, 
+    token: String, 
+    chain: String,
+    provider: String, 
+    fa: FungibleAsset, 
+    _cap: Permission
+): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
+    let vaults = borrow_global_mut<GlobalVault>(@dev);
+    let vault = find_vault(vaults, token, chain, provider);
+    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        let deposit_amount = (fungible_asset::amount(&fa) as u256)*1000000000000000000;
-        
-        // 1. Calculate how many shares to mint (ERC-4626 exchange rate)
-        // FIXED: Included total_native_accumulated_rewards to correctly compound LP value
-        let total_assets = get_total_assets(vault);
-        let total_shares = vault.total_shares;
+    let raw_amount = (fungible_asset::amount(&fa) as u256);
+    let deposit_amount = raw_amount * 1000000000000000000; // 1e18 scale
+    
+    let total_assets = get_total_assets(vault);
+    let total_shares = vault.total_shares;
 
-        let shares_to_mint = if (total_shares == 0 || total_assets == 0) {
-            deposit_amount 
-        } else {
-            (deposit_amount * total_shares) / total_assets
-        };
+    // If initial deposit or empty vault, shares = deposit_amount
+    let shares_to_mint = if (total_shares == 0 || total_assets == 0) {
+        deposit_amount 
+    } else {
+        (deposit_amount * total_shares) / total_assets
+    };
 
-        // prevent 0-share mint dust attack
-        assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
+    assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        // 2. Deposit underlying asset to storage
-        //vault.total_deposited = vault.total_deposited + deposit_amount; -> accruing deposits directly in deposit function in market via add_deposit function
-        TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
+    TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
 
-        // 3. Resolve the vault's resource address to locate Mint capabilities
-        let vault_seed = *String::bytes(&token);
-        vector::append(&mut vault_seed, *String::bytes(&chain));
-        vector::append(&mut vault_seed, *String::bytes(&provider));
-        let vault_address = account::create_resource_address(&@dev, vault_seed);
+    let vault_seed = *String::bytes(&token);
+    vector::append(&mut vault_seed, *String::bytes(&chain));
+    vector::append(&mut vault_seed, *String::bytes(&provider));
+    let vault_address = account::create_resource_address(&@dev, vault_seed);
 
-        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
-        let cap = table::borrow(&lp_caps.caps, vault_address);
+    let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+    let cap = table::borrow(&lp_caps.caps, vault_address);
 
-        // 4. Mint LP shares and update state
-        let shares_fa = fungible_asset::mint(&cap.mint_ref, (shares_to_mint/1000000000000000000 as u64));
-        vault.total_shares = vault.total_shares + shares_to_mint;
+    // Mint physical 6-decimal LP shares
+    let shares_to_mint_u64 = (shares_to_mint / 1000000000000000000 as u64);
+    let shares_fa = fungible_asset::mint(&cap.mint_ref, shares_to_mint_u64);
+    
+    vault.total_shares = vault.total_shares + shares_to_mint;
 
-        shares_fa
-    }
-
-
-   /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
+    shares_fa
+}
 public fun withdraw_token(
     signer: &signer,
     shared: String, 
@@ -376,8 +378,9 @@ public fun withdraw_token(
     let total_assets = get_total_assets(vault);
     let total_shares = vault.total_shares;
     assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
+    assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    // 1. Calculate LP shares to burn
+    // Calculate LP shares to burn
     let shares_to_burn_scaled = (raw_scaled * total_shares) / total_assets;
     let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
 
@@ -392,52 +395,25 @@ public fun withdraw_token(
     let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
     let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
 
-    // 🛡️ CHECK 1: Ensure user actually holds enough LP shares
     let user_lp_balance = fungible_asset::balance(shared_lp_store);
-    
-    // Prevent 1-unit rounding errors on 100% full withdrawals
-    if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 1) {
+
+    // Rounding clamp on full redemption
+    if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
         shares_to_burn_u64 = user_lp_balance;
     };
     
-    //assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+    assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
 
-
-    if (user_lp_balance == 0) {
-        abort 88888 // 👈 Aborts with 88888 if the store balance is literally 0
-    };
-
-    if (user_lp_balance < shares_to_burn_u64) {
-        abort (shares_to_burn_u64 as u64) // 👈 Aborts with the exact shares it calculated!
-    };
-
-    // 2. Withdraw & Burn LP shares
     let shares_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64);
     fungible_asset::burn(&cap.burn_ref, shares_fa);
     vault.total_shares = vault.total_shares - shares_to_burn_scaled;
 
-    // 🛡️ CHECK 2: Ensure the vault has enough underlying liquidity to pay out
     let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
-    let vault_balance = fungible_asset::balance(vault.storage);
-    assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
-
-    // 3. Withdraw NET underlying tokens and deposit to user's shared store
     let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
     
     let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
     TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
 }
-    public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
-        let vaults = borrow_global_mut<GlobalVault>(@dev);
-        let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
-
-        let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, (amount/1000000000000000000 as u64), chain);
-
-        // 7. Deposit the underlying assets directly back into the user's shared storage
-        let user_shared_store_underlying = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        TokensCore::deposit(shared, user_shared_store_underlying, underlying_fa, chain);
-    }
 
     public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
         {
