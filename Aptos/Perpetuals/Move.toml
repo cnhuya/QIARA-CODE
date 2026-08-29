@@ -34,7 +34,7 @@
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraTypesV54]
+    [dependencies.QiaraTypesV55]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
