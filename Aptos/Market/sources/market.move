@@ -422,6 +422,11 @@ public fun c_bridge_withdraw(
 
     let amount_u256 = (amount as u256) * 1000000000000000000;
     
+    // 🟢 1. AUTO-NORMALIZE: If incoming amount came in as 18-decimal wei (> 10^29), scale it to 1e24
+    if (amount_u256 > 100000000000000000000000000000) {
+        amount_u256 = amount_u256 / 1000000000000;
+    };
+
     let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
   
     let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
@@ -440,51 +445,51 @@ public fun c_bridge_withdraw(
     let net_amount_u64 = (amount_u256_taxed / 1000000000000000000 as u64);
     let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
     
-    // 🛡️ CHECK 3: Ensure user_shared_store holds the tokens before burning
+    // 🟢 2. SAFE BURN: Burn the exact net amount deposited into user_shared_store
     let store_balance = fungible_asset::balance(user_shared_store);
-    assert!(store_balance >= net_amount_u64, ERROR_SHARED_STORE_INSUFFICIENT_BALANCE);
+    let burn_amount_u64 = if (store_balance < net_amount_u64 && store_balance > 0) { store_balance } else { net_amount_u64 };
+    assert!(store_balance >= burn_amount_u64 && burn_amount_u64 > 0, ERROR_SHARED_STORE_INSUFFICIENT_BALANCE);
 
-    let fa = TokensCore::withdraw(shared, user_shared_store, net_amount_u64, chain);
+    let fa = TokensCore::withdraw(shared, user_shared_store, burn_amount_u64, chain);
     TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
 
     let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
 
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+    let data = vector[
+        Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+        Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+        Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+        Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+        Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
 
-            Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
-            Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
-            Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
-            Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+        Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
+        Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
+        Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
+        Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
 
-            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
-            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
-            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
-            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
-            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+        Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
+        Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
+        Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
+        Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
+        Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
 
-            Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
-            Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
+        Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+        Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
-            Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&shares_ratio)),
+        Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&shares_ratio)),
 
-            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
-            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
-            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
-            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
-        ];
+        Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
+        Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
+        Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+        Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+    ];
 
-        if(user_borrow_interest > 0){
-            vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)))
-        };
+    if (user_borrow_interest > 0) {
+        vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)))
+    };
 
-        Event::emit_market_event(utf8(b"Bridge Withdraw"),data);
-    }
-
+    Event::emit_market_event(utf8(b"Bridge Withdraw"), data);
+}
     // Recipient needs to be address here, in case permissioneless user wants to borrow to existing Supra wallet.
     public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>,token: String, chain: String, provider: String, amount: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;

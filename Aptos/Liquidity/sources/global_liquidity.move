@@ -357,131 +357,199 @@ public fun admin_accrue_rewards_from_lz(
 
     shares_fa
 }
-public fun withdraw_token(
-    signer: &signer,
-    shared: String, 
-    token: String, 
-    chain: String,
-    provider: String, 
-    raw_scaled: u256,
-    net_scaled: u256,
-    _cap: Permission
-) acquires GlobalVault, GlobalLPCapabilities, Permissions {
-    let vaults = borrow_global_mut<GlobalVault>(@dev);
-    let vault = find_vault(vaults, token, chain, provider);
-    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
+ /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
+    public fun withdraw_token(
+        signer: &signer,
+        shared: String, 
+        token: String, 
+        chain: String,
+        provider: String, 
+        raw_scaled: u256,
+        net_scaled: u256,
+        _cap: Permission
+    ) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let vault = find_vault(vaults, token, chain, provider);
+        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-    internal_daily_withdraw_limit(token, vault, raw_scaled);
+        // 🟢 AUTO-NORMALIZE: If amount came in as 18-decimal wei (producing > 10^29), scale it to 1e24
+        if (raw_scaled > 100000000000000000000000000000) {
+            raw_scaled = raw_scaled / 1000000000000;
+            net_scaled = net_scaled / 1000000000000;
+        };
 
-    let total_assets = get_total_assets(vault);
-    let total_shares = vault.total_shares;
-    assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
-    assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
+        internal_daily_withdraw_limit(token, vault, raw_scaled);
 
-    // 1. Calculate LP shares to burn
-    let shares_to_burn_scaled = (raw_scaled * total_shares) / total_assets;
-    let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
+        let total_assets = get_total_assets(vault);
+        let total_shares = vault.total_shares;
 
-    let vault_seed = *String::bytes(&token);
-    vector::append(&mut vault_seed, *String::bytes(&chain));
-    vector::append(&mut vault_seed, *String::bytes(&provider));
-    let vault_address = account::create_resource_address(&@dev, vault_seed);
-    let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
-    let cap = table::borrow(&lp_caps.caps, vault_address);
+        assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
+        assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
-    let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
-    let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
+        // 1. Calculate LP shares to burn based on vault ratio
+        let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
+            raw_scaled
+        } else {
+            (raw_scaled * total_shares) / total_assets
+        };
+        let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
 
-    let user_lp_balance = fungible_asset::balance(shared_lp_store);
+        // 2. Fetch Vault LP Capabilities and Metadata
+        let vault_seed = *String::bytes(&token);
+        vector::append(&mut vault_seed, *String::bytes(&chain));
+        vector::append(&mut vault_seed, *String::bytes(&provider));
+        let vault_address = account::create_resource_address(&@dev, vault_seed);
+
+        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+        let cap = table::borrow(&lp_caps.caps, vault_address);
+
+        // 3. Fetch Shared Storage Signer and LP Store
+        let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
+        let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
+        let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
+
+        let user_lp_balance = fungible_asset::balance(shared_lp_store);
+        assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
+
+        // 4. Tolerance & Safety Clamps
+        if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
+            shares_to_burn_u64 = user_lp_balance;
+        };
+
+        if (shares_to_burn_u64 > user_lp_balance) {
+            let one_to_one_shares = (raw_scaled / 1000000000000000000 as u64);
+            if (one_to_one_shares <= user_lp_balance) {
+                shares_to_burn_u64 = one_to_one_shares;
+                shares_to_burn_scaled = raw_scaled;
+            } else {
+                shares_to_burn_u64 = user_lp_balance;
+                shares_to_burn_scaled = (user_lp_balance as u256) * 1000000000000000000;
+            };
+        };
+
+        assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+        assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
+
+        // 5. Burn LP Shares & Update Vault Accounting
+        let shares_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64);
+        fungible_asset::burn(&cap.burn_ref, shares_fa);
+        
+        if (shares_to_burn_scaled <= vault.total_shares) {
+            vault.total_shares = vault.total_shares - shares_to_burn_scaled;
+        } else {
+            vault.total_shares = 0;
+        };
+
+        // 6. Ensure vault storage has enough liquidity to pay out
+        let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
+        let vault_balance = fungible_asset::balance(vault.storage);
+        assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
+
+        // 7. Withdraw NET underlying tokens from Vault and credit to user's shared store
+        let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
+        let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
+        TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
+    }
     
-    if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
-        shares_to_burn_u64 = user_lp_balance;
-    };
-    
-    assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+    // ========================================================================
+    // 🔍 SIMULATION & PREVIEW VIEW FUNCTION
+    // ========================================================================
+    #[view]
+    public fun preview_withdraw_math(
+        shared: String, 
+        token: String, 
+        chain: String, 
+        provider: String, 
+        amount: u64
+    ): (u64, u64, bool, u64, u64, bool) acquires GlobalVault, GlobalLPCapabilities {
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        let vault = find_vault(vaults, token, chain, provider);
 
-    let shares_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64);
-    fungible_asset::burn(&cap.burn_ref, shares_fa);
-    
-    // 2. 🟢 Update both shares and deposited accounting:
-    vault.total_shares = vault.total_shares - shares_to_burn_scaled;
-    if (raw_scaled <= vault.total_deposited) {
-        vault.total_deposited = vault.total_deposited - raw_scaled;
-    } else {
-        vault.total_deposited = 0;
-    };
+        let raw_scaled = (amount as u256) * 1000000000000000000;
+        let total_assets = get_total_assets(vault);
+        let total_shares = vault.total_shares;
 
-    let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
-    let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
-    
-    let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
-    TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
-}
+        let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
+            raw_scaled
+        } else {
+            (raw_scaled * total_shares) / total_assets
+        };
+        let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
 
+        let user_lp_balance = get_shared_lp_balance(shared, token, chain, provider);
+        let has_enough_shares = user_lp_balance >= shares_to_burn_u64;
 
-/// 🟢 1. Returns the user's LP Shares balance (Reconstructs LP Metadata from token, chain, provider)
-#[view]
-public fun get_shared_lp_balance(
-    shared: String, 
-    token: String, 
-    chain: String, 
-    provider: String
-): u64 acquires GlobalLPCapabilities {
-    // 1. Rebuild vault address from strings
-    let vault_seed = *String::bytes(&token);
-    vector::append(&mut vault_seed, *String::bytes(&chain));
-    vector::append(&mut vault_seed, *String::bytes(&provider));
-    let vault_address = account::create_resource_address(&@dev, vault_seed);
+        let vault_underlying_balance = fungible_asset::balance(vault.storage);
+        let has_enough_liquidity = vault_underlying_balance >= amount;
 
-    if (!exists<GlobalLPCapabilities>(@dev)) {
-        return 0
-    };
+        (
+            shares_to_burn_u64,        // 0: LP shares required to burn
+            user_lp_balance,           // 1: User's actual LP shares
+            has_enough_shares,         // 2: Will LP share check pass?
+            amount,                    // 3: Amount requested
+            vault_underlying_balance,  // 4: Vault liquidity available
+            has_enough_liquidity       // 5: Will liquidity check pass?
+        )
+    }
 
-    let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
-    if (!table::contains(&lp_caps.caps, vault_address)) {
-        return 0
-    };
-    let cap = table::borrow(&lp_caps.caps, vault_address);
+// 1. Returns the user's LP Shares balance (Reconstructs LP Metadata from token, chain, provider)
+    #[view]
+    public fun get_shared_lp_balance(
+        shared: String, 
+        token: String, 
+        chain: String, 
+        provider: String
+    ): u64 acquires GlobalLPCapabilities {
+        let vault_seed = *String::bytes(&token);
+        vector::append(&mut vault_seed, *String::bytes(&chain));
+        vector::append(&mut vault_seed, *String::bytes(&provider));
+        let vault_address = account::create_resource_address(&@dev, vault_seed);
 
-    // 2. Fetch user's shared storage object address
-    let derived_address = Shared::return_shared_derived_address(shared);
-    if (derived_address == @0x0) {
-        return 0
-    };
+        if (!exists<GlobalLPCapabilities>(@dev)) {
+            return 0
+        };
 
-    // 3. Query primary store balance directly without aborting
-    primary_fungible_store::balance(derived_address, cap.lp_metadata)
-}
+        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+        if (!table::contains(&lp_caps.caps, vault_address)) {
+            return 0
+        };
+        let cap = table::borrow(&lp_caps.caps, vault_address);
 
-/// 🟢 2. Returns the user's Underlying Asset balance (e.g. QAUSD / QMON) in their shared storage
-#[view]
-public fun get_shared_underlying_balance(
-    shared: String, 
-    token: String
-): u64 {
-    let derived_address = Shared::return_shared_derived_address(shared);
-    if (derived_address == @0x0) {
-        return 0
-    };
-    
-    // Reconstructs underlying token metadata
-    let metadata = TokensCore::get_metadata(token);
-    primary_fungible_store::balance(derived_address, metadata)
-}
+        let derived_address = Shared::return_shared_derived_address(shared);
+        if (derived_address == @0x0) {
+            return 0
+        };
 
-/// 🟢 3. Combined View: Returns (LP_Shares, Underlying_Tokens) in one single call
-#[view]
-public fun get_all_shared_balances(
-    shared: String, 
-    token: String, 
-    chain: String, 
-    provider: String
-): (u64, u64) acquires GlobalLPCapabilities {
-    let lp_balance = get_shared_lp_balance(shared, token, chain, provider);
-    let underlying_balance = get_shared_underlying_balance(shared, token);
-    (lp_balance, underlying_balance)
-}
+        primary_fungible_store::balance(derived_address, cap.lp_metadata)
+    }
+
+    // 2. Returns the user's Underlying Asset balance (e.g. QAUSD / QMON) in their shared storage
+    #[view]
+    public fun get_shared_underlying_balance(
+        shared: String, 
+        token: String
+    ): u64 {
+        let derived_address = Shared::return_shared_derived_address(shared);
+        if (derived_address == @0x0) {
+            return 0
+        };
+        
+        let metadata = TokensCore::get_metadata(token);
+        primary_fungible_store::balance(derived_address, metadata)
+    }
+
+    // 3. Combined View: Returns (LP_Shares, Underlying_Tokens) in one single call
+    #[view]
+    public fun get_all_shared_balances(
+        shared: String, 
+        token: String, 
+        chain: String, 
+        provider: String
+    ): (u64, u64) acquires GlobalLPCapabilities {
+        let lp_balance = get_shared_lp_balance(shared, token, chain, provider);
+        let underlying_balance = get_shared_underlying_balance(shared, token);
+        (lp_balance, underlying_balance)
+    }
 
     public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
