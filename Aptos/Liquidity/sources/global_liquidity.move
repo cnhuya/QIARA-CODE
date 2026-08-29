@@ -280,7 +280,17 @@ public fun admin_accrue_rewards_from_lz(
     let yield_scaled = (yield as u256) * 1000000000000000000;
     vault.total_native_accumulated_rewards = vault.total_native_accumulated_rewards + yield_scaled;
 }
-    public fun claim_accumulated_fee_rewards(signer: &signer, shared: String, user: vector<u8>, token: String, chain: String, provider: String, user_shares: u256, user_last_fee_index: u128, _cap: Permission): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
+public fun claim_accumulated_fee_rewards(
+        signer: &signer, 
+        shared: String, 
+        user: vector<u8>, 
+        token: String, 
+        chain: String, 
+        provider: String, 
+        user_shares: u256, 
+        user_last_fee_index: u128, 
+        _cap: Permission
+    ): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let current_global_index = vault.accumulated_rewards_index;
@@ -298,16 +308,26 @@ public fun admin_accrue_rewards_from_lz(
             if (enoughLocked) {
                 Margin::add_credit(shared, user, pending_fee_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
             } else {
-                // divert AND fix accounting
-                let storage_address_string = non_user_storage_helper(signer, &vault.storage);
-                let forfeited_assets = TokensCore::withdraw(storage_address_string, vault.storage, (pending_fee_rewards as u64), chain);
-                // DEDUCT from accounting so get_total_assets() stays correct
-                if (pending_fee_rewards <= vault.total_accumulated_rewards) {
-                    vault.total_accumulated_rewards = vault.total_accumulated_rewards - pending_fee_rewards;
-                } else {
-                    vault.total_accumulated_rewards = 0;
+                // 🟢 FIX: Divide 1e18 scaled rewards down to u64 6-decimal units
+                let forfeited_u64 = (pending_fee_rewards / 1000000000000000000 as u64);
+                let vault_balance = fungible_asset::balance(vault.storage);
+                
+                // Clamp to available vault storage balance
+                if (forfeited_u64 > vault_balance) {
+                    forfeited_u64 = vault_balance;
                 };
-                primary_fungible_store::deposit(@dev, forfeited_assets);
+
+                if (forfeited_u64 > 0) {
+                    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
+                    let forfeited_assets = TokensCore::withdraw(storage_address_string, vault.storage, forfeited_u64, chain);
+                    
+                    if (pending_fee_rewards <= vault.total_accumulated_rewards) {
+                        vault.total_accumulated_rewards = vault.total_accumulated_rewards - pending_fee_rewards;
+                    } else {
+                        vault.total_accumulated_rewards = 0;
+                    };
+                    primary_fungible_store::deposit(@dev, forfeited_assets);
+                };
             }
         };
         current_global_index

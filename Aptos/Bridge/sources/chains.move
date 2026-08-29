@@ -356,7 +356,7 @@ module dev::QiaraBridgeV61{
                 let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
            //public fun c_bridge_withdraw(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64,permission: Permission) acquires Permissions {
             Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&borrow_global<Permissions>(@dev).market));
-                TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
+                //TokensCore::c_finalize_bridge(signer, symbol, chain, amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
                 TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain)); 
                 
                 let data = vector[

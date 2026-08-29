@@ -440,7 +440,7 @@ public fun c_bridge_withdraw(
     // 1. Burns LP shares and transfers net underlying tokens to user_shared_store
     Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
     Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-
+    //tttta(100);
     // 2. Withdraw the NET amount from user_shared_store and burn it (since tokens are bridged out)
     let net_amount_u64 = (amount_u256_taxed / 1000000000000000000 as u64);
     let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
@@ -449,12 +449,12 @@ public fun c_bridge_withdraw(
     let store_balance = fungible_asset::balance(user_shared_store);
     let burn_amount_u64 = if (store_balance < net_amount_u64 && store_balance > 0) { store_balance } else { net_amount_u64 };
     assert!(store_balance >= burn_amount_u64 && burn_amount_u64 > 0, ERROR_SHARED_STORE_INSUFFICIENT_BALANCE);
-
+     //tttta(1000);
     let fa = TokensCore::withdraw(shared, user_shared_store, burn_amount_u64, chain);
     TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-
+    // tttta(10000);
     let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
-
+    // tttta(100);
     let data = vector[
         Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
         Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
