@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV54 {
+module dev::QiaraProviderTypesV55 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -36,25 +36,25 @@ module dev::QiaraProviderTypesV54 {
         x_init(admin);
     }
 
-    fun x_init(signer: &signer) acquires Providers, ReverseProviders {
+fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         // === 1. Register Vaults ===
 
         // Robinhood Vaults
-        register_vault(signer, utf8(b"Morpho"), utf8(b"Robinhood"), utf8(b"0x3B0B67B3E6e5E33198285950CB0518cb18f069E4"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Robinhood"), utf8(b"0x19b5Df938a05F5487eA0e7E63E10a7a255B44a02"));
 
         // Monad Vaults
-        register_vault(signer, utf8(b"Curvance"), utf8(b"Monad"), utf8(b"0xFa1237dd9eCC34319ee73bC30CB1d2763c13377C"));
-        register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0xECD9c626565514Ea524e10fbB16E22cdED541C30"));
-        register_vault(signer, utf8(b"Morpho"), utf8(b"Monad"), utf8(b"0x5Fb40e61756A93085C2051dE2CBd8D5321239857"));
+        register_vault(signer, utf8(b"Curvance"), utf8(b"Monad"), utf8(b"0x06aeeba577402EBe1F098AFe970b58F8629D45f2"));
+        register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0x1a310274278De8Ccbe4A7Ea45C6AD37D487EbAe5"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Monad"), utf8(b"0xBFf73b9fBbDeFf3b0f9df22F4c74d70fA1A21f18"));
 
         // Ethereum (Sepolia) Vaults
-        register_vault(signer, utf8(b"Aave"), utf8(b"Ethereum"), utf8(b"0xA18526D54cb9778A16f1d27c0E03f62588a6B1eA"));
-        register_vault(signer, utf8(b"Morpho"), utf8(b"Ethereum"), utf8(b"0x11e5E72730Cf7dc0f9A6fD01266c0A2c5329fc4e"));
+        register_vault(signer, utf8(b"Aave"), utf8(b"Ethereum"), utf8(b"0xa4A1BF1C95636f0947AE0a4dEfDD340c75F47276"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Ethereum"), utf8(b"0x82840a7CBb3C449700827dCD22B064881f24704b"));
 
         // Base Vaults
-        register_vault(signer, utf8(b"Aave"), utf8(b"Base"), utf8(b"0xcC609edc2aB4b4373296a1F61F18B2b502d050Ca"));
-        register_vault(signer, utf8(b"Moonwell"), utf8(b"Base"), utf8(b"0x86D555771c6da5658079877b1e5286bba94F5c9F"));
-        register_vault(signer, utf8(b"Morpho"), utf8(b"Base"), utf8(b"0xbd3A54883B827e37f7a8f0959d013BE8ed11E63F"));
+        register_vault(signer, utf8(b"Aave"), utf8(b"Base"), utf8(b"0xEBD670327C17c295ed93414A2cf1fE6f9255938a"));
+        register_vault(signer, utf8(b"Moonwell"), utf8(b"Base"), utf8(b"0x7EfADeBa0c36c9e1b3e98C8b1D732F00976E7A78"));
+        register_vault(signer, utf8(b"Morpho"), utf8(b"Base"), utf8(b"0x202691E2d6E015de3760d56CfDc5d534EB53d326"));
 
         // Sui Vaults
         register_vault(signer, utf8(b"Suilend"), utf8(b"Sui"), utf8(b"0x974f50b56e30d9cd33d9dd962c10cffd6c6c088e4e6f9c16cbfc6c26b129f748"));

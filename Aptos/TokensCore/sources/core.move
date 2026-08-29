@@ -28,11 +28,11 @@ module dev::QiaraTokensCoreV54{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV53::{Self as Storages};
+    use dev::QiaraStoragesV54::{Self as Storages};
 
-    use dev::QiaraChainTypesV54::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV54::{Self as TokensType};
-    use dev::QiaraProviderTypesV54::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV55::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV55::{Self as TokensType};
+    use dev::QiaraProviderTypesV55::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 

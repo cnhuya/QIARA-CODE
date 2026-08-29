@@ -27,9 +27,9 @@ module dev::QiaraVaultsV79 {
     use dev::QiaraRIV57::{Self as RI};
     use dev::QiaraBurnedQiaraV57::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV54::{Self as TokensTypes};
-    use dev::QiaraChainTypesV54::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV54::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV55::{Self as TokensTypes};
+    use dev::QiaraChainTypesV55::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV55::{Self as ProviderTypes};
 
     use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV21::{Self as capabilities, Access as CapabilitiesAccess};
@@ -407,8 +407,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         };
         Event::emit_market_event(utf8(b"Bridge Unstake"), data);
     }
-    // Recipient needs to be address here, in case permissioneless user wants to withdraw to existing Supra wallet.
-public fun c_bridge_withdraw(
+  public fun c_bridge_withdraw(
     validator: &signer, 
     shared: String, 
     sender: vector<u8>, 
@@ -422,7 +421,7 @@ public fun c_bridge_withdraw(
 
     let amount_u256 = (amount as u256) * 1000000000000000000;
     
-    // 🟢 1. AUTO-NORMALIZE: If incoming amount came in as 18-decimal wei (> 10^29), scale it to 1e24
+    // Auto-normalize if 18-decimal wei
     if (amount_u256 > 100000000000000000000000000000) {
         amount_u256 = amount_u256 / 1000000000000;
     };
@@ -431,30 +430,32 @@ public fun c_bridge_withdraw(
   
     let gas_rate = Gas::add_withdraw(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
     
-    let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
-    if (amount_u256_taxed == 0) { return };
+    // 🟢 Use handle_withdrawal_fee (matches withdraw function):
+    let (gross_after_impact, fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
+    if (gross_after_impact == 0) { return };
+
+    let amount_u256_taxed = if (gross_after_impact > fee) { gross_after_impact - fee } else { gross_after_impact };
 
     Margin::update_reward_index(shared, sender, token, chain, provider, fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
-    Margin::remove_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+    Margin::remove_deposit(shared, sender, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
     // 1. Burns LP shares and transfers net underlying tokens to user_shared_store
     Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-    Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-    //tttta(100);
-    // 2. Withdraw the NET amount from user_shared_store and burn it (since tokens are bridged out)
+    Liquidity::remove_deposit(token, chain, provider, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+    // 2. Withdraw NET amount from user_shared_store and burn it
     let net_amount_u64 = (amount_u256_taxed / 1000000000000000000 as u64);
     let user_shared_store = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
     
-    // 🟢 2. SAFE BURN: Burn the exact net amount deposited into user_shared_store
     let store_balance = fungible_asset::balance(user_shared_store);
     let burn_amount_u64 = if (store_balance < net_amount_u64 && store_balance > 0) { store_balance } else { net_amount_u64 };
     assert!(store_balance >= burn_amount_u64 && burn_amount_u64 > 0, ERROR_SHARED_STORE_INSUFFICIENT_BALANCE);
-     //tttta(1000);
+
     let fa = TokensCore::withdraw(shared, user_shared_store, burn_amount_u64, chain);
     TokensCore::burn_fa(token, chain, fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).tokens_core));
-    // tttta(10000);
+
     let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
-    // tttta(100);
+
     let data = vector[
         Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
         Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
