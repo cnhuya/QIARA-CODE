@@ -97,6 +97,11 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         allow_tokens_for_provider(signer, utf8(b"Bluefin"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
     }
 
+    public entry fun reg_bluefin2(signer: &signer) acquires ReverseProviders, Providers {
+        register_vault(signer, utf8(b"suilend"), utf8(b"Sui"), utf8(b"0x1fae1eebf44d39547d256f2504a7fcac283873f8fffff3170265c041806ac36b"));
+        allow_tokens_for_provider(signer, utf8(b"suilend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
+    }
+
     // === ENTRY FUNCTIONS === //
 
     public entry fun register_vault(

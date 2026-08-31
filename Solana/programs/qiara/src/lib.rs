@@ -123,7 +123,7 @@ pub mod qiara {
         proof_points: Vec<u8>,
         signatures: Vec<Vec<u8>>,
     ) -> Result<()> {
-        // 1. Dynamic signature threshold and validity verification [2]
+        // 1. Dynamic signature threshold and validity verification
         verify_signatures_with_threshold(
             &ctx.accounts.validator_state,
             &ctx.accounts.registry,
@@ -131,8 +131,8 @@ pub mod qiara {
             &public_inputs,
         )?;
 
-        // 2. Verify ZK Balance Proof
-        let is_valid = verifier::verify_proof_with_vk::<6>(verifier::BALANCE_RAW_VK, &public_inputs, &proof_points)?;
+        // 2. 🟢 Verify ZK Balance Proof with precomputed BALANCE_VK (Low CU)
+        let is_valid = verifier::verify_balance_proof(&public_inputs, &proof_points)?;
         require!(is_valid, QiaraError::InvalidProof);
 
         Ok(())
@@ -219,7 +219,7 @@ pub struct ValidatorState {
 #[derive(Accounts)]
 pub struct VerifyBalanceProof<'info> {
     pub validator_state: Account<'info, ValidatorState>,
-    pub registry: Account<'info, Registry>, // 👈 Added Registry to fetch threshold dynamically
+    pub registry: Account<'info, Registry>,
 }
 
 #[derive(Accounts)]

@@ -378,7 +378,7 @@ public fun claim_accumulated_fee_rewards(
     shares_fa
 }
  /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-    public fun withdraw_token(
+public fun withdraw_token(
         signer: &signer,
         shared: String, 
         token: String, 
@@ -392,11 +392,18 @@ public fun claim_accumulated_fee_rewards(
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        // 🟢 AUTO-NORMALIZE: If amount came in as 18-decimal wei (producing > 10^29), scale it to 1e24
+        // 🟢 AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it by 10^18
+        if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
+            raw_scaled = raw_scaled * 1000000000000000000;
+            net_scaled = net_scaled * 1000000000000000000;
+        };
+
+        // 🟢 AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
         if (raw_scaled > 100000000000000000000000000000) {
             raw_scaled = raw_scaled / 1000000000000;
             net_scaled = net_scaled / 1000000000000;
         };
+
 
         internal_daily_withdraw_limit(token, vault, raw_scaled);
 
@@ -470,7 +477,6 @@ public fun claim_accumulated_fee_rewards(
         let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
         TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
     }
-    
     // ========================================================================
     // 🔍 SIMULATION & PREVIEW VIEW FUNCTION
     // ========================================================================

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-
+use anchor_lang::solana_program::keccak; // 👈 Make sure keccak is imported
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct UnpackedTx {
     pub chain_id: u64,
@@ -63,6 +63,20 @@ pub fn extract_validator_pubkey(inputs: &[u8]) -> Result<Vec<u8>> {
 pub fn extract_validator_is_removal(inputs: &[u8]) -> Result<bool> {
     let chunk_2 = extract_chunk(inputs, 2)?;
     Ok((chunk_2[2] & 1) == 1)
+}
+
+pub fn build_nullifier(inputs: &[u8]) -> Result<[u8; 32]> {
+    if inputs.len() < 192 {
+        return err!(crate::QiaraError::InvalidInputLength);
+    }
+    let mut data = Vec::new();
+    for i in 0..6 {
+        let chunk_le = extract_chunk(inputs, i)?;
+        let mut chunk_be = chunk_le;
+        chunk_be.reverse();
+        data.extend_from_slice(&chunk_be);
+    }
+    Ok(keccak::hash(&data).to_bytes())
 }
 
 pub fn extract_all_tx_data(inputs: &[u8]) -> Result<UnpackedTx> {

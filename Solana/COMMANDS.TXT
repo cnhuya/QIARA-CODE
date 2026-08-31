@@ -2,7 +2,7 @@ solana address -k ~/solana/target/deploy/unified_faucet-keypair.json
 
 cp /home/kristian/solana/target/idl/qiara.json /mnt/x/project/QIARA-CODE/Solana/target/idl/qiara.json
 
- solana program close HtMeWHq5oJXffnZsXpUZDE1qQUiKXTnv4hm4eHAuz7Lw --url devnet --bypass-warning
+ solana program close Hizwe4dTZi28tMYYLr8VshHjC4D3mz9MH16dB5GjUQy --url devnet --bypass-warning
 
  solana program deploy target/deploy/vault.so --program-id 9zRATq1yXiQK7tMtFazWHKDP8hy3MHoCXdTDRivv2y6E -u devnet
 

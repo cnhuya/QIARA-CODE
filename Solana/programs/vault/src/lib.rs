@@ -2,12 +2,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-// Import the core Qiara State program
 use qiara::program::Qiara;
 
 pub mod extractor;
-//AGfiBehJcHhXEspoCSQJ8kterZxSgMspmoaxhKxLgn2y
-declare_id!("4r8fpddV65nBCZ3XQkLVubEbu6iHXpuqAPn4feke3Sd6");
+
+declare_id!("D6iMB9yKeXCqG1ERpa5ts9AVXZ2CnMfL2pfUbthT7Af8");
 
 const MIN_RATE: u64 = 2_750_000;
 const MAX_RATE: u64 = 11_275_000;
@@ -56,10 +55,10 @@ pub mod vault {
         Ok(())
     }
 
-    pub fn deposit(
+   pub fn deposit(
         ctx: Context<DepositYieldToken>,
         shared: String,
-        _token_name: String,
+        token_name: String, // 🟢 Removed the underscore
         amount: u64,
     ) -> Result<()> {
         let user_state = &mut ctx.accounts.user_state;
@@ -87,7 +86,7 @@ pub mod vault {
         let data = vec![
             Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
             Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
-            Data { name: "token".to_string(), type_name: "string".to_string(), value: "Solana".as_bytes().to_vec() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() }, // 🟢 Uses token_name dynamically
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
             Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
             Data { name: "rate".to_string(), type_name: "u64".to_string(), value: rate.to_le_bytes().to_vec() },
@@ -102,6 +101,7 @@ pub mod vault {
         Ok(())
     }
 
+    // 🟢 PURE CROSS-CHAIN ZK DIRECT WITHDRAW: Allows anyone with valid proof to withdraw directly
     pub fn direct_withdraw(
         ctx: Context<DirectWithdrawYieldToken>,
         _shared: String,
@@ -111,11 +111,10 @@ pub mod vault {
         proof_points: Vec<u8>,
         signatures: Vec<Vec<u8>>,
     ) -> Result<()> {
-
-        let expected_nullifier = anchor_lang::solana_program::keccak::hash(&public_inputs).to_bytes();
+        let expected_nullifier = extractor::build_nullifier(&public_inputs)?;
         require!(nullifier_bytes == expected_nullifier, QiaraError::InvalidProof);
 
-        // 1. CPI Call to Qiara Program to verify ZK proof & validator signatures
+        // 1. CPI Call to Qiara Program to verify ZK proof & validator threshold signatures
         let cpi_accounts = qiara::cpi::accounts::VerifyBalanceProof {
             validator_state: ctx.accounts.validator_state.to_account_info(),
             registry: ctx.accounts.registry.to_account_info(),
@@ -123,10 +122,10 @@ pub mod vault {
         let cpi_ctx = CpiContext::new(ctx.accounts.verifier_program.to_account_info(), cpi_accounts);
         qiara::cpi::verify_balance_proof(cpi_ctx, public_inputs.clone(), proof_points, signatures)?;
 
-        // 2. Mark Nullifier as Used (prevent replay)
+        // 2. Mark Nullifier as Used (prevent replay attacks)
         ctx.accounts.nullifier_record.is_used = true;
 
-        // 3. Extract verified data
+        // 3. Extract and verify data from ZK public inputs
         let user_address = extractor::extract_user_address(&public_inputs)?;
         let tx_data = extractor::extract_all_tx_data(&public_inputs)?;
         let proof_provider_name = extractor::extract_provider(&public_inputs)?;
@@ -134,20 +133,9 @@ pub mod vault {
         require!(ctx.accounts.vault.provider_name == proof_provider_name, QiaraError::WrongProviderProvided);
         require!(ctx.accounts.user.key() == user_address, QiaraError::NotValidator);
 
-        // 4. Yield accounting
-        let user_state = &mut ctx.accounts.user_state;
-        let rate = get_pseudo_random_rate(&ctx.accounts.user.key())?;
-        let rewards = accrue_user_yield(user_state, rate)?;
-
-        let total_available = user_state.balance.checked_add(rewards).unwrap();
         let amount = tx_data.amount;
-        require!(total_available >= amount, QiaraError::InsufficientBalance);
 
-        let clock = Clock::get()?;
-        user_state.balance = total_available.checked_sub(amount).unwrap();
-        user_state.last_interacted_timestamp = clock.unix_timestamp;
-
-        // 5. Transfer tokens directly from Vault PDA to User ATA
+        // 4. Transfer tokens directly from Vault PDA to User ATA (Paid from Vault liquidity reserve)
         let provider_name_bytes = ctx.accounts.vault.provider_name.as_bytes();
         let vault_bump = ctx.accounts.vault.bump;
         let seeds = &[
@@ -166,18 +154,40 @@ pub mod vault {
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
         token::transfer(cpi_ctx, amount)?;
 
-        // 6. Emit event
+        // 5. Emit event
         let data = vec![
             Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
             Data { name: "user".to_string(), type_name: "address".to_string(), value: user_address.to_bytes().to_vec() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: proof_provider_name.into_bytes() },
             Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
-            Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: rewards.to_le_bytes().to_vec() },
+            Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: 0u64.to_le_bytes().to_vec() },
         ];
 
         emit!(VaultEvent {
             name: "DirectWithdraw".to_string(),
+            aux: data,
+        });
+
+        Ok(())
+    }
+
+    pub fn m_withdraw(
+        ctx: Context<ModularWithdraw>,
+        shared: String,
+        token_name: String,
+        amount: u64,
+    ) -> Result<()> {
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+        ];
+
+        emit!(VaultEvent {
+            name: "Modular Withdraw".to_string(),
             aux: data,
         });
 
@@ -320,6 +330,11 @@ pub struct SupportedToken {
     pub is_supported: bool,
 }
 
+#[account]
+pub struct NullifierRecord {
+    pub is_used: bool,
+}
+
 // ==========================================
 // CONTEXTS
 // ==========================================
@@ -371,7 +386,7 @@ pub struct DepositYieldToken<'info> {
         init_if_needed,
         payer = payer,
         space = 8 + 8 + 8,
-        seeds = [b"user-state", payer.key().as_ref(), shared.as_bytes()],
+        seeds = [b"user-state", payer.key().as_ref(), vault.key().as_ref()],
         bump
     )]
     pub user_state: Account<'info, UserState>,
@@ -400,21 +415,14 @@ pub struct DepositYieldToken<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(shared: String, nullifier_bytes: [u8; 32])]
+#[instruction(_shared: String, nullifier_bytes: [u8; 32])]
 pub struct DirectWithdrawYieldToken<'info> {
     #[account(mut)]
     pub payer: Signer<'info>, // Can be user or relayer paying gas
 
-    /// CHECK: User receiving the tokens
+    /// CHECK: User receiving the tokens verified by ZK proof
     #[account(mut)]
     pub user: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"user-state", user.key().as_ref(), shared.as_bytes()],
-        bump
-    )]
-    pub user_state: Account<'info, UserState>,
 
     #[account(
         mut,
@@ -429,7 +437,7 @@ pub struct DirectWithdrawYieldToken<'info> {
     )]
     pub supported_token: Account<'info, SupportedToken>,
 
-    // 👈 Replay attack protection: Creates PDA on first use, fails if already exists
+    // Replay attack protection PDA: created on first use, fails if already exists
     #[account(
         init,
         payer = payer,
@@ -454,9 +462,25 @@ pub struct DirectWithdrawYieldToken<'info> {
     pub verifier_program: Program<'info, Qiara>,
 }
 
-#[account]
-pub struct NullifierRecord {
-    pub is_used: bool,
+#[derive(Accounts)]
+#[instruction(shared: String)]
+pub struct ModularWithdraw<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(
+        seeds = [b"vault", vault.provider_name.as_bytes()],
+        bump = vault.bump
+    )]
+    pub vault: Account<'info, Vault>,
+
+    #[account(
+        seeds = [b"supported-token", vault.key().as_ref(), user_ata.mint.as_ref()],
+        bump
+    )]
+    pub supported_token: Account<'info, SupportedToken>,
+
+    pub user_ata: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
@@ -567,7 +591,6 @@ pub fn accrue_user_yield(user_state: &UserState, rate: u64) -> Result<u64> {
     if user_state.balance > 0 && current_time_seconds > user_state.last_interacted_timestamp {
         let elapsed = current_time_seconds - user_state.last_interacted_timestamp;
         let scale: u128 = 100_000_000;
-        // Updated to 3,600 (1 hour in seconds) for testing yield hourly
         let seconds_per_hour: u128 = 3_600;
         let calculated_rewards = ((user_state.balance as u128) * (rate as u128) * (elapsed as u128)) / (scale * seconds_per_hour);
         rewards = calculated_rewards as u64;
@@ -597,26 +620,6 @@ pub struct TokenListed {
     pub vault: Pubkey,
     pub token_mint: Pubkey,
     pub provider_name: String,
-}
-
-#[event]
-pub struct DepositEvent {
-    pub sender: Pubkey,
-    pub shared: String,
-    pub token: String,
-    pub provider: String,
-    pub amount: u64,
-    pub rate: u64,
-    pub rewards: u64,
-}
-
-#[event]
-pub struct DirectWithdrawEvent {
-    pub addr: Pubkey,
-    pub token: String,
-    pub provider: String,
-    pub amount: u64,
-    pub rewards: u64,
 }
 
 #[error_code]
