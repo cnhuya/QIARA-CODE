@@ -378,7 +378,7 @@ public fun claim_accumulated_fee_rewards(
     shares_fa
 }
  /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-public fun withdraw_token(
+    public fun withdraw_token(
         signer: &signer,
         shared: String, 
         token: String, 
@@ -392,18 +392,17 @@ public fun withdraw_token(
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        // 🟢 AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it by 10^18
+        // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it to 1e18
         if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
             raw_scaled = raw_scaled * 1000000000000000000;
             net_scaled = net_scaled * 1000000000000000000;
         };
 
-        // 🟢 AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
+        // 🟢 2. AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
         if (raw_scaled > 100000000000000000000000000000) {
             raw_scaled = raw_scaled / 1000000000000;
             net_scaled = net_scaled / 1000000000000;
         };
-
 
         internal_daily_withdraw_limit(token, vault, raw_scaled);
 
@@ -430,12 +429,12 @@ public fun withdraw_token(
         let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
         let cap = table::borrow(&lp_caps.caps, vault_address);
 
-        // 3. Fetch Shared Storage Signer and LP Store
+        // 3. 🟢 Fetch Shared Storage Signer and Primary Store Balance
         let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
         let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
-        let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
+        let derived_address = Shared::return_shared_derived_address(shared);
 
-        let user_lp_balance = fungible_asset::balance(shared_lp_store);
+        let user_lp_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
         assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
 
         // 4. Tolerance & Safety Clamps
@@ -457,8 +456,8 @@ public fun withdraw_token(
         assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
         assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        // 5. Burn LP Shares & Update Vault Accounting
-        let shares_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64);
+        // 5. 🟢 Burn LP Shares from Primary Store
+        let shares_fa = primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64);
         fungible_asset::burn(&cap.burn_ref, shares_fa);
         
         if (shares_to_burn_scaled <= vault.total_shares) {
