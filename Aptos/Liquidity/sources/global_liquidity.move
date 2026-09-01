@@ -406,7 +406,7 @@ public fun claim_accumulated_fee_rewards(
         };
 
         internal_daily_withdraw_limit(token, vault, raw_scaled);
-
+ //tttta(10);
         let total_assets = get_total_assets(vault);
         let total_shares = vault.total_shares;
 
@@ -429,7 +429,7 @@ public fun claim_accumulated_fee_rewards(
 
         let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
         let cap = table::borrow(&lp_caps.caps, vault_address);
-
+        tttta(1);
         // 3. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
         let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
         let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
@@ -460,7 +460,7 @@ public fun claim_accumulated_fee_rewards(
 
         assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
         assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
-
+ tttta(100);
         // 5. 🟢 Burn LP Shares from whichever store holds them
         let shares_fa = if (primary_balance >= shares_to_burn_u64) {
             primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64)
