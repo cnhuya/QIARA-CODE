@@ -133,7 +133,7 @@ module dev::QiaraTokensCoreV56{
 // === ENTRY FUNCTIONS === //
     public entry fun inits(admin: &signer){  
          //        tttta(0);
-        init_token(admin, utf8(b"Ethereum"), utf8(b"QETH"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ethereum.webp"), 18, 1_438_269_983, x"ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", 1, 120_688_129, 120_688_129, 120_688_129, 1);
+        init_token(admin, utf8(b"Ethereum"), utf8(b"QETH"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ethereum.webp"), 1_438_269_983, x"ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", 1, 120_688_129, 120_688_129, 120_688_129, 1);
         init_token(admin, utf8(b"Bitcoin"), utf8(b"QBTC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/bitcoin.webp"), 1_231_006_505, x"e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43", 1, 21_000_000, 20_049_815 , 20_049_815 , 1);
            //      tttta(1);
         init_token(admin, utf8(b"Monad"), utf8(b"QMON"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/monad.webp"), 1_584_316_800, x"31491744e2dbf6df7fcf4ac0820d18a609b49076d45066d3568424e62f686cd1", 0, 114_166_666_695, 11_825_165_000 , 100_682_925_000 , 1);
@@ -148,9 +148,8 @@ module dev::QiaraTokensCoreV56{
 
         init_token(admin, utf8(b"AUSD"), utf8(b"QAUSD"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ausd.webp"), 0, x"d9912df360b5b7f21a122f15bdd5e27f62ce5e72bd316c291f7c86620e07fb2a",0, 175_036_043, 175_036_043, 175_036_043, 255);
         init_token(admin, utf8(b"earnAUSD"), utf8(b"QearnAUSD"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/earnAUSD.webp"), 0, x"d9912df360b5b7f21a122f15bdd5e27f62ce5e72bd316c291f7c86620e07fb2a", 0,21_460_730, 21_460_730, 21_460_730, 254);
-        init_token(admin, utf8(b"USDT0"), utf8(b"QUSDT0"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdt0.webp"), 0, x"cfc1303ea9f083b1b4f99e1369fb9d2611f3230d5ea33a6abf2f86071c089fdc",0, 4_064_676_256 , 4_064_676_256 , 4_064_676_256 , 255);
         init_token(admin, utf8(b"USDG"), utf8(b"QUSDG"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdg.webp"), 0, x"daa58c6a3ce7d4b9c46c32a6e646012c17c4a2b24c08dd8c5e476118b855a7da",0, 3_160_971_119 , 3_160_971_119 , 3_160_971_119 , 254);
-        init_token(admin, utf8(b"syrupUSDC"), utf8(b"QsyrupUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/syrupusdc.webp"), 0, x"e616297dab48626eaacf6d030717b25823b13ae6520b83f4735bf8deec8e2c9a", 0,1_346_218_727 , 1_346_218_727 , 1_346_218_727 , 254);
+
         init_token(admin, utf8(b"Solana"), utf8(b"QSOL"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/solana.webp"), 1_584_368_940, x"ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",0, 630_357_702 , 582_409_722 , 630_357_702 , 1);
         init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 1_700_611_200, x"c811abc82b4bad1f9bd711a2773ccaa935b03ecef974236942cec5e0eb845a3a",0, 225_851_161, 225_851_161, 225_851_161, 1);
         init_token(admin, utf8(b"Deepbook"), utf8(b"QDEEP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/deepbook.webp"),  1_683_072_000, x"29bdd5248234e33bd93d3b81100b5fa32eaa5997843847e2c2cb16d7c6d9f7ff",0, 10_000_000_000, 5_469_776_910, 10_000_000_000, 1);
@@ -222,7 +221,7 @@ module dev::QiaraTokensCoreV56{
 
 
 
-    fun init_token(admin: &signer, name: String, symbol: String, icon: String,  native_decimals: u8, creation: u64,oracleID: vector<u8>, deflation_tier:u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable:u8 ){
+    fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: vector<u8>, deflation_tier:u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable:u8 ){
         let constructor_ref = &object::create_named_object(admin, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name))); // Ethereum -> Qiara31 Ethereum
              //   tttta(10);
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
@@ -274,7 +273,7 @@ module dev::QiaraTokensCoreV56{
         );
    
         move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
-        TokensMetadata::create_metadata(admin, name, native_decimals, creation, deflation_tier, oracleID, max_supply, circulating_supply, total_supply, stable);
+        TokensMetadata::create_metadata(admin, name, creation, deflation_tier, oracleID, max_supply, circulating_supply, total_supply, stable);
         if(symbol == utf8(b"QIARA")){
             TokensQiara::init_qiara(admin);
         }

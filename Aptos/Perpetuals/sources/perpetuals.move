@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV48 {
+module dev::QiaraPerpsV49 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -15,10 +15,10 @@ module dev::QiaraPerpsV48 {
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV80::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV81::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV76::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV76::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV77::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV77::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};
@@ -28,7 +28,7 @@ module dev::QiaraPerpsV48 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV48::{Self as Orders};
+    use dev::QiaraPerpsOrdersV49::{Self as Orders};
 
 
 // === ERRORS === //
