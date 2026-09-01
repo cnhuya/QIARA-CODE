@@ -1,17 +1,18 @@
-module dev::QiaraOracleV7 {
-    use std::string::{Self, String, utf8};
+module dev::QiaraOracleV8 {
+    use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
     use std::signer;
-    use std::timestamp;
-    use pyth::pyth;
-    use pyth::price;
-    use pyth::price::Price;
-    use pyth::price_identifier;
-    use pyth::i64;
-    use aptos_framework::coin;
-    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_std::from_bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
+    
+    use aptos_framework::object::{Self, Object};
+    use aptos_framework::aptos_coin::AptosCoin;
+
+    use switchboard::aggregator::{Self, Aggregator, CurrentResult};
+    use switchboard::decimal::{Self, Decimal};
+    use switchboard::update_action;
+
     use event::QiaraEventV1::{Self as Event};
 
 // === ERRORS === //
@@ -24,7 +25,7 @@ module dev::QiaraOracleV7 {
     const E_FEED_ID_EMPTY: u64 = 6;
 
 // === CONSTANTS === //
-    const MAX_AGE_SECS: u64 = 60;
+    const SWITCHBOARD_DECIMALS: u8 = 18;
     
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -35,14 +36,14 @@ module dev::QiaraOracleV7 {
         Access {}
     }
 
-    public fun give_permission(access: &Access): Permission {
+    public fun give_permission(_access: &Access): Permission {
         Permission {}
     }
 
 // === STRUCTS === //
     struct Prices has key {
         map: Map<String, Integer>,            // Token Symbol -> Impact Integer
-        prices: Map<vector<u8>, PriceStore>,  // Pyth Feed ID -> PriceStore
+        prices: Map<vector<u8>, PriceStore>,  // Switchboard Feed ID -> PriceStore
     }
 
     struct Integer has drop, key, store, copy {
@@ -52,14 +53,14 @@ module dev::QiaraOracleV7 {
     }
 
     struct PriceStore has key, store, drop, copy {
-        price:        i64::I64,
-        expo:         i64::I64,
+        price:        u128,
+        decimals:     u8,
         publish_time: u64,
     }
 
 // === INIT === //
     fun init_module(admin: &signer) {
-        assert!(signer::address_of(admin) == @dev, 1);
+        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
         if (!exists<Prices>(@dev)) {
             move_to(admin, Prices { 
@@ -71,7 +72,11 @@ module dev::QiaraOracleV7 {
 
 // === HELPER METHODS === //
 
-    // Scans the active impact map to resolve which token symbol is tied to a Pyth feed ID
+    fun bytes_to_address(feed_id_bytes: &vector<u8>): address {
+        assert!(vector::length(feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        from_bcs::to_address(*feed_id_bytes)
+    }
+
     fun find_token_name_by_oracle_id(prices: &Prices, oracleID: &vector<u8>): (bool, String) {
         let keys = map::keys(&prices.map);
         let len = vector::length(&keys);
@@ -89,7 +94,7 @@ module dev::QiaraOracleV7 {
 
 // === UPDATE METHODS === //
 
-    public entry fun ensure_pyth_feed_new(token: String, feed_id_bytes: vector<u8>) acquires Prices {
+    public entry fun ensure_switchboard_feed_new(token: String, feed_id_bytes: vector<u8>) acquires Prices {
         let prices = borrow_global_mut<Prices>(@dev);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
         if (!map::contains_key(&prices.map, &token)) {
@@ -97,94 +102,93 @@ module dev::QiaraOracleV7 {
         };
     }
 
-    public entry fun ensure_pyth_feed( feed_id_bytes: vector<u8>) acquires Prices {
+    public entry fun ensure_switchboard_feed(feed_id_bytes: vector<u8>) acquires Prices {
         let prices = borrow_global_mut<Prices>(@dev);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
         if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
-            map::upsert(&mut prices.prices, feed_id_bytes, PriceStore { price: i64::new(0, false), expo: i64::new(0, false), publish_time: 0 });
+            map::upsert(&mut prices.prices, feed_id_bytes, PriceStore { price: 0, decimals: 0, publish_time: 0 });
         };
     }
 
-    // Updates the Pyth price cache and emits the old and new full combined prices (taking impact into account)
-    public entry fun update_price(user: &signer,price_update_data: vector<vector<u8>>,feed_id_bytes: vector<u8>,) acquires Prices {
+    // Updates the Switchboard price cache and emits the old and new full combined prices
+    public entry fun update_price(
+        user: &signer,
+        switchboard_update_data: vector<vector<u8>>,
+        feed_id_bytes: vector<u8>,
+    ) acquires Prices {
         assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
 
+        // 1. Submit on-chain Switchboard update action if update data is provided
+        if (vector::length(&switchboard_update_data) > 0) {
+            update_action::run<AptosCoin>(user, switchboard_update_data);
+        };
+
+        // 2. Read the latest aggregated value from the Switchboard aggregator object
+        let feed_addr = bytes_to_address(&feed_id_bytes);
+        let agg_obj: Object<Aggregator> = object::address_to_object<Aggregator>(feed_addr);
+        let current_result: CurrentResult = aggregator::current_result(agg_obj);
+        let result_decimal: Decimal = aggregator::result(&current_result);
+        
+        let (raw_val, _neg) = decimal::unpack(result_decimal);
+        let timestamp = aggregator::timestamp(&current_result);
+
         let old_price_store = get_price(feed_id_bytes);
 
-        let fee = pyth::get_update_fee(&price_update_data);
-        let coins = coin::withdraw<AptosCoin>(user, fee);
-        pyth::update_price_feeds(price_update_data, coins);
-
-        let price_id = price_identifier::from_byte_vec(feed_id_bytes);
-        let p: Price = pyth::get_price_no_older_than(price_id, MAX_AGE_SECS);
-
-        let raw = price::get_price(&p);
-        assert!(!i64::get_is_negative(&raw), E_NEGATIVE_PRICE);
-
         let new_store = PriceStore {
-            price: raw,
-            expo: price::get_expo(&p),
-            publish_time: price::get_timestamp(&p),
+            price: raw_val,
+            decimals: SWITCHBOARD_DECIMALS,
+            publish_time: timestamp,
         };
 
         let token_name;
         let found;
-        let old_raw_price;
-        let new_raw_price;
+        let old_raw_price = (old_price_store.price as u256);
+        let new_raw_price = (new_store.price as u256);
         let qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
 
-        // Isolate the mutable borrow of Prices to prevent any acquires conflicts
+        // 3. Update local cache table
         {
             let prices = borrow_global_mut<Prices>(@dev);
-            
-            old_raw_price = i64::get_magnitude_if_positive(&old_price_store.price);
-            new_raw_price = i64::get_magnitude_if_positive(&new_store.price);
 
-            // Update the cached Pyth price inside our unified prices map
             if (map::contains_key(&prices.prices, &feed_id_bytes)) {
                 *map::borrow_mut(&mut prices.prices, &feed_id_bytes) = new_store;
             } else {
                 map::add(&mut prices.prices, feed_id_bytes, new_store);
             };
 
-            // Determine if this feed is associated with any token to calculate the combined price
             let (f, name) = find_token_name_by_oracle_id(prices, &feed_id_bytes);
             found = f;
             token_name = name;
 
             if (f) {
-                // Copy the Integer struct out of global storage using the dereference operator (*)
                 qiara_impact = *map::borrow(&prices.map, &token_name);
             };
-        }; // <-- The borrow on `Prices` is completely released here
+        };
 
-        // Initialize old and new combined prices with their raw Pyth values
-        let old_combined_price: u256 = (old_raw_price as u256);
-        let new_combined_price: u256 = (new_raw_price as u256);
+        // 4. Calculate impact-combined prices
+        let old_combined_price: u256 = old_raw_price;
+        let new_combined_price: u256 = new_raw_price;
 
-        // If the oracle feed is bound to an active token symbol, integrate the stored impact [2]
         if (found) {
             if (token_name != utf8(b"Qiara")) {
-                // Calculate old combined price
                 if (qiara_impact.isPositive) {
-                    old_combined_price = (old_raw_price as u256) + qiara_impact.value;
+                    old_combined_price = old_raw_price + qiara_impact.value;
                 } else {
-                    if (qiara_impact.value >= (old_raw_price as u256)) {
+                    if (qiara_impact.value >= old_raw_price) {
                         old_combined_price = 1;
                     } else {
-                        old_combined_price = (old_raw_price as u256) - qiara_impact.value;
+                        old_combined_price = old_raw_price - qiara_impact.value;
                     }
                 };
 
-                // Calculate new combined price
                 if (qiara_impact.isPositive) {
-                    new_combined_price = (new_raw_price as u256) + qiara_impact.value;
+                    new_combined_price = new_raw_price + qiara_impact.value;
                 } else {
-                    if (qiara_impact.value >= (new_raw_price as u256)) {
+                    if (qiara_impact.value >= new_raw_price) {
                         new_combined_price = 1;
                     } else {
-                        new_combined_price = (new_raw_price as u256) - qiara_impact.value;
+                        new_combined_price = new_raw_price - qiara_impact.value;
                     }
                 };
             }
@@ -198,20 +202,32 @@ module dev::QiaraOracleV7 {
         Event::emit_oracle_event(utf8(b"Price Update"), data);
     }
 
-    public entry fun batch_update_price(user: &signer,price_update_data: vector<vector<vector<u8>>>,feed_id_bytes: vector<vector<u8>>,) acquires Prices {
-        let len = vector::length(&price_update_data);
-        while(len > 0){
-            update_price(user, price_update_data[len-1], feed_id_bytes[len-1]);
+    public entry fun batch_update_price(
+        user: &signer,
+        price_update_data: vector<vector<u8>>,
+        feed_id_bytes: vector<vector<u8>>,
+    ) acquires Prices {
+        // Run the combined update action once for all proofs
+        if (vector::length(&price_update_data) > 0) {
+            update_action::run<AptosCoin>(user, price_update_data);
+        };
+
+        let len = vector::length(&feed_id_bytes);
+        while (len > 0) {
+            let feed_bytes = *vector::borrow(&feed_id_bytes, len - 1);
+            update_price(user, vector::empty<vector<u8>>(), feed_bytes);
             len = len - 1;
         };
     }
 
-    fun tttta(id: u64){
-        abort(id);
-    }
-
-    public fun impact_price(name: String, oracleID: vector<u8>, impact: u256, isPositive: bool, native_oracle_weight: u256, perm: Permission): u256 acquires Prices {
-   // tttta(0);
+    public fun impact_price(
+        name: String, 
+        oracleID: vector<u8>, 
+        impact: u256, 
+        isPositive: bool, 
+        native_oracle_weight: u256, 
+        _perm: Permission
+    ): u256 acquires Prices {
         let (supra_oracle_price, _,) = get_raw_price(oracleID);
         let price;
         {
@@ -219,7 +235,6 @@ module dev::QiaraOracleV7 {
             price = ensure_price(prices_storage, name, oracleID);
         }
 
-        // Scaling impact
         let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
         if (scaled_impact == 0) { return 0 };
         let old_price_state;
@@ -228,7 +243,6 @@ module dev::QiaraOracleV7 {
         let final_price_is_positive;
 
         {
-            
             old_price_state = *price;
 
             if (isPositive) {
@@ -273,14 +287,14 @@ module dev::QiaraOracleV7 {
 
         let a = calculate_impact_percentage((supra_oracle_price as u256), final_price_value, final_price_is_positive);
 
-        return a / 1_000_000
+        a / 1_000_000
     }
 
-    fun ensure_price(prices: &mut Prices, name: String, oracleID: vector<u8>): &mut Integer{
+    fun ensure_price(prices: &mut Prices, name: String, oracleID: vector<u8>): &mut Integer {
         if (!map::contains_key(&prices.map, &name)) {
-            map::upsert(&mut prices.map, name, Integer { oracleID: oracleID, value: 0, isPositive: true });
+            map::upsert(&mut prices.map, name, Integer { oracleID, value: 0, isPositive: true });
         };
-        return map::borrow_mut(&mut prices.map, &name)
+        map::borrow_mut(&mut prices.map, &name)
     }
 
     public entry fun test_ensure_price(name: String, oracleID: vector<u8>) acquires Prices {
@@ -290,39 +304,38 @@ module dev::QiaraOracleV7 {
 // === VIEW METHODS === //
 
     #[view]
-    public fun convert_to_usd(name: String, size: u256): u256 acquires Prices{
+    public fun convert_to_usd(name: String, size: u256): u256 acquires Prices {
         let price = viewPrice(name);
-        return (price * size) / 1000000000000000000
+        (price * size) / 1000000000000000000
     }
 
     #[view]
-    public fun convert_to_token(name: String, usd: u256): u256 acquires Prices{
+    public fun convert_to_token(name: String, usd: u256): u256 acquires Prices {
         let price = viewPrice(name);
-        return (usd * 1000000000000000000) / price
+        (usd * 1000000000000000000) / price
     }
 
     #[view]
-    public fun convert_to_usd_safe(name: String, oracleID: vector<u8>, size: u256): u256 acquires Prices{
+    public fun convert_to_usd_safe(name: String, oracleID: vector<u8>, size: u256): u256 acquires Prices {
         let price = viewPrice_safe(name, oracleID);
-        return (price * size) / 1000000000000000000
+        (price * size) / 1000000000000000000
     }
 
     #[view]
-    public fun convert_to_token_safe(name: String, oracleID: vector<u8>, usd: u256): u256 acquires Prices{
+    public fun convert_to_token_safe(name: String, oracleID: vector<u8>, size: u256): u256 acquires Prices {
         let price = viewPrice_safe(name, oracleID);
-        return (usd * 1000000000000000000) / price
+        (size * 1000000000000000000) / price
     }
 
     #[view]
-    public fun viewAllPrices(name: String): Map<String, Integer> acquires Prices{
+    public fun viewAllPrices(): Map<String, Integer> acquires Prices {
         *&borrow_global<Prices>(@dev).map
     }
 
     #[view]
-    public fun viewAllAllPrices(): Map<vector<u8>, PriceStore> acquires Prices{
+    public fun viewAllAllPrices(): Map<vector<u8>, PriceStore> acquires Prices {
         *&borrow_global<Prices>(@dev).prices
     }
-
 
     #[view]
     public fun get_price(feed_id_bytes: vector<u8>): PriceStore acquires Prices {
@@ -330,7 +343,7 @@ module dev::QiaraOracleV7 {
         let prices = borrow_global<Prices>(@dev);
 
         if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
-            PriceStore { price: i64::new(0, false), expo: i64::new(0, false), publish_time: 0 }
+            PriceStore { price: 0, decimals: 0, publish_time: 0 }
         } else {
             *map::borrow(&prices.prices, &feed_id_bytes)
         }
@@ -346,33 +359,19 @@ module dev::QiaraOracleV7 {
         };
 
         let cached_price = map::borrow(&prices.prices, &feed_id_bytes);
-
-        let expo_mag: u64 = if (i64::get_is_negative(&cached_price.expo)) {
-            i64::get_magnitude_if_negative(&cached_price.expo)
-        } else {
-            i64::get_magnitude_if_positive(&cached_price.expo)
-        };
-
-        let price_mag: u64 = if (i64::get_is_negative(&cached_price.price)) {
-            i64::get_magnitude_if_negative(&cached_price.price)
-        } else {
-            i64::get_magnitude_if_positive(&cached_price.price)
-        };
-
-        (price_mag, expo_mag)
+        ((cached_price.price as u64), (cached_price.decimals as u64))
     }
 
     #[view]
-    public fun get_price_direct(feed_id_bytes: vector<u8>): (i64::I64, i64::I64, u64) {
+    public fun get_price_direct(feed_id_bytes: vector<u8>): (u128, u8, u64) {
         assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
-
-        let price_id = price_identifier::from_byte_vec(feed_id_bytes);
-        let p: Price = pyth::get_price_no_older_than(price_id, MAX_AGE_SECS);
-        (
-            price::get_price(&p),
-            price::get_expo(&p),
-            price::get_timestamp(&p),
-        )
+        let feed_addr = bytes_to_address(&feed_id_bytes);
+        let agg_obj = object::address_to_object<Aggregator>(feed_addr);
+        let current_result = aggregator::current_result(agg_obj);
+        let result_decimal = aggregator::result(&current_result);
+        let (raw_val, _neg) = decimal::unpack(result_decimal);
+        let timestamp = aggregator::timestamp(&current_result);
+        (raw_val, SWITCHBOARD_DECIMALS, timestamp)
     }
 
     #[view]
@@ -383,19 +382,16 @@ module dev::QiaraOracleV7 {
         let has_key;
         let qiara_impact;
 
-        // Isolate the immutable borrow scope of Prices
         {
             let prices = borrow_global<Prices>(@dev);
             has_key = map::contains_key(&prices.map, &name);
             if (has_key) {
-                // Copy the Integer struct out of global storage using the dereference operator (*)
                 qiara_impact = *map::borrow(&prices.map, &name);
             } else {
-                qiara_impact = Integer { oracleID: oracleID, value: 0, isPositive: true };
+                qiara_impact = Integer { oracleID, value: 0, isPositive: true };
             };
-        }; // <-- The borrow on `Prices` is completely released here
+        };
 
-        // Now we can safely call get_raw_price()
         let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
 
         if (!has_key) {
@@ -403,11 +399,11 @@ module dev::QiaraOracleV7 {
         };
 
         if (qiara_impact.isPositive) {
-            return (supra_oracle_price as u256) + qiara_impact.value
+            (supra_oracle_price as u256) + qiara_impact.value
         } else {
             let s_price = (supra_oracle_price as u256);
             if (qiara_impact.value >= s_price) { return 1 };
-            return s_price - qiara_impact.value
+            s_price - qiara_impact.value
         }
     }
 
@@ -416,34 +412,25 @@ module dev::QiaraOracleV7 {
         if (name == utf8(b"Qiara")) { return 0 };
         assert!(exists<Prices>(@dev), 404);
 
-        let has_key;
         let qiara_impact;
 
-        // Isolate the immutable borrow scope of Prices
         {
             let prices = borrow_global<Prices>(@dev);
-            has_key = map::contains_key(&prices.map, &name);
-            if (has_key) {
-                // Copy the Integer struct out of global storage using the dereference operator (*)
+            if (map::contains_key(&prices.map, &name)) {
                 qiara_impact = *map::borrow(&prices.map, &name);
             } else {
                 qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
             };
-        }; // <-- The borrow on `Prices` is completely released here
+        };
 
-        //if (!has_key) {
-        //    return 0
-        //};
-
-        // Now we can safely call get_raw_price()
         let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
 
         if (qiara_impact.isPositive) {
-            return (supra_oracle_price as u256) + qiara_impact.value
+            (supra_oracle_price as u256) + qiara_impact.value
         } else {
             let s_price = (supra_oracle_price as u256);
             if (qiara_impact.value >= s_price) { return 1 };
-            return s_price - qiara_impact.value
+            s_price - qiara_impact.value
         }
     }
 
@@ -452,33 +439,24 @@ module dev::QiaraOracleV7 {
         if (name == utf8(b"Qiara")) { return (0, 0) };
         assert!(exists<Prices>(@dev), 404);
 
-        let has_key;
         let qiara_impact;
 
-        // Isolate the immutable borrow scope of Prices
         {
             let prices = borrow_global<Prices>(@dev);
-            has_key = map::contains_key(&prices.map, &name);
-            if (has_key) {
-                // Copy the Integer struct out of global storage using the dereference operator (*)
+            if (map::contains_key(&prices.map, &name)) {
                 qiara_impact = *map::borrow(&prices.map, &name);
             } else {
                 qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
             };
-        }; // <-- The borrow on `Prices` is completely released here
+        };
 
-        //if (!has_key) {
-        //    return (0, 0);
-        //};
-
-        // Now we can safely call get_raw_price()
         let (supra_oracle_price, decimals) = get_raw_price(qiara_impact.oracleID);
         if (qiara_impact.isPositive) {
-            return ((supra_oracle_price as u256) + qiara_impact.value, decimals)
+            ((supra_oracle_price as u256) + qiara_impact.value, decimals)
         } else {
             let s_price = (supra_oracle_price as u256);
             if (qiara_impact.value >= s_price) { return (1, decimals) };
-            return (s_price - qiara_impact.value, decimals)
+            (s_price - qiara_impact.value, decimals)
         }
     }
 
@@ -486,34 +464,29 @@ module dev::QiaraOracleV7 {
     public fun viewPriceMulti(name: vector<String>): Map<String, u256> acquires Prices {
         let map = map::new<String, u256>();
         let len = vector::length(&name);
-        while(len > 0){
-            map::upsert(&mut map, *vector::borrow(&name, len-1), viewPrice(*vector::borrow(&name, len-1)));
+        while (len > 0) {
+            map::upsert(&mut map, *vector::borrow(&name, len - 1), viewPrice(*vector::borrow(&name, len - 1)));
             len = len - 1;
         };
-        return map
+        map
     }
 
     #[view]
     public fun existsPrice(name: String): bool acquires Prices {
         let prices = borrow_global<Prices>(@dev);
-
-        if (!map::contains_key(&prices.map, &name)) {
-            return false
-        };
-
-        return true
+        map::contains_key(&prices.map, &name)
     }
 
     #[view]
     public fun calculate_impact_percentage(supra_oracle_price: u256, impact: u256, isPositive: bool): u256 {
         if (supra_oracle_price == 0) { return 0 };
         if (isPositive) {
-            return ((supra_oracle_price + impact) * 1_000_000_000_000_000_000) / supra_oracle_price
+            ((supra_oracle_price + impact) * 1_000_000_000_000_000_000) / supra_oracle_price
         } else {
             if (impact >= supra_oracle_price) {
                 return 0
             };
-            return ((supra_oracle_price - impact) * 1_000_000_000_000_000_000) / supra_oracle_price
+            ((supra_oracle_price - impact) * 1_000_000_000_000_000_000) / supra_oracle_price
         }
     }
 }

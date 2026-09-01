@@ -1,37 +1,40 @@
-    [package]
-    name = "QiaraOracleV7"
-    version = "1.0.0"
-    authors = []
+[package]
+name = "QiaraOracleV8"
+version = "1.0.0"
+authors = []
 
-    [addresses]
-    dev          = "0x806dc4c24130e8be9a09ec67ecc53b39074ba0666e4cb2173926b6284490522a"
-    aptos_framework = "0x1"
-    std          = "0x1"
-    aptos_std    = "0x1"
-    pyth         = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387"
-    deployer     = "0xb31e712b26fd295357355f6845e77c888298636609e93bc9b05f0f604049f434"
-    wormhole     = "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-    event = "0xe97f40d139c4e86c610236ab5eb8801222755c13b70d78c74ec91d89b3b80023"
-    [dev-addresses]
+[addresses]
+dev             = "0x806dc4c24130e8be9a09ec67ecc53b39074ba0666e4cb2173926b6284490522a"
+aptos_framework = "0x1"
+std             = "0x1"
+aptos_std       = "0x1"
+deployer        = "0xb31e712b26fd295357355f6845e77c888298636609e93bc9b05f0f604049f434"
+event           = "0xe97f40d139c4e86c610236ab5eb8801222755c13b70d78c74ec91d89b3b80023"
 
-    [dependencies.AptosFramework]
-    git    = "https://github.com/aptos-labs/aptos-core.git"
-    rev    = "testnet"
-    subdir = "aptos-move/framework/aptos-framework"
+# Switchboard Aptos Deployment Address (Testnet)
+# Mainnet: 0xfea54925b5ac1912331e2e62049849b37842efaea298118b66f85a59057752b8
+switchboard     = "0x4fc1809ffb3c5ada6b4e885d4dbdbeb70cbdd99cbc0c8485965d95c2eab90935"
 
-    [dependencies.AptosStdlib]
-    git    = "https://github.com/aptos-labs/aptos-core.git"
-    rev    = "testnet"
-    subdir = "aptos-move/framework/aptos-stdlib"
+[dev-addresses]
 
-    [dependencies.Pyth]
-    git    = "https://github.com/pyth-network/pyth-crosschain.git"
-    rev    = "main"
-    subdir = "target_chains/aptos/contracts"
+[dependencies.AptosFramework]
+git    = "https://github.com/aptos-labs/aptos-core.git"
+rev    = "testnet"
+subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraEventV1]
-    git = 'https://github.com/cnhuya/QIARA-CODE.git'
-    rev = 'main'
-    subdir = 'Aptos/Event'
+[dependencies.AptosStdlib]
+git    = "https://github.com/aptos-labs/aptos-core.git"
+rev    = "testnet"
+subdir = "aptos-move/framework/aptos-stdlib"
 
-    [dev-dependencies]
+[dependencies.Switchboard]
+git = "https://github.com/switchboard-xyz/aptos.git"
+subdir = "on_demand/"
+rev = "main"
+
+[dependencies.QiaraEventV1]
+git    = "https://github.com/cnhuya/QIARA-CODE.git"
+rev    = "main"
+subdir = "Aptos/Event"
+
+[dev-dependencies]

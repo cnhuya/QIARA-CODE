@@ -16,20 +16,20 @@ module dev::QiaraVaultsV82 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV57::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV57::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV57::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV57::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV57::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV58::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV58::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV58::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV58::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV58::{Self as WrapperGate};
 
     use dev::QiaraMarginV60::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV60::{Self as Points, Access as PointsAccess};
     use dev::QiaraRIV60::{Self as RI};
     use dev::QiaraBurnedQiaraV60::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV57::{Self as TokensTypes};
-    use dev::QiaraChainTypesV57::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV57::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV58::{Self as TokensTypes};
+    use dev::QiaraChainTypesV58::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV58::{Self as ProviderTypes};
 
     use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV21::{Self as capabilities, Access as CapabilitiesAccess};

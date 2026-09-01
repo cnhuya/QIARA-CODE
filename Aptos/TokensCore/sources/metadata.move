@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV57{
+module dev::QiaraTokensMetadataV58{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,9 +12,9 @@ module dev::QiaraTokensMetadataV57{
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensTiersV57::{Self as tier};
-    use dev::QiaraTokenTypesV57::{Self as TokensType, TokenChainData};
-    use dev::QiaraOracleV7::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraTokensTiersV58::{Self as tier};
+    use dev::QiaraTokenTypesV58::{Self as TokensType, TokenChainData};
+    use dev::QiaraOracleV8::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
