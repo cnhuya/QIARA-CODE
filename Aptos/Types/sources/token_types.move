@@ -78,7 +78,7 @@ module dev::QiaraTokenTypesV56 {
         register_token_with_chains(signer, utf8(b"Qiara130 Solana"), utf8(b"Solana"), 
             vector[utf8(b"AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754")], 
             vector[utf8(b"Solana")],
-            vector[9u8]
+            vector[8u8]
         );
 
 
@@ -91,7 +91,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x14eF7c5BFA22941eb49cf2AC3F99aC060942161b")  // Robinhood
             ], 
             vector[utf8(b"Solana"), utf8(b"Robinhood")],
-            vector[6u8, 6u8]
+            vector[8u8, 18u8]
         );
 
         // -------------------------------------------------------------
@@ -100,7 +100,7 @@ module dev::QiaraTokenTypesV56 {
         register_token_with_chains(signer, utf8(b"Qiara130 JLP"), utf8(b"JLP"), 
             vector[utf8(b"CVi7oUumG14WjyWPSpdEQiHTBTfZTRX76c2KEKjQKRUr")], 
             vector[utf8(b"Solana")],
-            vector[6u8]
+            vector[8u8]
         );
 
         // -------------------------------------------------------------
@@ -126,7 +126,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                          // Aptos
             ], 
             vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Solana"), utf8(b"Aptos")],
-            vector[6u8, 6u8, 6u8, 6u8, 6u8, 6u8, 6u8]
+            vector[8u8, 18u8, 18u8, 18u8, 18u8, 8u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -141,7 +141,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                           // Aptos
             ], 
             vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
-            vector[6u8, 6u8, 6u8, 6u8, 6u8, 6u8]
+            vector[8u8, 18u8, 18u8, 8u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -154,7 +154,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                          // Aptos
             ], 
             vector[utf8(b"Monad"), utf8(b"Aptos")],
-            vector[6u8, 6u8]
+            vector[18u8, 8u8]
         );
 
         register_token_with_chains(signer, utf8(b"Qiara130 earnAUSD"), utf8(b"earnAUSD"), 
@@ -163,7 +163,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                          // Aptos
             ], 
             vector[utf8(b"Monad"), utf8(b"Aptos")],
-            vector[6u8, 6u8]
+            vector[18u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -194,7 +194,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                           // Aptos
             ], 
             vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
-            vector[8u8, 8u8, 8u8, 8u8, 8u8, 8u8]
+            vector[8u8, 18u8, 18u8, 8u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -227,7 +227,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                                                              // Aptos
             ], 
             vector[utf8(b"Sui"), utf8(b"Aptos")],
-            vector[9u8, 8u8]
+            vector[8u8, 8u8]
         );
 
         register_token_with_chains(signer, utf8(b"Qiara130 Deepbook"), utf8(b"Deepbook"), 
@@ -236,7 +236,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                                                                // Aptos
             ], 
             vector[utf8(b"Sui"), utf8(b"Aptos")],
-            vector[6u8, 6u8]
+            vector[8u8, 6u8]
         );
 
         // -------------------------------------------------------------
@@ -248,7 +248,7 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0")                                           // Aptos
             ], 
             vector[utf8(b"Base"), utf8(b"Aptos")],
-            vector[18u8, 18u8, 8u8]
+            vector[18u8, 8u8]
         );
     }
 
