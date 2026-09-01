@@ -1,4 +1,4 @@
-module dev::QiaraTokensOmnichainV56{
+module dev::QiaraTokensOmnichainV57{
     use std::signer;
     use std::bcs;
     use std::timestamp;
