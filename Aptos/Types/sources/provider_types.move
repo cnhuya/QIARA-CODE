@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV56 {
+module dev::QiaraProviderTypesV57 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -36,7 +36,7 @@ module dev::QiaraProviderTypesV56 {
         x_init(admin);
     }
 
-fun x_init(signer: &signer) acquires Providers, ReverseProviders {
+    fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         // === 1. Register Vaults ===
 
         // Robinhood Vaults
@@ -47,7 +47,7 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         register_vault(signer, utf8(b"Neverland"), utf8(b"Monad"), utf8(b"0x1a310274278De8Ccbe4A7Ea45C6AD37D487EbAe5"));
         register_vault(signer, utf8(b"Morpho"), utf8(b"Monad"), utf8(b"0xBFf73b9fBbDeFf3b0f9df22F4c74d70fA1A21f18"));
 
-        // Ethereum (Sepolia) Vaults
+        // Ethereum Vaults
         register_vault(signer, utf8(b"Aave"), utf8(b"Ethereum"), utf8(b"0xa4A1BF1C95636f0947AE0a4dEfDD340c75F47276"));
         register_vault(signer, utf8(b"Morpho"), utf8(b"Ethereum"), utf8(b"0x82840a7CBb3C449700827dCD22B064881f24704b"));
 
@@ -67,17 +67,17 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         register_vault(signer, utf8(b"Aave"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
         register_vault(signer, utf8(b"Qiara"), utf8(b"Aptos"), utf8(b"0xSP_SUP_VAULT"));
 
-        // Solana Vaults (Real PDAs)
+        // Solana Vaults
         register_vault(signer, utf8(b"Juplend"), utf8(b"Solana"), utf8(b"3Khp3aJddTh5k525iYdT7i41smfQDJ4mfb9iKVNSzuRA"));
         register_vault(signer, utf8(b"Kamino"), utf8(b"Solana"), utf8(b"HMVmEzQ1UiPnJmykdq1JEohcyg1PcT5NuZ1aHuyKhVVk"));
 
         // === 2. Allow Tokens ===
-        allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
-        allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG"), utf8(b"syrupUSDC")]);
+        allow_tokens_for_provider(signer, utf8(b"Kamino"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG")]);
+        allow_tokens_for_provider(signer, utf8(b"Juplend"), utf8(b"Solana"), vector[utf8(b"USDC"), utf8(b"Solana"), utf8(b"USDT"), utf8(b"JLP"), utf8(b"Bitcoin"), utf8(b"USDG")]);
         allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Robinhood"), vector[utf8(b"USDG")]);
-        allow_tokens_for_provider(signer, utf8(b"Curvance"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD"), utf8(b"earnAUSD")]);
-        allow_tokens_for_provider(signer, utf8(b"Neverland"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"Bitcoin"), utf8(b"AUSD")]);
-        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"USDT0"), utf8(b"AUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Curvance"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"Bitcoin"), utf8(b"AUSD"), utf8(b"earnAUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Neverland"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"Bitcoin"), utf8(b"AUSD")]);
+        allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Monad"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"Monad"), utf8(b"AUSD")]);
         allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
         allow_tokens_for_provider(signer, utf8(b"Morpho"), utf8(b"Ethereum"), vector[utf8(b"USDC"), utf8(b"Ethereum"), utf8(b"USDT"), utf8(b"Bitcoin")]);
         allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Base"), vector[utf8(b"USDC"), utf8(b"Ethereum")]);
@@ -90,16 +90,6 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         allow_tokens_for_provider(signer, utf8(b"Aave"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
         allow_tokens_for_provider(signer, utf8(b"Echelon"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
         allow_tokens_for_provider(signer, utf8(b"Qiara"), utf8(b"Aptos"), vector[utf8(b"Qiara"), utf8(b"Burned Qiara")]);
-    }
-
-    public entry fun reg_bluefin(signer: &signer) acquires ReverseProviders, Providers {
-        register_vault(signer, utf8(b"Bluefin"), utf8(b"Sui"), utf8(b"0x686b848b7c230efba497b1535afc11dda7865ec972a24f3b121356733b0aeea6"));
-        allow_tokens_for_provider(signer, utf8(b"Bluefin"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
-    }
-
-    public entry fun reg_bluefin2(signer: &signer) acquires ReverseProviders, Providers {
-        register_vault(signer, utf8(b"suilend"), utf8(b"Sui"), utf8(b"0x1fae1eebf44d39547d256f2504a7fcac283873f8fffff3170265c041806ac36b"));
-        allow_tokens_for_provider(signer, utf8(b"suilend"), utf8(b"Sui"), vector[utf8(b"USDC"), utf8(b"USDT"), utf8(b"Ethereum"), utf8(b"Bitcoin"), utf8(b"Sui"), utf8(b"Deepbook")]);
     }
 
     // === ENTRY FUNCTIONS === //
@@ -129,7 +119,6 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         map::upsert(rev_chains_map, chain, provider);
     }
 
-    /// Updates vault address while keeping existing allowed tokens intact and syncing reverse lookup
     public entry fun update_vault_address(
         signer: &signer,
         provider: String,
@@ -138,7 +127,6 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
     ) acquires Providers, ReverseProviders {
         assert!(signer::address_of(signer) == @dev, ERROR_NOT_AUTHORIZED);
 
-        // 1. Update Forward Map & get old address
         let providers = borrow_global_mut<Providers>(@dev);
         assert!(map::contains_key(&providers.table, &provider), ERROR_INVALID_PROVIDER);
         let chains_map = map::borrow_mut(&mut providers.table, &provider);
@@ -148,7 +136,6 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
         let old_vault_addr = data.vault_address;
         data.vault_address = new_vault_addr;
 
-        // 2. Clean up Old Reverse Map
         let rev_providers = borrow_global_mut<ReverseProviders>(@dev);
         if (map::contains_key(&rev_providers.table, &old_vault_addr)) {
             let old_rev_chains = map::borrow_mut(&mut rev_providers.table, &old_vault_addr);
@@ -157,7 +144,6 @@ fun x_init(signer: &signer) acquires Providers, ReverseProviders {
             };
         };
 
-        // 3. Set New Reverse Map
         if (!map::contains_key(&rev_providers.table, &new_vault_addr)) {
             map::upsert(&mut rev_providers.table, new_vault_addr, map::new());
         };

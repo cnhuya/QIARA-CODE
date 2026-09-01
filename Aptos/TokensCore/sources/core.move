@@ -28,11 +28,11 @@ module dev::QiaraTokensCoreV56{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV55::{Self as Storages};
+    use dev::QiaraStoragesV56::{Self as Storages};
 
-    use dev::QiaraChainTypesV56::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV56::{Self as TokensType};
-    use dev::QiaraProviderTypesV56::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV57::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV57::{Self as TokensType};
+    use dev::QiaraProviderTypesV57::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -172,24 +172,23 @@ module dev::QiaraTokensCoreV56{
     
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Ethereum"));
         ma_drilla_lul(signer, shared, utf8(b"USDT"), utf8(b"Ethereum"));
-        ma_drilla_lul(signer, shared, utf8(b"Virtuals"), utf8(b"Ethereum"));
-       // tttta(10101);
+       // ma_drilla_lul(signer, shared, utf8(b"Virtuals"), utf8(b"Ethereum"));
+  
         ma_drilla_lul(signer, shared, utf8(b"Deepbook"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"Monad"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Monad"));
-        ma_drilla_lul(signer, shared, utf8(b"USDT0"), utf8(b"Monad"));
+    
         ma_drilla_lul(signer, shared, utf8(b"AUSD"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"earnAUSD"), utf8(b"Monad"));
 
-      //  tttta(10101);
+   
         ma_drilla_lul(signer, shared, utf8(b"Bitcoin"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"Bitcoin"), utf8(b"Ethereum"));
         ma_drilla_lul(signer, shared, utf8(b"Bitcoin"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"Sui"), utf8(b"Sui"));
-     //  tttta(1);
+       //tttta(1);
         ma_drilla_lul(signer, shared, utf8(b"Virtuals"), utf8(b"Base"));
-        ma_drilla_lul(signer, shared, utf8(b"USDT"), utf8(b"Base"));
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Base"));
 
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Aptos"));
@@ -201,9 +200,10 @@ module dev::QiaraTokensCoreV56{
 
         ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"Solana"));
         ma_drilla_lul(signer, shared, utf8(b"USDC"), utf8(b"Solana"));
-        ma_drilla_lul(signer, shared, utf8(b"syrupUSDC"), utf8(b"Solana"));
         ma_drilla_lul(signer, shared, utf8(b"USDG"), utf8(b"Solana"));
         ma_drilla_lul(signer, shared, utf8(b"USDG"), utf8(b"Robinhood"));
+
+         //ma_drilla_lul(signer, shared, utf8(b"JLP"), utf8(b"Solana"));
         //        tttta(9);
     }
 

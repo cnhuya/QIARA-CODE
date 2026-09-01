@@ -1,12 +1,12 @@
-module dev::QiaraTokenTypesV56 {
+module dev::QiaraTokenTypesV57 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraChainTypesV56::{Self as ChainTypes};
+    use dev::QiaraChainTypesV57::{Self as ChainTypes};
 
-    const TOKEN_PREFIX: vector<u8> = b"Qiara130 ";
+    const TOKEN_PREFIX: vector<u8> = b"Qiara131 ";
     const SYMBOL_PREFIX: vector<u8> = b"Q";
 
 // === ERRORS === //
@@ -59,7 +59,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 1. QIARA TOKEN
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Qiara"), utf8(b"Qiara"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Qiara"), utf8(b"Qiara"), 
             vector[
                 utf8(b"0x8C9621E38f74c59b0B784894f12C0CD5bE8a2f02"), // Sui
                 utf8(b"0x0"), // Base
@@ -75,7 +75,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 2. SOLANA (SOL)
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Solana"), utf8(b"Solana"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Solana"), utf8(b"Solana"), 
             vector[utf8(b"AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754")], 
             vector[utf8(b"Solana")],
             vector[8u8]
@@ -85,7 +85,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 4. USDG
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 USDG"), utf8(b"USDG"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 USDG"), utf8(b"USDG"), 
             vector[
                 utf8(b"77fFeadUKQfgr6uKh1uZyCUVYZsdM4qQrm9mSsxxCdj2"), // Solana
                 utf8(b"0x14eF7c5BFA22941eb49cf2AC3F99aC060942161b")  // Robinhood
@@ -97,7 +97,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 5. JLP
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 JLP"), utf8(b"JLP"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 JLP"), utf8(b"JLP"), 
             vector[utf8(b"CVi7oUumG14WjyWPSpdEQiHTBTfZTRX76c2KEKjQKRUr")], 
             vector[utf8(b"Solana")],
             vector[8u8]
@@ -106,7 +106,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 6. BURNED QIARA
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Burned Qiara"), utf8(b"Burned Qiara"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Burned Qiara"), utf8(b"Burned Qiara"), 
             vector[utf8(b"0x0")], 
             vector[utf8(b"Aptos")],
             vector[8u8]
@@ -115,7 +115,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 7. USDC
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 USDC"), utf8(b"USDC"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 USDC"), utf8(b"USDC"), 
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::usdc::USDC"), // Sui
                 utf8(b"0x467a3b8A38fE71709F05BAf2B890C73acfD4cd89"), // Base
@@ -132,7 +132,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 8. USDT
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 USDT"), utf8(b"USDT"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 USDT"), utf8(b"USDT"), 
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::usdt::USDT"), // Sui
                 utf8(b"0xb4c0119069E9c82D031cCFF167eB6a33AAd9347C"), // Monad
@@ -148,7 +148,7 @@ module dev::QiaraTokenTypesV56 {
         // 9. USDT0, AUSD, EARNAUSD
         // -------------------------------------------------------------
         
-        register_token_with_chains(signer, utf8(b"Qiara130 AUSD"), utf8(b"AUSD"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 AUSD"), utf8(b"AUSD"), 
             vector[
                 utf8(b"0xef2b49A7B11b61eeFce6c5a0C0466D13e6C7aeA7"), // Monad
                 utf8(b"0x0")                                          // Aptos
@@ -157,7 +157,7 @@ module dev::QiaraTokenTypesV56 {
             vector[18u8, 8u8]
         );
 
-        register_token_with_chains(signer, utf8(b"Qiara130 earnAUSD"), utf8(b"earnAUSD"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 earnAUSD"), utf8(b"earnAUSD"), 
             vector[
                 utf8(b"0x54328f1bD6438A8EE35CdeB412233511008F8B06"), // Monad
                 utf8(b"0x0")                                          // Aptos
@@ -169,7 +169,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 10. ETHEREUM (ETH)
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Ethereum"), utf8(b"Ethereum"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Ethereum"), utf8(b"Ethereum"), 
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::eth::ETH"), // Sui
                 utf8(b"0x3C09a5dB101fb4aC18A96Fc638ACF075b94a0aAc"), // Base
@@ -185,7 +185,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 11. BITCOIN (BTC)
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Bitcoin"), utf8(b"Bitcoin"),
+        register_token_with_chains(signer, utf8(b"Qiara131 Bitcoin"), utf8(b"Bitcoin"),
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::btc::BTC"), // Sui
                 utf8(b"0x0e95449332B68158fA8fb06a145c50f743ad368A"), // Monad
@@ -200,7 +200,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 12. MONAD
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Monad"), utf8(b"Monad"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Monad"), utf8(b"Monad"), 
             vector[
                 utf8(b"0x860d01d42D8557F9A2f9725ef86Af24d1CDa3AE8"), // Monad
                 utf8(b"0x0")                                          // Aptos
@@ -212,7 +212,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 13. APTOS
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Aptos"), utf8(b"Aptos"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Aptos"), utf8(b"Aptos"), 
             vector[utf8(b"0x0")], 
             vector[utf8(b"Aptos")],
             vector[8u8]
@@ -221,7 +221,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 14. SUI & DEEPBOOK
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Sui"), utf8(b"Sui"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Sui"), utf8(b"Sui"), 
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::sui::SUI"), // Sui
                 utf8(b"0x0")                                                                              // Aptos
@@ -230,7 +230,7 @@ module dev::QiaraTokenTypesV56 {
             vector[8u8, 8u8]
         );
 
-        register_token_with_chains(signer, utf8(b"Qiara130 Deepbook"), utf8(b"Deepbook"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Deepbook"), utf8(b"Deepbook"), 
             vector[
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::DEEP::DEEP"), // Sui
                 utf8(b"0x0")                                                                                // Aptos
@@ -242,7 +242,7 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         // 15. VIRTUALS
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 Virtuals"), utf8(b"Virtuals"), 
+        register_token_with_chains(signer, utf8(b"Qiara131 Virtuals"), utf8(b"Virtuals"), 
             vector[
                 utf8(b"0x4a93DC1C3dEBd53F4aFc4D5040313B81a3D763B1"), // Base
                 utf8(b"0x0")                                           // Aptos
