@@ -52,6 +52,7 @@ module dev::QiaraTokensMetadataV55{
         symbol: String,
         tier:u8,
         deflation_tier:u8,
+        native_decimals: u8,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -63,6 +64,7 @@ module dev::QiaraTokensMetadataV55{
         symbol: String,
         tier:u8,
         deflation_tier:u8,
+        native_decimals: u8,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -133,6 +135,7 @@ module dev::QiaraTokensMetadataV55{
 public entry fun create_metadata(
     admin: &signer, 
     symbol: String, 
+    native_decimals: u8,
     creation: u64, 
     deflation_tier:u8,
     oracleID: vector<u8>, 
@@ -185,6 +188,7 @@ public entry fun create_metadata(
         symbol,
         tier,
         deflation_tier,
+        native_decimals,
         decimals: 8,
         oracleID,
         creation,
@@ -552,6 +556,7 @@ public entry fun create_metadata(
                         symbol: metadat.symbol,
                         tier: metadat.tier,
                         deflation_tier: metadat.deflation_tier,
+                        native_decimals: metadat.native_decimals,
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
@@ -604,6 +609,10 @@ public entry fun create_metadata(
 
         public fun get_coin_metadata_creation(metadata: &VMetadata): u64 {
             metadata.creation
+        }
+
+        public fun get_coin_metadata_native_decimals(metadata: &VMetadata): u8 {
+            metadata.native_decimals
         }
 
     // CREDIT
@@ -773,6 +782,7 @@ public entry fun create_metadata(
                         tier: metadat.tier,
                         deflation_tier: metadat.deflation_tier,
                         decimals: metadat.decimals, 
+                        native_decimals: metadat.native_decimals,
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
                         credit: metadat.credit,
