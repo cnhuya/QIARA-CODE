@@ -7,9 +7,9 @@ module dev::QiaraPerpsV50 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV60::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV60::{Self as RI};
-    use dev::QiaraRanksV60::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV61::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV61::{Self as RI};
+    use dev::QiaraRanksV61::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV58::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
@@ -17,8 +17,8 @@ module dev::QiaraPerpsV50 {
     use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV82::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV78::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV78::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV79::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV79::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};
