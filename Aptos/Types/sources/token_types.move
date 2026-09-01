@@ -23,10 +23,15 @@ module dev::QiaraTokenTypesV56 {
 
 // === STRUCTS === //
 
+    struct TokenChainData has store, copy, drop {
+        address: String,
+        decimals: u8,
+    }
+
     struct Tokens has key {
-        // Original: Token -> Chain -> Address / CoinType / Mint
-        map: Map<String, Map<String, String>>,
-        // Reverse: "ChainAddress" -> Token Name (Reverse Lookup)
+        // Token Full Name -> Chain -> (Address + Decimals)
+        map: Map<String, Map<String, TokenChainData>>,
+        // Reverse: "ChainAddress" -> Token Name
         reverse_map: Map<String, String>, 
         nick_names: Map<String, String>,
     }
@@ -37,7 +42,7 @@ module dev::QiaraTokenTypesV56 {
 
         if (!exists<Tokens>(@dev)) {
             move_to(admin, Tokens { 
-                map: map::new<String, Map<String, String>>(), 
+                map: map::new<String, Map<String, TokenChainData>>(), 
                 reverse_map: map::new<String, String>(), 
                 nick_names: map::new<String, String>() 
             });
@@ -63,7 +68,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0"), // Aptos
                 utf8(b"0x0")  // Solana
             ], 
-            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Aptos"), utf8(b"Solana")]
+            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Aptos"), utf8(b"Solana")],
+            vector[9u8, 18u8, 18u8, 18u8, 8u8, 9u8] // sensible defaults
         );
 
         // -------------------------------------------------------------
@@ -71,16 +77,10 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         register_token_with_chains(signer, utf8(b"Qiara130 Solana"), utf8(b"Solana"), 
             vector[utf8(b"AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754")], 
-            vector[utf8(b"Solana")]
+            vector[utf8(b"Solana")],
+            vector[9u8]
         );
 
-        // -------------------------------------------------------------
-        // 3. syrupUSDC
-        // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 syrupUSDC"), utf8(b"syrupUSDC"), 
-            vector[utf8(b"0x0")], 
-            vector[utf8(b"Solana")]
-        );
 
         // -------------------------------------------------------------
         // 4. USDG
@@ -90,7 +90,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"77fFeadUKQfgr6uKh1uZyCUVYZsdM4qQrm9mSsxxCdj2"), // Solana
                 utf8(b"0x14eF7c5BFA22941eb49cf2AC3F99aC060942161b")  // Robinhood
             ], 
-            vector[utf8(b"Solana"), utf8(b"Robinhood")]
+            vector[utf8(b"Solana"), utf8(b"Robinhood")],
+            vector[6u8, 6u8]
         );
 
         // -------------------------------------------------------------
@@ -98,7 +99,8 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         register_token_with_chains(signer, utf8(b"Qiara130 JLP"), utf8(b"JLP"), 
             vector[utf8(b"CVi7oUumG14WjyWPSpdEQiHTBTfZTRX76c2KEKjQKRUr")], 
-            vector[utf8(b"Solana")]
+            vector[utf8(b"Solana")],
+            vector[6u8]
         );
 
         // -------------------------------------------------------------
@@ -106,7 +108,8 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         register_token_with_chains(signer, utf8(b"Qiara130 Burned Qiara"), utf8(b"Burned Qiara"), 
             vector[utf8(b"0x0")], 
-            vector[utf8(b"Aptos")]
+            vector[utf8(b"Aptos")],
+            vector[8u8]
         );
 
         // -------------------------------------------------------------
@@ -122,7 +125,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"9LPXvqdXQdLiFSSFqMsRzwiABpoNNh2oLrMc5vk84RB"), // Solana
                 utf8(b"0x0")                                          // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Solana"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Solana"), utf8(b"Aptos")],
+            vector[6u8, 6u8, 6u8, 6u8, 6u8, 6u8, 6u8]
         );
 
         // -------------------------------------------------------------
@@ -134,26 +138,23 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0xb4c0119069E9c82D031cCFF167eB6a33AAd9347C"), // Monad
                 utf8(b"0x2d6c8F8eD8667f42D931E73a57f033D03b11b477"), // Ethereum (Sepolia)
                 utf8(b"DWRhorhZnoxWHSe3fpJF5Gtz4YoAfevRZgyt3JnwF4i3"), // Solana
-                utf8(b"0x0"),                                          // Base
                 utf8(b"0x0")                                           // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Base"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
+            vector[6u8, 6u8, 6u8, 6u8, 6u8, 6u8]
         );
 
         // -------------------------------------------------------------
         // 9. USDT0, AUSD, EARNAUSD
         // -------------------------------------------------------------
-        register_token_with_chains(signer, utf8(b"Qiara130 USDT0"), utf8(b"USDT0"), 
-            vector[utf8(b"0x0"), utf8(b"0x0")], 
-            vector[utf8(b"Monad"), utf8(b"Aptos")]
-        );
         
         register_token_with_chains(signer, utf8(b"Qiara130 AUSD"), utf8(b"AUSD"), 
             vector[
                 utf8(b"0xef2b49A7B11b61eeFce6c5a0C0466D13e6C7aeA7"), // Monad
                 utf8(b"0x0")                                          // Aptos
             ], 
-            vector[utf8(b"Monad"), utf8(b"Aptos")]
+            vector[utf8(b"Monad"), utf8(b"Aptos")],
+            vector[6u8, 6u8]
         );
 
         register_token_with_chains(signer, utf8(b"Qiara130 earnAUSD"), utf8(b"earnAUSD"), 
@@ -161,7 +162,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x54328f1bD6438A8EE35CdeB412233511008F8B06"), // Monad
                 utf8(b"0x0")                                          // Aptos
             ], 
-            vector[utf8(b"Monad"), utf8(b"Aptos")]
+            vector[utf8(b"Monad"), utf8(b"Aptos")],
+            vector[6u8, 6u8]
         );
 
         // -------------------------------------------------------------
@@ -176,7 +178,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x7831e01f7168Be7E84690AfFfA436BcbCF64eC33"), // Robinhood
                 utf8(b"0x0")                                          // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Aptos")],
+            vector[8u8, 18u8, 18u8, 18u8, 18u8, 8u8] // Sui ETH is usually 8, EVM is 18
         );
 
         // -------------------------------------------------------------
@@ -188,10 +191,10 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x0e95449332B68158fA8fb06a145c50f743ad368A"), // Monad
                 utf8(b"0xd7fa256f739b144649a45C7cd120aE1A60927908"), // Ethereum (Sepolia)
                 utf8(b"Drsao83oXx9aiCxtfpQXs8jNSggjLxFuwM3hYid8CpgQ"), // Solana
-                utf8(b"0x0"),                                          // Base
                 utf8(b"0x0")                                           // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Base"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
+            vector[8u8, 8u8, 8u8, 8u8, 8u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -202,7 +205,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x860d01d42D8557F9A2f9725ef86Af24d1CDa3AE8"), // Monad
                 utf8(b"0x0")                                          // Aptos
             ], 
-            vector[utf8(b"Monad"), utf8(b"Aptos")]
+            vector[utf8(b"Monad"), utf8(b"Aptos")],
+            vector[18u8, 8u8]
         );
 
         // -------------------------------------------------------------
@@ -210,7 +214,8 @@ module dev::QiaraTokenTypesV56 {
         // -------------------------------------------------------------
         register_token_with_chains(signer, utf8(b"Qiara130 Aptos"), utf8(b"Aptos"), 
             vector[utf8(b"0x0")], 
-            vector[utf8(b"Aptos")]
+            vector[utf8(b"Aptos")],
+            vector[8u8]
         );
 
         // -------------------------------------------------------------
@@ -221,7 +226,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::sui::SUI"), // Sui
                 utf8(b"0x0")                                                                              // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Aptos")],
+            vector[9u8, 8u8]
         );
 
         register_token_with_chains(signer, utf8(b"Qiara130 Deepbook"), utf8(b"Deepbook"), 
@@ -229,7 +235,8 @@ module dev::QiaraTokenTypesV56 {
                 utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::DEEP::DEEP"), // Sui
                 utf8(b"0x0")                                                                                // Aptos
             ], 
-            vector[utf8(b"Sui"), utf8(b"Aptos")]
+            vector[utf8(b"Sui"), utf8(b"Aptos")],
+            vector[6u8, 6u8]
         );
 
         // -------------------------------------------------------------
@@ -238,10 +245,10 @@ module dev::QiaraTokenTypesV56 {
         register_token_with_chains(signer, utf8(b"Qiara130 Virtuals"), utf8(b"Virtuals"), 
             vector[
                 utf8(b"0x4a93DC1C3dEBd53F4aFc4D5040313B81a3D763B1"), // Base
-                utf8(b"0x0"),                                          // Ethereum
                 utf8(b"0x0")                                           // Aptos
             ], 
-            vector[utf8(b"Base"), utf8(b"Ethereum"), utf8(b"Aptos")]
+            vector[utf8(b"Base"), utf8(b"Aptos")],
+            vector[18u8, 18u8, 8u8]
         );
     }
 
@@ -251,7 +258,8 @@ module dev::QiaraTokenTypesV56 {
         admin: &signer,
         token_name_or_nickname: String,
         chain: String,
-        new_token_address: String
+        new_token_address: String,
+        new_decimals: u8
     ) acquires Tokens {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_AUTHORIZED);
         ChainTypes::ensure_valid_chain_name(chain);
@@ -263,16 +271,20 @@ module dev::QiaraTokenTypesV56 {
         let token_inner_map = map::borrow_mut(&mut tokens.map, &full_name);
 
         if (map::contains_key(token_inner_map, &chain)) {
-            let old_addr = *map::borrow(token_inner_map, &chain);
-            if (old_addr != utf8(b"0x0")) {
-                let old_rev_key = create_reverse_key(chain, old_addr);
+            let old_data = map::borrow(token_inner_map, &chain);
+            if (old_data.address != utf8(b"0x0")) {
+                let old_rev_key = create_reverse_key(chain, old_data.address);
                 if (map::contains_key(&tokens.reverse_map, &old_rev_key)) {
                     let (_, _) = map::remove(&mut tokens.reverse_map, &old_rev_key);
                 };
             };
         };
 
-        map::upsert(token_inner_map, chain, new_token_address);
+        let new_data = TokenChainData {
+            address: new_token_address,
+            decimals: new_decimals,
+        };
+        map::upsert(token_inner_map, chain, new_data);
 
         if (new_token_address != utf8(b"0x0")) {
             let new_rev_key = create_reverse_key(chain, new_token_address);
@@ -284,19 +296,22 @@ module dev::QiaraTokenTypesV56 {
         admin: &signer,
         token_names_or_nicknames: vector<String>,
         chains: vector<String>,
-        new_token_addresses: vector<String>
+        new_token_addresses: vector<String>,
+        new_decimals: vector<u8>
     ) acquires Tokens {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_AUTHORIZED);
         let len = vector::length(&token_names_or_nicknames);
         assert!(len == vector::length(&chains), ERORR_ARGUMENT_LENGHT_MISSMATCH);
         assert!(len == vector::length(&new_token_addresses), ERORR_ARGUMENT_LENGHT_MISSMATCH);
+        assert!(len == vector::length(&new_decimals), ERORR_ARGUMENT_LENGHT_MISSMATCH);
 
         let i = 0;
         while (i < len) {
             let token = *vector::borrow(&token_names_or_nicknames, i);
             let chain = *vector::borrow(&chains, i);
             let addr = *vector::borrow(&new_token_addresses, i);
-            update_token_address(admin, token, chain, addr);
+            let dec = *vector::borrow(&new_decimals, i);
+            update_token_address(admin, token, chain, addr, dec);
             i = i + 1;
         };
     }
@@ -311,16 +326,25 @@ module dev::QiaraTokenTypesV56 {
 
 // === VIEW & LOOKUP FUNCTIONS === //
 
-    public entry fun register_token_with_chains(signer: &signer, token: String, nick_name: String, token_address: vector<String>, chains: vector<String>) acquires Tokens {
+    public entry fun register_token_with_chains(
+        signer: &signer, 
+        token: String, 
+        nick_name: String, 
+        token_addresses: vector<String>, 
+        chains: vector<String>,
+        decimals: vector<u8>
+    ) acquires Tokens {
         let tokens = borrow_global_mut<Tokens>(@dev);
 
         let len_chains = vector::length(&chains);
-        let len_addr = vector::length(&token_address);
+        let len_addr = vector::length(&token_addresses);
+        let len_dec = vector::length(&decimals);
 
         assert!(len_chains == len_addr, ERORR_ARGUMENT_LENGHT_MISSMATCH);
+        assert!(len_chains == len_dec, ERORR_ARGUMENT_LENGHT_MISSMATCH);
 
         if (!map::contains_key(&tokens.map, &token)) {
-            let inner_map = map::new<String, String>();
+            let inner_map = map::new<String, TokenChainData>();
             map::upsert(&mut tokens.map, token, inner_map);
         };
 
@@ -329,10 +353,16 @@ module dev::QiaraTokenTypesV56 {
         let i = 0;
         while (i < len_chains) {
             let chain = vector::borrow(&chains, i);
-            let addr = vector::borrow(&token_address, i);
+            let addr = vector::borrow(&token_addresses, i);
+            let dec = *vector::borrow(&decimals, i);
 
             ChainTypes::ensure_valid_chain_name(*chain);
-            map::upsert(token_entry, *chain, *addr);
+
+            let data = TokenChainData {
+                address: *addr,
+                decimals: dec,
+            };
+            map::upsert(token_entry, *chain, data);
 
             if (*addr != utf8(b"0x0")) {
                 let rev_key = create_reverse_key(*chain, *addr);
@@ -345,24 +375,38 @@ module dev::QiaraTokenTypesV56 {
         map::upsert(&mut tokens.nick_names, token, nick_name);
     }
 
-    public entry fun add_token_chain(signer: &signer, token: String, nick_name: String, token_address: String, chain: String) acquires Tokens {
+    public entry fun add_token_chain(
+        signer: &signer, 
+        token: String, 
+        nick_name: String, 
+        token_address: String, 
+        chain: String,
+        decimals: u8
+    ) acquires Tokens {
         let tokens = borrow_global_mut<Tokens>(@dev);
 
         if (!map::contains_key(&tokens.map, &token)) {
-            let inner_map = map::new<String, String>();
+            let inner_map = map::new<String, TokenChainData>();
             map::upsert(&mut tokens.map, token, inner_map);
         };
         let token_inner_map = map::borrow_mut(&mut tokens.map, &token);
-        map::upsert(token_inner_map, chain, token_address);
 
-        let rev_key = create_reverse_key(chain, token_address);
-        map::upsert(&mut tokens.reverse_map, rev_key, token);
+        let data = TokenChainData {
+            address: token_address,
+            decimals,
+        };
+        map::upsert(token_inner_map, chain, data);
+
+        if (token_address != utf8(b"0x0")) {
+            let rev_key = create_reverse_key(chain, token_address);
+            map::upsert(&mut tokens.reverse_map, rev_key, token);
+        };
 
         map::upsert(&mut tokens.nick_names, token, nick_name);
     }
 
     #[view]
-    public fun return_all_tokens(): Map<String, Map<String, String>> acquires Tokens {
+    public fun return_all_tokens(): Map<String, Map<String, TokenChainData>> acquires Tokens {
         borrow_global<Tokens>(@dev).map
     }
 
@@ -388,6 +432,8 @@ module dev::QiaraTokenTypesV56 {
         if (!map::contains_key(&tokens.map, &token)) {
             abort ERROR_INVALID_TOKEN
         };
+        let inner = map::borrow(&tokens.map, &token);
+        assert!(map::contains_key(inner, &chain), ERROR_TOKEN_NOT_SUPPORTED_FOR_THIS_CHAIN);
     }
     
     #[view]
@@ -401,6 +447,24 @@ module dev::QiaraTokenTypesV56 {
 
     #[view]
     public fun get_token_address_from_name(chain: String, name: String): String acquires Tokens {
+        name = convert_token_nickName_to_name(name);
+        let tokens = borrow_global<Tokens>(@dev);
+        let token_entry = map::borrow(&tokens.map, &name);
+        assert!(map::contains_key(token_entry, &chain), 404);
+        map::borrow(token_entry, &chain).address
+    }
+
+    #[view]
+    public fun get_token_decimals(chain: String, name: String): u8 acquires Tokens {
+        name = convert_token_nickName_to_name(name);
+        let tokens = borrow_global<Tokens>(@dev);
+        let token_entry = map::borrow(&tokens.map, &name);
+        assert!(map::contains_key(token_entry, &chain), 404);
+        map::borrow(token_entry, &chain).decimals
+    }
+
+    #[view]
+    public fun get_token_data(chain: String, name: String): TokenChainData acquires Tokens {
         name = convert_token_nickName_to_name(name);
         let tokens = borrow_global<Tokens>(@dev);
         let token_entry = map::borrow(&tokens.map, &name);
