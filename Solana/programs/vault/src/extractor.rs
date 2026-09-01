@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak; // 👈 Make sure keccak is imported
+use anchor_lang::solana_program::keccak;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct UnpackedTx {
     pub chain_id: u64,
@@ -65,25 +66,21 @@ pub fn extract_validator_is_removal(inputs: &[u8]) -> Result<bool> {
     Ok((chunk_2[2] & 1) == 1)
 }
 
+// 🟢 Direct Keccak over all 192 bytes of Big-Endian inputs
 pub fn build_nullifier(inputs: &[u8]) -> Result<[u8; 32]> {
     if inputs.len() < 192 {
         return err!(crate::QiaraError::InvalidInputLength);
     }
-    let mut data = Vec::new();
-    for i in 0..6 {
-        let chunk_le = extract_chunk(inputs, i)?;
-        let mut chunk_be = chunk_le;
-        chunk_be.reverse();
-        data.extend_from_slice(&chunk_be);
-    }
-    Ok(keccak::hash(&data).to_bytes())
+    Ok(keccak::hash(&inputs[0..192]).to_bytes())
 }
 
+// 🟢 Reverses chunk_5 before parsing so little-endian bit-packed offsets match
 pub fn extract_all_tx_data(inputs: &[u8]) -> Result<UnpackedTx> {
     if inputs.len() < 192 {
         return err!(crate::QiaraError::InvalidInputLength);
     }
-    let chunk_5 = extract_chunk(inputs, 5)?;
+    let mut chunk_5 = extract_chunk(inputs, 5)?;
+    chunk_5.reverse(); // Now byte 0 is the lowest byte (amount)
 
     Ok(UnpackedTx {
         amount: u64::from_le_bytes(chunk_5[0..8].try_into().unwrap()),

@@ -12,7 +12,7 @@ pub struct UnpackedTx {
 pub fn extract_chunk(inputs: &[u8], index: usize) -> Result<[u8; 32]> {
     let start = index * 32;
     if inputs.len() < start + 32 {
-        return err!(crate::QiaraError::InvalidInputLength); // Mapped to QiaraError
+        return err!(crate::QiaraError::InvalidInputLength);
     }
     let mut chunk = [0u8; 32];
     chunk.copy_from_slice(&inputs[start..start + 32]);
@@ -66,11 +66,13 @@ pub fn extract_validator_is_removal(inputs: &[u8]) -> Result<bool> {
     Ok((chunk_2[2] & 1) == 1)
 }
 
+// 🟢 Reverses chunk_5 first so the little-endian packed subfields (amount, chain_id, nonce, storage_id) unpack correctly
 pub fn extract_all_tx_data(inputs: &[u8]) -> Result<UnpackedTx> {
     if inputs.len() < 192 {
         return err!(crate::QiaraError::InvalidInputLength);
     }
-    let chunk_5 = extract_chunk(inputs, 5)?;
+    let mut chunk_5 = extract_chunk(inputs, 5)?;
+    chunk_5.reverse();
 
     Ok(UnpackedTx {
         amount: u64::from_le_bytes(chunk_5[0..8].try_into().unwrap()),
@@ -103,16 +105,10 @@ pub fn extract_provider(inputs: &[u8]) -> Result<String> {
     Ok(String::from_utf8(provider_bytes).unwrap_or_default())
 }
 
+// 🟢 Direct Keccak over all 192 bytes of Big-Endian inputs
 pub fn build_nullifier(inputs: &[u8]) -> Result<[u8; 32]> {
     if inputs.len() < 192 {
         return err!(crate::QiaraError::InvalidInputLength);
     }
-    let mut data = Vec::new();
-    for i in 0..6 {
-        let chunk_le = extract_chunk(inputs, i)?;
-        let mut chunk_be = chunk_le;
-        chunk_be.reverse();
-        data.extend_from_slice(&chunk_be);
-    }
-    Ok(keccak::hash(&data).to_bytes())
+    Ok(keccak::hash(&inputs[0..192]).to_bytes())
 }

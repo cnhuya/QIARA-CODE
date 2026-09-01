@@ -378,7 +378,7 @@ public fun claim_accumulated_fee_rewards(
     shares_fa
 }
  /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-/// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
+   /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
     public fun withdraw_token(
         signer: &signer,
         shared: String, 
@@ -393,7 +393,7 @@ public fun claim_accumulated_fee_rewards(
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it by 10^18
+        // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it to 1e18
         if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
             raw_scaled = raw_scaled * 1000000000000000000;
             net_scaled = net_scaled * 1000000000000000000;
@@ -406,14 +406,14 @@ public fun claim_accumulated_fee_rewards(
         };
 
         internal_daily_withdraw_limit(token, vault, raw_scaled);
- //tttta(10);
+
         let total_assets = get_total_assets(vault);
         let total_shares = vault.total_shares;
 
         assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
         assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        // 1. Calculate LP shares to burn based on vault ratio
+        // 3. Calculate LP shares to burn based on vault ratio
         let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
             raw_scaled
         } else {
@@ -421,7 +421,12 @@ public fun claim_accumulated_fee_rewards(
         };
         let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
 
-        // 2. Fetch Vault LP Capabilities and Metadata
+        // 🟢 4. ROUND UP: Guarantee at least 1 share is burned so integer division never rounds to 0
+        if (shares_to_burn_u64 == 0 && raw_scaled > 0) {
+            shares_to_burn_u64 = 1;
+        };
+
+        // 5. Fetch Vault LP Capabilities and Metadata
         let vault_seed = *String::bytes(&token);
         vector::append(&mut vault_seed, *String::bytes(&chain));
         vector::append(&mut vault_seed, *String::bytes(&provider));
@@ -429,8 +434,8 @@ public fun claim_accumulated_fee_rewards(
 
         let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
         let cap = table::borrow(&lp_caps.caps, vault_address);
-        tttta(1);
-        // 3. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
+
+        // 6. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
         let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
         let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
         let derived_address = Shared::return_shared_derived_address(shared);
@@ -442,16 +447,19 @@ public fun claim_accumulated_fee_rewards(
 
         assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
 
-        // 4. Tolerance & Safety Clamps
+        // 7. Tolerance & Safety Clamps
         if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
             shares_to_burn_u64 = user_lp_balance;
         };
 
         if (shares_to_burn_u64 > user_lp_balance) {
             let one_to_one_shares = (raw_scaled / 1000000000000000000 as u64);
+            if (one_to_one_shares == 0 && raw_scaled > 0) {
+                one_to_one_shares = 1;
+            };
             if (one_to_one_shares <= user_lp_balance) {
                 shares_to_burn_u64 = one_to_one_shares;
-                shares_to_burn_scaled = raw_scaled;
+                shares_to_burn_scaled = (one_to_one_shares as u256) * 1000000000000000000;
             } else {
                 shares_to_burn_u64 = user_lp_balance;
                 shares_to_burn_scaled = (user_lp_balance as u256) * 1000000000000000000;
@@ -460,8 +468,8 @@ public fun claim_accumulated_fee_rewards(
 
         assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
         assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
- tttta(100);
-        // 5. 🟢 Burn LP Shares from whichever store holds them
+
+        // 8. 🟢 Burn LP Shares from whichever store holds them
         let shares_fa = if (primary_balance >= shares_to_burn_u64) {
             primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64)
         } else if (custom_balance >= shares_to_burn_u64) {
@@ -481,12 +489,15 @@ public fun claim_accumulated_fee_rewards(
             vault.total_shares = 0;
         };
 
-        // 6. Ensure vault storage has enough liquidity to pay out
+        // 9. Ensure vault storage has enough liquidity to pay out
         let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
+        if (net_amount_u64 == 0 && net_scaled > 0) {
+            net_amount_u64 = 1;
+        };
         let vault_balance = fungible_asset::balance(vault.storage);
         assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
 
-        // 7. Withdraw NET underlying tokens from Vault and credit to user's shared store
+        // 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
         let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
         TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);

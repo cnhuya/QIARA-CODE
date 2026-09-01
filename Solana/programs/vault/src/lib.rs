@@ -130,7 +130,10 @@ pub mod vault {
         let tx_data = extractor::extract_all_tx_data(&public_inputs)?;
         let proof_provider_name = extractor::extract_provider(&public_inputs)?;
 
-        require!(ctx.accounts.vault.provider_name == proof_provider_name, QiaraError::WrongProviderProvided);
+        require!(
+    ctx.accounts.vault.provider_name.eq_ignore_ascii_case(&proof_provider_name), 
+    QiaraError::WrongProviderProvided
+);
         require!(ctx.accounts.user.key() == user_address, QiaraError::NotValidator);
 
         let amount = tx_data.amount;

@@ -131,7 +131,7 @@ module dev::QiaraTokensCoreV55{
     }
 
 // === ENTRY FUNCTIONS === //
-    public entry fun inits(admin: &signer){
+    public entry fun inits(admin: &signer){  
          //        tttta(0);
         init_token(admin, utf8(b"Ethereum"), utf8(b"QETH"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ethereum.webp"), 1_438_269_983, x"ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", 1, 120_688_129, 120_688_129, 120_688_129, 1);
         init_token(admin, utf8(b"Bitcoin"), utf8(b"QBTC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/bitcoin.webp"), 1_231_006_505, x"e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43", 1, 21_000_000, 20_049_815 , 20_049_815 , 1);

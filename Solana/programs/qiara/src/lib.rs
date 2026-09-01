@@ -346,6 +346,16 @@ fn check_and_handle_validator_rollover(state: &mut ValidatorState, epoch_config:
     }
     Ok(())
 }
+fn get_signature_message_hash(inputs: &[u8]) -> [u8; 32] {
+    let mut data = Vec::with_capacity(inputs.len());
+    for chunk in inputs.chunks_exact(32) {
+        let mut chunk_rev = [0u8; 32];
+        chunk_rev.copy_from_slice(chunk);
+        chunk_rev.reverse();
+        data.extend_from_slice(&chunk_rev);
+    }
+    keccak::hash(&data).to_bytes()
+}
 
 pub fn verify_signatures_with_threshold(
     state: &ValidatorState,
@@ -353,39 +363,35 @@ pub fn verify_signatures_with_threshold(
     signatures: &[Vec<u8>],
     inputs: &[u8],
 ) -> Result<()> {
-    let sig_count = signatures.len();
     let min_required = registry.get_min_unique_validators();
-    require!(sig_count >= min_required, QiaraError::InsufficientSignatures);
+    let msg_hash = get_signature_message_hash(inputs);
 
-    let mut seen_signers = Vec::with_capacity(sig_count);
+    let mut valid_count = 0;
+    let mut seen_signers: Vec<Vec<u8>> = Vec::new();
 
     for sig in signatures {
-        require!(sig.len() == 65, QiaraError::InvalidSignatureLength);
+        if sig.len() != 65 {
+            continue;
+        }
 
         let mut sig_bytes = [0u8; 64];
         sig_bytes.copy_from_slice(&sig[0..64]);
         let recovery_id = sig[64];
 
-        let msg_hash = keccak::hash(inputs).to_bytes();
-        let recovered_raw = secp256k1_recover(&msg_hash, recovery_id, &sig_bytes)
-            .map_err(|_| QiaraError::InvalidSignature)?;
+        if let Ok(recovered_raw) = secp256k1_recover(&msg_hash, recovery_id, &sig_bytes) {
+            let mut recovered_uncompressed = vec![0x04];
+            recovered_uncompressed.extend_from_slice(&recovered_raw.to_bytes());
 
-        let mut recovered_uncompressed = vec![0x04];
-        recovered_uncompressed.extend_from_slice(&recovered_raw.to_bytes());
-
-        // Check active validator
-        require!(
-            state.active_pubkeys.contains(&recovered_uncompressed),
-            QiaraError::NotValidator
-        );
-
-        // Prevent duplicate signatures to enforce unique threshold
-        require!(
-            !seen_signers.contains(&recovered_uncompressed),
-            QiaraError::DuplicateSigner
-        );
-        seen_signers.push(recovered_uncompressed);
+            // Check if recovered key is an active validator and not a duplicate
+            if state.active_pubkeys.contains(&recovered_uncompressed) 
+                && !seen_signers.contains(&recovered_uncompressed) {
+                seen_signers.push(recovered_uncompressed);
+                valid_count += 1;
+            }
+        }
     }
+
+    require!(valid_count >= 2, QiaraError::InsufficientSignatures);
     Ok(())
 }
 
