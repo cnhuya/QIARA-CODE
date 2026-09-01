@@ -7,9 +7,9 @@ module dev::QiaraPerpsV48 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV58::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV58::{Self as RI};
-    use dev::QiaraRanksV58::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV59::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV59::{Self as RI};
+    use dev::QiaraRanksV59::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraTokensMetadataV56::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 

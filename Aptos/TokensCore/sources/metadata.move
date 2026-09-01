@@ -13,7 +13,7 @@ module dev::QiaraTokensMetadataV56{
     use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraTokensTiersV56::{Self as tier};
-
+    use dev::QiaraTokenTypesV56::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV7::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -52,7 +52,6 @@ module dev::QiaraTokensMetadataV56{
         symbol: String,
         tier:u8,
         deflation_tier:u8,
-        native_decimals: u8,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -64,7 +63,7 @@ module dev::QiaraTokensMetadataV56{
         symbol: String,
         tier:u8,
         deflation_tier:u8,
-        native_decimals: u8,
+        native_data: Map<String, TokenChainData>,
         decimals: u8,
         oracleID: vector<u8>,
         creation: u64,
@@ -135,7 +134,6 @@ module dev::QiaraTokensMetadataV56{
 public entry fun create_metadata(
     admin: &signer, 
     symbol: String, 
-    native_decimals: u8,
     creation: u64, 
     deflation_tier:u8,
     oracleID: vector<u8>, 
@@ -188,7 +186,6 @@ public entry fun create_metadata(
         symbol,
         tier,
         deflation_tier,
-        native_decimals,
         decimals: 8,
         oracleID,
         creation,
@@ -556,7 +553,7 @@ public entry fun create_metadata(
                         symbol: metadat.symbol,
                         tier: metadat.tier,
                         deflation_tier: metadat.deflation_tier,
-                        native_decimals: metadat.native_decimals,
+                        native_data: TokensType::get_token_all_chains_data(metadat.symbol),
                         decimals: metadat.decimals, 
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
@@ -611,8 +608,8 @@ public entry fun create_metadata(
             metadata.creation
         }
 
-        public fun get_coin_metadata_native_decimals(metadata: &VMetadata): u8 {
-            metadata.native_decimals
+        public fun get_coin_metadata_native_data(metadata: &VMetadata): Map<String, TokenChainData> {
+            metadata.native_data
         }
 
     // CREDIT
@@ -782,7 +779,7 @@ public entry fun create_metadata(
                         tier: metadat.tier,
                         deflation_tier: metadat.deflation_tier,
                         decimals: metadat.decimals, 
-                        native_decimals: metadat.native_decimals,
+                        native_data: TokensType::get_token_all_chains_data(metadat.symbol),
                         oracleID: metadat.oracleID, 
                         creation: metadat.creation,
                         credit: metadat.credit,

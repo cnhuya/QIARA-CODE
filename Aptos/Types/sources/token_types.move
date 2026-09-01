@@ -473,6 +473,17 @@ module dev::QiaraTokenTypesV56 {
     }
 
     #[view]
+    public fun get_token_all_chains_data(token_name_or_nickname: String): Map<String, TokenChainData> acquires Tokens {
+        let full_name = resolve_full_token_name(token_name_or_nickname);
+        let tokens = borrow_global<Tokens>(@dev);
+        
+        assert!(map::contains_key(&tokens.map, &full_name), ERROR_INVALID_TOKEN);
+        
+        // Return a copy of the entire inner map (Chain -> TokenChainData)
+        *map::borrow(&tokens.map, &full_name)
+    }
+
+    #[view]
     public fun convert_token_nickName_to_name(nick_name: String): String acquires Tokens {
         let tokens = borrow_global<Tokens>(@dev);
         let nick_names = map::values(&tokens.nick_names);

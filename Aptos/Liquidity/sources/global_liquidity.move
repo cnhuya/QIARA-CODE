@@ -18,9 +18,9 @@ module dev::QiaraLiquidityV76 {
     use dev::QiaraTokensCoreV56::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensTiersV56::{Self as TokensTiers};
 
-    use dev::QiaraMarginV58::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV58::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV58::{Self as BurnedQiara};
+    use dev::QiaraMarginV59::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV59::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV59::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV56::{Self as ChainTypes};
     use dev::QiaraProviderTypesV56::{Self as ProviderTypes};

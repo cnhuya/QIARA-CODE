@@ -22,10 +22,10 @@ module dev::QiaraVaultsV80 {
     use dev::QiaraTokensTiersV56::{Self as TokensTiers};
     use dev::QiaraWrapperGateV56::{Self as WrapperGate};
 
-    use dev::QiaraMarginV58::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV58::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV58::{Self as RI};
-    use dev::QiaraBurnedQiaraV58::{Self as BurnedQiara};
+    use dev::QiaraMarginV59::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV59::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV59::{Self as RI};
+    use dev::QiaraBurnedQiaraV59::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV56::{Self as TokensTypes};
     use dev::QiaraChainTypesV56::{Self as ChainTypes};

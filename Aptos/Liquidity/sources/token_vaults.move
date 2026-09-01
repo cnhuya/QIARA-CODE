@@ -18,8 +18,8 @@ module dev::QiaraTokenVaultsV76{
     use dev::QiaraTokensCoreV56::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensTiersV56::{Self as TokensTiers};
 
-    use dev::QiaraMarginV58::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV58::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV59::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV59::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV17::{Self as Shared};
     
