@@ -433,20 +433,37 @@ public entry fun batch_update_price(
         if (!exists<Prices>(@dev)) return 0;
 
         let prices = borrow_global<Prices>(@dev);
-        if (!map::contains_key(&prices.map, &name)) {
-            return 0
+        
+        // 1. If mapped with an impact offset, compute with impact
+        if (map::contains_key(&prices.map, &name)) {
+            let qiara_impact = *map::borrow(&prices.map, &name);
+            let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
+
+            if (qiara_impact.isPositive) {
+                return (supra_oracle_price as u256) + qiara_impact.value
+            } else {
+                let s_price = (supra_oracle_price as u256);
+                if (qiara_impact.value >= s_price) { return 1 };
+                return s_price - qiara_impact.value
+            };
         };
 
-        let qiara_impact = *map::borrow(&prices.map, &name);
-        let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
+        // 2. Fallback: Search prices.prices directly if token name was not yet registered
+        let (found, token_name) = (false, utf8(b""));
+        let keys = map::keys(&prices.prices);
+        let len = vector::length(&keys);
+        let i = 0;
+        while (i < len) {
+            let feed_id = vector::borrow(&keys, i);
+            let (f, matched_name) = find_token_name_by_oracle_id(prices, feed_id);
+            if (f && matched_name == name) {
+                let store = map::borrow(&prices.prices, feed_id);
+                return (store.price as u256)
+            };
+            i = i + 1;
+        };
 
-        if (qiara_impact.isPositive) {
-            (supra_oracle_price as u256) + qiara_impact.value
-        } else {
-            let s_price = (supra_oracle_price as u256);
-            if (qiara_impact.value >= s_price) { return 1 };
-            s_price - qiara_impact.value
-        }
+        0
     }
 
     #[view]
