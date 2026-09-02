@@ -6,10 +6,10 @@ module dev::QiaraTokensFaucetV59 {
     use std::timestamp;
     use std::bcs;
     use std::vector;
-    use dev::QiaraChainTypesV59::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV59::{Self as TokensType};
+    use dev::QiaraChainTypesV60::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV60::{Self as TokensType};
     use aptos_std::simple_map::{Self as simple_map, SimpleMap as Map};
-    use dev::QiaraProviderTypesV59::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV60::{Self as ProviderTypes};
 
     use dev::QiaraTokensCoreV59::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensMetadataV59::{Self as TokensMetadata};
