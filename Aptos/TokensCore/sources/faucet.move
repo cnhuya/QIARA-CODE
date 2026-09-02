@@ -1,4 +1,4 @@
-module dev::QiaraTokensFaucetV60 {
+module dev::QiaraTokensFaucetV61 {
     use std::string::{Self as string, String, utf8};
     use std::type_info::{Self, TypeInfo};
     use std::signer;
@@ -11,8 +11,8 @@ module dev::QiaraTokensFaucetV60 {
     use aptos_std::simple_map::{Self as simple_map, SimpleMap as Map};
     use dev::QiaraProviderTypesV61::{Self as ProviderTypes};
 
-    use dev::QiaraTokensCoreV60::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV60::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV61::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV61::{Self as TokensMetadata};
     use dev::QiaraSharedV17::{Self as Shared};
     use dev::QiaraStorageV21::{Self as storage};
 
