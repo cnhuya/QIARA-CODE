@@ -399,7 +399,7 @@ module dev::QiaraPerpsV53 {
         len = len - 1;
     };
 
-    oracle::batch_update_price(signer, asset, price_update_data, ids); // Pass asset names!
+    oracle::batch_update_price(validator, asset, price_update_data, ids); // Pass asset names!
     Ranks::add_experience(shared, experience_for_action() * (len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
 }
 // === HELPER FUNCTIONS ===
