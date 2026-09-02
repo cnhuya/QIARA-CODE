@@ -22,9 +22,9 @@ module dev::QiaraPerpsV52 {
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};
-    use dev::QiaraOracleV9::{Self as oracle};
-    use dev::QiaraChainTypesV60::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV60::{Self as TokensTypes};
+    use dev::QiaraOracleV10::{Self as oracle};
+    use dev::QiaraChainTypesV61::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV61::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
@@ -274,7 +274,7 @@ module dev::QiaraPerpsV52 {
         len = len - 1;
     };
 
-    oracle::batch_update_price(signer, price_update_data, ids);
+    oracle::batch_update_price(signer, asset, price_update_data, ids); // Pass asset names!
     Ranks::add_experience(shared, experience_for_action() * (len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
 }
 

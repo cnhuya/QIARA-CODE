@@ -13,8 +13,8 @@ module dev::QiaraTokensMetadataV60{
     use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraTokensTiersV60::{Self as tier};
-    use dev::QiaraTokenTypesV60::{Self as TokensType, TokenChainData};
-    use dev::QiaraOracleV9::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraTokenTypesV61::{Self as TokensType, TokenChainData};
+    use dev::QiaraOracleV10::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

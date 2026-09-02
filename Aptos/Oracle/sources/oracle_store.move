@@ -1,4 +1,4 @@
-module dev::QiaraOracleV9 {
+module dev::QiaraOracleV10 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
@@ -201,8 +201,9 @@ module dev::QiaraOracleV9 {
         Event::emit_oracle_event(utf8(b"Price Update"), data);
     }
 
-    public entry fun batch_update_price(
+public entry fun batch_update_price(
         user: &signer,
+        names: vector<String>,
         price_update_data: vector<vector<u8>>,
         feed_id_bytes: vector<vector<u8>>,
     ) acquires Prices {
@@ -211,8 +212,24 @@ module dev::QiaraOracleV9 {
         };
 
         let len = vector::length(&feed_id_bytes);
+        let names_len = vector::length(&names);
+
         while (len > 0) {
             let feed_bytes = *vector::borrow(&feed_id_bytes, len - 1);
+            
+            // Auto-register token name in prices.map if provided
+            if (len <= names_len) {
+                let token_name = *vector::borrow(&names, len - 1);
+                let prices = borrow_global_mut<Prices>(@dev);
+                if (!map::contains_key(&prices.map, &token_name)) {
+                    map::upsert(&mut prices.map, token_name, Integer { 
+                        oracleID: feed_bytes, 
+                        value: 0, 
+                        isPositive: true 
+                    });
+                };
+            };
+
             if (vector::length(&feed_bytes) == 32) {
                 update_price(user, vector::empty<vector<u8>>(), feed_bytes);
             };
