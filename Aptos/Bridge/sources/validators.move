@@ -11,8 +11,8 @@ module dev::QiaraValidatorsV65{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
     use dev::QiaraStorageV21::{Self as storage};
-    use dev::QiaraTokensQiaraV57::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV58::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV59::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV59::{Self as TokensCore, Access as TokensCoreAccess};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
