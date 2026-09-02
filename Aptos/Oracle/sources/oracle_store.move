@@ -110,7 +110,6 @@ module dev::QiaraOracleV9 {
         };
     }
 
-    // Updates the Switchboard price cache and emits the old and new full combined prices
     public entry fun update_price(
         user: &signer,
         switchboard_update_data: vector<vector<u8>>,
@@ -207,7 +206,6 @@ module dev::QiaraOracleV9 {
         price_update_data: vector<vector<u8>>,
         feed_id_bytes: vector<vector<u8>>,
     ) acquires Prices {
-        // Run the combined update action once for all proofs
         if (vector::length(&price_update_data) > 0) {
             update_action::run<AptosCoin>(user, price_update_data);
         };
@@ -215,7 +213,9 @@ module dev::QiaraOracleV9 {
         let len = vector::length(&feed_id_bytes);
         while (len > 0) {
             let feed_bytes = *vector::borrow(&feed_id_bytes, len - 1);
-            update_price(user, vector::empty<vector<u8>>(), feed_bytes);
+            if (vector::length(&feed_bytes) == 32) {
+                update_price(user, vector::empty<vector<u8>>(), feed_bytes);
+            };
             len = len - 1;
         };
     }
@@ -312,6 +312,7 @@ module dev::QiaraOracleV9 {
     #[view]
     public fun convert_to_token(name: String, usd: u256): u256 acquires Prices {
         let price = viewPrice(name);
+        if (price == 0) return 0;
         (usd * 1000000000000000000) / price
     }
 
@@ -322,9 +323,10 @@ module dev::QiaraOracleV9 {
     }
 
     #[view]
-    public fun convert_to_token_safe(name: String, oracleID: vector<u8>, size: u256): u256 acquires Prices {
+    public fun convert_to_token_safe(name: String, oracleID: vector<u8>, usd: u256): u256 acquires Prices {
         let price = viewPrice_safe(name, oracleID);
-        (size * 1000000000000000000) / price
+        if (price == 0) return 0;
+        (usd * 1000000000000000000) / price
     }
 
     #[view]
@@ -339,7 +341,9 @@ module dev::QiaraOracleV9 {
 
     #[view]
     public fun get_price(feed_id_bytes: vector<u8>): PriceStore acquires Prices {
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        if (vector::length(&feed_id_bytes) != 32) {
+            return PriceStore { price: 0, decimals: 0, publish_time: 0 }
+        };
         let prices = borrow_global<Prices>(@dev);
 
         if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
@@ -351,7 +355,9 @@ module dev::QiaraOracleV9 {
 
     #[view]
     public fun get_raw_price(feed_id_bytes: vector<u8>): (u64, u64) acquires Prices {
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        if (vector::length(&feed_id_bytes) != 32) {
+            return (0u64, 0u64)
+        };
         let prices = borrow_global<Prices>(@dev);
 
         if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
@@ -364,7 +370,9 @@ module dev::QiaraOracleV9 {
 
     #[view]
     public fun get_price_direct(feed_id_bytes: vector<u8>): (u128, u8, u64) {
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        if (vector::length(&feed_id_bytes) != 32) {
+            return (0, SWITCHBOARD_DECIMALS, 0)
+        };
         let feed_addr = bytes_to_address(&feed_id_bytes);
         let agg_obj = object::address_to_object<Aggregator>(feed_addr);
         let current_result = aggregator::current_result(agg_obj);
@@ -377,19 +385,14 @@ module dev::QiaraOracleV9 {
     #[view]
     public fun viewPrice_safe(name: String, oracleID: vector<u8>): u256 acquires Prices {
         if (name == utf8(b"Qiara")) { return 0 };
-        assert!(exists<Prices>(@dev), 404);
+        if (!exists<Prices>(@dev)) return 0;
 
-        let has_key;
-        let qiara_impact;
-
-        {
-            let prices = borrow_global<Prices>(@dev);
-            has_key = map::contains_key(&prices.map, &name);
-            if (has_key) {
-                qiara_impact = *map::borrow(&prices.map, &name);
-            } else {
-                qiara_impact = Integer { oracleID, value: 0, isPositive: true };
-            };
+        let prices = borrow_global<Prices>(@dev);
+        let has_key = map::contains_key(&prices.map, &name);
+        let qiara_impact = if (has_key) {
+            *map::borrow(&prices.map, &name)
+        } else {
+            Integer { oracleID, value: 0, isPositive: true }
         };
 
         let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
@@ -410,19 +413,14 @@ module dev::QiaraOracleV9 {
     #[view]
     public fun viewPrice(name: String): u256 acquires Prices {
         if (name == utf8(b"Qiara")) { return 0 };
-        assert!(exists<Prices>(@dev), 404);
+        if (!exists<Prices>(@dev)) return 0;
 
-        let qiara_impact;
-
-        {
-            let prices = borrow_global<Prices>(@dev);
-            if (map::contains_key(&prices.map, &name)) {
-                qiara_impact = *map::borrow(&prices.map, &name);
-            } else {
-                qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
-            };
+        let prices = borrow_global<Prices>(@dev);
+        if (!map::contains_key(&prices.map, &name)) {
+            return 0
         };
 
+        let qiara_impact = *map::borrow(&prices.map, &name);
         let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
 
         if (qiara_impact.isPositive) {
@@ -437,19 +435,14 @@ module dev::QiaraOracleV9 {
     #[view]
     public fun viewPriceWithDecimals(name: String): (u256, u64) acquires Prices {
         if (name == utf8(b"Qiara")) { return (0, 0) };
-        assert!(exists<Prices>(@dev), 404);
+        if (!exists<Prices>(@dev)) return (0, 0);
 
-        let qiara_impact;
-
-        {
-            let prices = borrow_global<Prices>(@dev);
-            if (map::contains_key(&prices.map, &name)) {
-                qiara_impact = *map::borrow(&prices.map, &name);
-            } else {
-                qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
-            };
+        let prices = borrow_global<Prices>(@dev);
+        if (!map::contains_key(&prices.map, &name)) {
+            return (0, 0)
         };
 
+        let qiara_impact = *map::borrow(&prices.map, &name);
         let (supra_oracle_price, decimals) = get_raw_price(qiara_impact.oracleID);
         if (qiara_impact.isPositive) {
             ((supra_oracle_price as u256) + qiara_impact.value, decimals)
@@ -473,6 +466,7 @@ module dev::QiaraOracleV9 {
 
     #[view]
     public fun existsPrice(name: String): bool acquires Prices {
+        if (!exists<Prices>(@dev)) return false;
         let prices = borrow_global<Prices>(@dev);
         map::contains_key(&prices.map, &name)
     }
