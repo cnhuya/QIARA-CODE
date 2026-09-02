@@ -1,4 +1,4 @@
-module dev::QiaraRanksV61{
+module dev::QiaraRanksV62{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;

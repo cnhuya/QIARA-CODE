@@ -1,4 +1,4 @@
-module dev::QiaraMarginV61 {
+module dev::QiaraMarginV62 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,8 +8,8 @@ module dev::QiaraMarginV61 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV61::{Self as Ranks};
-    use dev::QiaraTokensMetadataV59::{Self as TokensMetadata};
+    use dev::QiaraRanksV62::{Self as Ranks};
+    use dev::QiaraTokensMetadataV60::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV60::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};

@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV80 {
+module dev::QiaraLiquidityV81 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -14,13 +14,13 @@ module dev::QiaraLiquidityV80 {
     use aptos_framework::account;
     use aptos_framework::from_bcs;
 
-    use dev::QiaraTokensMetadataV59::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV59::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV59::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV60::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV60::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV60::{Self as TokensTiers};
 
-    use dev::QiaraMarginV61::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV61::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV61::{Self as BurnedQiara};
+    use dev::QiaraMarginV62::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV62::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV62::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV60::{Self as ChainTypes};
     use dev::QiaraProviderTypesV60::{Self as ProviderTypes};
