@@ -32,7 +32,7 @@ module dev::QiaraTokensCoreV59{
 
     use dev::QiaraChainTypesV59::{Self as ChainTypes};
     use dev::QiaraTokenTypesV59::{Self as TokensType};
-    use dev::QiaraProviderTypesV58::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV59::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
