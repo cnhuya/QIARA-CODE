@@ -229,8 +229,11 @@ module dev::QiaraStorageV21 {
     }
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 2,5%
-        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"), 2_500_000, true, &give_permission(&give_access(admin))); // 5%
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 3, true, &give_permission(&give_access(admin))); // 3 VALIDATORS SIGNATURES
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, &give_permission(&give_access(admin))); // 3 SECONDS?
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 1_000, true, &give_permission(&give_access(admin))); // 0.01% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, &give_permission(&give_access(admin))); // 0.001% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 5, true, &give_permission(&give_access(admin))); // 5
     }
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{

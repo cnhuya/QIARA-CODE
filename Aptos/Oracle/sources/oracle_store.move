@@ -3,47 +3,35 @@ module dev::QiaraOracleV10 {
     use std::vector;
     use std::bcs;
     use std::signer;
-    use aptos_std::from_bcs;
+    use aptos_framework::timestamp;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     
-    use aptos_framework::object::{Self, Object};
-    use aptos_framework::aptos_coin::AptosCoin;
-
-    use switchboard::aggregator::{Self, Aggregator, CurrentResult};
-    use switchboard::decimal::{Self, Decimal};
-    use switchboard::update_action;
-
     use event::QiaraEventV1::{Self as Event};
+    use dev::QiaraValidatorsV67::{Self as Validators};
+    use dev::QiaraStorageV21::{Self as storage};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
-    const ERROR_TOKEN_PRICE_COULDNT_BE_FOUND: u64 = 1;
-    const E_NOT_INITIALIZED: u64 = 2;
-    const E_ALREADY_INIT: u64 = 3;
-    const E_NEGATIVE_PRICE: u64 = 4;
-    const E_STALE_PRICE: u64 = 5;
-    const E_FEED_ID_EMPTY: u64 = 6;
+    const E_NOT_INITIALIZED: u64 = 1;
+    const E_NOT_IN_COMMITTEE: u64 = 2;
+    const E_ALREADY_SUBMITTED: u64 = 3;
+    const E_STALE_ROUND: u64 = 4;
+    const E_PRICE_DIVERGENCE_TOO_HIGH: u64 = 5;
+    const E_ROUND_ALREADY_SETTLED: u64 = 6;
 
 // === CONSTANTS === //
-    const SWITCHBOARD_DECIMALS: u8 = 18;
-    
-// === ACCESS === //
-    struct Access has store, key, drop {}
-    struct Permission has copy, key, drop {}
-
-    public fun give_access(s: &signer): Access {
-        assert!(signer::address_of(s) == @dev, ERROR_NOT_ADMIN);
-        Access {}
-    }
-
-    public fun give_permission(_access: &Access): Permission {
-        Permission {}
-    }
+    const ORACLE_DECIMALS: u8 = 8;
+    const DRIFT_DENOMINATOR: u128 = 10_000_000; // 1,000 = 0.01%
 
 // === STRUCTS === //
-    struct Prices has key {
-        map: Map<String, Integer>,            // Token Symbol -> Impact Integer
-        prices: Map<vector<u8>, PriceStore>,  // Switchboard Feed ID -> PriceStore
+    struct RoundSubmission has store, drop, copy {
+        validator: address,
+        price: u128,
+    }
+
+    struct RoundData has store, drop {
+        submissions: vector<RoundSubmission>,
+        settled: bool,
     }
 
     struct Integer has drop, key, store, copy {
@@ -58,6 +46,20 @@ module dev::QiaraOracleV10 {
         publish_time: u64,
     }
 
+    struct Prices has key {
+        map: Map<String, Integer>,
+        prices: Map<vector<u8>, PriceStore>,
+        rounds: Map<u64, RoundData>,
+    }
+
+    struct OracleConfig has copy, drop, store {
+        required_quorum: u64,
+        round_duration_ms: u64,
+        max_price_divergence_drift: u64,
+        min_price_divergence_drift: u64,
+        committee_pool_size: u64,
+    }
+
 // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -66,455 +68,186 @@ module dev::QiaraOracleV10 {
             move_to(admin, Prices { 
                 map: map::new<String, Integer>(),
                 prices: map::new<vector<u8>, PriceStore>(),
+                rounds: map::new<u64, RoundData>(),
             });
         };
     }
 
-// === HELPER METHODS === //
+// === DYNAMIC STORAGE READERS === //
 
-    fun bytes_to_address(feed_id_bytes: &vector<u8>): address {
-        assert!(vector::length(feed_id_bytes) == 32, E_FEED_ID_EMPTY);
-        from_bcs::to_address(*feed_id_bytes)
+    inline fun get_required_quorum(): u64 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM")))
     }
 
-    fun find_token_name_by_oracle_id(prices: &Prices, oracleID: &vector<u8>): (bool, String) {
-        let keys = map::keys(&prices.map);
-        let len = vector::length(&keys);
-        let i = 0;
-        while (i < len) {
-            let name = vector::borrow(&keys, i);
-            let val = map::borrow(&prices.map, name);
-            if (&val.oracleID == oracleID) {
-                return (true, *name)
-            };
-            i = i + 1;
-        };
-        (false, utf8(b""))
+    inline fun get_round_duration_secs(): u64 {
+        let ms = storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS")));
+        ms / 1000
     }
 
-// === UPDATE METHODS === //
-
-    public entry fun ensure_switchboard_feed_new(token: String, feed_id_bytes: vector<u8>) acquires Prices {
-        let prices = borrow_global_mut<Prices>(@dev);
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
-        if (!map::contains_key(&prices.map, &token)) {
-            map::upsert(&mut prices.map, token, Integer { oracleID: feed_id_bytes, value: 0, isPositive: true });
-        };
+    inline fun get_max_divergence(): u128 {
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"))) as u128)
     }
 
-    public entry fun ensure_switchboard_feed(feed_id_bytes: vector<u8>) acquires Prices {
-        let prices = borrow_global_mut<Prices>(@dev);
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
-        if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
-            map::upsert(&mut prices.prices, feed_id_bytes, PriceStore { price: 0, decimals: 0, publish_time: 0 });
-        };
+    inline fun get_committee_pool_size(): u64 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE")))
     }
 
-    public entry fun update_price(
-        user: &signer,
-        switchboard_update_data: vector<vector<u8>>,
-        feed_id_bytes: vector<u8>,
+    #[view]
+    public fun get_oracle_config(): OracleConfig {
+        OracleConfig {
+            required_quorum: get_required_quorum(),
+            round_duration_ms: storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"))),
+            max_price_divergence_drift: storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"))),
+            min_price_divergence_drift: storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"))),
+            committee_pool_size: get_committee_pool_size(),
+        }
+    }
+
+// === COMMITTEE SUBMISSION === //
+
+    public entry fun submit_round_price(
+        caller: &signer,
+        validator_shared: String,
+        symbol: String,
+        price: u128,
+        round_id: u64,
     ) acquires Prices {
         assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
-        assert!(vector::length(&feed_id_bytes) == 32, E_FEED_ID_EMPTY);
+        let caller_addr = signer::address_of(caller);
 
-        // 1. Submit on-chain Switchboard update action if update data is provided
-        if (vector::length(&switchboard_update_data) > 0) {
-            update_action::run<AptosCoin>(user, switchboard_update_data);
+        let round_duration = get_round_duration_secs();
+        let committee_size = get_committee_pool_size();
+        let required_quorum = get_required_quorum();
+        let max_divergence = get_max_divergence();
+
+        // 1. Verify round freshness
+        let current_round = timestamp::now_seconds() / round_duration;
+        assert!(round_id == current_round || round_id == current_round - 1, E_STALE_ROUND);
+
+        // 2. Verify caller in Top-K committee for this round
+        let active_validators = Validators::return_all_active_parents();
+        let total_val = vector::length(&active_validators);
+        assert!(total_val >= committee_size, E_NOT_IN_COMMITTEE);
+
+        let is_in_committee = false;
+        let c = 0;
+        while (c < committee_size) {
+            let assigned_idx = (round_id * 7 + c * 3) % total_val;
+            if (*vector::borrow(&active_validators, assigned_idx) == validator_shared) {
+                is_in_committee = true;
+                break
+            };
+            c = c + 1;
+        };
+        assert!(is_in_committee, E_NOT_IN_COMMITTEE);
+
+        // 3. State update
+        let prices = borrow_global_mut<Prices>(@dev);
+        if (!map::contains_key(&prices.rounds, &round_id)) {
+            map::upsert(&mut prices.rounds, round_id, RoundData {
+                submissions: vector::empty<RoundSubmission>(),
+                settled: false,
+            });
         };
 
-        // 2. Read the latest aggregated value from the Switchboard aggregator object
-        let feed_addr = bytes_to_address(&feed_id_bytes);
-        let agg_obj: Object<Aggregator> = object::address_to_object<Aggregator>(feed_addr);
-        let current_result: CurrentResult = aggregator::current_result(agg_obj);
-        let result_decimal: Decimal = aggregator::result(&current_result);
-        
-        let (raw_val, _neg) = decimal::unpack(result_decimal);
-        let timestamp = aggregator::timestamp(&current_result);
+        let round_data = map::borrow_mut(&mut prices.rounds, &round_id);
+        assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
 
-        let old_price_store = get_price(feed_id_bytes);
-
-        let new_store = PriceStore {
-            price: raw_val,
-            decimals: SWITCHBOARD_DECIMALS,
-            publish_time: timestamp,
+        let len = vector::length(&round_data.submissions);
+        let i = 0;
+        while (i < len) {
+            assert!(vector::borrow(&round_data.submissions, i).validator != caller_addr, E_ALREADY_SUBMITTED);
+            i = i + 1;
         };
 
-        let token_name;
-        let found;
-        let old_raw_price = (old_price_store.price as u256);
-        let new_raw_price = (new_store.price as u256);
-        let qiara_impact = Integer { oracleID: vector::empty<u8>(), value: 0, isPositive: true };
+        vector::push_back(&mut round_data.submissions, RoundSubmission { validator: caller_addr, price });
 
-        // 3. Update local cache table
-        {
-            let prices = borrow_global_mut<Prices>(@dev);
+        // 4. Quorum reached: compute median & check dynamic drift
+        if (vector::length(&round_data.submissions) >= required_quorum) {
+            let p0 = vector::borrow(&round_data.submissions, 0).price;
+            let p1 = vector::borrow(&round_data.submissions, 1).price;
+            let p2 = vector::borrow(&round_data.submissions, 2).price;
 
-            if (map::contains_key(&prices.prices, &feed_id_bytes)) {
-                *map::borrow_mut(&mut prices.prices, &feed_id_bytes) = new_store;
-            } else {
-                map::add(&mut prices.prices, feed_id_bytes, new_store);
+            let median = find_median_of_three(p0, p1, p2);
+
+            assert!(calculate_divergence(p0, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+            assert!(calculate_divergence(p1, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+            assert!(calculate_divergence(p2, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+
+            let now = timestamp::now_seconds();
+            let symbol_bytes = bcs::to_bytes(&symbol);
+            let store = PriceStore { price: median, decimals: ORACLE_DECIMALS, publish_time: now };
+
+            map::upsert(&mut prices.prices, symbol_bytes, store);
+            if (!map::contains_key(&prices.map, &symbol)) {
+                map::upsert(&mut prices.map, symbol, Integer { oracleID: symbol_bytes, value: 0, isPositive: true });
             };
 
-            let (f, name) = find_token_name_by_oracle_id(prices, &feed_id_bytes);
-            found = f;
-            token_name = name;
-
-            if (f) {
-                qiara_impact = *map::borrow(&prices.map, &token_name);
-            };
-        };
-
-        // 4. Calculate impact-combined prices
-        let old_combined_price: u256 = old_raw_price;
-        let new_combined_price: u256 = new_raw_price;
-
-        if (found) {
-            if (token_name != utf8(b"Qiara")) {
-                if (qiara_impact.isPositive) {
-                    old_combined_price = old_raw_price + qiara_impact.value;
-                } else {
-                    if (qiara_impact.value >= old_raw_price) {
-                        old_combined_price = 1;
-                    } else {
-                        old_combined_price = old_raw_price - qiara_impact.value;
-                    }
-                };
-
-                if (qiara_impact.isPositive) {
-                    new_combined_price = new_raw_price + qiara_impact.value;
-                } else {
-                    if (qiara_impact.value >= new_raw_price) {
-                        new_combined_price = 1;
-                    } else {
-                        new_combined_price = new_raw_price - qiara_impact.value;
-                    }
-                };
-            }
-        };
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&feed_id_bytes)),
-            Event::create_data_struct(utf8(b"old_price"), utf8(b"u256"), bcs::to_bytes(&old_combined_price)),
-            Event::create_data_struct(utf8(b"new_price"), utf8(b"u256"), bcs::to_bytes(&new_combined_price)),
-        ];
-        Event::emit_oracle_event(utf8(b"Price Update"), data);
-    }
-
-public entry fun batch_update_price(
-        user: &signer,
-        names: vector<String>,
-        price_update_data: vector<vector<u8>>,
-        feed_id_bytes: vector<vector<u8>>,
-    ) acquires Prices {
-        if (vector::length(&price_update_data) > 0) {
-            update_action::run<AptosCoin>(user, price_update_data);
-        };
-
-        let len = vector::length(&feed_id_bytes);
-        let names_len = vector::length(&names);
-
-        while (len > 0) {
-            let feed_bytes = *vector::borrow(&feed_id_bytes, len - 1);
-            
-            // Auto-register token name in prices.map if provided
-            if (len <= names_len) {
-                let token_name = *vector::borrow(&names, len - 1);
-                let prices = borrow_global_mut<Prices>(@dev);
-                if (!map::contains_key(&prices.map, &token_name)) {
-                    map::upsert(&mut prices.map, token_name, Integer { 
-                        oracleID: feed_bytes, 
-                        value: 0, 
-                        isPositive: true 
-                    });
-                };
+            let qiara_impact = *map::borrow(&prices.map, &symbol);
+            if (qiara_impact.oracleID != symbol_bytes && vector::length(&qiara_impact.oracleID) > 0) {
+                map::upsert(&mut prices.prices, qiara_impact.oracleID, store);
             };
 
-            if (vector::length(&feed_bytes) == 32) {
-                update_price(user, vector::empty<vector<u8>>(), feed_bytes);
-            };
-            len = len - 1;
+            round_data.settled = true;
+
+            let data = vector[
+                Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), symbol_bytes),
+                Event::create_data_struct(utf8(b"price"), utf8(b"u128"), bcs::to_bytes(&median)),
+                Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
+            ];
+            Event::emit_oracle_event(utf8(b"Round Settled"), data);
         };
     }
 
-    public fun impact_price(
-        name: String, 
-        oracleID: vector<u8>, 
-        impact: u256, 
-        isPositive: bool, 
-        native_oracle_weight: u256, 
-        _perm: Permission
-    ): u256 acquires Prices {
-        let (supra_oracle_price, _,) = get_raw_price(oracleID);
-        let price;
-        {
-            let prices_storage = borrow_global_mut<Prices>(@dev);
-            price = ensure_price(prices_storage, name, oracleID);
-        }
-
-        let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
-        if (scaled_impact == 0) { return 0 };
-        let old_price_state;
-        let new_price_state;
-        let final_price_value;
-        let final_price_is_positive;
-
-        {
-            old_price_state = *price;
-
-            if (isPositive) {
-                if (price.isPositive) {
-                    price.value = price.value + scaled_impact;
-                } else {
-                    if (scaled_impact >= price.value) {
-                        price.value = scaled_impact - price.value;
-                        price.isPositive = true;
-                    } else {
-                        price.value = price.value - scaled_impact;
-                    };
-                }
-            } else {
-                if (price.isPositive) {
-                    if (scaled_impact >= price.value) {
-                        price.value = scaled_impact - price.value;
-                        price.isPositive = false;
-                    } else {
-                        price.value = price.value - scaled_impact;
-                    };
-                } else {
-                    price.value = price.value + scaled_impact;
-                }
-            };
-
-            new_price_state = *price;
-            final_price_value = price.value;
-            final_price_is_positive = price.isPositive;
-        };
-
-        let updated_view_price = viewPrice(name);
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
-            Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&oracleID)),
-            Event::create_data_struct(utf8(b"old_price_impact"), utf8(b"u64"), bcs::to_bytes(&old_price_state)),
-            Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
-            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&updated_view_price)),
-        ];
-        Event::emit_oracle_event(utf8(b"Qiara Oracle Impact Update"), data);
-
-        let a = calculate_impact_percentage((supra_oracle_price as u256), final_price_value, final_price_is_positive);
-
-        a / 1_000_000
+    fun find_median_of_three(a: u128, b: u128, c: u128): u128 {
+        if ((a >= b && a <= c) || (a <= b && a >= c)) return a;
+        if ((b >= a && b <= c) || (b <= a && b >= c)) return b;
+        c
     }
 
-    fun ensure_price(prices: &mut Prices, name: String, oracleID: vector<u8>): &mut Integer {
-        if (!map::contains_key(&prices.map, &name)) {
-            map::upsert(&mut prices.map, name, Integer { oracleID, value: 0, isPositive: true });
-        };
-        map::borrow_mut(&mut prices.map, &name)
-    }
-
-    public entry fun test_ensure_price(name: String, oracleID: vector<u8>) acquires Prices {
-        ensure_price(borrow_global_mut<Prices>(@dev), name, oracleID);
-    }
-
-// === VIEW METHODS === //
-
-    #[view]
-    public fun convert_to_usd(name: String, size: u256): u256 acquires Prices {
-        let price = viewPrice(name);
-        (price * size) / 1000000000000000000
+    fun calculate_divergence(val: u128, target: u128): u128 {
+        let diff = if (val > target) val - target else target - val;
+        (diff * DRIFT_DENOMINATOR) / target
     }
 
     #[view]
-    public fun convert_to_token(name: String, usd: u256): u256 acquires Prices {
-        let price = viewPrice(name);
-        if (price == 0) return 0;
-        (usd * 1000000000000000000) / price
-    }
-
-    #[view]
-    public fun convert_to_usd_safe(name: String, oracleID: vector<u8>, size: u256): u256 acquires Prices {
-        let price = viewPrice_safe(name, oracleID);
-        (price * size) / 1000000000000000000
-    }
-
-    #[view]
-    public fun convert_to_token_safe(name: String, oracleID: vector<u8>, usd: u256): u256 acquires Prices {
-        let price = viewPrice_safe(name, oracleID);
-        if (price == 0) return 0;
-        (usd * 1000000000000000000) / price
-    }
-
-    #[view]
-    public fun viewAllPrices(): Map<String, Integer> acquires Prices {
-        *&borrow_global<Prices>(@dev).map
-    }
-
-    #[view]
-    public fun viewAllAllPrices(): Map<vector<u8>, PriceStore> acquires Prices {
-        *&borrow_global<Prices>(@dev).prices
-    }
-
-    #[view]
-    public fun get_price(feed_id_bytes: vector<u8>): PriceStore acquires Prices {
-        if (vector::length(&feed_id_bytes) != 32) {
-            return PriceStore { price: 0, decimals: 0, publish_time: 0 }
-        };
+    public fun is_round_settled(round_id: u64): bool acquires Prices {
         let prices = borrow_global<Prices>(@dev);
-
-        if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
-            PriceStore { price: 0, decimals: 0, publish_time: 0 }
-        } else {
-            *map::borrow(&prices.prices, &feed_id_bytes)
-        }
-    }
-
-    #[view]
-    public fun get_raw_price(feed_id_bytes: vector<u8>): (u64, u64) acquires Prices {
-        if (vector::length(&feed_id_bytes) != 32) {
-            return (0u64, 0u64)
-        };
-        let prices = borrow_global<Prices>(@dev);
-
-        if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
-            return (0u64, 0u64)
-        };
-
-        let cached_price = map::borrow(&prices.prices, &feed_id_bytes);
-        ((cached_price.price as u64), (cached_price.decimals as u64))
-    }
-
-    #[view]
-    public fun get_price_direct(feed_id_bytes: vector<u8>): (u128, u8, u64) {
-        if (vector::length(&feed_id_bytes) != 32) {
-            return (0, SWITCHBOARD_DECIMALS, 0)
-        };
-        let feed_addr = bytes_to_address(&feed_id_bytes);
-        let agg_obj = object::address_to_object<Aggregator>(feed_addr);
-        let current_result = aggregator::current_result(agg_obj);
-        let result_decimal = aggregator::result(&current_result);
-        let (raw_val, _neg) = decimal::unpack(result_decimal);
-        let timestamp = aggregator::timestamp(&current_result);
-        (raw_val, SWITCHBOARD_DECIMALS, timestamp)
-    }
-
-    #[view]
-    public fun viewPrice_safe(name: String, oracleID: vector<u8>): u256 acquires Prices {
-        if (name == utf8(b"Qiara")) { return 0 };
-        if (!exists<Prices>(@dev)) return 0;
-
-        let prices = borrow_global<Prices>(@dev);
-        let has_key = map::contains_key(&prices.map, &name);
-        let qiara_impact = if (has_key) {
-            *map::borrow(&prices.map, &name)
-        } else {
-            Integer { oracleID, value: 0, isPositive: true }
-        };
-
-        let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
-
-        if (!has_key) {
-            return (supra_oracle_price as u256)
-        };
-
-        if (qiara_impact.isPositive) {
-            (supra_oracle_price as u256) + qiara_impact.value
-        } else {
-            let s_price = (supra_oracle_price as u256);
-            if (qiara_impact.value >= s_price) { return 1 };
-            s_price - qiara_impact.value
-        }
+        if (!map::contains_key(&prices.rounds, &round_id)) return false;
+        map::borrow(&prices.rounds, &round_id).settled
     }
 
     #[view]
     public fun viewPrice(name: String): u256 acquires Prices {
-        if (name == utf8(b"Qiara")) { return 0 };
+        if (name == utf8(b"Qiara")) return 0;
         if (!exists<Prices>(@dev)) return 0;
 
         let prices = borrow_global<Prices>(@dev);
-        
-        // 1. If mapped with an impact offset, compute with impact
+        let raw_price: u256 = 0;
+        let symbol_bytes = bcs::to_bytes(&name);
+
+        if (map::contains_key(&prices.prices, &symbol_bytes)) {
+            raw_price = (map::borrow(&prices.prices, &symbol_bytes).price as u256);
+        };
+
+        if (raw_price == 0 && map::contains_key(&prices.map, &name)) {
+            let oracle_id = map::borrow(&prices.map, &name).oracleID;
+            if (map::contains_key(&prices.prices, &oracle_id)) {
+                raw_price = (map::borrow(&prices.prices, &oracle_id).price as u256);
+            };
+        };
+
+        if (raw_price == 0) return 0;
+
         if (map::contains_key(&prices.map, &name)) {
-            let qiara_impact = *map::borrow(&prices.map, &name);
-            let (supra_oracle_price, _) = get_raw_price(qiara_impact.oracleID);
-
-            if (qiara_impact.isPositive) {
-                return (supra_oracle_price as u256) + qiara_impact.value
+            let impact = map::borrow(&prices.map, &name);
+            if (impact.isPositive) {
+                raw_price + impact.value
             } else {
-                let s_price = (supra_oracle_price as u256);
-                if (qiara_impact.value >= s_price) { return 1 };
-                return s_price - qiara_impact.value
-            };
-        };
-
-        // 2. Fallback: Search prices.prices directly if token name was not yet registered
-        let (found, token_name) = (false, utf8(b""));
-        let keys = map::keys(&prices.prices);
-        let len = vector::length(&keys);
-        let i = 0;
-        while (i < len) {
-            let feed_id = vector::borrow(&keys, i);
-            let (f, matched_name) = find_token_name_by_oracle_id(prices, feed_id);
-            if (f && matched_name == name) {
-                let store = map::borrow(&prices.prices, feed_id);
-                return (store.price as u256)
-            };
-            i = i + 1;
-        };
-
-        0
-    }
-
-    #[view]
-    public fun viewPriceWithDecimals(name: String): (u256, u64) acquires Prices {
-        if (name == utf8(b"Qiara")) { return (0, 0) };
-        if (!exists<Prices>(@dev)) return (0, 0);
-
-        let prices = borrow_global<Prices>(@dev);
-        if (!map::contains_key(&prices.map, &name)) {
-            return (0, 0)
-        };
-
-        let qiara_impact = *map::borrow(&prices.map, &name);
-        let (supra_oracle_price, decimals) = get_raw_price(qiara_impact.oracleID);
-        if (qiara_impact.isPositive) {
-            ((supra_oracle_price as u256) + qiara_impact.value, decimals)
+                if (impact.value >= raw_price) 1 else raw_price - impact.value
+            }
         } else {
-            let s_price = (supra_oracle_price as u256);
-            if (qiara_impact.value >= s_price) { return (1, decimals) };
-            (s_price - qiara_impact.value, decimals)
-        }
-    }
-
-    #[view]
-    public fun viewPriceMulti(name: vector<String>): Map<String, u256> acquires Prices {
-        let map = map::new<String, u256>();
-        let len = vector::length(&name);
-        while (len > 0) {
-            map::upsert(&mut map, *vector::borrow(&name, len - 1), viewPrice(*vector::borrow(&name, len - 1)));
-            len = len - 1;
-        };
-        map
-    }
-
-    #[view]
-    public fun existsPrice(name: String): bool acquires Prices {
-        if (!exists<Prices>(@dev)) return false;
-        let prices = borrow_global<Prices>(@dev);
-        map::contains_key(&prices.map, &name)
-    }
-
-    #[view]
-    public fun calculate_impact_percentage(supra_oracle_price: u256, impact: u256, isPositive: bool): u256 {
-        if (supra_oracle_price == 0) { return 0 };
-        if (isPositive) {
-            ((supra_oracle_price + impact) * 1_000_000_000_000_000_000) / supra_oracle_price
-        } else {
-            if (impact >= supra_oracle_price) {
-                return 0
-            };
-            ((supra_oracle_price - impact) * 1_000_000_000_000_000_000) / supra_oracle_price
+            raw_price
         }
     }
 }
