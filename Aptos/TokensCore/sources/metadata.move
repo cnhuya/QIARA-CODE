@@ -13,7 +13,7 @@ module dev::QiaraTokensMetadataV62{
     use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraTokensTiersV62::{Self as tier};
-    use dev::QiaraTokenTypesV62::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokenTypesV63::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV12::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -53,7 +53,7 @@ module dev::QiaraTokensMetadataV62{
         tier:u8,
         deflation_tier:u8,
         decimals: u8,
-        oracleID: vector<u8>,
+        oracleID: String,
         creation: u64,
         credit: Credit,
         tokenomics: Tokenomics,
@@ -65,7 +65,7 @@ module dev::QiaraTokensMetadataV62{
         deflation_tier:u8,
         native_data: Map<String, TokenChainData>,
         decimals: u8,
-        oracleID: vector<u8>,
+        oracleID: String,
         creation: u64,
         credit: Credit,
         price: Price,
@@ -136,7 +136,7 @@ public entry fun create_metadata(
     symbol: String, 
     creation: u64, 
     deflation_tier:u8,
-    oracleID: vector<u8>, 
+    oracleID: String, 
     max_supply: u128, 
     circulating_supply: u128, 
     total_supply: u128, 
@@ -269,7 +269,7 @@ public entry fun create_metadata(
 
     }
 
-    public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: vector<u8>) acquires Tokens {
+    public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: String) acquires Tokens {
        
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
@@ -309,7 +309,7 @@ public entry fun create_metadata(
         Market { mc: mc, fdv: fdv, fdv_mc: fdv_mc }
     }
 
-    fun calculate_asset_credit(tokenomics: &Tokenomics,creation: u64,oracleID:  vector<u8>): (u256, u256, u256, u256, u256) {
+    fun calculate_asset_credit(tokenomics: &Tokenomics,creation: u64,oracleID: String): (u256, u256, u256, u256, u256) {
         let now = timestamp::now_seconds();
         let days: u64 = 0;
 
@@ -596,7 +596,7 @@ public entry fun create_metadata(
             metadata.decimals
         }
 
-        public fun get_coin_metadata_oracleID(metadata: &VMetadata): vector<u8> {
+        public fun get_coin_metadata_oracleID(metadata: &VMetadata): String {
             metadata.oracleID
         }
     

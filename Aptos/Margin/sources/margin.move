@@ -10,7 +10,7 @@ module dev::QiaraMarginV64 {
 
     use dev::QiaraRanksV64::{Self as Ranks};
     use dev::QiaraTokensMetadataV62::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV62::{Self as TokensType};
+    use dev::QiaraTokenTypesV63::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
