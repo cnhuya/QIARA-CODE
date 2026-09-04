@@ -9,7 +9,7 @@ module dev::QiaraMarginV64 {
     use std::bcs;
 
     use dev::QiaraRanksV64::{Self as Ranks};
-    use dev::QiaraTokensMetadataV62::{Self as TokensMetadata};
+    use dev::QiaraTokensMetadataV63::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV63::{Self as TokensType};
     
     use dev::QiaraMathV2::{Self as QiaraMath};
