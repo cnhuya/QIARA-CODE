@@ -166,7 +166,7 @@ module dev::QiaraTokensCoreV63{
         init_token(admin, utf8(b"USDC"), utf8(b"QUSDC"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdc.webp"), 0, utf8(b"0xb88339CB7199b77E23DB6E890353E22632Ba630f"), 0, 73_235_696_160, 73_235_696_160, 73_235_696_160, 255);
 
         // 11. Ethereum
-        init_token(admin, utf8(b"Ethereum"), utf8(b"QETH"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ethereum.webp"), 1_438_269_983, utf8(b"0x4200000000000000000000000000000000000006"), 0, 1, 120_688_129, 120_688_129, 120_688_129, 1);
+        init_token(admin, utf8(b"Ethereum"), utf8(b"QETH"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ethereum.webp"), 1_438_269_983, utf8(b"0x4200000000000000000000000000000000000006"),  1, 120_688_129, 120_688_129, 120_688_129, 1);
 
         // 12. Monad
         init_token(admin, utf8(b"Monad"), utf8(b"QMON"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/monad.webp"), 1_584_316_800, utf8(b"0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A"), 0, 114_166_666_695, 11_825_165_000, 100_682_925_000, 1);
