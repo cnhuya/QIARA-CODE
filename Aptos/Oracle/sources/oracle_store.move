@@ -263,7 +263,7 @@ module dev::QiaraOracleV11 {
             Event::emit_oracle_event(utf8(b"Round Settled"), data);
         };
     }
-    
+
     /// Autonomous in-place sorting for arbitrary quorum sizes (O(K^2), lightweight in VM)
     fun sort_prices(prices: &mut vector<u128>) {
         let len = vector::length(prices);
@@ -455,6 +455,13 @@ module dev::QiaraOracleV11 {
 
         let a = calculate_impact_percentage((raw_price as u256), final_price_value, final_price_is_positive);
         a / 1_000_000
+    }
+
+    #[view]
+    public fun existsPrice(name: String): bool acquires Prices {
+        if (!exists<Prices>(@dev)) return false;
+        let prices = borrow_global<Prices>(@dev);
+        map::contains_key(&prices.prices, &bcs::to_bytes(&name)) || map::contains_key(&prices.map, &name)
     }
 
     #[view]
