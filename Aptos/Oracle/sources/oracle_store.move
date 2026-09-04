@@ -1,4 +1,4 @@
-module dev::QiaraOracleV10 {
+module dev::QiaraOracleV11 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
@@ -20,7 +20,8 @@ module dev::QiaraOracleV10 {
 
 // === CONSTANTS === //
     const ORACLE_DECIMALS: u8 = 8;
-    const DRIFT_DENOMINATOR: u128 = 10_000_000; // 1,000 = 0.01%
+    const DRIFT_DENOMINATOR: u128 = 10_000_000;   // 1,000 = 0.01%
+    const PERCENT_DENOMINATOR: u128 = 100_000_000; // 1,000_000 = 1%
 
 // === ACCESS & PERMISSIONS === //
     struct Access has store, key, drop {}
@@ -71,6 +72,7 @@ module dev::QiaraOracleV10 {
         max_price_divergence_drift: u64,
         min_price_divergence_drift: u64,
         committee_pool_size: u64,
+        max_clamp_price_step: u64,
     }
 
 // === INIT === //
@@ -106,6 +108,10 @@ module dev::QiaraOracleV10 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE")))
     }
 
+    inline fun get_max_clamp_step(): u128 {
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MAX_CLAMP_PRICE_STEP"))) as u128)
+    }
+
     #[view]
     public fun get_oracle_config(): OracleConfig {
         OracleConfig {
@@ -114,18 +120,17 @@ module dev::QiaraOracleV10 {
             max_price_divergence_drift: storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"))),
             min_price_divergence_drift: storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"))),
             committee_pool_size: get_committee_pool_size(),
+            max_clamp_price_step: (get_max_clamp_step() as u64),
         }
     }
 
 // === VALIDATOR SYNC METHODS === //
 
-    /// Called by QiaraValidators whenever active validators change
     public fun sync_active_validators(new_validators: vector<String>, _perm: &Permission) acquires Prices {
         let prices = borrow_global_mut<Prices>(@dev);
         prices.active_validators = new_validators;
     }
 
-    /// Admin entry function to initialize or manually update active validators
     public entry fun admin_sync_active_validators(admin: &signer, new_validators: vector<String>) acquires Prices {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
         let prices = borrow_global_mut<Prices>(@dev);
@@ -138,7 +143,7 @@ module dev::QiaraOracleV10 {
         borrow_global<Prices>(@dev).active_validators
     }
 
-// === COMMITTEE SUBMISSION === //
+// === AUTONOMOUS COMMITTEE SUBMISSION === //
 
     public entry fun submit_round_price(
         caller: &signer,
@@ -154,12 +159,13 @@ module dev::QiaraOracleV10 {
         let committee_size = get_committee_pool_size();
         let required_quorum = get_required_quorum();
         let max_divergence = get_max_divergence();
+        let max_clamp_step = get_max_clamp_step();
 
         // 1. Verify round freshness
         let current_round = timestamp::now_seconds() / round_duration;
         assert!(round_id == current_round || round_id == current_round - 1, E_STALE_ROUND);
 
-        // 2. Read active validators locally from Prices (0 cross-module latency!)
+        // 2. Local active validator committee check
         let prices = borrow_global_mut<Prices>(@dev);
         let total_val = vector::length(&prices.active_validators);
         assert!(total_val >= committee_size, E_NOT_IN_COMMITTEE);
@@ -176,7 +182,7 @@ module dev::QiaraOracleV10 {
         };
         assert!(is_in_committee, E_NOT_IN_COMMITTEE);
 
-        // 3. Update round data
+        // 3. Update round data & isolate borrow scope
         if (!map::contains_key(&prices.rounds, &round_id)) {
             map::upsert(&mut prices.rounds, round_id, RoundData {
                 submissions: vector::empty<RoundSubmission>(),
@@ -184,33 +190,60 @@ module dev::QiaraOracleV10 {
             });
         };
 
-        let round_data = map::borrow_mut(&mut prices.rounds, &round_id);
-        assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
+        let should_settle = false;
+        let prices_vec = vector::empty<u128>();
 
-        let len = vector::length(&round_data.submissions);
-        let i = 0;
-        while (i < len) {
-            assert!(vector::borrow(&round_data.submissions, i).validator != caller_addr, E_ALREADY_SUBMITTED);
-            i = i + 1;
-        };
+        // 🔒 Scoped block: releases round_data so `prices` can be safely used below
+        {
+            let round_data = map::borrow_mut(&mut prices.rounds, &round_id);
+            assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
 
-        vector::push_back(&mut round_data.submissions, RoundSubmission { validator: caller_addr, price });
+            // Prevent duplicate submissions from the same validator in this round
+            let len = vector::length(&round_data.submissions);
+            let i = 0;
+            while (i < len) {
+                assert!(vector::borrow(&round_data.submissions, i).validator != caller_addr, E_ALREADY_SUBMITTED);
+                i = i + 1;
+            };
 
-        // 4. Quorum reached: compute median & settle
-        if (vector::length(&round_data.submissions) >= required_quorum) {
-            let p0 = vector::borrow(&round_data.submissions, 0).price;
-            let p1 = vector::borrow(&round_data.submissions, 1).price;
-            let p2 = vector::borrow(&round_data.submissions, 2).price;
+            vector::push_back(&mut round_data.submissions, RoundSubmission { validator: caller_addr, price });
 
-            let median = find_median_of_three(p0, p1, p2);
+            let sub_count = vector::length(&round_data.submissions);
+            if (sub_count >= required_quorum) {
+                should_settle = true;
+                round_data.settled = true; // Marked settled here
 
-            assert!(calculate_divergence(p0, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
-            assert!(calculate_divergence(p1, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
-            assert!(calculate_divergence(p2, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+                let k = 0;
+                while (k < sub_count) {
+                    vector::push_back(&mut prices_vec, vector::borrow(&round_data.submissions, k).price);
+                    k = k + 1;
+                };
+            };
+        }; // 👈 round_data reference is completely released here!
+
+        // 4. AUTONOMOUS QUORUM RESOLUTION
+        if (should_settle) {
+            let sub_count = vector::length(&prices_vec);
+
+            // In-place sort to find median
+            sort_prices(&mut prices_vec);
+            let median = *vector::borrow(&prices_vec, sub_count / 2);
+
+            // Autonomous Loop: Enforce max 0.01% drift against median across ALL submissions
+            let j = 0;
+            while (j < sub_count) {
+                let p = *vector::borrow(&prices_vec, j);
+                assert!(calculate_divergence(p, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+                j = j + 1;
+            };
+
+            // 5. AUTO-RAMP CIRCUIT BREAKER: Clamps large 1-tick jumps without deadlocking
+            let symbol_bytes = bcs::to_bytes(&symbol);
+            let old_price = get_raw_price_internal(prices, &symbol_bytes);
+            let final_settled_price = clamp_price_step(median, old_price, max_clamp_step);
 
             let now = timestamp::now_seconds();
-            let symbol_bytes = bcs::to_bytes(&symbol);
-            let store = PriceStore { price: median, decimals: ORACLE_DECIMALS, publish_time: now };
+            let store = PriceStore { price: final_settled_price, decimals: ORACLE_DECIMALS, publish_time: now };
 
             map::upsert(&mut prices.prices, symbol_bytes, store);
             if (!map::contains_key(&prices.map, &symbol)) {
@@ -222,26 +255,59 @@ module dev::QiaraOracleV10 {
                 map::upsert(&mut prices.prices, qiara_impact.oracleID, store);
             };
 
-            round_data.settled = true;
-
             let data = vector[
                 Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), symbol_bytes),
-                Event::create_data_struct(utf8(b"price"), utf8(b"u128"), bcs::to_bytes(&median)),
+                Event::create_data_struct(utf8(b"price"), utf8(b"u128"), bcs::to_bytes(&final_settled_price)),
                 Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
             ];
             Event::emit_oracle_event(utf8(b"Round Settled"), data);
         };
     }
+    
+    /// Autonomous in-place sorting for arbitrary quorum sizes (O(K^2), lightweight in VM)
+    fun sort_prices(prices: &mut vector<u128>) {
+        let len = vector::length(prices);
+        let i = 0;
+        while (i < len) {
+            let j = i + 1;
+            while (j < len) {
+                if (*vector::borrow(prices, i) > *vector::borrow(prices, j)) {
+                    vector::swap(prices, i, j);
+                };
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+    }
 
-    fun find_median_of_three(a: u128, b: u128, c: u128): u128 {
-        if ((a >= b && a <= c) || (a <= b && a >= c)) return a;
-        if ((b >= a && b <= c) || (b <= a && b >= c)) return b;
-        c
+    /// Clamps price steps based on MAX_CLAMP_PRICE_STEP from QiaraStorageV21
+    fun clamp_price_step(new_price: u128, old_price: u128, max_step_scaled: u128): u128 {
+        if (old_price == 0) return new_price;
+
+        let max_delta = (old_price * max_step_scaled) / PERCENT_DENOMINATOR;
+
+        if (new_price > old_price + max_delta) {
+            return old_price + max_delta // Clamps pump step without reverting
+        };
+
+        if (old_price > max_delta && new_price < old_price - max_delta) {
+            return old_price - max_delta // Clamps dump step without reverting
+        };
+
+        new_price
     }
 
     fun calculate_divergence(val: u128, target: u128): u128 {
         let diff = if (val > target) val - target else target - val;
         (diff * DRIFT_DENOMINATOR) / target
+    }
+
+    fun get_raw_price_internal(prices: &Prices, symbol_bytes: &vector<u8>): u128 {
+        if (map::contains_key(&prices.prices, symbol_bytes)) {
+            map::borrow(&prices.prices, symbol_bytes).price
+        } else {
+            0
+        }
     }
 
     #[view]
@@ -250,6 +316,8 @@ module dev::QiaraOracleV10 {
         if (!map::contains_key(&prices.rounds, &round_id)) return false;
         map::borrow(&prices.rounds, &round_id).settled
     }
+
+// === VIEW METHODS === //
 
     #[view]
     public fun viewPrice(name: String): u256 acquires Prices {
@@ -330,41 +398,49 @@ module dev::QiaraOracleV10 {
         _perm: Permission
     ): u256 acquires Prices {
         let (raw_price, _,) = get_raw_price(oracleID);
-        let price;
+        let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
+        if (scaled_impact == 0) return 0;
+
+        let old_price_state;
+        let new_price_state;
+        let final_price_value;
+        let final_price_is_positive;
+
         {
             let prices_storage = borrow_global_mut<Prices>(@dev);
             if (!map::contains_key(&prices_storage.map, &name)) {
                 map::upsert(&mut prices_storage.map, name, Integer { oracleID, value: 0, isPositive: true });
             };
-            price = map::borrow_mut(&mut prices_storage.map, &name);
-        };
+            let price = map::borrow_mut(&mut prices_storage.map, &name);
+            old_price_state = *price;
 
-        let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
-        if (scaled_impact == 0) return 0;
-        let old_price_state = *price;
+            if (isPositive) {
+                if (price.isPositive) {
+                    price.value = price.value + scaled_impact;
+                } else {
+                    if (scaled_impact >= price.value) {
+                        price.value = scaled_impact - price.value;
+                        price.isPositive = true;
+                    } else {
+                        price.value = price.value - scaled_impact;
+                    };
+                }
+            } else {
+                if (price.isPositive) {
+                    if (scaled_impact >= price.value) {
+                        price.value = scaled_impact - price.value;
+                        price.isPositive = false;
+                    } else {
+                        price.value = price.value - scaled_impact;
+                    };
+                } else {
+                    price.value = price.value + scaled_impact;
+                }
+            };
 
-        if (isPositive) {
-            if (price.isPositive) {
-                price.value = price.value + scaled_impact;
-            } else {
-                if (scaled_impact >= price.value) {
-                    price.value = scaled_impact - price.value;
-                    price.isPositive = true;
-                } else {
-                    price.value = price.value - scaled_impact;
-                };
-            }
-        } else {
-            if (price.isPositive) {
-                if (scaled_impact >= price.value) {
-                    price.value = scaled_impact - price.value;
-                    price.isPositive = false;
-                } else {
-                    price.value = price.value - scaled_impact;
-                };
-            } else {
-                price.value = price.value + scaled_impact;
-            }
+            new_price_state = *price;
+            final_price_value = price.value;
+            final_price_is_positive = price.isPositive;
         };
 
         let updated_view_price = viewPrice(name);
@@ -372,12 +448,12 @@ module dev::QiaraOracleV10 {
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&oracleID)),
             Event::create_data_struct(utf8(b"old_price_impact"), utf8(b"u64"), bcs::to_bytes(&old_price_state)),
-            Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&price)),
+            Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
             Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&updated_view_price)),
         ];
         Event::emit_oracle_event(utf8(b"Qiara Oracle Impact Update"), data);
 
-        let a = calculate_impact_percentage((raw_price as u256), price.value, price.isPositive);
+        let a = calculate_impact_percentage((raw_price as u256), final_price_value, final_price_is_positive);
         a / 1_000_000
     }
 

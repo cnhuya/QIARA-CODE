@@ -1,5 +1,5 @@
 [package]
-name = "QiaraOracleV10"
+name = "QiaraOracleV11"
 version = "1.0.0"
 authors = []
 
@@ -32,7 +32,7 @@ git = 'https://github.com/cnhuya/AEXIS-CODE.git'
 rev = 'main'
 subdir = 'Aptos/Storage'
 
-[dependencies.QiaraBridgeV67]
-git    = "https://github.com/cnhuya/QIARA-CODE.git"
-rev    = "main"
-subdir = "Aptos/Bridge"
+[dependencies.QiaraSharedV17]
+git = 'https://github.com/cnhuya/AEXIS-CODE.git'
+rev = 'main'
+subdir = 'Aptos/Shared'

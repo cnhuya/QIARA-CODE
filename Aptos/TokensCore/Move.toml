@@ -32,7 +32,7 @@
     rev = 'main'
     subdir = 'Aptos/Storages'
 
-    [dependencies.QiaraOracleV10]
+    [dependencies.QiaraOracleV11]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/oracle'

@@ -21,12 +21,12 @@ module dev::QiaraBridgeV67{
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraTokensCoreV61::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV61::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV62::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV62::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
     use dev::QiaraVaultsV85::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraMarginV63::{Self as Margin};
+    use dev::QiaraMarginV64::{Self as Margin};
     use dev::QiaraGovernanceV20::{Self as Governance, Access as GovernanceAccess};
 
     use dev::QiaraPayloadV67::{Self as Payload};
