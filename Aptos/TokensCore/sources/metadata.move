@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV64{
+module dev::QiaraTokensMetadataV65{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,7 +12,7 @@ module dev::QiaraTokensMetadataV64{
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraMathV2::{Self as Math};
 
-    use dev::QiaraTokensTiersV64::{Self as tier};
+    use dev::QiaraTokensTiersV65::{Self as tier};
     use dev::QiaraTokenTypesV65::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV13::{Self as oracle, Access as OracleAccess};
 
@@ -170,7 +170,7 @@ public entry fun create_metadata(
         credit = 0;
         tier = 7;
     } else {
-        let (calc_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, creation, oracleID);
+        let (calc_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, creation, symbol);
         credit = calc_credit;
         tier = associate_tier(calc_credit, stable);
     };
@@ -218,7 +218,7 @@ public entry fun create_metadata(
                         return;
                     };
 
-                    let (calculated_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, metadat.creation, metadat.oracleID);
+                    let (calculated_credit, _, _, _, _) = calculate_asset_credit(&tokenomics, metadat.creation, metadat.symbol);
                     metadat.credit.credit = calculated_credit;
                     metadat.tier = associate_tier(calculated_credit, metadat.tier);
                 } else {
@@ -788,7 +788,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    // In QiaraTokensMetadataV64::get_coin_metadata_by_symbol:
+                    // In QiaraTokensMetadataV65::get_coin_metadata_by_symbol:
                     let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                     price = (oracle::viewPrice(metadat.symbol) as u64);
                     denom = Math::pow10_u256((price_decimals as u8));

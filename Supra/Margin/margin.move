@@ -8,7 +8,7 @@ module dev::QiaraMarginV66{
     use supra_oracle::supra_oracle_storage;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraTokensMetadataV64::{Self as TokensMetadata};
+    use dev::QiaraTokensMetadataV65::{Self as TokensMetadata};
     use dev::QiaraTokensSharedV52::{Self as TokensShared};
 
     use dev::QiaraTokenTypesV31::{Self as TokensType};

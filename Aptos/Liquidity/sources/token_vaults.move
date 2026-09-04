@@ -14,9 +14,9 @@ module dev::QiaraTokenVaultsV85{
     use aptos_framework::account;
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraTokensMetadataV64::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV64::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV64::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV65::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV65::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV65::{Self as TokensTiers};
 
     use dev::QiaraMarginV66::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV66::{Self as Points, Access as PointsAccess};
