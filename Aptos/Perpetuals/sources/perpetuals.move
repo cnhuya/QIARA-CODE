@@ -22,7 +22,7 @@ module dev::QiaraPerpsV54 {
 
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraCapabilitiesV21::{Self as capabilities};
-    use dev::QiaraOracleV11::{Self as oracle};
+
     use dev::QiaraChainTypesV62::{Self as ChainTypes};
     use dev::QiaraTokenTypesV62::{Self as TokensTypes};
 
@@ -236,47 +236,6 @@ module dev::QiaraPerpsV54 {
         assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
         execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
-    public entry fun update_oracle_and_trade(signer: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>) acquires UserBook, AssetBook, Permissions {
-        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-        oracle::update_price(signer, price_update_data, oracleID);
-        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
-    }
-    public entry fun update_oracle_with_reward(signer: &signer, user: vector<u8>, shared: String, asset: String, price_update_data: vector<vector<u8>>) acquires  Permissions {
-        assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-
-        oracle::update_price(signer, price_update_data, oracleID);
-        Ranks::add_experience(shared, experience_for_action(), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
-
-    }
-   public entry fun batch_update_oracle_with_reward(
-    signer: &signer, 
-    user: vector<u8>, 
-    shared: String, 
-    asset: vector<String>, 
-    price_update_data: vector<vector<u8>> // ✅ Fixed to 2D vector
-) acquires Permissions {
-    assert!(bcs::to_bytes(&signer::address_of(signer)) == user, ERROR_SENDER_DOESNT_MATCH_SIGNER);
-    Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-
-    let ids = vector::empty();
-    let len = vector::length(&asset);
-    while (len > 0) {
-        let asset = vector::borrow(&asset, len - 1);
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(*asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-        vector::push_back(&mut ids, oracleID);
-        len = len - 1;
-    };
-
-    oracle::batch_update_price(signer, asset, price_update_data, ids); // Pass asset names!
-    Ranks::add_experience(shared, experience_for_action() * (len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
-}
 
     public entry fun change_reserve(signer: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
@@ -330,12 +289,7 @@ module dev::QiaraPerpsV54 {
     public fun p_trade(validator: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, perm: Permission) acquires UserBook, AssetBook, Permissions {
         execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
     }
-    public fun p_update_oracle_and_trade(validator: &signer, user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires UserBook, AssetBook, Permissions {
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-        oracle::update_price(validator, price_update_data, oracleID);
-        execute_trade(user, shared, asset, size, leverage, isLong, reserve_chain, reserve_provider, reserve_token);
-    }
+
     public  fun p_change_reserve(validator: &signer, user: vector<u8>, shared: String, asset: String, new_reserve_chain: String, new_reserve_provider: String, new_reserve_token: String, perm: Permission) acquires UserBook, AssetBook {
         ChainTypes::ensure_valid_chain_name(new_reserve_chain);
         TokensTypes::ensure_valid_token_nick_name(new_reserve_token);
@@ -369,39 +323,7 @@ module dev::QiaraPerpsV54 {
         Event::emit_perps_event(utf8(b"Reserve Changed"), data);
     }
 
-    public fun p_update_oracle_with_reward(validator: &signer, user: vector<u8>, shared: String, asset: String, price_update_data: vector<vector<u8>>, perm: Permission) acquires  Permissions {
-        Shared::assert_is_sub_owner(copy shared, copy user);
-        
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-
-        oracle::update_price(validator, price_update_data, oracleID);
-        Ranks::add_experience(shared, experience_for_action(), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
-
-    }
-  public fun p_batch_update_oracle_with_reward(
-    validator: &signer, 
-    user: vector<u8>, 
-    shared: String, 
-    asset: vector<String>, 
-    price_update_data: vector<vector<u8>>, // ✅ Fixed to 2D vector
-    perm: Permission
-) acquires Permissions {
-    Shared::assert_is_sub_owner(copy shared, copy user);
-
-    let ids = vector::empty();
-    let len = vector::length(&asset);
-    while (len > 0) {
-        let asset = vector::borrow(&asset, len - 1);
-        let metadata = TokensMetadata::get_coin_metadata_by_symbol(*asset);
-        let oracleID = TokensMetadata::get_coin_metadata_oracleID(&metadata);
-        vector::push_back(&mut ids, oracleID);
-        len = len - 1;
-    };
-
-    oracle::batch_update_price(validator, asset, price_update_data, ids); // Pass asset names!
-    Ranks::add_experience(shared, experience_for_action() * (len as u256), Ranks::give_permission(&borrow_global<Permissions>(@dev).ranks));
-}
+   
 // === HELPER FUNCTIONS ===
 
     fun execute_trade( user: vector<u8>, shared: String, asset: String, size: u256, leverage: u64, isLong: bool, reserve_chain: String, reserve_provider: String, reserve_token: String) acquires UserBook, AssetBook, Permissions {

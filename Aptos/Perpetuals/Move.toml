@@ -69,10 +69,6 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraOracleV11]
-    git = 'https://github.com/cnhuya/AEXIS-CODE.git'
-    rev = 'main'
-    subdir = 'Aptos/Oracle'
 
     [dependencies.QiaraGasV11]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
