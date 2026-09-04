@@ -1,4 +1,4 @@
-module dev::QiaraOracleV11 {
+module dev::QiaraOracleV12 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
@@ -59,11 +59,16 @@ module dev::QiaraOracleV11 {
         publish_time: u64,
     }
 
+    struct RoundKey has copy, drop, store {
+        round_id: u64,
+        symbol: String,
+    }
+
     struct Prices has key {
         map: Map<String, Integer>,            // Token Symbol -> Impact Integer
         prices: Map<vector<u8>, PriceStore>,  // Oracle ID / Symbol Bytes -> PriceStore
-        rounds: Map<u64, RoundData>,          // round_id -> RoundData
-        active_validators: vector<String>,    // Local cache synced from QiaraValidators
+        rounds: Map<RoundKey, RoundData>,     // 👈 Keyed by (round_id, symbol)
+        active_validators: vector<String>,
     }
 
     struct OracleConfig has copy, drop, store {
@@ -78,16 +83,16 @@ module dev::QiaraOracleV11 {
 // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-
         if (!exists<Prices>(@dev)) {
             move_to(admin, Prices { 
                 map: map::new<String, Integer>(),
                 prices: map::new<vector<u8>, PriceStore>(),
-                rounds: map::new<u64, RoundData>(),
+                rounds: map::new<RoundKey, RoundData>(), // 👈 Updated
                 active_validators: vector::empty<String>(),
             });
         };
     }
+
 
 // === DYNAMIC STORAGE READERS === //
 
@@ -143,9 +148,28 @@ module dev::QiaraOracleV11 {
         borrow_global<Prices>(@dev).active_validators
     }
 
+/// Batches submissions for multiple assets in 1 single transaction
+    public entry fun batch_submit_round_prices(
+        caller: &signer,
+        validator_shared: String,
+        symbols: vector<String>,
+        prices_vec: vector<u128>,
+        round_id: u64,
+    ) acquires Prices {
+        let len = vector::length(&symbols);
+        assert!(len == vector::length(&prices_vec), 100);
+        let i = 0;
+        while (i < len) {
+            let sym = *vector::borrow(&symbols, i);
+            let p = *vector::borrow(&prices_vec, i);
+            submit_round_price(caller, validator_shared, sym, p, round_id);
+            i = i + 1;
+        };
+    }
+
 // === AUTONOMOUS COMMITTEE SUBMISSION === //
 
-    public entry fun submit_round_price(
+   public entry fun submit_round_price(
         caller: &signer,
         validator_shared: String,
         symbol: String,
@@ -168,12 +192,14 @@ module dev::QiaraOracleV11 {
         // 2. Local active validator committee check
         let prices = borrow_global_mut<Prices>(@dev);
         let total_val = vector::length(&prices.active_validators);
-        assert!(total_val >= committee_size, E_NOT_IN_COMMITTEE);
+        assert!(total_val >= required_quorum, E_NOT_IN_COMMITTEE);
+
+        let effective_committee = if (total_val < committee_size) { total_val } else { committee_size };
 
         let is_in_committee = false;
         let c = 0;
-        while (c < committee_size) {
-            let assigned_idx = (round_id * 7 + c * 3) % total_val;
+        while (c < effective_committee) {
+            let assigned_idx = (round_id + c) % total_val;
             if (*vector::borrow(&prices.active_validators, assigned_idx) == validator_shared) {
                 is_in_committee = true;
                 break
@@ -182,9 +208,11 @@ module dev::QiaraOracleV11 {
         };
         assert!(is_in_committee, E_NOT_IN_COMMITTEE);
 
-        // 3. Update round data & isolate borrow scope
-        if (!map::contains_key(&prices.rounds, &round_id)) {
-            map::upsert(&mut prices.rounds, round_id, RoundData {
+        // 3. Update round data per asset using RoundKey
+        let round_key = RoundKey { round_id, symbol };
+
+        if (!map::contains_key(&prices.rounds, &round_key)) {
+            map::upsert(&mut prices.rounds, round_key, RoundData {
                 submissions: vector::empty<RoundSubmission>(),
                 settled: false,
             });
@@ -193,12 +221,12 @@ module dev::QiaraOracleV11 {
         let should_settle = false;
         let prices_vec = vector::empty<u128>();
 
-        // 🔒 Scoped block: releases round_data so `prices` can be safely used below
+        // 🔒 Scoped block: releases borrow on rounds map
         {
-            let round_data = map::borrow_mut(&mut prices.rounds, &round_id);
+            let round_data = map::borrow_mut(&mut prices.rounds, &round_key);
             assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
 
-            // Prevent duplicate submissions from the same validator in this round
+            // Prevent duplicate submissions from the same validator for this symbol
             let len = vector::length(&round_data.submissions);
             let i = 0;
             while (i < len) {
@@ -211,7 +239,7 @@ module dev::QiaraOracleV11 {
             let sub_count = vector::length(&round_data.submissions);
             if (sub_count >= required_quorum) {
                 should_settle = true;
-                round_data.settled = true; // Marked settled here
+                round_data.settled = true;
 
                 let k = 0;
                 while (k < sub_count) {
@@ -219,17 +247,14 @@ module dev::QiaraOracleV11 {
                     k = k + 1;
                 };
             };
-        }; // 👈 round_data reference is completely released here!
+        };
 
-        // 4. AUTONOMOUS QUORUM RESOLUTION
+        // 4. Quorum resolution
         if (should_settle) {
             let sub_count = vector::length(&prices_vec);
-
-            // In-place sort to find median
             sort_prices(&mut prices_vec);
             let median = *vector::borrow(&prices_vec, sub_count / 2);
 
-            // Autonomous Loop: Enforce max 0.01% drift against median across ALL submissions
             let j = 0;
             while (j < sub_count) {
                 let p = *vector::borrow(&prices_vec, j);
@@ -237,7 +262,6 @@ module dev::QiaraOracleV11 {
                 j = j + 1;
             };
 
-            // 5. AUTO-RAMP CIRCUIT BREAKER: Clamps large 1-tick jumps without deadlocking
             let symbol_bytes = bcs::to_bytes(&symbol);
             let old_price = get_raw_price_internal(prices, &symbol_bytes);
             let final_settled_price = clamp_price_step(median, old_price, max_clamp_step);
@@ -263,6 +287,7 @@ module dev::QiaraOracleV11 {
             Event::emit_oracle_event(utf8(b"Round Settled"), data);
         };
     }
+
 
     /// Autonomous in-place sorting for arbitrary quorum sizes (O(K^2), lightweight in VM)
     fun sort_prices(prices: &mut vector<u128>) {
@@ -311,10 +336,11 @@ module dev::QiaraOracleV11 {
     }
 
     #[view]
-    public fun is_round_settled(round_id: u64): bool acquires Prices {
+    public fun is_round_settled(round_id: u64, symbol: String): bool acquires Prices {
         let prices = borrow_global<Prices>(@dev);
-        if (!map::contains_key(&prices.rounds, &round_id)) return false;
-        map::borrow(&prices.rounds, &round_id).settled
+        let round_key = RoundKey { round_id, symbol };
+        if (!map::contains_key(&prices.rounds, &round_key)) return false;
+        map::borrow(&prices.rounds, &round_key).settled
     }
 
 // === VIEW METHODS === //

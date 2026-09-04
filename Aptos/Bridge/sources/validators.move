@@ -14,7 +14,7 @@ module dev::QiaraValidatorsV68{
     use dev::QiaraTokensQiaraV62::{Self as TokensQiara};
     use dev::QiaraTokensCoreV62::{Self as TokensCore, Access as TokensCoreAccess};
 
-    use dev::QiaraOracleV11::{Self as Oracle, Access as OracleAccess};
+    use dev::QiaraOracleV12::{Self as Oracle, Access as OracleAccess};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
@@ -107,8 +107,13 @@ module dev::QiaraValidatorsV68{
     }
 
     // === PUBLIC FUNCTIONS === //
-
-    public entry fun dev_register_validator(signer: &signer, shared: String, validator: vector<u8>, pub_key: vector<u8>,pubkey_evm_address: vector<u8>) acquires PendingValidators, ActiveValidators, Validators {
+public entry fun dev_register_validator(
+        signer: &signer, 
+        shared: String, 
+        validator: vector<u8>, 
+        pub_key: vector<u8>,
+        pubkey_evm_address: vector<u8>
+    ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
         Shared::assert_is_sub_owner(shared, validator);
         
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
@@ -119,15 +124,30 @@ module dev::QiaraValidatorsV68{
     }
 
     // Interface for users/validators - Executes registration directly on-chain
-    public entry fun register_validator(signer: &signer, shared: String, pub_key: vector<u8>, pubkey_evm_address: vector<u8>, power: u256) acquires PendingValidators, ActiveValidators, Validators {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        
-        let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
-        let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
-        let validators = borrow_global_mut<Validators>(@dev);
+fun reg_validator(
+        pending_validators: &mut vector<String>, 
+        active_validators: &mut ActiveValidators, 
+        validators: &mut Map<String, Validator>, 
+        validator: String, 
+        pub_key: vector<u8>,
+        pubkey_evm_address: vector<u8>
+    ) acquires Permissions {
+        if(map::contains_key(validators, &validator)) {
+            abort ERROR_VALIDATOR_ALREADY_REGISTERED
+        };
 
-        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pub_key, pubkey_evm_address);
-
+        let validator_struct = Validator { 
+            pub_key: pub_key, 
+            pubkey_evm_address: pubkey_evm_address, 
+            isActive: true, 
+            last_active: 0, 
+            power: 0,
+            snapshot: 0,
+            total_power: 0,
+            stakers: map::new<String, StakerData>() 
+        };
+        map::upsert(validators, validator, validator_struct);
+        take_validator_snapshot_internal(validator, validators, pending_validators, active_validators);
     }
 
     // Interface for changing a staker's chosen validator on-chain
@@ -189,18 +209,23 @@ module dev::QiaraValidatorsV68{
         Event::emit_consensus_event(utf8(b"Change Validator Keys"), data);
     }
 
-
-    public entry fun take_snapshot(signer: &signer, shared: String) acquires PendingValidators, ActiveValidators, Validators {
+public entry fun take_snapshot(
+        signer: &signer, 
+        shared: String
+    ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
         let validators = borrow_global_mut<Validators>(@dev);
         let pending_validators = borrow_global_mut<PendingValidators>(@dev);
 
         take_validator_snapshot_internal(shared, &mut validators.map, &mut pending_validators.list, active_validators);
-    } 
+    }
 
     // Updates a specific staker's power, updates their validator's total power, and triggers the ranking update
-    public entry fun take_staker_snapshot(signer: &signer, staker: String) acquires PendingValidators, ActiveValidators, Validators, Stakers {
+public entry fun take_staker_snapshot(
+        signer: &signer, 
+        staker: String
+    ) acquires PendingValidators, ActiveValidators, Validators, Stakers, Permissions {
         Shared::assert_is_sub_owner(staker, bcs::to_bytes(&signer::address_of(signer)));
         
         let validators = borrow_global_mut<Validators>(@dev);
@@ -222,7 +247,6 @@ module dev::QiaraValidatorsV68{
             old_staker_power = staker_data.power;
         };
         
-        // Safely adjust total power with delta update (stakers power + validator power)
         if (validator_struct.total_power >= old_staker_power) {
             validator_struct.total_power = validator_struct.total_power - old_staker_power + new_power;
         } else {
@@ -236,7 +260,6 @@ module dev::QiaraValidatorsV68{
         };
         map::upsert(&mut validator_struct.stakers, staker, new_staker_data);
         
-        // Re-evaluate validator snapshot and ranking
         take_validator_snapshot_internal(validator, &mut validators.map, &mut pending_validators.list, active_validators);
     }
 
@@ -245,26 +268,8 @@ module dev::QiaraValidatorsV68{
     }
 
     // === INTERNAL FUNCTIONS === //
-    fun reg_validator(pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, validator: String, pub_key: vector<u8>,pubkey_evm_address: vector<u8>) {
-        if(map::contains_key(validators, &validator)) {
-            abort ERROR_VALIDATOR_ALREADY_REGISTERED
-        };
 
-        let validator_struct = Validator { 
-            pub_key: pub_key, 
-            pubkey_evm_address: pubkey_evm_address, 
-            isActive: true, 
-            last_active: 0, 
-            power: 0,
-            snapshot: 0,
-            total_power: 0,
-            stakers: map::new<String, StakerData>() 
-        };
-        map::upsert(validators, validator, validator_struct);
-        take_validator_snapshot_internal(validator, validators, pending_validators, active_validators);
-    }
-
-    fun change_staker_validator_internal(staker: String, new_validator: String, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, stakers_table: &mut Table<String, String>) {
+    fun change_staker_validator_internal(staker: String, new_validator: String, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, stakers_table: &mut Table<String, String>) acquires Permissions {
         // 1. Check if the staker was previously delegated to some old validator
         if (table::contains(stakers_table, staker)) {
             let old_validator = *table::borrow(stakers_table, staker);
@@ -319,7 +324,7 @@ module dev::QiaraValidatorsV68{
         take_validator_snapshot_internal(new_validator, validators, pending_validators, active_validators);
     }
 
-    fun take_validator_snapshot_internal(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators) {
+    fun take_validator_snapshot_internal(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators) acquires Permissions {
         let own_power = Margin::get_user_total_staked_usd(validator);
         
         let pub_key;

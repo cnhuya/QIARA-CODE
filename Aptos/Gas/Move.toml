@@ -17,7 +17,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-stdlib"
 
-    [dependencies.QiaraOracleV11]
+    [dependencies.QiaraOracleV12]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/oracle'

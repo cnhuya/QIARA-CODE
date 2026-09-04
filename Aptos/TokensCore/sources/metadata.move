@@ -14,7 +14,7 @@ module dev::QiaraTokensMetadataV62{
 
     use dev::QiaraTokensTiersV62::{Self as tier};
     use dev::QiaraTokenTypesV62::{Self as TokensType, TokenChainData};
-    use dev::QiaraOracleV11::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraOracleV12::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
