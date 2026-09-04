@@ -1,4 +1,4 @@
-module dev::QiaraOracleV12 {
+module dev::QiaraOracleV13 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
@@ -47,7 +47,7 @@ module dev::QiaraOracleV12 {
     }
 
     struct Integer has drop, key, store, copy {
-        oracleID: vector<u8>,
+        oracleID: String,
         value: u256,
         isPositive: bool,
     }
@@ -65,7 +65,7 @@ module dev::QiaraOracleV12 {
 
     struct Prices has key {
         map: Map<String, Integer>,            // Token Symbol -> Impact Integer
-        prices: Map<vector<u8>, PriceStore>,  // Oracle ID / Symbol Bytes -> PriceStore
+        prices: Map<String, PriceStore>,      // Token Symbol / Oracle ID -> PriceStore
         rounds: Map<RoundKey, RoundData>,     // (round_id, symbol) -> RoundData
         active_validators: vector<String>,
     }
@@ -85,7 +85,7 @@ module dev::QiaraOracleV12 {
         if (!exists<Prices>(@dev)) {
             move_to(admin, Prices { 
                 map: map::new<String, Integer>(),
-                prices: map::new<vector<u8>, PriceStore>(),
+                prices: map::new<String, PriceStore>(),
                 rounds: map::new<RoundKey, RoundData>(),
                 active_validators: vector::empty<String>(),
             });
@@ -258,20 +258,19 @@ module dev::QiaraOracleV12 {
                 j = j + 1;
             };
 
-            let symbol_bytes = bcs::to_bytes(&symbol);
-            let old_price = get_raw_price_internal(prices, &symbol_bytes);
+            let old_price = get_raw_price_internal(prices, &symbol);
             let final_settled_price = clamp_price_step(median, old_price, max_clamp_step);
 
             let now = timestamp::now_seconds();
             let store = PriceStore { price: final_settled_price, decimals: ORACLE_DECIMALS, publish_time: now };
 
-            map::upsert(&mut prices.prices, symbol_bytes, store);
+            map::upsert(&mut prices.prices, symbol, store);
             if (!map::contains_key(&prices.map, &symbol)) {
-                map::upsert(&mut prices.map, symbol, Integer { oracleID: symbol_bytes, value: 0, isPositive: true });
+                map::upsert(&mut prices.map, symbol, Integer { oracleID: symbol, value: 0, isPositive: true });
             };
 
             let qiara_impact = *map::borrow(&prices.map, &symbol);
-            if (qiara_impact.oracleID != symbol_bytes && vector::length(&qiara_impact.oracleID) > 0) {
+            if (qiara_impact.oracleID != symbol && qiara_impact.oracleID != utf8(b"")) {
                 map::upsert(&mut prices.prices, qiara_impact.oracleID, store);
             };
 
@@ -280,7 +279,7 @@ module dev::QiaraOracleV12 {
 
             // 1. Emits Round Settled event for consensus lifecycle tracking
             let round_data_struct = vector[
-                Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), symbol_bytes),
+                Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(&symbol)),
                 Event::create_data_struct(utf8(b"raw_price"), utf8(b"u128"), bcs::to_bytes(&final_settled_price)),
                 Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
             ];
@@ -344,9 +343,9 @@ module dev::QiaraOracleV12 {
         (diff * PERCENT_DENOMINATOR) / target
     }
 
-    fun get_raw_price_internal(prices: &Prices, symbol_bytes: &vector<u8>): u128 {
-        if (map::contains_key(&prices.prices, symbol_bytes)) {
-            map::borrow(&prices.prices, symbol_bytes).price
+    fun get_raw_price_internal(prices: &Prices, symbol: &String): u128 {
+        if (map::contains_key(&prices.prices, symbol)) {
+            map::borrow(&prices.prices, symbol).price
         } else {
             0
         }
@@ -369,10 +368,9 @@ module dev::QiaraOracleV12 {
 
         let prices = borrow_global<Prices>(@dev);
         let raw_price: u256 = 0;
-        let symbol_bytes = bcs::to_bytes(&name);
 
-        if (map::contains_key(&prices.prices, &symbol_bytes)) {
-            raw_price = (map::borrow(&prices.prices, &symbol_bytes).price as u256);
+        if (map::contains_key(&prices.prices, &name)) {
+            raw_price = (map::borrow(&prices.prices, &name).price as u256);
         };
 
         if (raw_price == 0 && map::contains_key(&prices.map, &name)) {
@@ -398,21 +396,21 @@ module dev::QiaraOracleV12 {
     }
 
     #[view]
-    public fun get_price(feed_id_bytes: vector<u8>): PriceStore acquires Prices {
-        if (!exists<Prices>(@dev) || vector::is_empty(&feed_id_bytes)) {
+    public fun get_price(symbol: String): PriceStore acquires Prices {
+        if (!exists<Prices>(@dev) || symbol == utf8(b"")) {
             return PriceStore { price: 0, decimals: ORACLE_DECIMALS, publish_time: 0 }
         };
         let prices = borrow_global<Prices>(@dev);
-        if (!map::contains_key(&prices.prices, &feed_id_bytes)) {
+        if (!map::contains_key(&prices.prices, &symbol)) {
             PriceStore { price: 0, decimals: ORACLE_DECIMALS, publish_time: 0 }
         } else {
-            *map::borrow(&prices.prices, &feed_id_bytes)
+            *map::borrow(&prices.prices, &symbol)
         }
     }
 
     #[view]
-    public fun get_raw_price(feed_id_bytes: vector<u8>): (u64, u64) acquires Prices {
-        let store = get_price(feed_id_bytes);
+    public fun get_raw_price(symbol: String): (u64, u64) acquires Prices {
+        let store = get_price(symbol);
         ((store.price as u64), (store.decimals as u64))
     }
 
@@ -430,7 +428,7 @@ module dev::QiaraOracleV12 {
 
     public fun impact_price(
         name: String, 
-        oracleID: vector<u8>, 
+        oracleID: String, 
         impact: u256, 
         isPositive: bool, 
         native_oracle_weight: u256, 
@@ -484,10 +482,10 @@ module dev::QiaraOracleV12 {
 
         let updated_view_price = viewPrice(name);
 
-        // 1. Emit Impact state change event (without duplicate price field)
+        // 1. Emit Impact state change event
         let data = vector[
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
-            Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&oracleID)),
+            Event::create_data_struct(utf8(b"oracle id"), utf8(b"string"), bcs::to_bytes(&oracleID)),
             Event::create_data_struct(utf8(b"old_price_impact"), utf8(b"u64"), bcs::to_bytes(&old_price_state)),
             Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
         ];
@@ -504,7 +502,7 @@ module dev::QiaraOracleV12 {
     public fun existsPrice(name: String): bool acquires Prices {
         if (!exists<Prices>(@dev)) return false;
         let prices = borrow_global<Prices>(@dev);
-        map::contains_key(&prices.prices, &bcs::to_bytes(&name)) || map::contains_key(&prices.map, &name)
+        map::contains_key(&prices.prices, &name) || map::contains_key(&prices.map, &name)
     }
 
     #[view]
