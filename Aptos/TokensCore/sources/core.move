@@ -28,11 +28,11 @@ module dev::QiaraTokensCoreV63{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV63::{Self as Storages};
+    use dev::QiaraStoragesV64::{Self as Storages};
 
-    use dev::QiaraChainTypesV63::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV63::{Self as TokensType};
-    use dev::QiaraProviderTypesV63::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV64::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV64::{Self as TokensType};
+    use dev::QiaraProviderTypesV64::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -148,7 +148,7 @@ module dev::QiaraTokensCoreV63{
         init_token(admin, utf8(b"Deepbook"), utf8(b"QDEEP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/deepbook.webp"), 1_683_072_000, utf8(b"0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP"), 0, 10_000_000_000, 5_469_776_910, 10_000_000_000, 1);
 
         // 5. JLP
-        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 1_700_611_200, utf8(b"0x27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4"), 0, 225_851_161, 225_851_161, 225_851_161, 1);
+        init_token(admin, utf8(b"JLP"), utf8(b"QJLP"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/jlp.webp"), 1_700_611_200, utf8(b"27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4"), 0, 225_851_161, 225_851_161, 225_851_161, 1);
 
         // 6. USDG
         init_token(admin, utf8(b"USDG"), utf8(b"QUSDG"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/usdg.webp"), 0, utf8(b"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"), 0, 3_160_971_119, 3_160_971_119, 3_160_971_119, 254);

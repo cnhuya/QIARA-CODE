@@ -363,7 +363,6 @@ module dev::QiaraOracleV13 {
 
     #[view]
     public fun viewPrice(name: String): u256 acquires Prices {
-        if (name == utf8(b"Qiara")) return 0;
         if (!exists<Prices>(@dev)) return 0;
 
         let prices = borrow_global<Prices>(@dev);

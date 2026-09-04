@@ -13,7 +13,7 @@ module dev::QiaraTokensMetadataV63{
     use dev::QiaraMathV2::{Self as Math};
 
     use dev::QiaraTokensTiersV63::{Self as tier};
-    use dev::QiaraTokenTypesV63::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokenTypesV64::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV13::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -269,25 +269,50 @@ public entry fun create_metadata(
 
     }
 
-    public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: String) acquires Tokens {
-       
+// === SINGLE UPDATE WITH EVENT EMISSION === //
+public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: String) acquires Tokens {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
         let vault_list = borrow_global_mut<Tokens>(@dev);
         let len = vector::length(&vault_list.list);
+        let i = 0;
 
-        while (len > 0) {
-            let metadat = vector::borrow_mut(&mut vault_list.list, len - 1);
+        while (i < len) {
+            let metadat = vector::borrow_mut(&mut vault_list.list, i);
             if (metadat.symbol == symbol) {
                 metadat.oracleID = oracleID;
-                return;
+
+                // Build event data in-place without re-borrowing Tokens
+                let tier = Tier { 
+                    tierName: tier::convert_tier_to_string(metadat.tier), 
+                    efficiency: tier::tier_efficiency(metadat.tier), 
+                    multiplier: tier::tier_multiplier(metadat.tier) 
+                };
+                let market = calculate_market(metadat);
+                let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
+                let price_val = (oracle::viewPrice(metadat.symbol) as u64);
+                let denom_val = Math::pow10_u256((price_decimals as u8));
+                let price = Price { price: price_val, denom: (denom_val as u64) };
+
+                event::emit(MetadataChange {
+                    address: signer::address_of(admin),
+                    asset: symbol,
+                    tier,
+                    tokenomics: metadat.tokenomics,
+                    market,
+                    price,
+                    time: timestamp::now_seconds()
+                });
+                return
             };
-            len = len - 1;
+            i = i + 1;
         };
 
         abort(ERROR_COIN_RESOURCE_NOT_FOUND_IN_LIST)
-
     }
+
+    // === GAS-OPTIMIZED BATCH UPDATE === //
+
 
     public entry fun update_all_tokenomics(admin: &signer) acquires Tokens {
         update_tokenomics(admin, utf8(b"Ethereum"), 120_698_129, 120_698_129, 120_698_129);
@@ -763,14 +788,10 @@ public entry fun create_metadata(
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    if(res == utf8(b"Qiara")){
-                        price = 0;
-                        denom = 0;
-                    } else {
-                        let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
-                        price = (oracle::viewPrice(metadat.symbol) as u64);
-                        denom = Math::pow10_u256((price_decimals as u8));
-                    };
+                    // In QiaraTokensMetadataV63::get_coin_metadata_by_symbol:
+                    let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
+                    price = (oracle::viewPrice(metadat.symbol) as u64);
+                    denom = Math::pow10_u256((price_decimals as u8));
                     let tier = Tier { tierName: tier::convert_tier_to_string(metadat.tier), efficiency: tier::tier_efficiency(metadat.tier), multiplier: tier::tier_multiplier(metadat.tier) };
 
 
