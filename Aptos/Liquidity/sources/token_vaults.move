@@ -1,4 +1,4 @@
-module dev::QiaraTokenVaultsV82{
+module dev::QiaraTokenVaultsV83{
     use std::signer;
     use std::timestamp;
     use std::vector;    
