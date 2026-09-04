@@ -238,8 +238,8 @@ module dev::QiaraStorageV21 {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 2, true, &give_permission(&give_access(admin))); // 2 VALIDATORS SIGNATURES
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, &give_permission(&give_access(admin))); // 3 SECONDS?
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 1_000, true, &give_permission(&give_access(admin))); // 0.01% 
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, &give_permission(&give_access(admin))); // 0.001% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 10_000, true, &give_permission(&give_access(admin))); // 0.01% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 1000, true, &give_permission(&give_access(admin))); // 0.001% 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 3, true, &give_permission(&give_access(admin))); // 3
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_CLAMP_PRICE_STEP"), 1_000_000, true, &give_permission(&give_access(admin))); // 1%
 
@@ -247,7 +247,8 @@ module dev::QiaraStorageV21 {
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), bc::to_bytes(&15000), &give_permission(&give_access(admin))); // 0.001%  
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&10000), &give_permission(&give_access(admin))); // 0.01%  
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&1000), &give_permission(&give_access(admin))); // 0.001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), &give_permission(&give_access(admin))); // 0.001%  
     }
 

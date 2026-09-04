@@ -20,7 +20,6 @@ module dev::QiaraOracleV12 {
 
 // === CONSTANTS === //
     const ORACLE_DECIMALS: u8 = 8;
-    const DRIFT_DENOMINATOR: u128 = 10_000_000;   // 1,000 = 0.01%
     const PERCENT_DENOMINATOR: u128 = 100_000_000; // 1,000_000 = 1%
 
 // === ACCESS & PERMISSIONS === //
@@ -67,7 +66,7 @@ module dev::QiaraOracleV12 {
     struct Prices has key {
         map: Map<String, Integer>,            // Token Symbol -> Impact Integer
         prices: Map<vector<u8>, PriceStore>,  // Oracle ID / Symbol Bytes -> PriceStore
-        rounds: Map<RoundKey, RoundData>,     // 👈 Keyed by (round_id, symbol)
+        rounds: Map<RoundKey, RoundData>,     // (round_id, symbol) -> RoundData
         active_validators: vector<String>,
     }
 
@@ -87,12 +86,11 @@ module dev::QiaraOracleV12 {
             move_to(admin, Prices { 
                 map: map::new<String, Integer>(),
                 prices: map::new<vector<u8>, PriceStore>(),
-                rounds: map::new<RoundKey, RoundData>(), // 👈 Updated
+                rounds: map::new<RoundKey, RoundData>(),
                 active_validators: vector::empty<String>(),
             });
         };
     }
-
 
 // === DYNAMIC STORAGE READERS === //
 
@@ -148,7 +146,6 @@ module dev::QiaraOracleV12 {
         borrow_global<Prices>(@dev).active_validators
     }
 
-/// Batches submissions for multiple assets in 1 single transaction
     public entry fun batch_submit_round_prices(
         caller: &signer,
         validator_shared: String,
@@ -169,7 +166,7 @@ module dev::QiaraOracleV12 {
 
 // === AUTONOMOUS COMMITTEE SUBMISSION === //
 
-   public entry fun submit_round_price(
+    public entry fun submit_round_price(
         caller: &signer,
         validator_shared: String,
         symbol: String,
@@ -226,7 +223,6 @@ module dev::QiaraOracleV12 {
             let round_data = map::borrow_mut(&mut prices.rounds, &round_key);
             assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
 
-            // Prevent duplicate submissions from the same validator for this symbol
             let len = vector::length(&round_data.submissions);
             let i = 0;
             while (i < len) {
@@ -279,17 +275,39 @@ module dev::QiaraOracleV12 {
                 map::upsert(&mut prices.prices, qiara_impact.oracleID, store);
             };
 
-            let data = vector[
+            // Calculate total price with native impact
+            let full_price = apply_impact((final_settled_price as u256), &qiara_impact);
+
+            // 1. Emits Round Settled event for consensus lifecycle tracking
+            let round_data_struct = vector[
                 Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), symbol_bytes),
-                Event::create_data_struct(utf8(b"price"), utf8(b"u128"), bcs::to_bytes(&final_settled_price)),
+                Event::create_data_struct(utf8(b"raw_price"), utf8(b"u128"), bcs::to_bytes(&final_settled_price)),
                 Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
             ];
-            Event::emit_oracle_event(utf8(b"Round Settled"), data);
+            Event::emit_oracle_event(utf8(b"Round Settled"), round_data_struct);
+
+            // 2. Emits unified Price Change event for frontend/tickers via helper
+            emit_price_change(&symbol, full_price);
         };
     }
 
+    /// Reusable helper function to emit unified Price Change events without code duplication
+    fun emit_price_change(symbol: &String, price: u256) {
+        let data = vector[
+            Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(symbol)),
+            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+        ];
+        Event::emit_oracle_event(utf8(b"Price Change"), data);
+    }
 
-    /// Autonomous in-place sorting for arbitrary quorum sizes (O(K^2), lightweight in VM)
+    fun apply_impact(raw_price: u256, impact: &Integer): u256 {
+        if (impact.isPositive) {
+            raw_price + impact.value
+        } else {
+            if (impact.value >= raw_price) 1 else raw_price - impact.value
+        }
+    }
+
     fun sort_prices(prices: &mut vector<u128>) {
         let len = vector::length(prices);
         let i = 0;
@@ -305,18 +323,17 @@ module dev::QiaraOracleV12 {
         };
     }
 
-    /// Clamps price steps based on MAX_CLAMP_PRICE_STEP from QiaraStorageV21
     fun clamp_price_step(new_price: u128, old_price: u128, max_step_scaled: u128): u128 {
         if (old_price == 0) return new_price;
 
         let max_delta = (old_price * max_step_scaled) / PERCENT_DENOMINATOR;
 
         if (new_price > old_price + max_delta) {
-            return old_price + max_delta // Clamps pump step without reverting
+            return old_price + max_delta
         };
 
         if (old_price > max_delta && new_price < old_price - max_delta) {
-            return old_price - max_delta // Clamps dump step without reverting
+            return old_price - max_delta
         };
 
         new_price
@@ -324,7 +341,7 @@ module dev::QiaraOracleV12 {
 
     fun calculate_divergence(val: u128, target: u128): u128 {
         let diff = if (val > target) val - target else target - val;
-        (diff * DRIFT_DENOMINATOR) / target
+        (diff * PERCENT_DENOMINATOR) / target
     }
 
     fun get_raw_price_internal(prices: &Prices, symbol_bytes: &vector<u8>): u128 {
@@ -369,11 +386,7 @@ module dev::QiaraOracleV12 {
 
         if (map::contains_key(&prices.map, &name)) {
             let impact = map::borrow(&prices.map, &name);
-            if (impact.isPositive) {
-                raw_price + impact.value
-            } else {
-                if (impact.value >= raw_price) 1 else raw_price - impact.value
-            }
+            apply_impact(raw_price, impact)
         } else {
             raw_price
         }
@@ -470,14 +483,18 @@ module dev::QiaraOracleV12 {
         };
 
         let updated_view_price = viewPrice(name);
+
+        // 1. Emit Impact state change event (without duplicate price field)
         let data = vector[
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"oracle id"), utf8(b"vector<u8>"), bcs::to_bytes(&oracleID)),
             Event::create_data_struct(utf8(b"old_price_impact"), utf8(b"u64"), bcs::to_bytes(&old_price_state)),
             Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
-            Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&updated_view_price)),
         ];
         Event::emit_oracle_event(utf8(b"Qiara Oracle Impact Update"), data);
+
+        // 2. Emit unified Price Change event via shared helper
+        emit_price_change(&name, updated_view_price);
 
         let a = calculate_impact_percentage((raw_price as u256), final_price_value, final_price_is_positive);
         a / 1_000_000
