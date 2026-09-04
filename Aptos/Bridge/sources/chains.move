@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV70{
+module dev::QiaraBridgeV71{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,8 +29,8 @@ module dev::QiaraBridgeV70{
     use dev::QiaraMarginV66::{Self as Margin};
     use dev::QiaraGovernanceV23::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV70::{Self as Payload};
-    use dev::QiaraValidatorsV70::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV71::{Self as Payload};
+    use dev::QiaraValidatorsV71::{Self as Validators, Access as ValidatorsAccess};
 
     use dev::QiaraPerpsOrdersV56::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV56::{Self as Perps, Access as PerpAccess};
