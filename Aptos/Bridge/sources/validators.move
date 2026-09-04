@@ -13,6 +13,9 @@ module dev::QiaraValidatorsV67{
     use dev::QiaraStorageV21::{Self as storage};
     use dev::QiaraTokensQiaraV61::{Self as TokensQiara};
     use dev::QiaraTokensCoreV61::{Self as TokensCore, Access as TokensCoreAccess};
+
+    use dev::QiaraOracleV10::{Self as Oracle, Access as OracleAccess};
+
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
     const ERROR_NOT_VALIDATOR: u64 = 1;
@@ -71,6 +74,7 @@ module dev::QiaraValidatorsV67{
         shared: SharedAccess,
         margin: MarginAccess,
         tokens_core: TokensCoreAccess,
+        oracle: OracleAccess, // 👈 Added
     }
 
     struct Stakers has key, store {
@@ -98,7 +102,7 @@ module dev::QiaraValidatorsV67{
             move_to(admin, Stakers { table: table::new<String, String>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { shared: Shared::give_access(admin), margin: Margin::give_access(admin), tokens_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions { oracle: Oracle::give_access(admin), shared: Shared::give_access(admin), margin: Margin::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
     }
 
@@ -394,7 +398,7 @@ module dev::QiaraValidatorsV67{
             Event::emit_consensus_event(utf8(b"Register Validator"), data);
         };
 
-        // Update active list if epoch progressed
+       // Update active list if epoch progressed
         if (Genesis::return_epoch() > (active_validators.epoch as u256)) {
             let vect = vector::empty<String>();
             let len = vector::length(pending_validators);
@@ -405,6 +409,10 @@ module dev::QiaraValidatorsV67{
             };
             active_validators.list = vect;
             active_validators.epoch = (Genesis::return_epoch() as u64);
+
+            // ⚡ Automatically sync the new active validators to Oracle!
+            let permissions = borrow_global<Permissions>(@dev);
+            Oracle::sync_active_validators(vect, &Oracle::give_permission(&permissions.oracle));
         };
     }
 
