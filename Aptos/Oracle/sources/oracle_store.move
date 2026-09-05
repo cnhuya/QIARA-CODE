@@ -389,6 +389,55 @@ module dev::QiaraOracleV13 {
         }
     }
 
+#[view]
+    public fun viewPrices(names: vector<String>): vector<u256> acquires Prices {
+        let len = vector::length(&names);
+        let results = vector::empty<u256>();
+
+        if (!exists<Prices>(@dev)) {
+            let i = 0;
+            while (i < len) {
+                vector::push_back(&mut results, 0);
+                i = i + 1;
+            };
+            return results
+        };
+
+        let prices = borrow_global<Prices>(@dev);
+        let i = 0;
+        while (i < len) {
+            let name = vector::borrow(&names, i);
+            vector::push_back(&mut results, get_price_internal(prices, name));
+            i = i + 1;
+        };
+
+        results
+    }
+
+    inline fun get_price_internal(prices: &Prices, name: &String): u256 {
+        let raw_price: u256 = 0;
+
+        if (map::contains_key(&prices.prices, name)) {
+            raw_price = (map::borrow(&prices.prices, name).price as u256);
+        };
+
+        if (raw_price == 0 && map::contains_key(&prices.map, name)) {
+            let oracle_id = &map::borrow(&prices.map, name).oracleID;
+            if (map::contains_key(&prices.prices, oracle_id)) {
+                raw_price = (map::borrow(&prices.prices, oracle_id).price as u256);
+            };
+        };
+
+        if (raw_price == 0) return 0;
+
+        if (map::contains_key(&prices.map, name)) {
+            let impact = map::borrow(&prices.map, name);
+            apply_impact(raw_price, impact)
+        } else {
+            raw_price
+        }
+    }
+
     #[view]
     public fun viewPriceWithDecimals(name: String): (u256, u64) acquires Prices {
         (viewPrice(name), (ORACLE_DECIMALS as u64))
