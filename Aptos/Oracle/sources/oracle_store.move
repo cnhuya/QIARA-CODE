@@ -414,7 +414,7 @@ module dev::QiaraOracleV13 {
         results
     }
 
-    inline fun get_price_internal(prices: &Prices, name: &String): u256 {
+  fun get_price_internal(prices: &Prices, name: &String): u256 {
         let raw_price: u256 = 0;
 
         if (map::contains_key(&prices.prices, name)) {
@@ -428,9 +428,9 @@ module dev::QiaraOracleV13 {
             };
         };
 
-        if (raw_price == 0) return 0;
-
-        if (map::contains_key(&prices.map, name)) {
+        if (raw_price == 0) {
+            0
+        } else if (map::contains_key(&prices.map, name)) {
             let impact = map::borrow(&prices.map, name);
             apply_impact(raw_price, impact)
         } else {
