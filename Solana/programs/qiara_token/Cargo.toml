@@ -1,0 +1,23 @@
+[package]
+name = "qiara"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "qiara"
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"
+ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-groth16 = { version = "0.4.0", default-features = false }
+ark-serialize = { version = "0.4.0", default-features = false }
+groth16-solana = "0.2.0"
+
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+idl-build = ["anchor-lang/idl-build"]

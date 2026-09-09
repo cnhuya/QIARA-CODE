@@ -116,6 +116,128 @@ pub const IC_POINTS: &[[u8; 64]] = &[
 // GROTH16 VERIFICATION CORE (Identical to Ethereum verifier.sol)
 // =========================================================================
 
+
+// Replace these placeholders with the constants exported by export-rust-vk.js
+pub const QIARA_ALPHA_G1: [u8; 64] = [0x00; 64];
+pub const QIARA_BETA_NEG_G2: [u8; 128] = [0x00; 128];
+pub const QIARA_GAMMA_NEG_G2: [u8; 128] = [0x00; 128];
+pub const QIARA_DELTA_NEG_G2: [u8; 128] = [0x00; 128];
+
+// 5 Points: [0] = Constant, [1] = OldRoot, [2] = NewRoot, [3] = UserAddress, [4] = PackedTxData
+pub const QIARA_IC_POINTS: &[[u8; 64]] = &[
+    [0x00; 64], // CONSTANT
+    [0x00; 64], // PUB_0: OldAccountRoot
+    [0x00; 64], // PUB_1: NewAccountRoot
+    [0x00; 64], // PUB_2: UserAddress
+    [0x00; 64], // PUB_3: PackedTxData
+];
+
+pub fn verify_qiara_token_proof(public_inputs: &[u8], proof_points: &[u8]) -> Result<bool> {
+    if proof_points.len() < 256 || public_inputs.len() < 128 {
+        return err!(crate::QiaraError::InvalidProof);
+    }
+
+    let proof_a = &proof_points[0..64];
+    let proof_b = &proof_points[64..192];
+    let proof_c = &proof_points[192..256];
+
+    // 1. MSM for 4 public inputs (IC_0 + x1*IC_1 + x2*IC_2 + x3*IC_3 + x4*IC_4)
+    let mut prepared_inputs = [0u8; 64];
+    prepared_inputs.copy_from_slice(&QIARA_IC_POINTS[0]);
+
+    for (i, chunk) in public_inputs.chunks_exact(32).enumerate() {
+        if i + 1 >= QIARA_IC_POINTS.len() {
+            break;
+        }
+
+        let ic_point = &QIARA_IC_POINTS[i + 1];
+        if ic_point.iter().all(|&b| b == 0) {
+            continue;
+        }
+
+        let mut mul_input = [0u8; 96];
+        mul_input[0..64].copy_from_slice(ic_point);
+        mul_input[64..96].copy_from_slice(chunk);
+
+        let mut mul_output = [0u8; 64];
+        let res = unsafe {
+            sol_alt_bn128_group_op(
+                ALT_BN128_MUL,
+                mul_input.as_ptr(),
+                96,
+                mul_output.as_mut_ptr(),
+            )
+        };
+        if res != 0 {
+            return err!(crate::QiaraError::InvalidProof);
+        }
+
+        let mut add_input = [0u8; 128];
+        add_input[0..64].copy_from_slice(&prepared_inputs);
+        add_input[64..128].copy_from_slice(&mul_output);
+
+        let mut add_output = [0u8; 64];
+        let res = unsafe {
+            sol_alt_bn128_group_op(
+                ALT_BN128_ADD,
+                add_input.as_ptr(),
+                128,
+                add_output.as_mut_ptr(),
+            )
+        };
+        if res != 0 {
+            return err!(crate::QiaraError::InvalidProof);
+        }
+
+        prepared_inputs = add_output;
+    }
+
+    // 2. Alt-BN128 4-Pairing Check
+    let mut pairing_input = [0u8; 768];
+    pairing_input[0..64].copy_from_slice(proof_a);
+    pairing_input[64..192].copy_from_slice(proof_b);
+    pairing_input[192..256].copy_from_slice(proof_c);
+    pairing_input[256..384].copy_from_slice(&QIARA_DELTA_NEG_G2);
+    pairing_input[384..448].copy_from_slice(&QIARA_ALPHA_G1);
+    pairing_input[448..576].copy_from_slice(&QIARA_BETA_NEG_G2);
+    pairing_input[576..640].copy_from_slice(&prepared_inputs);
+    pairing_input[640..768].copy_from_slice(&QIARA_GAMMA_NEG_G2);
+
+    let mut pairing_result = [0u8; 32];
+    let res = unsafe {
+        sol_alt_bn128_group_op(
+            ALT_BN128_PAIRING,
+            pairing_input.as_ptr(),
+            768,
+            pairing_result.as_mut_ptr(),
+        )
+    };
+
+    if res != 0 || pairing_result[31] != 1 {
+        return err!(crate::QiaraError::InvalidProof);
+    }
+
+    Ok(true)
+}
+
+/// Unpacks 4 public signals: returns (recipient_pubkey, amount, chain_id, nonce)
+pub fn verify_and_unpack_qiara_token(public_inputs: &[u8]) -> Result<(Pubkey, u64, u32, u32)> {
+    if public_inputs.len() < 128 {
+        return err!(crate::QiaraError::InvalidInputLength);
+    }
+
+    // Input 2 (offset 64..96): Recipient Address
+    let user = Pubkey::new_from_array(public_inputs[64..96].try_into().unwrap());
+
+    // Input 3 (offset 96..128): PackedTxData = Amount(64) | ChainID(32) | Nonce(32)
+    let packed = &public_inputs[96..128];
+    let amount = u64::from_le_bytes(packed[0..8].try_into().unwrap());
+    let chain_id = u32::from_le_bytes(packed[8..12].try_into().unwrap());
+    let nonce = u32::from_le_bytes(packed[12..16].try_into().unwrap());
+
+    Ok((user, amount, chain_id, nonce))
+}
+
 pub fn verify_balance_proof(public_inputs: &[u8], proof_points: &[u8]) -> Result<bool> {
     if proof_points.len() < 256 {
         return err!(crate::QiaraError::InvalidProof);
