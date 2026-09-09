@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV71
+module dev::QiaraPayloadV72
 
 {
     use std::signer;
