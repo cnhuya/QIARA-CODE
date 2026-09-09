@@ -23,8 +23,8 @@ module dev::QiaraPerpsV56 {
     use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraCapabilitiesV22::{Self as capabilities};
 
-    use dev::QiaraChainTypesV65::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV65::{Self as TokensTypes};
+    use dev::QiaraChainTypesV66::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV66::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 

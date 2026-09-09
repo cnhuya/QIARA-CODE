@@ -1,23 +1,23 @@
 [package]
-name = "qiara"
+name = "qiara_token"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "qiara"
+name = "qiara_token"
 
 [dependencies]
-anchor-lang = "0.31.1"
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = "0.31.1"
-ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
-ark-groth16 = { version = "0.4.0", default-features = false }
-ark-serialize = { version = "0.4.0", default-features = false }
-groth16-solana = "0.2.0"
-
+qiara = { path = "../qiara", features = ["cpi"] }
 
 [features]
 default = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = [
+    "anchor-lang/idl-build",
+    "anchor-spl/idl-build",
+    "qiara/idl-build",
+]

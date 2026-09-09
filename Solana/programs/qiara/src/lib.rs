@@ -107,26 +107,6 @@ pub mod qiara {
         Ok(())
     }
 
-/// CPI Target for Qiara Token program
-    pub fn verify_qiara_token_proof(
-        ctx: Context<VerifyBalanceProof>,
-        public_inputs: Vec<u8>,
-        proof_points: Vec<u8>,
-        signatures: Vec<Vec<u8>>,
-    ) -> Result<()> {
-        verify_signatures_with_threshold(
-            &ctx.accounts.validator_state,
-            &ctx.accounts.registry,
-            &signatures,
-            &public_inputs,
-        )?;
-
-        let is_valid = verifier::verify_qiara_token_proof(&public_inputs, &proof_points)?;
-        require!(is_valid, QiaraError::InvalidProof);
-
-        Ok(())
-    }
-
     pub fn add_active_pubkey_direct(
         ctx: Context<AddActivePubkeyDirect>,
         pubkey: Vec<u8>,

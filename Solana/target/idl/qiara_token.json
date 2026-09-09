@@ -1,0 +1,751 @@
+{
+  "address": "b8FfSsqju7xF2D9U1Ue7wBsfq3xMLP234HaFqiDomUL",
+  "metadata": {
+    "name": "qiara_token",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "docs": [
+        "Initialize Qiara Token with 1,000,000 initial supply (9 decimals)"
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_token_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "variable_header",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_fee_exempt",
+      "docs": [
+        "Update fee exemption status"
+      ],
+      "discriminator": [
+        224,
+        228,
+        88,
+        87,
+        69,
+        164,
+        109,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "target_wallet"
+        },
+        {
+          "name": "exempt_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  109,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "target_wallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "exempt",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "transfer_with_fee",
+      "docs": [
+        "Transfer with dynamic epoch burn fee"
+      ],
+      "discriminator": [
+        140,
+        41,
+        159,
+        221,
+        159,
+        13,
+        211,
+        126
+      ],
+      "accounts": [
+        {
+          "name": "from",
+          "writable": true
+        },
+        {
+          "name": "to",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "fee_recipient_ata",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "sender_exempt",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  109,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "from.owner",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_exempt",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  109,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "to.owner",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "zk_mint",
+      "docs": [
+        "ZK Mint: In-program Groth16 verification + validator quorum without CPI overhead"
+      ],
+      "discriminator": [
+        175,
+        163,
+        214,
+        190,
+        24,
+        72,
+        158,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_token_account",
+          "writable": true
+        },
+        {
+          "name": "nullifier_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  117,
+                  108,
+                  108,
+                  105,
+                  102,
+                  105,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nullifier"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "validator_state"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "nullifier",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "public_inputs",
+          "type": "bytes"
+        },
+        {
+          "name": "proof_points",
+          "type": "bytes"
+        },
+        {
+          "name": "signatures",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "EpochConfig",
+      "discriminator": [
+        190,
+        66,
+        87,
+        197,
+        214,
+        153,
+        144,
+        193
+      ]
+    },
+    {
+      "name": "ExemptRecord",
+      "discriminator": [
+        143,
+        193,
+        230,
+        21,
+        153,
+        199,
+        69,
+        245
+      ]
+    },
+    {
+      "name": "NullifierRecord",
+      "discriminator": [
+        56,
+        18,
+        57,
+        175,
+        69,
+        202,
+        189,
+        70
+      ]
+    },
+    {
+      "name": "Registry",
+      "discriminator": [
+        47,
+        174,
+        110,
+        246,
+        184,
+        182,
+        252,
+        218
+      ]
+    },
+    {
+      "name": "ValidatorState",
+      "discriminator": [
+        217,
+        140,
+        124,
+        163,
+        31,
+        187,
+        1,
+        89
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ZkMintEvent",
+      "discriminator": [
+        211,
+        100,
+        251,
+        185,
+        55,
+        19,
+        139,
+        37
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidInputLength",
+      "msg": "Input length must equal 128 bytes for 4 public signals."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidProof",
+      "msg": "Alt-BN128 Groth16 proof verification failed."
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientSignatures",
+      "msg": "Validator signatures below required quorum."
+    },
+    {
+      "code": 6003,
+      "name": "UnauthorizedRecipient",
+      "msg": "Recipient does not match ZK public input address."
+    },
+    {
+      "code": 6004,
+      "name": "FeeExceedsAmount",
+      "msg": "Transfer fee exceeds total transfer amount."
+    },
+    {
+      "code": 6005,
+      "name": "UnauthorizedWhitelistAdmin",
+      "msg": "Signer is not authorized to edit whitelist."
+    }
+  ],
+  "types": [
+    {
+      "name": "ActiveVariableMap",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": "string"
+          },
+          {
+            "name": "variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "PendingVariable"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "variable_header",
+            "type": "string"
+          },
+          {
+            "name": "fee_recipient",
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "genesis_timestamp_ms",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration_ms",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExemptRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_exempt",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NullifierRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_used",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingUpdate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "bytes"
+          },
+          {
+            "name": "is_removal",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingVariable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Registry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active_variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ActiveVariableMap"
+                }
+              }
+            }
+          },
+          {
+            "name": "pending_variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ActiveVariableMap"
+                }
+              }
+            }
+          },
+          {
+            "name": "is_locked",
+            "type": "bool"
+          },
+          {
+            "name": "last_processed_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidatorState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active_pubkeys",
+            "type": {
+              "vec": "bytes"
+            }
+          },
+          {
+            "name": "pending_updates",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "PendingUpdate"
+                }
+              }
+            }
+          },
+          {
+            "name": "last_processed_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ZkMintEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "nullifier",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

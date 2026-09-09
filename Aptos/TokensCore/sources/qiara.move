@@ -20,7 +20,7 @@ module dev::QiaraTokensQiaraV65
     use dev::QiaraCapabilitiesV22::{Self as capabilities};
     use dev::QiaraStorageV22::{Self as storage};
 
-    use dev::QiaraTokenTypesV65::{Self as TokensType};
+    use dev::QiaraTokenTypesV66::{Self as TokensType};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
 
