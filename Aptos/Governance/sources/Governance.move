@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV23 {
+module dev::QiaraGovernanceV24 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream 
@@ -68,6 +68,7 @@ module dev::QiaraGovernanceV23 {
         value_type: vector<String>,
         isChange: vector<bool>,
         editable: vector<bool>,
+        isMultiChain: vector<bool>,
         yes: u256,
         no: u256,
         voters: vector<String>,
@@ -88,6 +89,7 @@ module dev::QiaraGovernanceV23 {
         constants: vector<String>,
         new_value: vector<vector<u8>>,
         isChange: vector<bool>,
+        isMultiChain: vector<bool>,
         editable: vector<bool>
     }
 
@@ -96,8 +98,8 @@ module dev::QiaraGovernanceV23 {
         vector: vector<PendingVariableResults>
     }
 
-    fun make_proposal(id: u64, name: String, desc: String, status: u8, type: vector<String>, proposer: vector<u8>, shared: String, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
-        Proposal {id, name, desc, status, type, proposer, shared, duration, header, constant, new_value, value_type, isChange, editable, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
+    fun make_proposal(id: u64, name: String, desc: String, status: u8, type: vector<String>, proposer: vector<u8>, shared: String, duration: u64, header: vector<String>, constant: vector<String>, isChange: vector<bool>, editable: vector<bool>, isMultiChain: vector<bool>, new_value: vector<vector<u8>>, value_type:vector<String>): Proposal {
+        Proposal {id, name, desc, status, type, proposer, shared, duration, header, constant, new_value, value_type, isChange, editable, isMultiChain, yes: 0, no: 0, voters: vector::empty<String>(), result: 0}
     }
 
 
@@ -152,6 +154,7 @@ module dev::QiaraGovernanceV23 {
                     value_type,
                     isChange,
                     editable,
+                    isMultiChain,
                     yes,
                     no,
                     voters,
@@ -187,7 +190,9 @@ module dev::QiaraGovernanceV23 {
                             constants: constant,
                             new_value: new_value,
                             isChange: isChange,
-                            editable: editable
+                            editable: editable,
+                            isMultiChain: isMultiChain
+
                         });
 
                         // Execute immediately ONLY for Capability and Function
@@ -265,7 +270,7 @@ module dev::QiaraGovernanceV23 {
 
 
 // Native Interface
-    public entry fun propose(user: &signer, sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Permissions {
+    public entry fun propose(user: &signer, sub_owner: vector<u8>, shared_storage_name: String,  name: String, desc: String, type: vector<String>, isChange: vector<bool>, isMultiChain: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>) acquires PendingProposals, ProposalCount, Pending, Permissions {
         process_pending_constants(user);
         propose_internal(
             b"0x0",
@@ -280,7 +285,8 @@ module dev::QiaraGovernanceV23 {
             new_value, 
             value_type, 
             duration, 
-            editable
+            editable,
+            isMultiChain,
         );
     }
 
@@ -303,7 +309,7 @@ module dev::QiaraGovernanceV23 {
     }
 
 // Modular Interface
-    public fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>, perm: Permission) acquires PendingProposals, ProposalCount, Pending, Permissions {
+    public fun m_propose(validator: &signer, sub_owner: vector<u8>, shared_storage_name: String, name: String, desc: String, type: vector<String>, isChange: vector<bool>, isMultiChain: vector<bool>, header: vector<String>, constant_name: vector<String>, new_value: vector<vector<u8>>, value_type: vector<String>, duration: u64, editable: vector<bool>, perm: Permission) acquires PendingProposals, ProposalCount, Pending, Permissions {
         process_pending_constants(validator); // Ensure pending constants are processed before finalizing any proposal
         propose_internal(
             bcs::to_bytes(&signer::address_of(validator)),
@@ -318,7 +324,8 @@ module dev::QiaraGovernanceV23 {
             new_value, 
             value_type, 
             duration, 
-            editable
+            editable,
+            isMultiChain,
         );
     }
 
@@ -438,7 +445,7 @@ module dev::QiaraGovernanceV23 {
         Event::emit_governance_event(utf8(b"Vote"), data);
     }
 
-    fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String, name: String, desc: String, type: vector<String>,isChange: vector<bool>,header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>) acquires PendingProposals, ProposalCount {
+    fun propose_internal(validator: vector<u8>, user: vector<u8>, shared: String, name: String, desc: String, type: vector<String>,isChange: vector<bool>,  header: vector<String>,constant_name: vector<String>,new_value: vector<vector<u8>>,value_type: vector<String>,duration: u64,editable: vector<bool>,isMultiChain: vector<bool>) acquires PendingProposals, ProposalCount {
         TokensShared::assert_is_owner(user, shared);
         assert!(!capabilities::assert_wallet_capability(shared, std::string::utf8(b"QiaraGovernance"), std::string::utf8(b"BLACKLIST")), ERROR_BLACKLISTED);
         assert_allowed_type(type);
@@ -460,6 +467,7 @@ module dev::QiaraGovernanceV23 {
             constant_name, 
             isChange, 
             editable, 
+            isMultiChain,
             new_value, 
             value_type
         );
@@ -541,6 +549,7 @@ module dev::QiaraGovernanceV23 {
                     new_value,
                     isChange,
                     editable,
+                    isMultiChain,
                 } = prop;
 
                 let x = vector::length(&types);
@@ -564,6 +573,7 @@ module dev::QiaraGovernanceV23 {
                                 new_value,
                                 types,
                                 editable,
+                                isMultiChain,
                                 &storage::give_permission(&borrow_global<Permissions>(OWNER).storage_access)
                             );
                     };
