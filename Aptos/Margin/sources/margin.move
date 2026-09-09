@@ -14,7 +14,7 @@ module dev::QiaraMarginV66 {
     
     use dev::QiaraMathV2::{Self as QiaraMath};
     use dev::QiaraGenesisV2::{Self as Genesis};
-    use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraSharedV17::{Self as Shared};
 
 // === ERRORS === //

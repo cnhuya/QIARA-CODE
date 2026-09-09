@@ -10,7 +10,7 @@ module dev::QiaraValidatorsV71{
     use dev::QiaraMarginV66::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV2::{Self as Genesis};
-    use dev::QiaraStorageV21::{Self as storage};
+    use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraTokensQiaraV65::{Self as TokensQiara};
     use dev::QiaraTokensCoreV65::{Self as TokensCore, Access as TokensCoreAccess};
 

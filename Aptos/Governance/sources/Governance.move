@@ -12,9 +12,9 @@ module dev::QiaraGovernanceV23 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraMarginV66::{Self as Margin};
 
-    use dev::QiaraStorageV21::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV21::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV21::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV22::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV22::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV17::{Self as TokensShared};
 
     use dev::QiaraGenesisV2::{Self as Genesis};
