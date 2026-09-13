@@ -4,6 +4,7 @@ use anchor_lang::solana_program::keccak;
 
 pub mod extractor;
 pub mod verifier;
+pub mod provider_registry;
 
 declare_id!("14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo");
 
@@ -38,7 +39,9 @@ pub mod qiara {
         registry.pending_variables = Vec::new();
         Ok(())
     }
-
+    pub fn initialize_provider_registry(ctx: Context<provider_registry::InitializeProviderRegistry>) -> Result<()> {
+        provider_registry::initialize(ctx)
+    }
     pub fn initialize_validator_state(ctx: Context<InitializeValidatorState>) -> Result<()> {
         let state = &mut ctx.accounts.validator_state;
         state.last_processed_epoch = 0;
@@ -115,6 +118,31 @@ pub mod qiara {
         validator_state.active_pubkeys.push(pubkey);
         Ok(())
     }
+
+    pub fn dev_add_tokens(
+        ctx: Context<provider_registry::DevTokensAction>,
+        provider_name: String,
+        tokens: Vec<String>,
+    ) -> Result<()> {
+        provider_registry::dev_add_tokens(ctx, provider_name, tokens)
+    }
+
+    pub fn revoke_dev_access(ctx: Context<provider_registry::DevTokensAction>) -> Result<()> {
+        provider_registry::revoke_dev_access(ctx)
+    }
+
+    pub fn update_tokens_with_signatures(
+        ctx: Context<provider_registry::UpdateTokensWithSignatures>,
+        is_add: bool,
+        chain_id: u64,
+        provider_name: String,
+        tokens: Vec<String>,
+        nonce: u64,
+        signatures: Vec<Vec<u8>>,
+    ) -> Result<()> {
+        provider_registry::update_tokens_with_signatures(ctx, is_add, chain_id, provider_name, tokens, nonce, signatures)
+    }
+
 
     /// CPI TARGET: Verifies balance proof, enforces dynamic validator threshold, and checks signatures
     pub fn verify_balance_proof(

@@ -766,10 +766,10 @@ fun handle_main_event(
                 Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&borrow_global<Permissions>(@dev).perps_orders));
             } else if (event_type == utf8(b"Modular Governance Proposal")) {
-                let (user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables) = Payload::prepare_modular_governance_proposal(type_names, payload);
+                let (user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables, is_multichain) = Payload::prepare_modular_governance_proposal(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 // Calls m_propose (or Governance::m_propose if in another module)
-                Governance::m_propose(signer, user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables,  Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
+                Governance::m_propose(signer, user, shared, name, desc, types, is_change, is_multichain, headers, constant_names, new_values, value_types, duration, editables, Governance::give_permission(&borrow_global<Permissions>(@dev).governance));
             } else if (event_type == utf8(b"Modular Governance Vote")) {
                 let (user, shared, proposal_id, is_yes) = Payload::prepare_modular_governance_vote(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);

@@ -3,7 +3,7 @@ module dev::QiaraTokenTypesV66 {
     use std::vector;
     use std::signer;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-
+    use event::QiaraEventV1::{Self as Event};
     use dev::QiaraChainTypesV66::{Self as ChainTypes};
 
     const TOKEN_PREFIX: vector<u8> = b"Qiara140 ";

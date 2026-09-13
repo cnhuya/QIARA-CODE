@@ -607,7 +607,7 @@ public fun prepare_c_unstake(
 public fun prepare_modular_governance_proposal(
         type_names: vector<String>, 
         payload: vector<vector<u8>>
-    ): (vector<u8>, String, String, String, vector<String>, vector<bool>, vector<String>, vector<String>, vector<vector<u8>>, vector<String>, u64, vector<bool>) acquires Permissions {
+    ): (vector<u8>, String, String, String, vector<String>, vector<bool>, vector<String>, vector<String>, vector<vector<u8>>, vector<String>, u64, vector<bool>, vector<bool>) acquires Permissions {
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, name_raw) = find_payload_value(utf8(b"name"), type_names, payload);
@@ -620,6 +620,7 @@ public fun prepare_modular_governance_proposal(
         let (_, val_type_raw) = find_payload_value(utf8(b"value_type"), type_names, payload);
         let (_, duration_raw) = find_payload_value(utf8(b"duration"), type_names, payload);
         let (_, editable_raw) = find_payload_value(utf8(b"editable"), type_names, payload);
+        let (_, is_multichain_raw) = find_payload_value(utf8(b"is_multichain"), type_names, payload);
 
         let user_stream = &mut bcs_stream::new(user_raw);
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
@@ -652,12 +653,14 @@ public fun prepare_modular_governance_proposal(
 
         let editable_stream = &mut bcs_stream::new(editable_raw);
         let editables = bcs_stream::deserialize_vector(editable_stream, |s| bcs_stream::deserialize_bool(s));
+        let is_multichain_stream = &mut bcs_stream::new(is_multichain_raw);
+        let is_multichain =bcs_stream::deserialize_vector(is_multichain_stream, |s| bcs_stream::deserialize_bool(s));
 
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
 
-        return (user_bytes, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables)
+        return (user_bytes, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables, is_multichain)
     }
 
     public fun prepare_modular_governance_vote(
