@@ -1,7 +1,9 @@
 module dev::QiaraNonceV2 {
     use std::signer;
     use std::table::{Self, Table};
-    use std::string::{String, utf8};
+    use std::string::{Self as String, String, utf8};
+    use std::vector;
+    use std::bcs;
     use aptos_framework::event;
 
 // === ERRORS === //
@@ -16,11 +18,13 @@ module dev::QiaraNonceV2 {
         Access {}
     }
 
-    public fun give_permission(_access: &Access): Permission {
+    public fun give_permission(access: &Access): Permission {
         Permission {}
     }
     
-// === STRUCTS === //
+// === STRUCTS (PRESERVED) === //
+    struct Permissions has key {}
+    
     struct UserNonce has copy, drop, store {
         zk_nonce: u256,
         main_nonce: u256,
@@ -30,6 +34,7 @@ module dev::QiaraNonceV2 {
         table: Table<vector<u8>, UserNonce>,
     }
 
+// === NEW STRUCTS === //
     struct GlobalNonce has key {
         value: u64,
     }
@@ -50,7 +55,7 @@ module dev::QiaraNonceV2 {
     // Module init
     // ----------------------------------------------------------------
     fun init_module(admin: &signer) {
-        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
+        assert!(signer::address_of(admin) == @dev, 1);
 
         if (!exists<Nonces>(@dev)) {
             move_to(admin, Nonces { table: table::new<vector<u8>, UserNonce>() });
@@ -73,7 +78,7 @@ module dev::QiaraNonceV2 {
     // ----------------------------------------------------------------
     // Global Nonce Operations
     // ----------------------------------------------------------------
-    public fun increment_global_nonce(_perm: &Permission): u64 acquires GlobalNonce {
+    public fun increment_global_nonce(_perm: Permission): u64 acquires GlobalNonce {
         let gn = borrow_global_mut<GlobalNonce>(@dev);
         gn.value = gn.value + 1;
         event::emit(GlobalNonceIncrement { new_value: gn.value });
@@ -93,7 +98,7 @@ module dev::QiaraNonceV2 {
         increment_nonce(addr, type, give_permission(&give_access(signer)));
     }
 
-    public fun increment_nonce(user: vector<u8>, type: String, _perm: Permission) acquires Nonces {
+    public fun increment_nonce(user: vector<u8>, type: String, perm: Permission) acquires Nonces {
         let nonces = borrow_global_mut<Nonces>(@dev);
         if (!table::contains(&nonces.table, user)) {
             table::add(&mut nonces.table, user, UserNonce { zk_nonce: 0, main_nonce: 0 });
@@ -108,7 +113,7 @@ module dev::QiaraNonceV2 {
 
         event::emit(NonceAdd {
             addr: user,
-            type,
+            type: type,
         });
     }
 
@@ -119,7 +124,7 @@ module dev::QiaraNonceV2 {
     public fun delete_user_nonce(user: vector<u8>, _perm: Permission) acquires Nonces {
         let nonces = borrow_global_mut<Nonces>(@dev);
         if (table::contains(&nonces.table, user)) {
-            table::remove(&mut nonces.table, user);
+            let _old_user_nonce = table::remove(&mut nonces.table, user);
         };
     }
 
@@ -149,15 +154,14 @@ module dev::QiaraNonceV2 {
     public fun return_user_nonce_by_type(user: vector<u8>, type: String): u256 acquires Nonces {
         let nonces = borrow_global<Nonces>(@dev);
         if (!table::contains(&nonces.table, user)) {
-            return 0
+           return 0;
         };
-        let user_ref = table::borrow(&nonces.table, user);
         if (type == utf8(b"zk") || type == utf8(b"proof")) {
-            user_ref.zk_nonce
+            return table::borrow(&nonces.table, user).zk_nonce
         } else if (type == utf8(b"native")) {
-            user_ref.main_nonce
+            return table::borrow(&nonces.table, user).main_nonce
         } else {
-            0
+            return 0
         }
     }
 
@@ -165,9 +169,8 @@ module dev::QiaraNonceV2 {
     public fun return_user_nonce(user: vector<u8>): UserNonce acquires Nonces {
         let nonces = borrow_global<Nonces>(@dev);
         if (!table::contains(&nonces.table, user)) {
-            UserNonce { zk_nonce: 0, main_nonce: 0 }
-        } else {
-            *table::borrow(&nonces.table, user)
-        }
+           return UserNonce { zk_nonce: 0, main_nonce: 0 };
+        };
+        return *table::borrow(&nonces.table, user)
     }
 }
