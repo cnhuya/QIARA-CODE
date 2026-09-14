@@ -4,7 +4,7 @@ module dev::QiaraProviderTypesV67 {
     use std::signer;
     use std::bcs; // 👈 Added missing import
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-
+    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
     use event::QiaraEventV1::{Self as Event};
 
     // === ERRORS === //
@@ -157,11 +157,13 @@ module dev::QiaraProviderTypesV67 {
             };
         };
 
+        let nonce = Nonce::get_global_nonce();
         if (!vector::is_empty(&modified)) {
             let action = if (is_add) utf8(b"Added Token") else utf8(b"Removed Token");
             let event_data = vector[
                 Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
                 Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+                Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
                 Event::create_data_struct(utf8(b"tokens"), utf8(b"vector<String>"), bcs::to_bytes(&modified)),
             ];
             Event::emit_types_event(action, event_data);
