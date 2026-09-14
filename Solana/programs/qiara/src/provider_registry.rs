@@ -3,6 +3,9 @@ use anchor_lang::solana_program::keccak;
 use anchor_lang::solana_program::secp256k1_recover::secp256k1_recover;
 use crate::{QiaraError, ValidatorState, Registry};
 
+pub const ACTION_UPDATE_TOKENS: u8 = 1;
+pub const CHAIN_NAME: &[u8] = b"Solana";
+
 #[account]
 pub struct ProviderRegistry {
     pub admin: Pubkey,
@@ -68,16 +71,17 @@ pub fn revoke_dev_access(ctx: Context<DevTokensAction>) -> Result<()> {
 pub fn update_tokens_with_signatures(
     ctx: Context<UpdateTokensWithSignatures>,
     is_add: bool,
-    chain_id: u64,
     provider_name: String,
     tokens: Vec<String>,
     nonce: u64,
     signatures: Vec<Vec<u8>>,
 ) -> Result<()> {
-    // 1. Build canonical big-endian payload
-    let mut payload = Vec::with_capacity(1 + 8 + provider_name.len() + (tokens.len() * 16) + 8);
+    // 1. Canonical payload: [action_id (1B)] + [isAdd (1B)] + [chain] + [provider] + [tokens...] + [nonce (8B)]
+    let tokens_len: usize = tokens.iter().map(|t| t.len()).sum();
+    let mut payload = Vec::with_capacity(2 + CHAIN_NAME.len() + provider_name.len() + tokens_len + 8);
+    payload.push(ACTION_UPDATE_TOKENS);
     payload.push(if is_add { 1u8 } else { 0u8 });
-    payload.extend_from_slice(&chain_id.to_be_bytes());
+    payload.extend_from_slice(CHAIN_NAME);
     payload.extend_from_slice(provider_name.as_bytes());
     for t in &tokens {
         payload.extend_from_slice(t.as_bytes());
@@ -125,7 +129,8 @@ fn verify_action_hash_signatures(
         sig_bytes.copy_from_slice(&sig[0..64]);
 
         if let Ok(recovered) = secp256k1_recover(action_hash, sig[64], &sig_bytes) {
-            let mut uncompressed = vec![0x04];
+            let mut uncompressed = Vec::with_capacity(65);
+            uncompressed.push(0x04);
             uncompressed.extend_from_slice(&recovered.to_bytes());
             if state.active_pubkeys.contains(&uncompressed) && !seen.contains(&uncompressed) {
                 seen.push(uncompressed);
@@ -175,7 +180,7 @@ pub struct DevTokensAction<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(is_add: bool, chain_id: u64, provider_name: String, tokens: Vec<String>, nonce: u64)]
+#[instruction(is_add: bool, provider_name: String, tokens: Vec<String>, nonce: u64)]
 pub struct UpdateTokensWithSignatures<'info> {
     #[account(mut, seeds = [b"provider-registry"], bump)]
     pub provider_registry: Account<'info, ProviderRegistry>,

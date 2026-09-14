@@ -112,10 +112,6 @@ module dev::QiaraBridgeV72{
         signature: vector<u8>,
     }
 
-    struct NonZkVote has key, copy, store, drop{
-        weight: u128,
-        signatures: Map<String, vector<u8>>,
-    }
 
     struct OmniVote has key, copy, store, drop{
         weight: u128,
@@ -138,7 +134,7 @@ module dev::QiaraBridgeV72{
     }
 
     struct NonZkVotes has key, copy, store, drop {
-        votes: Map<String, NonZkVote>,
+        votes: Map<String, Vote>,
         data_types: vector<String>,
         data: vector<vector<u8>>,
         type: String,
@@ -215,35 +211,35 @@ module dev::QiaraBridgeV72{
 // === FUNCTIONS === //
 
     // for adding provider and tokens to registry on destination chains
-        public entry fun register_non_zk_event(signer: &signer, validator: String, type_names: vector<String>, payload: vector<vector<u8>>, chains: vector<String>, signatures: vector<vector<u8>>) acquires Pending, Validated, Permissions {
-        let validated = borrow_global_mut<Validated>(STORAGE);
-        let pending = borrow_global_mut<Pending>(STORAGE);
-
+    public entry fun register_non_zk_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,signatures: vector<vector<u8>>) acquires Pending, Validated, Permissions {
         Validators::take_snapshot(signer, validator);
-        let (_, secp256k1_pub_key, isActive,  _,  _,  total_power,  _) = Validators::return_validator_raw(validator);
+        let (_, _, isActive, _, _, total_power, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
         let zk_type = bcs_stream::deserialize_string(&mut bcs_stream::new(zk_type_raw));
 
-        let identifier: vector<u8> = vector::empty<u8>();
         let (_, type_raw) = Payload::find_payload_value(utf8(b"fun_type"), type_names, payload);
         let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
 
-            handle_non_zk_event(
-                signer,
-                validator,
-                type,
-                &mut pending.non_zk,
-                &mut validated.non_zk,
-                type_names,
-                payload,
-                chains,
-                signatures,
-                zk_type,
-                identifier,
-                (total_power as u128)
-            );
+        // Use the event's hash as the table identifier
+        let (_, identifier) = Payload::find_payload_value(utf8(b"hash"), type_names, payload);
+
+        let pending = borrow_global_mut<Pending>(STORAGE);
+        let validated = borrow_global_mut<Validated>(STORAGE);
+
+        handle_non_zk_event(
+            validator,
+            type,
+            &mut pending.non_zk,
+            &mut validated.non_zk,
+            type_names,
+            payload,
+            *vector::borrow(&signatures, 0),
+            zk_type,
+            identifier,
+            (total_power as u128)
+        );
     }
 
     // for validator changes
@@ -658,46 +654,33 @@ module dev::QiaraBridgeV72{
         };
     }
 
-    fun handle_non_zk_event(signer: &signer, validator: String, type: String, pending_table: &mut table::Table<vector<u8>, NonZkVotes>, validated_table: &mut table::Table<vector<u8>, NonZkVotes>, type_names: vector<String>, payload: vector<vector<u8>>, chains: vector<String>, signatures: vector<vector<u8>>, consensus_type: String, identifier: vector<u8>,vote_weight: u128) acquires Permissions {
-        // 1. Load configuration constants
+   fun handle_non_zk_event(
+        validator: String,
+        type: String,
+        pending_table: &mut table::Table<vector<u8>, NonZkVotes>,
+        validated_table: &mut table::Table<vector<u8>, NonZkVotes>,
+        type_names: vector<String>,
+        payload: vector<vector<u8>>,
+        signature: vector<u8>,
+        consensus_type: String,
+        identifier: vector<u8>,
+        vote_weight: u128
+    ) acquires Permissions {
+        assert!(!table::contains(validated_table, identifier), ERROR_DUPLICATE_EVENT);
+        assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
+
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-      
-        // 2. Already validated check
-        if (table::contains(validated_table, identifier)) {
-            abort(ERROR_DUPLICATE_EVENT);
-        };
 
-        // Calculate voting power (Weight)
-        if (vote_weight == 0) {
-            abort(ERROR_INVALID_VOTING_POWER);
-        };
-        // Build the signature map for this validator
-        let signature_map = map::new<String, vector<u8>>();
-        let i = 0;
-        while (i < vector::length(&chains)) {
-            let chain = vector::borrow(&chains, i);
-            let signature = vector::borrow(&signatures, i);
-            map::add(&mut signature_map, *chain, *signature);
-            i = i + 1;
-        };
-        let vote = NonZkVote { signatures: signature_map, weight: vote_weight };
+        let vote = Vote { weight: vote_weight, signature };
 
-        // 3. Update or Create the Pending state
         if (table::contains(pending_table, identifier)) {
             let votes = table::borrow_mut(pending_table, identifier);
-            
-            // Check if this validator has already voted using SimpleMap APIs directly
-            let already_voted = map::contains_key(&votes.votes, &validator);
-
-            if (!already_voted) {
-                // Update mapping and total weight
+            if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                
 
-                // Emit Vote Event
-                let data = vector[
+                Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                     Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&consensus_type)),
                     Event::create_data_struct(utf8(b"event_type"), utf8(b"string"), bcs::to_bytes(&type)),
@@ -705,27 +688,22 @@ module dev::QiaraBridgeV72{
                     Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
                     Event::create_data_struct(utf8(b"type_names"), utf8(b"vector<String>"), bcs::to_bytes(&type_names)),
                     Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
-                ];
-                Event::emit_consensus_vote_event(data);
+                ]);
             };
         } else {
-            // First vote for this message
-            let vect = vector[validator];
-            let vote_map = map::new<String, NonZkVote>();
+            let vote_map = map::new<String, Vote>();
             map::add(&mut vote_map, validator, vote);
-                
-            let new_votes = NonZkVotes {
+
+            table::add(pending_table, identifier, NonZkVotes {
                 votes: vote_map, 
                 data_types: type_names,
                 data: payload,
-                type: type,
+                type,
                 total_weight: vote_weight, 
                 time: timestamp::now_seconds()
-            };
-            table::add(pending_table, identifier, new_votes);
+            });
 
-            // Emit Register Event
-            let data = vector[
+            Event::emit_consensus_register_event(vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&consensus_type)),
                 Event::create_data_struct(utf8(b"type"), utf8(b"string"), bcs::to_bytes(&type)),
@@ -733,29 +711,19 @@ module dev::QiaraBridgeV72{
                 Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
                 Event::create_data_struct(utf8(b"type_names"), utf8(b"vector<String>"), bcs::to_bytes(&type_names)),
                 Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
-            ];
-            Event::emit_consensus_register_event(data);
+            ]);
         };
 
-        // 4. Consensus Check & Promotion
-        let ready_to_finalize = {
-            let votes_ref = table::borrow(pending_table, identifier);
-            let unique_count = (vector::length(&map::keys(&votes_ref.votes)) as u64);
-            (votes_ref.total_weight >= quorum && unique_count >= min_unique)
-        };
+        // Promotion check
+        let votes_ref = table::borrow(pending_table, identifier);
+        if (votes_ref.total_weight >= quorum && (map::length(&votes_ref.votes) as u64) >= min_unique) {
+            let finalized = table::remove(pending_table, identifier);
+            table::add(validated_table, identifier, finalized);
 
-        if (ready_to_finalize) {
-            // Atomic Move from Pending to Validated
-            let votes_from_pending = table::remove(pending_table, identifier);
-            table::add(validated_table, identifier, votes_from_pending);
-
-            // Fetch permissions for execution/cross-module calls (if any)
             assert!(exists<Permissions>(@dev), ERROR_CAPS_NOT_PUBLISHED);
-            let cap = borrow_global<Permissions>(@dev);
-
             Payload::prepare_omnichain_event(type_names, payload);
-            // Emit Validated Event
-            let data = vector[
+
+            Event::emit_validation_event(utf8(b"Validated Non-Zk Event"), vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&consensus_type)),
                 Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
@@ -763,10 +731,11 @@ module dev::QiaraBridgeV72{
                 Event::create_data_struct(utf8(b"total_weight"), utf8(b"u128"), bcs::to_bytes(&quorum)),
                 Event::create_data_struct(utf8(b"type_names"), utf8(b"vector<String>"), bcs::to_bytes(&type_names)),
                 Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
-            ];
-            Event::emit_validation_event(utf8(b"Validated Non-Zk Event"), data);
+            ]);
         };
     }
+
+
 
     fun handle_main_event(
             signer: &signer, 
