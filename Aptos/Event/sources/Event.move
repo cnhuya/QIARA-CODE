@@ -70,6 +70,11 @@ module event::QiaraEventV1 {
         aux: vector<Data>,
     }
     #[event]
+    struct TypesEvent has copy, drop, store {
+        name: String,
+        aux: vector<Data>,
+    }
+    #[event]
     struct CrosschainEvent has copy, drop, store {
         name: String,
         aux: vector<Data>,
@@ -306,6 +311,15 @@ module event::QiaraEventV1 {
        // let identifier = create_identifier(data);
        // vector::push_back(&mut data, create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier));
          event::emit(CrosschainEvent {
+            name: type,
+            aux: data,
+        });
+    }
+    public fun emit_types_event(type: String, data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});
+       // let identifier = create_identifier(data);
+       // vector::push_back(&mut data, create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier));
+         event::emit(TypesEvent {
             name: type,
             aux: data,
         });
