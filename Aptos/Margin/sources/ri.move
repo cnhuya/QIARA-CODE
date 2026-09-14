@@ -4,8 +4,8 @@ module dev::QiaraRIV67{
     use std::vector;
     use std::table::{Self, Table};
 
-    use dev::QiaraTokenTypesV66::{Self as TokensType};
-    use dev::QiaraChainTypesV66::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV67::{Self as TokensType};
+    use dev::QiaraChainTypesV67::{Self as ChainTypes};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
