@@ -278,6 +278,7 @@ module dev::QiaraTokenTypesV69 {
 
     public entry fun test_emit_token_chain_event(is_add: bool,action: String,chain: String,token: String,nonce: u256,token_address: String,) {
         let event_data = vector[
+            Event::create_data_struct(utf8(b"action"), utf8(b"string"), bcs::to_bytes(&action)),
             Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&2u256)),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
