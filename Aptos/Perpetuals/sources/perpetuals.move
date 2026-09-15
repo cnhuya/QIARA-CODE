@@ -11,7 +11,7 @@ module dev::QiaraPerpsV57 {
     use dev::QiaraRIV67::{Self as RI};
     use dev::QiaraRanksV67::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV66::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV69::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};

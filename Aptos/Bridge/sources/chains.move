@@ -21,8 +21,8 @@ module dev::QiaraBridgeV72{
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraTokensCoreV66::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV66::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV69::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV69::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
     use dev::QiaraVaultsV89::{Self as Market, Access as MarketAccess};
 
@@ -211,7 +211,7 @@ module dev::QiaraBridgeV72{
 // === FUNCTIONS === //
 
     // for adding provider and tokens to registry on destination chains
-    public entry fun register_non_zk_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,signatures: vector<vector<u8>>) acquires Pending, Validated, Permissions {
+    public entry fun register_non_zk_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,signature: vector<u8>) acquires Pending, Validated, Permissions {
         Validators::take_snapshot(signer, validator);
         let (_, _, isActive, _, _, total_power, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
@@ -235,7 +235,7 @@ module dev::QiaraBridgeV72{
             &mut validated.non_zk,
             type_names,
             payload,
-            *vector::borrow(&signatures, 0),
+            signature,
             zk_type,
             identifier,
             (total_power as u128)
