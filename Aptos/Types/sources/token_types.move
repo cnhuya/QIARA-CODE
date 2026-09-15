@@ -222,7 +222,7 @@ module dev::QiaraTokenTypesV69 {
         let action = if (is_add) utf8(b"Updated Token on Chain") else utf8(b"Removed Token onChain");
         let event_data = vector[
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&full_name)),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&nick_name)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"address"), utf8(b"string"), bcs::to_bytes(&token_address)),
         ];
@@ -235,16 +235,6 @@ module dev::QiaraTokenTypesV69 {
         let len = vector::length(&chains);
         assert!(len == vector::length(&token_addresses) && len == vector::length(&decimals), ERORR_ARGUMENT_LENGHT_MISSMATCH);
 
-        // 1. Emit single batch event before draining vectors (optimal: 0 clones, 1 event)
-        let nonce = Nonce::get_global_nonce_by_type(utf8(b"token_chain"));
-        let event_data = vector[
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
-            Event::create_data_struct(utf8(b"nick_name"), utf8(b"string"), bcs::to_bytes(&nick_name)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"chains"), utf8(b"vector<String>"), bcs::to_bytes(&chains)),
-            Event::create_data_struct(utf8(b"addresses"), utf8(b"vector<String>"), bcs::to_bytes(&token_addresses)),
-        ];
-        Event::emit_types_event(utf8(b"Added Token On Chain"), event_data);
 
         // 2. Storage write
         let tokens = borrow_global_mut<Tokens>(@dev);
@@ -253,7 +243,7 @@ module dev::QiaraTokenTypesV69 {
             map::add(&mut tokens.map, copy token, map::new());
         };
         let token_entry = map::borrow_mut(&mut tokens.map, &token);
-
+        let nonce = Nonce::get_global_nonce_by_type(utf8(b"token_chain"));
         while (!vector::is_empty(&chains)) {
             let chain = vector::pop_back(&mut chains);
             let addr = vector::pop_back(&mut token_addresses);
@@ -265,6 +255,15 @@ module dev::QiaraTokenTypesV69 {
                 let rev_key = create_reverse_key(copy chain, copy addr);
                 map::upsert(&mut tokens.reverse_map, rev_key, copy token);
             };
+
+            // 1. Emit single batch event before draining vectors (optimal: 0 clones, 1 event)
+            let event_data = vector[
+                Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&nick_name)),
+                Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+                Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+                Event::create_data_struct(utf8(b"address"), utf8(b"string"), bcs::to_bytes(&addr)),
+            ];
+            Event::emit_types_event(utf8(b"Added Token On Chain"), event_data);
 
             map::upsert(token_entry, chain, TokenChainData { address: addr, decimals: dec });
         };
