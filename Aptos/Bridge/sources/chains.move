@@ -654,18 +654,7 @@ module dev::QiaraBridgeV73{
         };
     }
 
-   fun handle_non_zk_event(
-        validator: String,
-        type: String,
-        pending_table: &mut table::Table<vector<u8>, NonZkVotes>,
-        validated_table: &mut table::Table<vector<u8>, NonZkVotes>,
-        type_names: vector<String>,
-        payload: vector<vector<u8>>,
-        signature: vector<u8>,
-        consensus_type: String,
-        identifier: vector<u8>,
-        vote_weight: u128
-    ) {
+    fun handle_non_zk_event(validator: String,type: String,pending_table: &mut table::Table<vector<u8>, NonZkVotes>,validated_table: &mut table::Table<vector<u8>, NonZkVotes>,type_names: vector<String>,payload: vector<vector<u8>>,signature: vector<u8>,consensus_type: String,identifier: vector<u8>,vote_weight: u128) {
         assert!(!table::contains(validated_table, identifier), ERROR_DUPLICATE_EVENT);
         assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
 
