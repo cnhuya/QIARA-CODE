@@ -161,6 +161,8 @@ module dev::QiaraProviderTypesV69 {
         if (!vector::is_empty(&modified)) {
             let action = if (is_add) utf8(b"Added Token For Provider") else utf8(b"Removed Token For Provider");
             let event_data = vector[
+                Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&1u256)),
+                Event::create_data_struct(utf8(b"is_add"), utf8(b"bool"), bcs::to_bytes(&is_add)),
                 Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
                 Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
                 Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
@@ -168,6 +170,19 @@ module dev::QiaraProviderTypesV69 {
             ];
             Event::emit_types_event(action, event_data);
         };
+    }
+
+    public entry fun test_emit_provider_tokens_event(is_add: bool, action: String, chain: String,provider: String,nonce: u256,tokens: vector<String>,) {
+        let action = if (is_add) utf8(b"Added Token For Provider") else utf8(b"Removed Token For Provider");
+        let event_data = vector[
+            Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&action_id)),
+            Event::create_data_struct(utf8(b"is_add"), utf8(b"bool"), bcs::to_bytes(&is_add)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"tokens"), utf8(b"vector<String>"), bcs::to_bytes(&tokens)),
+        ];
+        Event::emit_types_event(action, event_data);
     }
 
     // === VIEW FUNCTIONS === //

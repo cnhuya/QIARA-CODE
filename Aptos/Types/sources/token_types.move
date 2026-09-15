@@ -219,9 +219,11 @@ module dev::QiaraTokenTypesV69 {
         };
 
         let nonce = Nonce::get_global_nonce_by_type(utf8(b"token_chain"));
-        let action = if (is_add) utf8(b"Updated Token on Chain") else utf8(b"Removed Token onChain");
+        let action = if (is_add) utf8(b"Updated Token on Chain") else utf8(b"Removed Token on Chain");
         let event_data = vector[
+            Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&2u256)),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"is_add"), utf8(b"bool"), bcs::to_bytes(&is_add)),
             Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&nick_name)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"address"), utf8(b"string"), bcs::to_bytes(&token_address)),
@@ -258,8 +260,10 @@ module dev::QiaraTokenTypesV69 {
 
             // 1. Emit single batch event before draining vectors (optimal: 0 clones, 1 event)
             let event_data = vector[
+                Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&2u256)),
                 Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&nick_name)),
                 Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+                Event::create_data_struct(utf8(b"is_add"), utf8(b"bool"), bcs::to_bytes(&true)),
                 Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
                 Event::create_data_struct(utf8(b"address"), utf8(b"string"), bcs::to_bytes(&addr)),
             ];
@@ -269,6 +273,19 @@ module dev::QiaraTokenTypesV69 {
         };
 
         map::upsert(&mut tokens.nick_names, token, nick_name);
+    }
+
+
+    public entry fun test_emit_token_chain_event(is_add: bool,action: String,chain: String,token: String,nonce: u256,token_address: String,) {
+        let event_data = vector[
+            Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&2u256)),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"is_add"), utf8(b"bool"), bcs::to_bytes(&true)),
+            Event::create_data_struct(utf8(b"address"), utf8(b"string"), bcs::to_bytes(&token_address)),
+        ];
+        Event::emit_types_event(action, event_data);
     }
 
 
