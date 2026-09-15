@@ -9,20 +9,14 @@ module dev::QiaraOracleV14 {
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStorageV22::{Self as storage};
 
-// === ERRORS === //
+    // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
-    const E_NOT_INITIALIZED: u64 = 1;
-    const E_NOT_IN_COMMITTEE: u64 = 2;
-    const E_ALREADY_SUBMITTED: u64 = 3;
-    const E_STALE_ROUND: u64 = 4;
-    const E_PRICE_DIVERGENCE_TOO_HIGH: u64 = 5;
-    const E_ROUND_ALREADY_SETTLED: u64 = 6;
 
-// === CONSTANTS === //
+    // === CONSTANTS === //
     const ORACLE_DECIMALS: u8 = 8;
     const PERCENT_DENOMINATOR: u128 = 100_000_000; // 1,000_000 = 1%
 
-// === ACCESS & PERMISSIONS === //
+    // === ACCESS & PERMISSIONS === //
     struct Access has store, key, drop {}
     struct Permission has copy, drop, store {}
 
@@ -35,7 +29,7 @@ module dev::QiaraOracleV14 {
         Permission {}
     }
 
-// === STRUCTS === //
+    // === STRUCTS === //
     struct RoundSubmission has store, drop, copy {
         validator: address,
         price: u128,
@@ -64,9 +58,9 @@ module dev::QiaraOracleV14 {
     }
 
     struct Prices has key {
-        map: Map<String, Integer>,            // Token Symbol -> Impact Integer
-        prices: Map<String, PriceStore>,      // Token Symbol / Oracle ID -> PriceStore
-        rounds: Map<RoundKey, RoundData>,     // (round_id, symbol) -> RoundData
+        map: Map<String, Integer>,
+        prices: Map<String, PriceStore>,
+        rounds: Map<RoundKey, RoundData>,
         active_validators: vector<String>,
     }
 
@@ -79,20 +73,20 @@ module dev::QiaraOracleV14 {
         max_clamp_price_step: u64,
     }
 
-// === INIT === //
+    // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
         if (!exists<Prices>(@dev)) {
             move_to(admin, Prices { 
-                map: map::new<String, Integer>(),
-                prices: map::new<String, PriceStore>(),
-                rounds: map::new<RoundKey, RoundData>(),
-                active_validators: vector::empty<String>(),
+                map: map::new(),
+                prices: map::new(),
+                rounds: map::new(),
+                active_validators: vector::empty(),
             });
         };
     }
 
-// === DYNAMIC STORAGE READERS === //
+    // === DYNAMIC STORAGE READERS === //
 
     inline fun get_required_quorum(): u64 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM")))
@@ -127,22 +121,20 @@ module dev::QiaraOracleV14 {
         }
     }
 
-// === VALIDATOR SYNC METHODS === //
+    // === VALIDATOR SYNC METHODS === //
 
     public fun sync_active_validators(new_validators: vector<String>, _perm: &Permission) acquires Prices {
-        let prices = borrow_global_mut<Prices>(@dev);
-        prices.active_validators = new_validators;
+        borrow_global_mut<Prices>(@dev).active_validators = new_validators;
     }
 
     public entry fun admin_sync_active_validators(admin: &signer, new_validators: vector<String>) acquires Prices {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-        let prices = borrow_global_mut<Prices>(@dev);
-        prices.active_validators = new_validators;
+        borrow_global_mut<Prices>(@dev).active_validators = new_validators;
     }
 
     #[view]
     public fun return_active_validators(): vector<String> acquires Prices {
-        if (!exists<Prices>(@dev)) return vector::empty<String>();
+        if (!exists<Prices>(@dev)) return vector::empty();
         borrow_global<Prices>(@dev).active_validators
     }
 
@@ -164,7 +156,7 @@ module dev::QiaraOracleV14 {
         };
     }
 
-// === AUTONOMOUS COMMITTEE SUBMISSION === //
+    // === AUTONOMOUS COMMITTEE SUBMISSION === //
 
     public entry fun submit_round_price(
         caller: &signer,
@@ -173,9 +165,12 @@ module dev::QiaraOracleV14 {
         price: u128,
         round_id: u64,
     ) acquires Prices {
-        assert!(exists<Prices>(@dev), E_NOT_INITIALIZED);
-        let caller_addr = signer::address_of(caller);
+        if (!exists<Prices>(@dev)) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Not Initialized"));
+            return
+        };
 
+        let caller_addr = signer::address_of(caller);
         let round_duration = get_round_duration_secs();
         let committee_size = get_committee_pool_size();
         let required_quorum = get_required_quorum();
@@ -184,15 +179,20 @@ module dev::QiaraOracleV14 {
 
         // 1. Verify round freshness
         let current_round = timestamp::now_seconds() / round_duration;
-        assert!(round_id == current_round || round_id == current_round - 1, E_STALE_ROUND);
+        if (round_id != current_round && round_id != current_round - 1) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Stale Round"));
+            return
+        };
 
-        // 2. Local active validator committee check
+        // 2. Committee verification
         let prices = borrow_global_mut<Prices>(@dev);
         let total_val = vector::length(&prices.active_validators);
-        assert!(total_val >= required_quorum, E_NOT_IN_COMMITTEE);
+        if (total_val < required_quorum) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Insufficient Active Validators"));
+            return
+        };
 
-        let effective_committee = if (total_val < committee_size) { total_val } else { committee_size };
-
+        let effective_committee = if (total_val < committee_size) total_val else committee_size;
         let is_in_committee = false;
         let c = 0;
         while (c < effective_committee) {
@@ -203,14 +203,17 @@ module dev::QiaraOracleV14 {
             };
             c = c + 1;
         };
-        assert!(is_in_committee, E_NOT_IN_COMMITTEE);
 
-        // 3. Update round data per asset using RoundKey
+        if (!is_in_committee) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Not In Committee"));
+            return
+        };
+
+        // 3. Register submission
         let round_key = RoundKey { round_id, symbol };
-
         if (!map::contains_key(&prices.rounds, &round_key)) {
             map::upsert(&mut prices.rounds, round_key, RoundData {
-                submissions: vector::empty<RoundSubmission>(),
+                submissions: vector::empty(),
                 settled: false,
             });
         };
@@ -218,15 +221,20 @@ module dev::QiaraOracleV14 {
         let should_settle = false;
         let prices_vec = vector::empty<u128>();
 
-        // 🔒 Scoped block: releases borrow on rounds map
         {
             let round_data = map::borrow_mut(&mut prices.rounds, &round_key);
-            assert!(!round_data.settled, E_ROUND_ALREADY_SETTLED);
+            if (round_data.settled) {
+                emit_oracle_error(&symbol, round_id, utf8(b"Round Already Settled"));
+                return
+            };
 
             let len = vector::length(&round_data.submissions);
             let i = 0;
             while (i < len) {
-                assert!(vector::borrow(&round_data.submissions, i).validator != caller_addr, E_ALREADY_SUBMITTED);
+                if (vector::borrow(&round_data.submissions, i).validator == caller_addr) {
+                    emit_oracle_error(&symbol, round_id, utf8(b"Already Submitted"));
+                    return
+                };
                 i = i + 1;
             };
 
@@ -235,8 +243,6 @@ module dev::QiaraOracleV14 {
             let sub_count = vector::length(&round_data.submissions);
             if (sub_count >= required_quorum) {
                 should_settle = true;
-                round_data.settled = true;
-
                 let k = 0;
                 while (k < sub_count) {
                     vector::push_back(&mut prices_vec, vector::borrow(&round_data.submissions, k).price);
@@ -254,13 +260,19 @@ module dev::QiaraOracleV14 {
             let j = 0;
             while (j < sub_count) {
                 let p = *vector::borrow(&prices_vec, j);
-                assert!(calculate_divergence(p, median) <= max_divergence, E_PRICE_DIVERGENCE_TOO_HIGH);
+                if (calculate_divergence(p, median) > max_divergence) {
+                    emit_oracle_error(&symbol, round_id, utf8(b"Price Divergence Too High"));
+                    return // Exits gracefully without aborting batch or marking settled
+                };
                 j = j + 1;
             };
 
+            // Mark round settled only after divergence check passes
+            let round_data = map::borrow_mut(&mut prices.rounds, &round_key);
+            round_data.settled = true;
+
             let old_price = get_raw_price_internal(prices, &symbol);
             let final_settled_price = clamp_price_step(median, old_price, max_clamp_step);
-
             let now = timestamp::now_seconds();
             let store = PriceStore { price: final_settled_price, decimals: ORACLE_DECIMALS, publish_time: now };
 
@@ -274,23 +286,27 @@ module dev::QiaraOracleV14 {
                 map::upsert(&mut prices.prices, qiara_impact.oracleID, store);
             };
 
-            // Calculate total price with native impact
             let full_price = apply_impact((final_settled_price as u256), &qiara_impact);
 
-            // 1. Emits Round Settled event for consensus lifecycle tracking
             let round_data_struct = vector[
                 Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(&symbol)),
                 Event::create_data_struct(utf8(b"raw_price"), utf8(b"u128"), bcs::to_bytes(&final_settled_price)),
                 Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
             ];
             Event::emit_oracle_event(utf8(b"Round Settled"), round_data_struct);
-
-            // 2. Emits unified Price Change event for frontend/tickers via helper
             emit_price_change(&symbol, full_price);
         };
     }
 
-    /// Reusable helper function to emit unified Price Change events without code duplication
+    fun emit_oracle_error(symbol: &String, round_id: u64, reason: String) {
+        let data = vector[
+            Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(symbol)),
+            Event::create_data_struct(utf8(b"round_id"), utf8(b"u64"), bcs::to_bytes(&round_id)),
+            Event::create_data_struct(utf8(b"reason"), utf8(b"string"), bcs::to_bytes(&reason)),
+        ];
+        Event::emit_oracle_event(utf8(b"Oracle Error"), data);
+    }
+
     fun emit_price_change(symbol: &String, price: u256) {
         let data = vector[
             Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(symbol)),
@@ -324,17 +340,9 @@ module dev::QiaraOracleV14 {
 
     fun clamp_price_step(new_price: u128, old_price: u128, max_step_scaled: u128): u128 {
         if (old_price == 0) return new_price;
-
         let max_delta = (old_price * max_step_scaled) / PERCENT_DENOMINATOR;
-
-        if (new_price > old_price + max_delta) {
-            return old_price + max_delta
-        };
-
-        if (old_price > max_delta && new_price < old_price - max_delta) {
-            return old_price - max_delta
-        };
-
+        if (new_price > old_price + max_delta) return old_price + max_delta;
+        if (old_price > max_delta && new_price < old_price - max_delta) return old_price - max_delta;
         new_price
     }
 
@@ -359,41 +367,36 @@ module dev::QiaraOracleV14 {
         map::borrow(&prices.rounds, &round_key).settled
     }
 
-// === VIEW METHODS === //
+    // === VIEW METHODS === //
 
     #[view]
     public fun viewPrice(name: String): u256 acquires Prices {
         if (!exists<Prices>(@dev)) return 0;
-
         let prices = borrow_global<Prices>(@dev);
         let raw_price: u256 = 0;
 
         if (map::contains_key(&prices.prices, &name)) {
             raw_price = (map::borrow(&prices.prices, &name).price as u256);
         };
-
         if (raw_price == 0 && map::contains_key(&prices.map, &name)) {
             let oracle_id = map::borrow(&prices.map, &name).oracleID;
             if (map::contains_key(&prices.prices, &oracle_id)) {
                 raw_price = (map::borrow(&prices.prices, &oracle_id).price as u256);
             };
         };
-
         if (raw_price == 0) return 0;
 
         if (map::contains_key(&prices.map, &name)) {
-            let impact = map::borrow(&prices.map, &name);
-            apply_impact(raw_price, impact)
+            apply_impact(raw_price, map::borrow(&prices.map, &name))
         } else {
             raw_price
         }
     }
 
-#[view]
+    #[view]
     public fun viewPrices(names: vector<String>): vector<u256> acquires Prices {
         let len = vector::length(&names);
         let results = vector::empty<u256>();
-
         if (!exists<Prices>(@dev)) {
             let i = 0;
             while (i < len) {
@@ -406,21 +409,17 @@ module dev::QiaraOracleV14 {
         let prices = borrow_global<Prices>(@dev);
         let i = 0;
         while (i < len) {
-            let name = vector::borrow(&names, i);
-            vector::push_back(&mut results, get_price_internal(prices, name));
+            vector::push_back(&mut results, get_price_internal(prices, vector::borrow(&names, i)));
             i = i + 1;
         };
-
         results
     }
 
-  fun get_price_internal(prices: &Prices, name: &String): u256 {
+    fun get_price_internal(prices: &Prices, name: &String): u256 {
         let raw_price: u256 = 0;
-
         if (map::contains_key(&prices.prices, name)) {
             raw_price = (map::borrow(&prices.prices, name).price as u256);
         };
-
         if (raw_price == 0 && map::contains_key(&prices.map, name)) {
             let oracle_id = &map::borrow(&prices.map, name).oracleID;
             if (map::contains_key(&prices.prices, oracle_id)) {
@@ -431,8 +430,7 @@ module dev::QiaraOracleV14 {
         if (raw_price == 0) {
             0
         } else if (map::contains_key(&prices.map, name)) {
-            let impact = map::borrow(&prices.map, name);
-            apply_impact(raw_price, impact)
+            apply_impact(raw_price, map::borrow(&prices.map, name))
         } else {
             raw_price
         }
@@ -530,7 +528,6 @@ module dev::QiaraOracleV14 {
 
         let updated_view_price = viewPrice(name);
 
-        // 1. Emit Impact state change event
         let data = vector[
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"oracle id"), utf8(b"string"), bcs::to_bytes(&oracleID)),
@@ -538,8 +535,6 @@ module dev::QiaraOracleV14 {
             Event::create_data_struct(utf8(b"new_price_impact"), utf8(b"u64"), bcs::to_bytes(&new_price_state)),
         ];
         Event::emit_oracle_event(utf8(b"Qiara Oracle Impact Update"), data);
-
-        // 2. Emit unified Price Change event via shared helper
         emit_price_change(&name, updated_view_price);
 
         let a = calculate_impact_percentage((raw_price as u256), final_price_value, final_price_is_positive);

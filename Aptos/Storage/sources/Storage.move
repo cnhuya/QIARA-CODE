@@ -197,11 +197,11 @@ module dev::QiaraStorageV22 {
 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT_SLASHING"), 10_000_000, true, false, &give_permission(&give_access(admin))); // 10
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 3, true, false, &give_permission(&give_access(admin))); // 3 VALIDATORS SIGNATURES
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, false, &give_permission(&give_access(admin))); // 3 SECONDS?
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 1_000, true, false, &give_permission(&give_access(admin))); // 0.01% 
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, false, &give_permission(&give_access(admin))); // 0.001% 
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 5, true, false, &give_permission(&give_access(admin))); // 5
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 2, true, false, &give_permission(&give_access(admin))); // 2 VALIDATORS SIGNATURES
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, false, &give_permission(&give_access(admin))); // 30 SECONDS?
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.1% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, false, &give_permission(&give_access(admin))); // 0.0001% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 3, true, false, &give_permission(&give_access(admin))); // 3
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_CLAMP_PRICE_STEP"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1%
 
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), 5_000_000, true, false, &give_permission(&give_access(admin))); // 1x
@@ -236,9 +236,9 @@ module dev::QiaraStorageV22 {
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 2, true, false, &give_permission(&give_access(admin))); // 2 VALIDATORS SIGNATURES
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, false, &give_permission(&give_access(admin))); // 3 SECONDS?
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 10_000, true, false, &give_permission(&give_access(admin))); // 0.01% 
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 1000, true, false, &give_permission(&give_access(admin))); // 0.001% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, false, &give_permission(&give_access(admin))); // 30 SECONDS?
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.1% 
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, false, &give_permission(&give_access(admin))); // 0.0001% 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 3, true, false, &give_permission(&give_access(admin))); // 3
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_CLAMP_PRICE_STEP"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1%
 
@@ -246,8 +246,9 @@ module dev::QiaraStorageV22 {
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&10000), &give_permission(&give_access(admin))); // 0.01%  
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&1000), &give_permission(&give_access(admin))); // 0.001%  
+
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.1%  
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100), &give_permission(&give_access(admin))); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), &give_permission(&give_access(admin))); // 0.001%  
     }
 
