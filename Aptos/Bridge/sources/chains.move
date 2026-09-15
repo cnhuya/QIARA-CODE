@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV72{
+module dev::QiaraBridgeV73{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -29,8 +29,8 @@ module dev::QiaraBridgeV72{
     use dev::QiaraMarginV69::{Self as Margin};
     use dev::QiaraGovernanceV25::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV72::{Self as Payload};
-    use dev::QiaraValidatorsV72::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV73::{Self as Payload};
+    use dev::QiaraValidatorsV73::{Self as Validators, Access as ValidatorsAccess};
 
     use dev::QiaraPerpsOrdersV58::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV58::{Self as Perps, Access as PerpAccess};
@@ -211,7 +211,7 @@ module dev::QiaraBridgeV72{
 // === FUNCTIONS === //
 
     // for adding provider and tokens to registry on destination chains
-    public entry fun register_non_zk_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,signature: vector<u8>) acquires Pending, Validated, Permissions {
+    public entry fun register_non_zk_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,signature: vector<u8>) acquires Pending, Validated {
         Validators::take_snapshot(signer, validator);
         let (_, _, isActive, _, _, total_power, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
@@ -665,7 +665,7 @@ module dev::QiaraBridgeV72{
         consensus_type: String,
         identifier: vector<u8>,
         vote_weight: u128
-    ) acquires Permissions {
+    ) {
         assert!(!table::contains(validated_table, identifier), ERROR_DUPLICATE_EVENT);
         assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
 
