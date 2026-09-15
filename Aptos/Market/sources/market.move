@@ -41,8 +41,8 @@ module dev::QiaraVaultsV89 {
     use dev::QiaraLiquidityV86::{Self as Liquidity, Access as LiquidityAccess};
     use dev::QiaraTokenVaultsV86::{Self as TokenVaults, Access as TokenVaultsAccess};
 
-    use dev::QiaraGenesisV2::{Self as Genesis};
-    use dev::QiaraNonceV2::{Self as Nonce};
+    use dev::QiaraGenesisV3::{Self as Genesis};
+    use dev::QiaraNonceV3::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
 
 // === ERRORS === //

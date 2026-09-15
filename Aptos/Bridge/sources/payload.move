@@ -13,8 +13,8 @@ module dev::QiaraPayloadV72
     use dev::QiaraTokenTypesV68::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraOmniNonceV2::{Self as OmniNonce, Access as OmniNonceAccess};
+    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraOmniNonceV3::{Self as OmniNonce, Access as OmniNonceAccess};
     //use dev::QiaraIdentifierV1::{Self as identifier};
 
     const ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES: u64 = 0;

@@ -18,12 +18,12 @@ module dev::QiaraTokensCoreV66{
     use aptos_std::string_utils ::{Self as string_utils};
 
 
-    use dev::QiaraMathV2::{Self as Math};
+    use dev::QiaraMathV3::{Self as Math};
     use dev::QiaraTokensMetadataV66::{Self as TokensMetadata};
     use dev::QiaraTokensOmnichainV66::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraTokensTiersV66::{Self as TokensTiers};
     use dev::QiaraTokensQiaraV66::{Self as TokensQiara,  Access as TokensQiaraAccess};
-    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 

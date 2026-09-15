@@ -12,7 +12,7 @@ module dev::QiaraTokensOmnichainV66{
     use aptos_framework::object::{Self, Object};
     use aptos_framework::event;
 
-    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraSharedV17::{Self as Shared};
 
 // === ERRORS === //

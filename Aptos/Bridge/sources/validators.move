@@ -9,7 +9,7 @@ module dev::QiaraValidatorsV72{
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraMarginV67::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraGenesisV2::{Self as Genesis};
+    use dev::QiaraGenesisV3::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraTokensQiaraV66::{Self as TokensQiara};
     use dev::QiaraTokensCoreV66::{Self as TokensCore, Access as TokensCoreAccess};

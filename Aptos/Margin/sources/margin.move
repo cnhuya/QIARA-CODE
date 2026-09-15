@@ -12,8 +12,8 @@ module dev::QiaraMarginV67 {
     use dev::QiaraTokensMetadataV66::{Self as TokensMetadata};
     use dev::QiaraTokenTypesV68::{Self as TokensType};
     
-    use dev::QiaraMathV2::{Self as QiaraMath};
-    use dev::QiaraGenesisV2::{Self as Genesis};
+    use dev::QiaraMathV3::{Self as QiaraMath};
+    use dev::QiaraGenesisV3::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraSharedV17::{Self as Shared};
 

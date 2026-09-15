@@ -4,7 +4,7 @@ module dev::QiaraProviderTypesV68 {
     use std::signer;
     use std::bcs; // 👈 Added missing import
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraNonceV2::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
     use event::QiaraEventV1::{Self as Event};
 
     // === ERRORS === //
