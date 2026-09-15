@@ -710,7 +710,7 @@ module dev::QiaraBridgeV73{
             table::add(validated_table, identifier, finalized);
 
             assert!(exists<Permissions>(@dev), ERROR_CAPS_NOT_PUBLISHED);
-            Payload::prepare_omnichain_event(type_names, payload);
+            Payload::prepare_non_zk_event(type_names, payload);
 
             Event::emit_validation_event(utf8(b"Validated Non-Zk Event"), vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
