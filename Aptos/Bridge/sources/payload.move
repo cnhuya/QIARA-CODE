@@ -115,7 +115,7 @@ public fun ensure_valid_payload(type_names: vector<String>, payload: vector<vect
    public fun prepare_non_zk_event(type_names: vector<String>, payload: vector<vector<u8>>) acquires Permissions  {
         let (_, type_raw) = find_payload_value(utf8(b"fun_type"), type_names, payload);
         let type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
-        Nonce::increment_global_nonce_by_type(type, OmniNonce::give_permission(&borrow_global<Permissions>(@dev).omni_nonce));
+        Nonce::increment_global_nonce_by_type(type, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
     }
        
     public fun prepare_bridge_deposit(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, vector<u8>, String, String, String, String, u64, u64, u64, String)  acquires Permissions  {
