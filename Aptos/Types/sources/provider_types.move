@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV68 {
+module dev::QiaraProviderTypesV69 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -157,7 +157,7 @@ module dev::QiaraProviderTypesV68 {
             };
         };
 
-        let nonce = Nonce::get_global_nonce();
+        let nonce = Nonce::get_global_nonce_by_type(utf8(b"token_provider"));
         if (!vector::is_empty(&modified)) {
             let action = if (is_add) utf8(b"Added Token For Provider") else utf8(b"Removed Token For Provider");
             let event_data = vector[
