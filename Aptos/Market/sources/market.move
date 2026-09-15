@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV89 {
+module dev::QiaraVaultsV90 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -38,8 +38,8 @@ module dev::QiaraVaultsV89 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV86::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV86::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV87::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV87::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV3::{Self as Genesis};
     use dev::QiaraNonceV3::{Self as Nonce};
