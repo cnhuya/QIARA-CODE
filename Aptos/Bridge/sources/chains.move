@@ -1078,6 +1078,14 @@ module dev::QiaraBridgeV73{
             assert!(table::contains(&omnichain.omnichain, identifier), ERROR_NOT_FOUND);
             return *table::borrow(&omnichain.omnichain, identifier)
         }
+        #[view]
+        public fun return_non_zk_pending_tx(identifier: vector<u8>): NonZkVotes acquires Pending {
+            let non_zk = borrow_global<Pending>(@dev);
+            assert!(table::contains(&non_zk.non_zk, identifier), ERROR_NOT_FOUND);
+            return *table::borrow(&non_zk.non_zk, identifier)
+        }
+
+
 
         #[view]
         public fun return_native_validated_tx(identifier: vector<u8>): MainVotes acquires Validated {
@@ -1102,6 +1110,12 @@ module dev::QiaraBridgeV73{
             let omnichain = borrow_global<Validated>(@dev);
             assert!(table::contains(&omnichain.omnichain, identifier), ERROR_NOT_FOUND);
             return *table::borrow(&omnichain.omnichain, identifier)
+        }
+        #[view]
+        public fun return_non_zk_validated_tx(identifier: vector<u8>): NonZkVotes acquires Validated {
+            let non_zk = borrow_global<Validated>(@dev);
+            assert!(table::contains(&non_zk.non_zk, identifier), ERROR_NOT_FOUND);
+            return *table::borrow(&non_zk.non_zk, identifier)
         }
 
 
