@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
-// Rename the imported token module to spl_token to avoid collisions
-use anchor_spl::token::{self as spl_token, Mint, Token, TokenAccount, MintTo};
+use anchor_spl::token::{self as spl_token, Mint, Token, TokenAccount, MintTo, Burn};
 use anchor_spl::associated_token::AssociatedToken;
 
-// Temporary valid Base58 program ID to make it compile.
-// Replace this with your actual program ID using: solana address -k ~/solana/target/deploy/token-keypair.json
 declare_id!("8dBqVtWTWDyCMghvgU4YYkMRbi7vnfpRkaYUQkn4g31k");
 
 #[program]
@@ -19,57 +16,95 @@ pub mod token {
         _decimals: u8,
         initial_supply: u64,
     ) -> Result<()> {
-        let cpi_accounts = MintTo {
-            mint: ctx.accounts.mint.to_account_info(),
-            to: ctx.accounts.deployer_ata.to_account_info(),
-            authority: ctx.accounts.mint.to_account_info(),
-        };
-
-        // Explicitly annotate type as &[&[u8]] to force slice coercion
-        let seeds: &[&[u8]] = &[
-            b"mint",
-            &[ctx.bumps.mint],
-        ];
+        let seeds: &[&[u8]] = &[b"mint", &[ctx.bumps.mint]];
         let signer_seeds = &[&seeds[..]];
 
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            cpi_accounts,
+            MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.deployer_ata.to_account_info(),
+                authority: ctx.accounts.mint.to_account_info(),
+            },
             signer_seeds,
         );
-
-        // Call using the renamed spl_token import
         spl_token::mint_to(cpi_ctx, initial_supply)?;
 
-        msg!("Token created: {} ({})", name, symbol);
-        msg!("Mint: {}", ctx.accounts.mint.key());
-        msg!("Minted {} to {}", initial_supply, ctx.accounts.deployer.key());
-        msg!("Metadata URI: {}", uri);
+        emit!(VaultEvent {
+            action: "Token Created".to_string(),
+            data: vec![
+                create_data("name", "string", name.as_bytes().to_vec()),
+                create_data("symbol", "string", symbol.as_bytes().to_vec()),
+                create_data("mint", "address", ctx.accounts.mint.key().to_bytes().to_vec()),
+                create_data("amount", "u64", initial_supply.to_le_bytes().to_vec()),
+                create_data("deployer", "address", ctx.accounts.deployer.key().to_bytes().to_vec()),
+                create_data("uri", "string", uri.as_bytes().to_vec()),
+            ],
+        });
 
         Ok(())
     }
 
     pub fn mint_more(ctx: Context<MintMore>, amount: u64) -> Result<()> {
-        let seeds: &[&[u8]] = &[
-            b"mint",
-            &[ctx.bumps.mint],
-        ];
+        let seeds: &[&[u8]] = &[b"mint", &[ctx.bumps.mint]];
         let signer_seeds = &[&seeds[..]];
 
-        let cpi_accounts = MintTo {
-            mint: ctx.accounts.mint.to_account_info(),
-            to: ctx.accounts.to.to_account_info(),
-            authority: ctx.accounts.mint.to_account_info(),
-        };
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            cpi_accounts,
+            MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.to.to_account_info(),
+                authority: ctx.accounts.mint.to_account_info(),
+            },
             signer_seeds,
         );
         spl_token::mint_to(cpi_ctx, amount)?;
+
+        emit!(VaultEvent {
+            action: "Mint".to_string(),
+            data: vec![
+                create_data("to", "address", ctx.accounts.to.key().to_bytes().to_vec()),
+                create_data("amount", "u64", amount.to_le_bytes().to_vec()),
+            ],
+        });
+
+        Ok(())
+    }
+
+    pub fn request_bridge(
+        ctx: Context<RequestBridge>,
+        shared: String,
+        destination_chain: String,
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, TokenError::ZeroAmount);
+
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Burn {
+                mint: ctx.accounts.mint.to_account_info(),
+                from: ctx.accounts.user_ata.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            },
+        );
+        spl_token::burn(cpi_ctx, amount)?;
+
+        let clock = Clock::get()?;
+        emit!(VaultEvent {
+            action: "Request Qiara Bridge".to_string(),
+            data: vec![
+                create_data("user", "address", ctx.accounts.user.key().to_bytes().to_vec()),
+                create_data("shared", "string", shared.as_bytes().to_vec()),
+                create_data("chain", "string", destination_chain.as_bytes().to_vec()),
+                create_data("amount", "u64", amount.to_le_bytes().to_vec()),
+            ],
+        });
+
         Ok(())
     }
 }
+
+// === Accounts ===
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -117,4 +152,57 @@ pub struct MintMore<'info> {
     pub to: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct RequestBridge<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"mint"],
+        bump,
+    )]
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = user,
+    )]
+    pub user_ata: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+// === Custom Events ===
+
+#[event]
+pub struct VaultEvent {
+    pub action: String,
+    pub data: Vec<EventData>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct EventData {
+    pub name: String,
+    pub type_name: String,
+    pub value: Vec<u8>,
+}
+
+#[inline(always)]
+fn create_data(name: &str, type_name: &str, value: Vec<u8>) -> EventData {
+    EventData {
+        name: name.to_string(),
+        type_name: type_name.to_string(),
+        value,
+    }
+}
+
+#[error_code]
+pub enum TokenError {
+    #[msg("Bridge amount must be greater than zero")]
+    ZeroAmount,
 }
