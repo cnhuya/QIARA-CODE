@@ -1,289 +1,504 @@
+// programs/vault/src/lib.rs
+use std::str::FromStr;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak;
-use anchor_lang::solana_program::secp256k1_recover::secp256k1_recover;
-use crate::{QiaraError, ValidatorState, Registry};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+use qiara::program::Qiara;
 
-pub const ACTION_UPDATE_TOKENS: u8 = 1;
-pub const ACTION_UPDATE_TOKEN_ADDRESS: u8 = 2;
-pub const CHAIN_NAME: &[u8] = b"Solana";
+pub mod extractor;
+
+declare_id!("D6iMB9yKeXCqG1ERpa5ts9AVXZ2CnMfL2pfUbthT7Af8");
+
+const MIN_RATE: u64 = 2_750_000;
+const MAX_RATE: u64 = 11_275_000;
+const REWARD_FACTOR: u128 = 360_000_000_000; // 100_000_000 * 3600
+
+#[program]
+pub mod vault {
+    use super::*;
+
+    pub fn create_vault(ctx: Context<CreateVault>, provider_name: String) -> Result<()> {
+        require!(
+            ctx.accounts.provider_registry.is_provider_supported(&provider_name),
+            QiaraError::ProviderNotSupported
+        );
+
+        let vault = &mut ctx.accounts.vault;
+        vault.provider_name = provider_name;
+        vault.authority = ctx.accounts.payer.key();
+        vault.bump = ctx.bumps.vault;
+        Ok(())
+    }
+
+    pub fn deposit(
+        ctx: Context<DepositYieldToken>,
+        shared: String,
+        token_name: String,
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, QiaraError::InvalidAmount);
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_ata.to_account_info(),
+            to: ctx.accounts.vault_ata.to_account_info(),
+            authority: ctx.accounts.payer.to_account_info(),
+        };
+        token::transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts), amount)?;
+
+        let rate = get_pseudo_random_rate(&ctx.accounts.payer.key())?;
+        let rewards = accrue_user_yield(&ctx.accounts.user_state, rate)?;
+
+        let user_state = &mut ctx.accounts.user_state;
+        let clock = Clock::get()?;
+        user_state.balance = user_state.balance.checked_add(amount).unwrap().checked_add(rewards).unwrap();
+        user_state.last_interacted_timestamp = clock.unix_timestamp;
+
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "rate".to_string(), type_name: "u64".to_string(), value: rate.to_le_bytes().to_vec() },
+            Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: rewards.to_le_bytes().to_vec() },
+        ];
+
+        emit!(VaultEvent { name: "Deposit".to_string(), aux: data });
+        Ok(())
+    }
+
+    pub fn direct_withdraw(
+        ctx: Context<DirectWithdrawYieldToken>,
+        _shared: String,
+        nullifier_bytes: [u8; 32],
+        token_name: String,
+        public_inputs: Vec<u8>,
+        proof_points: Vec<u8>,
+        signatures: Vec<Vec<u8>>,
+    ) -> Result<()> {
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let expected_nullifier = extractor::build_nullifier(&public_inputs)?;
+        require!(nullifier_bytes == expected_nullifier, QiaraError::InvalidProof);
+
+        let cpi_accounts = qiara::cpi::accounts::VerifyBalanceProof {
+            validator_state: ctx.accounts.validator_state.to_account_info(),
+            registry: ctx.accounts.registry.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(ctx.accounts.verifier_program.to_account_info(), cpi_accounts);
+        qiara::cpi::verify_balance_proof(cpi_ctx, public_inputs.clone(), proof_points, signatures)?;
+
+        ctx.accounts.nullifier_record.is_used = true;
+
+        let user_address = extractor::extract_user_address(&public_inputs)?;
+        let tx_data = extractor::extract_all_tx_data(&public_inputs)?;
+        let proof_provider_name = extractor::extract_provider(&public_inputs)?;
+
+        require!(
+            ctx.accounts.vault.provider_name.eq_ignore_ascii_case(&proof_provider_name), 
+            QiaraError::WrongProviderProvided
+        );
+        require!(ctx.accounts.user.key() == user_address, QiaraError::NotValidator);
+
+        let amount = tx_data.amount;
+        let seeds = &[
+            b"vault",
+            ctx.accounts.vault.provider_name.as_bytes(),
+            &[ctx.accounts.vault.bump],
+        ];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_ata.to_account_info(),
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        token::transfer(CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_accounts, &[&seeds[..]]), amount)?;
+
+        let data = vec![
+            Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: user_address.to_bytes().to_vec() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: proof_provider_name.into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "rewards".to_string(), type_name: "u64".to_string(), value: 0u64.to_le_bytes().to_vec() },
+        ];
+
+        emit!(VaultEvent { name: "DirectWithdraw".to_string(), aux: data });
+        Ok(())
+    }
+
+    pub fn m_withdraw(
+        ctx: Context<ModularWithdraw>,
+        shared: String,
+        token_name: String,
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, QiaraError::InvalidAmount);
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+        ];
+        emit!(VaultEvent { name: "Modular Withdraw".to_string(), aux: data });
+        Ok(())
+    }
+
+    pub fn stake(ctx: Context<Stake>, shared: String, token_name: String, amount: u64, epoch: u64) -> Result<()> {
+        require!(amount > 0, QiaraError::InvalidAmount);
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_ata.to_account_info(),
+            to: ctx.accounts.vault_ata.to_account_info(),
+            authority: ctx.accounts.payer.to_account_info(),
+        };
+        token::transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts), amount)?;
+
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+            Data { name: "epoch".to_string(), type_name: "u64".to_string(), value: epoch.to_le_bytes().to_vec() },
+        ];
+        emit!(VaultEvent { name: "Stake".to_string(), aux: data });
+        Ok(())
+    }
+
+    pub fn unstake(ctx: Context<Unstake>, shared: String, token_name: String, amount: u64) -> Result<()> {
+        require!(amount > 0, QiaraError::InvalidAmount);
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let seeds = &[
+            b"vault",
+            ctx.accounts.vault.provider_name.as_bytes(),
+            &[ctx.accounts.vault.bump],
+        ];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_ata.to_account_info(),
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        token::transfer(CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_accounts, &[&seeds[..]]), amount)?;
+
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+        ];
+        emit!(VaultEvent { name: "Unstake".to_string(), aux: data });
+        Ok(())
+    }
+
+    pub fn borrow(ctx: Context<Borrow>, shared: String, token_name: String, amount: u64) -> Result<()> {
+        require!(amount > 0, QiaraError::InvalidAmount);
+        validate_token(
+            &ctx.accounts.provider_registry,
+            &ctx.accounts.vault.provider_name,
+            &token_name,
+            &ctx.accounts.mint.key(),
+        )?;
+
+        let seeds = &[
+            b"vault",
+            ctx.accounts.vault.provider_name.as_bytes(),
+            &[ctx.accounts.vault.bump],
+        ];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault_ata.to_account_info(), 
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        token::transfer(CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_accounts, &[&seeds[..]]), amount)?;
+
+        let data = vec![
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: ctx.accounts.user.key().to_bytes().to_vec() },
+            Data { name: "shared".to_string(), type_name: "string".to_string(), value: shared.into_bytes() },
+            Data { name: "token".to_string(), type_name: "string".to_string(), value: token_name.into_bytes() },
+            Data { name: "provider".to_string(), type_name: "string".to_string(), value: ctx.accounts.vault.provider_name.clone().into_bytes() },
+            Data { name: "amount".to_string(), type_name: "u64".to_string(), value: amount.to_le_bytes().to_vec() },
+        ];
+        emit!(VaultEvent { name: "Borrow".to_string(), aux: data });
+        Ok(())
+    }
+}
+
+// ==========================================
+// HELPERS
+// ==========================================
+
+fn validate_token(
+    provider_registry: &Account<qiara::provider_registry::ProviderRegistry>,
+    provider_name: &str,
+    token_name: &str,
+    token_mint: &Pubkey,
+) -> Result<()> {
+    require!(
+        provider_registry.is_provider_supported(provider_name),
+        QiaraError::ProviderNotSupported
+    );
+    require!(
+        provider_registry.is_token_supported(provider_name, token_name),
+        QiaraError::TokenNotSupportedByProvider
+    );
+
+    let registered_addr = provider_registry
+        .get_token_address(token_name)
+        .ok_or(error!(QiaraError::TokenMismatch))?;
+
+    let expected_mint = Pubkey::from_str(&registered_addr).map_err(|_| error!(QiaraError::TokenMismatch))?;
+    require!(*token_mint == expected_mint, QiaraError::TokenMismatch);
+    Ok(())
+}
+
+pub fn get_pseudo_random_rate(payer: &Pubkey) -> Result<u64> {
+    let clock = Clock::get()?;
+    let mut msg_bytes = Vec::with_capacity(48);
+    msg_bytes.extend_from_slice(&clock.unix_timestamp.to_le_bytes());
+    msg_bytes.extend_from_slice(&clock.slot.to_le_bytes());
+    msg_bytes.extend_from_slice(&payer.to_bytes());
+
+    let hash_bytes = anchor_lang::solana_program::keccak::hash(&msg_bytes).to_bytes();
+    let val_u64 = u64::from_be_bytes(hash_bytes[0..8].try_into().unwrap());
+    let range_span = MAX_RATE - MIN_RATE + 1;
+    Ok(MIN_RATE + (val_u64 % range_span))
+}
+
+pub fn accrue_user_yield(user_state: &UserState, rate: u64) -> Result<u64> {
+    let clock = Clock::get()?;
+    let current_time_seconds = clock.unix_timestamp;
+
+    if user_state.balance > 0 && current_time_seconds > user_state.last_interacted_timestamp {
+        let elapsed = (current_time_seconds - user_state.last_interacted_timestamp) as u128;
+        let rewards = ((user_state.balance as u128) * (rate as u128) * elapsed) / REWARD_FACTOR;
+        return Ok(rewards as u64);
+    }
+    Ok(0)
+}
+
+// ==========================================
+// ACCOUNTS
+// ==========================================
 
 #[account]
-pub struct ProviderRegistry {
-    pub admin: Pubkey,
-    pub dev_access_revoked: bool,
-    pub providers: Vec<ProviderEntry>,
-    pub token_addresses: Vec<TokenAddressEntry>,
+pub struct UserState {
+    pub balance: u64,
+    pub last_interacted_timestamp: i64,
 }
 
 #[account]
-pub struct ActionRecord {
+pub struct Vault {
+    pub provider_name: String,
+    pub authority: Pubkey,
+    pub bump: u8,
+}
+
+#[account]
+pub struct NullifierRecord {
     pub is_used: bool,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct ProviderEntry {
-    pub provider_name: String,
-    pub tokens: Vec<String>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct TokenAddressEntry {
-    pub token_name: String,
-    pub token_address: String,
-}
-
-impl ProviderRegistry {
-    pub fn is_provider_supported(&self, provider: &str) -> bool {
-        self.providers.iter().any(|p| p.provider_name.eq_ignore_ascii_case(provider))
-    }
-
-    pub fn is_token_supported(&self, provider: &str, token: &str) -> bool {
-        self.providers.iter()
-            .find(|p| p.provider_name.eq_ignore_ascii_case(provider))
-            .map_or(false, |entry| entry.tokens.iter().any(|t| t.eq_ignore_ascii_case(token)))
-    }
-
-    pub fn get_token_address(&self, token: &str) -> Option<String> {
-        self.token_addresses.iter()
-            .find(|t| t.token_name.eq_ignore_ascii_case(token))
-            .map(|t| t.token_address.clone())
-    }
-}
-
-// --- Instructions ---
-
-pub fn initialize(ctx: Context<InitializeProviderRegistry>) -> Result<()> {
-    let registry = &mut ctx.accounts.provider_registry;
-    registry.admin = ctx.accounts.admin.key();
-    registry.dev_access_revoked = false;
-    registry.providers = Vec::new();
-    registry.token_addresses = Vec::new();
-    Ok(())
-}
-
-pub fn dev_add_tokens(
-    ctx: Context<DevTokensAction>,
-    provider_name: String,
-    tokens: Vec<String>,
-) -> Result<()> {
-    let registry = &mut ctx.accounts.provider_registry;
-    require!(!registry.dev_access_revoked, QiaraError::RegistryLocked);
-    require!(ctx.accounts.admin.key() == registry.admin, QiaraError::NotValidator);
-    
-    insert_tokens(registry, provider_name, tokens);
-    Ok(())
-}
-
-pub fn dev_set_token_address(
-    ctx: Context<DevTokensAction>,
-    token_name: String,
-    token_address: String,
-) -> Result<()> {
-    let registry = &mut ctx.accounts.provider_registry;
-    require!(!registry.dev_access_revoked, QiaraError::RegistryLocked);
-    require!(ctx.accounts.admin.key() == registry.admin, QiaraError::NotValidator);
-
-    set_token_address(registry, token_name, token_address);
-    Ok(())
-}
-
-pub fn revoke_dev_access(ctx: Context<DevTokensAction>) -> Result<()> {
-    let registry = &mut ctx.accounts.provider_registry;
-    require!(!registry.dev_access_revoked, QiaraError::RegistryLocked);
-    require!(ctx.accounts.admin.key() == registry.admin, QiaraError::NotValidator);
-    
-    registry.dev_access_revoked = true;
-    Ok(())
-}
-
-pub fn update_tokens_with_signatures(
-    ctx: Context<UpdateTokensWithSignatures>,
-    is_add: bool,
-    provider_name: String,
-    tokens: Vec<String>,
-    nonce: u64,
-    signatures: Vec<Vec<u8>>,
-) -> Result<()> {
-    let tokens_len: usize = tokens.iter().map(|t| t.len()).sum();
-    let mut payload = Vec::with_capacity(2 + CHAIN_NAME.len() + provider_name.len() + tokens_len + 8);
-    payload.push(ACTION_UPDATE_TOKENS);
-    payload.push(if is_add { 1u8 } else { 0u8 });
-    payload.extend_from_slice(CHAIN_NAME);
-    payload.extend_from_slice(provider_name.as_bytes());
-    for t in &tokens {
-        payload.extend_from_slice(t.as_bytes());
-    }
-    payload.extend_from_slice(&nonce.to_be_bytes());
-    let action_hash = keccak::hash(&payload).to_bytes();
-
-    verify_action_hash_signatures(
-        &ctx.accounts.validator_state,
-        &ctx.accounts.registry,
-        &signatures,
-        &action_hash,
-    )?;
-
-    ctx.accounts.action_record.is_used = true;
-
-    let registry = &mut ctx.accounts.provider_registry;
-    if is_add {
-        insert_tokens(registry, provider_name, tokens);
-    } else if let Some(pos) = registry.providers.iter().position(|p| p.provider_name.eq_ignore_ascii_case(&provider_name)) {
-        registry.providers[pos].tokens.retain(|t| !tokens.iter().any(|rem| rem.eq_ignore_ascii_case(t)));
-    }
-
-    Ok(())
-}
-
-pub fn update_token_address_with_signatures(
-    ctx: Context<UpdateTokenAddressWithSignatures>,
-    token_name: String,
-    token_address: String,
-    nonce: u64,
-    signatures: Vec<Vec<u8>>,
-) -> Result<()> {
-    // Canonical payload: [action_id (1B)] + [chain] + [token] + [token_address] + [nonce (8B)]
-    let mut payload = Vec::with_capacity(1 + CHAIN_NAME.len() + token_name.len() + token_address.len() + 8);
-    payload.push(ACTION_UPDATE_TOKEN_ADDRESS);
-    payload.extend_from_slice(CHAIN_NAME);
-    payload.extend_from_slice(token_name.as_bytes());
-    payload.extend_from_slice(token_address.as_bytes());
-    payload.extend_from_slice(&nonce.to_be_bytes());
-    let action_hash = keccak::hash(&payload).to_bytes();
-
-    verify_action_hash_signatures(
-        &ctx.accounts.validator_state,
-        &ctx.accounts.registry,
-        &signatures,
-        &action_hash,
-    )?;
-
-    ctx.accounts.action_record.is_used = true;
-
-    let registry = &mut ctx.accounts.provider_registry;
-    set_token_address(registry, token_name, token_address);
-
-    Ok(())
-}
-
-// --- Helpers ---
-
-fn verify_action_hash_signatures(
-    state: &ValidatorState,
-    registry: &Registry,
-    signatures: &[Vec<u8>],
-    action_hash: &[u8; 32],
-) -> Result<()> {
-    let min_required = registry.get_min_unique_validators();
-    let mut valid_count = 0;
-    let mut seen: Vec<Vec<u8>> = Vec::with_capacity(signatures.len());
-
-    for sig in signatures {
-        if sig.len() != 65 { continue; }
-        let mut sig_bytes = [0u8; 64];
-        sig_bytes.copy_from_slice(&sig[0..64]);
-
-        if let Ok(recovered) = secp256k1_recover(action_hash, sig[64], &sig_bytes) {
-            let mut uncompressed = Vec::with_capacity(65);
-            uncompressed.push(0x04);
-            uncompressed.extend_from_slice(&recovered.to_bytes());
-            if state.active_pubkeys.contains(&uncompressed) && !seen.contains(&uncompressed) {
-                seen.push(uncompressed);
-                valid_count += 1;
-            }
-        }
-    }
-    require!(valid_count >= min_required, QiaraError::InsufficientSignatures);
-    Ok(())
-}
-
-fn insert_tokens(registry: &mut ProviderRegistry, provider_name: String, tokens: Vec<String>) {
-    if let Some(pos) = registry.providers.iter().position(|p| p.provider_name.eq_ignore_ascii_case(&provider_name)) {
-        let list = &mut registry.providers[pos].tokens;
-        for token in tokens {
-            if !list.iter().any(|t| t.eq_ignore_ascii_case(&token)) {
-                list.push(token);
-            }
-        }
-    } else {
-        registry.providers.push(ProviderEntry { provider_name, tokens });
-    }
-}
-
-fn set_token_address(registry: &mut ProviderRegistry, token_name: String, token_address: String) {
-    if let Some(pos) = registry.token_addresses.iter().position(|t| t.token_name.eq_ignore_ascii_case(&token_name)) {
-        registry.token_addresses[pos].token_address = token_address;
-    } else {
-        registry.token_addresses.push(TokenAddressEntry { token_name, token_address });
-    }
-}
-
-// --- Accounts ---
-
 #[derive(Accounts)]
-pub struct InitializeProviderRegistry<'info> {
+#[instruction(provider_name: String)]
+pub struct CreateVault<'info> {
     #[account(
         init,
-        payer = admin,
-        space = 8 + 32 + 1 + 4 + 4096,
-        seeds = [b"provider-registry"],
+        payer = payer,
+        space = 8 + 4 + provider_name.len() + 32 + 1,
+        seeds = [b"vault", provider_name.as_bytes()],
         bump
     )]
-    pub provider_registry: Account<'info, ProviderRegistry>,
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct DevTokensAction<'info> {
-    #[account(mut, seeds = [b"provider-registry"], bump)]
-    pub provider_registry: Account<'info, ProviderRegistry>,
-    pub admin: Signer<'info>,
+pub struct DepositYieldToken<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = payer,
+        space = 8 + 8 + 8,
+        seeds = [b"user-state", payer.key().as_ref(), vault.key().as_ref(), mint.key().as_ref()],
+        bump
+    )]
+    pub user_state: Account<'info, UserState>,
+
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
+
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(is_add: bool, provider_name: String, tokens: Vec<String>, nonce: u64)]
-pub struct UpdateTokensWithSignatures<'info> {
-    #[account(mut, seeds = [b"provider-registry"], bump)]
-    pub provider_registry: Account<'info, ProviderRegistry>,
+#[instruction(_shared: String, nullifier_bytes: [u8; 32])]
+pub struct DirectWithdrawYieldToken<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    /// CHECK: Verified by ZK proof
+    #[account(mut)]
+    pub user: AccountInfo<'info>,
+
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
 
     #[account(
         init,
-        payer = signer,
+        payer = payer,
         space = 8 + 1,
-        seeds = [b"action-record", provider_name.as_bytes(), &nonce.to_be_bytes()],
+        seeds = [b"nullifier", nullifier_bytes.as_ref()],
         bump
     )]
-    pub action_record: Account<'info, ActionRecord>,
-
-    pub validator_state: Account<'info, ValidatorState>,
-    pub registry: Account<'info, Registry>,
+    pub nullifier_record: Account<'info, NullifierRecord>,
 
     #[account(mut)]
-    pub signer: Signer<'info>,
+    pub user_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+
+    pub registry: Account<'info, qiara::Registry>,
+    pub validator_state: Account<'info, qiara::ValidatorState>,
+    pub verifier_program: Program<'info, Qiara>,
 }
 
 #[derive(Accounts)]
-#[instruction(token_name: String, token_address: String, nonce: u64)]
-pub struct UpdateTokenAddressWithSignatures<'info> {
-    #[account(mut, seeds = [b"provider-registry"], bump)]
-    pub provider_registry: Account<'info, ProviderRegistry>,
-
-    #[account(
-        init,
-        payer = signer,
-        space = 8 + 1,
-        seeds = [b"action-record", token_name.as_bytes(), &nonce.to_be_bytes()],
-        bump
-    )]
-    pub action_record: Account<'info, ActionRecord>,
-
-    pub validator_state: Account<'info, ValidatorState>,
-    pub registry: Account<'info, Registry>,
-
+pub struct ModularWithdraw<'info> {
     #[account(mut)]
-    pub signer: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    pub user: Signer<'info>,
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
+    pub mint: Account<'info, Mint>,
+    pub user_ata: Account<'info, TokenAccount>,
+}
+
+#[derive(Accounts)]
+pub struct Stake<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Unstake<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Borrow<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(seeds = [b"vault", vault.provider_name.as_bytes()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub provider_registry: Account<'info, qiara::provider_registry::ProviderRegistry>,
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+// ==========================================
+// DATA & EVENTS
+// ==========================================
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct Data {
+    pub name: String,
+    pub type_name: String,
+    pub value: Vec<u8>,
+}
+
+#[event]
+pub struct VaultEvent {
+    pub name: String,
+    pub aux: Vec<Data>,
+}
+
+#[error_code]
+pub enum QiaraError {
+    #[msg("Specified provider does not match the ZK proof.")]
+    WrongProviderProvided,
+    #[msg("Caller is not authorized.")]
+    NotValidator,
+    #[msg("ZK variables proof validation failed.")]
+    InvalidProof,
+    #[msg("Contiguous input parser out of bounds.")]
+    InvalidInputLength,
+    #[msg("Provider is not registered in ProviderRegistry.")]
+    ProviderNotSupported,
+    #[msg("Token is not supported by the specified provider.")]
+    TokenNotSupportedByProvider,
+    #[msg("Token name does not match the registered mint.")]
+    TokenMismatch,
+    #[msg("Deposit amount must be greater than zero.")]
+    InvalidAmount,
 }
