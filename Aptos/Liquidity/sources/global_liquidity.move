@@ -154,8 +154,7 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
     }
 
     public entry fun initialize_all_registered_vaults(admin: &signer) acquires GlobalVault, GlobalLPCapabilities {
-        let admin_addr = std::signer::address_of(admin);
-        assert!(admin_addr == @dev, ERROR_NOT_ADMIN);
+        assert!(std::signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let providers_ref = ProviderTypes::return_all_providers();
@@ -174,8 +173,7 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
             
             while (j < num_chains) {
                 let chain = *std::vector::borrow(&chain_keys, j);
-                let provider_data = map::borrow(chains_map, &chain);
-                let tokens = ProviderTypes::get_provider_tokens(provider_data);
+                let tokens = map::borrow(chains_map, &chain);
                 
                 let k = 0;
                 let num_tokens = std::vector::length(tokens);
