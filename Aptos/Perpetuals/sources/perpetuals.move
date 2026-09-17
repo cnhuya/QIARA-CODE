@@ -11,7 +11,7 @@ module dev::QiaraPerpsV58 {
     use dev::QiaraRIV69::{Self as RI};
     use dev::QiaraRanksV69::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV69::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV70::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
@@ -23,8 +23,8 @@ module dev::QiaraPerpsV58 {
     use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraCapabilitiesV22::{Self as capabilities};
 
-    use dev::QiaraChainTypesV69::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV69::{Self as TokensTypes};
+    use dev::QiaraChainTypesV70::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV70::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
