@@ -1,8 +1,9 @@
-module dev::QiaraNonceV3 {
+module dev::QiaraNonceV4 {
     use std::signer;
-    use std::table::{Self, Table};
     use std::string::{String, utf8};
     use aptos_framework::event;
+    use aptos_std::table::{Self, Table};
+    use aptos_std::simple_map::{Self, SimpleMap as Map};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
@@ -19,21 +20,14 @@ module dev::QiaraNonceV3 {
     public fun give_permission(_access: &Access): Permission {
         Permission {}
     }
-    
-    // === STRUCTS === //
-    struct Permissions has key {}
-    
-    struct UserNonce has copy, drop, store {
-        zk_nonce: u256,
-        main_nonce: u256,
-    }
 
+    // === STRUCTS === //
     struct Nonces has key, store {
-        table: Table<vector<u8>, UserNonce>,
+        table: Table<vector<u8>, Map<String, u256>>,
     }
 
     struct GlobalNonces has key {
-        table: Table<String, u64>,
+        table: Map<String, u64>,
     }
 
     // === EVENTS === //
@@ -52,26 +46,17 @@ module dev::QiaraNonceV3 {
     // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-
-        if (!exists<Nonces>(@dev)) {
-            move_to(admin, Nonces { table: table::new() });
-        };
-        if (!exists<GlobalNonces>(@dev)) {
-            move_to(admin, GlobalNonces { table: table::new() });
-        };
+        if (!exists<Nonces>(@dev)) move_to(admin, Nonces { table: table::new() });
+        if (!exists<GlobalNonces>(@dev)) move_to(admin, GlobalNonces { table: simple_map::new() });
     }
 
     // === GLOBAL NONCE OPERATIONS === //
-    public fun increment_global_nonce(perm: Permission): u64 acquires GlobalNonces {
-        increment_global_nonce_by_type(utf8(b"global"), perm)
-    }
-
     public fun increment_global_nonce_by_type(type: String, _perm: Permission): u64 acquires GlobalNonces {
         let gn = borrow_global_mut<GlobalNonces>(@dev);
-        if (!table::contains(&gn.table, type)) {
-            table::add(&mut gn.table, copy type, 0);
+        if (!simple_map::contains_key(&gn.table, &type)) {
+            simple_map::add(&mut gn.table, copy type, 0);
         };
-        let val = table::borrow_mut(&mut gn.table, type);
+        let val = simple_map::borrow_mut(&mut gn.table, &type);
         *val = *val + 1;
         event::emit(GlobalNonceIncrement { type, new_value: *val });
         *val
@@ -84,7 +69,7 @@ module dev::QiaraNonceV3 {
     public entry fun dev_set_global_nonce_by_type(signer: &signer, type: String, value: u64) acquires GlobalNonces {
         assert!(signer::address_of(signer) == @dev, ERROR_NOT_ADMIN);
         let gn = borrow_global_mut<GlobalNonces>(@dev);
-        table::upsert(&mut gn.table, type, value);
+        simple_map::upsert(&mut gn.table, type, value);
     }
 
     // === USER NONCE OPERATIONS === //
@@ -95,80 +80,64 @@ module dev::QiaraNonceV3 {
     public fun increment_nonce(user: vector<u8>, type: String, _perm: Permission) acquires Nonces {
         let nonces = borrow_global_mut<Nonces>(@dev);
         if (!table::contains(&nonces.table, user)) {
-            table::add(&mut nonces.table, copy user, UserNonce { zk_nonce: 0, main_nonce: 0 });
+            table::add(&mut nonces.table, copy user, simple_map::new());
         };
-
-        let nonce_ref = table::borrow_mut(&mut nonces.table, user);
-        if (type == utf8(b"zk") || type == utf8(b"proof")) {
-            nonce_ref.zk_nonce = nonce_ref.zk_nonce + 1;
-        } else if (type == utf8(b"native")) {
-            nonce_ref.main_nonce = nonce_ref.main_nonce + 1;
+        let type_map = table::borrow_mut(&mut nonces.table, user);
+        if (!simple_map::contains_key(type_map, &type)) {
+            simple_map::add(type_map, copy type, 1);
+        } else {
+            let val = simple_map::borrow_mut(type_map, &type);
+            *val = *val + 1;
         };
-
         event::emit(NonceAdd { addr: user, type });
     }
 
-    public entry fun dev_delete_user_nonce(signer: &signer, addr: vector<u8>) acquires Nonces {
-        delete_user_nonce(addr, give_permission(&give_access(signer)));
+    public entry fun dev_reset_user_nonce(signer: &signer, type: String, addr: vector<u8>) acquires Nonces {
+        reset_user_nonce(addr, type, give_permission(&give_access(signer)));
     }
 
-    public fun delete_user_nonce(user: vector<u8>, _perm: Permission) acquires Nonces {
+    public fun reset_user_nonce(user: vector<u8>, type: String, _perm: Permission) acquires Nonces {
         let nonces = borrow_global_mut<Nonces>(@dev);
         if (table::contains(&nonces.table, user)) {
-            table::remove(&mut nonces.table, user);
-        };
-    }
-
-    public entry fun dev_reset_user_nonce(signer: &signer, addr: vector<u8>) acquires Nonces {
-        reset_user_nonce(addr, give_permission(&give_access(signer)));
-    }
-
-    public fun reset_user_nonce(user: vector<u8>, _perm: Permission) acquires Nonces {
-        let nonces = borrow_global_mut<Nonces>(@dev);
-        if (table::contains(&nonces.table, user)) {
-            let nonce_ref = table::borrow_mut(&mut nonces.table, user);
-            nonce_ref.zk_nonce = 0;
-            nonce_ref.main_nonce = 0;
+            let type_map = table::borrow_mut(&mut nonces.table, user);
+            if (simple_map::contains_key(type_map, &type)) {
+                let val = simple_map::borrow_mut(type_map, &type);
+                *val = 0;
+            };
         };
     }
 
     // === VIEWS === //
     #[view]
-    public fun get_global_nonce(): u64 acquires GlobalNonces {
-        get_global_nonce_by_type(utf8(b"global"))
+    public fun get_global_nonce(): Map<String, u64> acquires GlobalNonces {
+        if (!exists<GlobalNonces>(@dev)) simple_map::new() else borrow_global<GlobalNonces>(@dev).table
     }
 
     #[view]
     public fun get_global_nonce_by_type(type: String): u64 acquires GlobalNonces {
-        if (!exists<GlobalNonces>(@dev)) { 0 }
-        else {
-            let gn = borrow_global<GlobalNonces>(@dev);
-            if (!table::contains(&gn.table, type)) { 0 }
-            else { *table::borrow(&gn.table, type) }
-        }
+        if (!exists<GlobalNonces>(@dev)) return 0;
+        let gn = borrow_global<GlobalNonces>(@dev);
+        if (!simple_map::contains_key(&gn.table, &type)) 0 else *simple_map::borrow(&gn.table, &type)
     }
 
     #[view]
     public fun return_user_nonce_by_type(user: vector<u8>, type: String): u256 acquires Nonces {
+        if (!exists<Nonces>(@dev)) return 0;
         let nonces = borrow_global<Nonces>(@dev);
-        if (!table::contains(&nonces.table, user)) { return 0 };
-        
-        if (type == utf8(b"zk") || type == utf8(b"proof")) {
-            table::borrow(&nonces.table, user).zk_nonce
-        } else if (type == utf8(b"native")) {
-            table::borrow(&nonces.table, user).main_nonce
-        } else {
-            0
-        }
+        if (!table::contains(&nonces.table, user)) return 0;
+        let type_map = table::borrow(&nonces.table, user);
+        if (!simple_map::contains_key(type_map, &type)) 0 else *simple_map::borrow(type_map, &type)
     }
 
     #[view]
-    public fun return_user_nonce(user: vector<u8>): UserNonce acquires Nonces {
+    public fun get_all_user_nonces(user: vector<u8>): Map<String, u256> acquires Nonces {
+        if (!exists<Nonces>(@dev)) return simple_map::new();
         let nonces = borrow_global<Nonces>(@dev);
-        if (!table::contains(&nonces.table, user)) {
-            UserNonce { zk_nonce: 0, main_nonce: 0 }
-        } else {
-            *table::borrow(&nonces.table, user)
-        }
+        if (!table::contains(&nonces.table, user)) simple_map::new() else *table::borrow(&nonces.table, user)
+    }
+
+    #[view]
+    public fun return_user_nonce(user: vector<u8>, type: String): u256 acquires Nonces {
+        return_user_nonce_by_type(user, type)
     }
 }

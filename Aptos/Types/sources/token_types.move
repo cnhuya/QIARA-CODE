@@ -4,7 +4,7 @@ module dev::QiaraTokenTypesV69 {
     use std::signer;
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use dev::QiaraNonceV3::{Self as Nonce};
+    use dev::QiaraNonceV4::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraChainTypesV69::{Self as ChainTypes};
 

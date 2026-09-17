@@ -113,7 +113,7 @@ module dev::QiaraStorageV22 {
     public entry fun more(admin: &signer) acquires KeyRegistry, ConstantDatabase, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 
-        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"BRIDGE_FEE"), 100_000, true, false, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE"), 100_000, true, false, &give_permission(&give_access(admin))); // 0,1%
         register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"MINIMAL_INFLATION"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1%
         register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"INFLATION"), 25_000_000, true,  false, &give_permission(&give_access(admin))); // 25%
         register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"INFLATION_DEBT"), 25_000, false,  false, &give_permission(&give_access(admin))); 
@@ -256,7 +256,7 @@ module dev::QiaraStorageV22 {
 
     public entry fun more5(admin: &signer)  acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"BRIDGE_FEE"), 100_000, true, false, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE"), 100_000, true, true, &give_permission(&give_access(admin))); // 0,1%
     }
 
 

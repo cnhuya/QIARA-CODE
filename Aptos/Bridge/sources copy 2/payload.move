@@ -11,8 +11,8 @@ module dev::QiaraPayloadV16{
     use dev::QiaraTokenTypesV11::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraOmniNonceV3::{Self as OmniNonce, Access as OmniNonceAccess};
+    use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraOmniNonceV4::{Self as OmniNonce, Access as OmniNonceAccess};
     //use dev::QiaraIdentifierV1::{Self as identifier};
 
     const ERROR_PAYLOAD_LENGTH_MISMATCH_WITH_TYPES: u64 = 0;

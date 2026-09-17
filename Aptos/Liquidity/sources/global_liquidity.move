@@ -24,7 +24,7 @@ module dev::QiaraLiquidityV87 {
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV69::{Self as ChainTypes};
     use dev::QiaraProviderTypesV69::{Self as ProviderTypes};
-    use dev::QiaraGenesisV3::{Self as Genesis};
+    use dev::QiaraGenesisV4::{Self as Genesis};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

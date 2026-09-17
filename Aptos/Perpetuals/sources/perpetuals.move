@@ -14,7 +14,7 @@ module dev::QiaraPerpsV58 {
     use dev::QiaraTokensMetadataV69::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraNonceV3::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
     use dev::QiaraVaultsV90::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV87::{Self as Liquidity};

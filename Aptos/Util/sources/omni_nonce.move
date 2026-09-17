@@ -1,4 +1,4 @@
-module dev::QiaraOmniNonceV3{
+module dev::QiaraOmniNonceV4{
     use std::signer;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::string::{Self as String, String, utf8};

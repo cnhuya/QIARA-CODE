@@ -22,7 +22,7 @@ module dev::QiaraTokensQiaraV69
 
     use dev::QiaraTokenTypesV69::{Self as TokensType};
 
-    use dev::QiaraGenesisV3::{Self as Genesis};
+    use dev::QiaraGenesisV4::{Self as Genesis};
 
     const ADMIN: address = @dev;
 

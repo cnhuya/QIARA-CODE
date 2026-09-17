@@ -1,4 +1,4 @@
-module dev::QiaraMathV3 {
+module dev::QiaraMathV4 {
 
     #[view]
     public fun pow10_u256(n: u8): u256 {

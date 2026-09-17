@@ -17,7 +17,7 @@ module dev::QiaraGovernanceV25 {
     use dev::QiaraFunctionsV22::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV17::{Self as TokensShared};
 
-    use dev::QiaraGenesisV3::{Self as Genesis};
+    use dev::QiaraGenesisV4::{Self as Genesis};
     const OWNER: address = @dev;
 
     const ERROR_NOT_ADMIN: u64 = 1;

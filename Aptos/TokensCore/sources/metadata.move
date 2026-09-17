@@ -10,7 +10,7 @@ module dev::QiaraTokensMetadataV69{
 
 
     use dev::QiaraStorageV22::{Self as storage};
-    use dev::QiaraMathV3::{Self as Math};
+    use dev::QiaraMathV4::{Self as Math};
 
     use dev::QiaraTokensTiersV69::{Self as tier};
     use dev::QiaraTokenTypesV69::{Self as TokensType, TokenChainData};
