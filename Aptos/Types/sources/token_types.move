@@ -56,7 +56,7 @@ module dev::QiaraTokenTypesV71 {
                 utf8(b"0x3dcF78b52CDA82A6A4C853f6C284c54C5E15750F"),
                 utf8(b"0x913Ef77512293ce02B3EffC7347210B16d3bA017"),
                 utf8(b"0xACD0AE2fDAaFAB9bAF55e383edF5fcf21071046F"), //eth
-                utf8(b"0x0"), // aptos
+                utf8(b"0x2707ae6824490be571e039317d97923b47278178d49a23477d0f8bad90915f9c"), // aptos
                 utf8(b"0x0") // solana
             ], 
             vector[utf8(b"Sui"), utf8(b"Robinhood"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Aptos"), utf8(b"Solana")],

@@ -42,8 +42,8 @@ module dev::QiaraTokensCoreV71{
     const ERROR_SUFFICIENT_BALANCE: u64 = 4;
 
 
-    const INIT_SUPPLY: u64 = 1_000_000_000_000; // i.e 1 mil. init. supply
-    const DECIMALS_N: u64 = 1_000_000;    
+    const INIT_SUPPLY: u64 = 1_000_000_000_000_000; // i.e 1 mil. init. supply
+    const DECIMALS_N: u64 = 1_000_000_000;    
 
 // === ACCESS === //
     struct Access has store, key, drop {}
