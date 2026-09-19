@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV70 {
+module dev::QiaraTokensQiaraV71 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -11,7 +11,7 @@ module dev::QiaraTokensQiaraV70 {
     use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, Metadata};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
-    use aptos_framework::groth16;
+    use aptos_std::from_bcs;
 
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
@@ -19,7 +19,7 @@ module dev::QiaraTokensQiaraV70 {
     use dev::QiaraTokenTypesV71 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
 
-    use dev::Groth16Verifier;
+    use dev::Groth16VerifierV71 as Groth16Verifier;
 
     const ADMIN: address = @dev;
     const CHAIN_ID_APTOS: u64 = 1; // Match runtime chain id
@@ -158,7 +158,7 @@ module dev::QiaraTokensQiaraV70 {
         // Decode recipient: 16B from pub_signals[3] + 16B from pub_signals[2]
         let addr_bytes = slice(vector::borrow(&pub_signals, 3), 0, 16);
         vector::append(&mut addr_bytes, slice(vector::borrow(&pub_signals, 2), 0, 16));
-        let recipient = bcs::to_address(addr_bytes);
+        let recipient = from_bcs::to_address(addr_bytes);
 
         let refs = borrow_global<AssetRefs>(ADMIN);
         primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
@@ -174,7 +174,7 @@ module dev::QiaraTokensQiaraV70 {
 
     // === SIGNATURE VERIFICATION === //
 
-    fun verify_signatures(msg_hash: &vector<u8>,signatures: &vector<vector<u8>>,validator_pubkeys: &vector<vector<u8>>) {
+   fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
         let num_sigs = vector::length(signatures);
         let min_validators = storage::expect_u64(storage::viewConstant(utf8(b"QiaraValidators"), utf8(b"MINIMUM_UNIQUE_VALIDATORS")));
         assert!(num_sigs >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
@@ -187,15 +187,16 @@ module dev::QiaraTokensQiaraV70 {
         while (i < num_sigs) {
             let sig_65 = vector::borrow(signatures, i);
             assert!(vector::length(sig_65) == 65, ERROR_INVALID_SIGNATURES);
-            
+
             let sig_64 = slice(sig_65, 0, 64);
             let v = *vector::borrow(sig_65, 64);
             let recovery_id = if (v >= 27) { v - 27 } else { v };
 
-            let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &sig_64);
+            let ecdsa_sig = secp256k1::ecdsa_signature_from_bytes(sig_64);
+            let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
             assert!(option::is_some(&recovered_key), ERROR_INVALID_SIGNATURES);
 
-            let pubkey_bytes = secp256k1::uncompressed_to_bytes(option::borrow(&recovered_key));
+            let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
             assert!(vector::contains(validator_pubkeys, &pubkey_bytes), ERROR_INVALID_SIGNATURES);
             i = i + 1;
         };
@@ -363,13 +364,13 @@ module dev::QiaraTokensQiaraV70 {
         val | ((*vector::borrow(bytes, 3) as u32) << 24)
     }
 
-    fun bcs_to_u64_le(bytes: &vector<u8>): u64 {
-        let val = (*vector::borrow(bytes, 0) as u64);
-        let i = 1;
-        while (i < 8) {
-            val = val | ((*vector::borrow(bytes, i) as u64) << (i * 8));
-            i = i + 1;
-        };
-        val
-    }
+fun bcs_to_u64_le(bytes: &vector<u8>): u64 {
+    let val = (*vector::borrow(bytes, 0) as u64);
+    let i = 1;
+    while (i < 8) {
+        val = val | ((*vector::borrow(bytes, i) as u64) << ((i * 8) as u8));
+        i = i + 1;
+    };
+    val
+}
 }

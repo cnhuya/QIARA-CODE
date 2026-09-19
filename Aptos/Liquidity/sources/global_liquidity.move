@@ -14,13 +14,13 @@ module dev::QiaraLiquidityV88 {
     use aptos_framework::account;
     use aptos_framework::from_bcs;
 
-    use dev::QiaraTokensMetadataV70::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV70::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV70::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV71::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV71::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV71::{Self as TokensTiers};
 
-    use dev::QiaraMarginV70::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV70::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV70::{Self as BurnedQiara};
+    use dev::QiaraMarginV71::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV71::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV71::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV71::{Self as ChainTypes};
     use dev::QiaraProviderTypesV71::{Self as ProviderTypes};

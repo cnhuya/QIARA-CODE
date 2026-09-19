@@ -60,7 +60,7 @@ module dev::QiaraTokenTypesV71 {
                 utf8(b"0x0") // solana
             ], 
             vector[utf8(b"Sui"), utf8(b"Robinhood"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Aptos"), utf8(b"Solana")],
-            vector[9u8, 9u8, 9u8, 9u8, 9u8, 9u8]
+            vector[9u8, 9u8, 9u8, 9u8, 9u8, 9u8, 9u8]
         );
         register_token_with_chains(signer, utf8(b"Qiara145 Solana"), utf8(b"Solana"), 
             vector[utf8(b"AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754")], 

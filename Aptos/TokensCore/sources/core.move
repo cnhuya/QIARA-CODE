@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV70{
+module dev::QiaraTokensCoreV71{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,10 +19,10 @@ module dev::QiaraTokensCoreV70{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV70::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV70::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV70::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV70::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV71::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV71::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV71::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV71::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
@@ -214,7 +214,6 @@ module dev::QiaraTokensCoreV70{
         ma_drilla_lul(signer, shared, utf8(b"USDT"), utf8(b"Aptos"));
         ma_drilla_lul(signer, shared, utf8(b"Aptos"), utf8(b"Aptos"));
 
-        ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"Qiara"), utf8(b"Aptos"));
 
         ma_drilla_lul(signer, shared, utf8(b"Solana"), utf8(b"Solana"));
@@ -276,12 +275,12 @@ module dev::QiaraTokensCoreV70{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV70"),
+            string::utf8(b"QiaraTokensCoreV71"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV70"),
+            string::utf8(b"QiaraTokensCoreV71"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -298,7 +297,7 @@ module dev::QiaraTokensCoreV70{
 
 // === PUBLIC FUNCTIONS === //
     public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires  ManagedFungibleAsset{
-        internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))));s
+        internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))))
     }
     public fun withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String): FungibleAsset acquires ManagedFungibleAsset {
         internal_withdraw<T>(shared, store, amount, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))))

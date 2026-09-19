@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV74{
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV70::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV71::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage};
-    use dev::QiaraTokensQiaraV70::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV70::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV71::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV71::{Self as TokensCore, Access as TokensCoreAccess};
 
     use dev::QiaraOracleV14::{Self as Oracle, Access as OracleAccess};
 
