@@ -1,157 +1,136 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 interface IEpochManager {
     function getCurrentEpoch() external view returns (uint256);
 }
 
-contract IValidators {
-    uint256 public activeRoot;
-    uint256 public pendingRoot;
-
-    // --- Struct to queue sequential updates [1] ---
-    struct PendingUpdate {
-        address validator;
-        bool isRemoval;
+contract QiaraValidators {
+    struct TimedStatus {
+        bool isActive;          // Baseline active status
+        uint256 effectiveEpoch; // Epoch when targetStatus takes effect
+        bool targetStatus;      // Status to apply at effectiveEpoch
     }
 
-    // --- Address Lists & Update Queue ---
-    address[] public activeAddresses;
-    PendingUpdate[] public pendingUpdates; // Replaced pendingAddresses [1]
-
-    // --- Epoch Tracking ---
+    uint256 public activeCommitment;
     IEpochManager public epochManager;
-    uint256 public lastProcessedEpoch; 
-
     address public authorizedContract;
     address public owner;
 
-    // --- Events ---
-    event AuthorizedContractUpdated(address indexed newAddress);
-    event EpochManagerUpdated(address indexed newManager);
-    event AddressAddedToPending(address indexed user, bool isRemoval, uint256 epoch);
-    event ListsRolledOver(uint256 newEpoch, uint256 countMoved);
+    address[] private _allValidators;
+    mapping(address => bool) private _isKnown;
+    mapping(address => TimedStatus) private _statuses;
 
-    constructor() {
+    event EpochManagerUpdated(address indexed newManager);
+    event AuthorizedContractUpdated(address indexed newAuth);
+    event ValidatorStaged(address indexed validator, bool isAdded, uint256 indexed effectiveEpoch, uint256 newCommitment);
+    event ValidatorDirectSet(address indexed validator, bool isActive);
+
+    error Unauthorized();
+    error ZeroAddress();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized();
+        _;
+    }
+
+    modifier onlyAuthorized() {
+        if (msg.sender != authorizedContract && msg.sender != owner) revert Unauthorized();
+        _;
+    }
+
+    constructor(address _epochManager, uint256 _initialCommitment) {
         owner = msg.sender;
+        epochManager = IEpochManager(_epochManager);
+        activeCommitment = _initialCommitment;
     }
 
     // --- Configuration ---
-
-    function setEpochManager(address _epochManager) external {
-        require(msg.sender == owner, "Only owner");
+    function setEpochManager(address _epochManager) external onlyOwner {
+        if (_epochManager == address(0)) revert ZeroAddress();
         epochManager = IEpochManager(_epochManager);
         emit EpochManagerUpdated(_epochManager);
     }
 
-    function setAuthorizedContract(address _authAddress) external {
-        require(msg.sender == owner, "Only owner");
+    function setAuthorizedContract(address _authAddress) external onlyOwner {
+        if (_authAddress == address(0)) revert ZeroAddress();
         authorizedContract = _authAddress;
         emit AuthorizedContractUpdated(_authAddress);
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
-        _;
-    }
-    modifier onlyAuthorized() {
-        require(msg.sender == authorizedContract, "Not authorized");
-        _;
-    }
+    // --- State Transition (Called by QiaraZKDelegator) ---
+    function stageValidator(
+        address validator,
+        bool isRemoval,
+        uint256 effectiveEpoch,
+        uint256 newCommitment
+    ) external onlyAuthorized {
+        if (!_isKnown[validator]) {
+            _isKnown[validator] = true;
+            _allValidators.push(validator);
+        }
 
-    // --- Logic ---
-    
-    function addPendingAddress(address _user, bool isRemoval) external onlyAuthorized {
-        _checkAndHandleEpochRollover();
-
-        // Push structured update to the queue [1]
-        pendingUpdates.push(PendingUpdate({
-            validator: _user,
-            isRemoval: isRemoval
-        }));
-
-        emit AddressAddedToPending(_user, isRemoval, lastProcessedEpoch);
-    }
-
-    function _checkAndHandleEpochRollover() internal {
+        TimedStatus storage cur = _statuses[validator];
         uint256 currentEpoch = epochManager.getCurrentEpoch();
 
-        // If time has moved into a new epoch compared to what we last saw
-        if (currentEpoch > lastProcessedEpoch) {
-            uint256 len = pendingUpdates.length;
-
-            // Process updates sequentially in FIFO order [1]
-            for (uint256 i = 0; i < len; i++) {
-                PendingUpdate memory update = pendingUpdates[i];
-                if (update.isRemoval) {
-                    _removeActiveAddress(update.validator); // [1]
-                } else {
-                    _addActiveAddress(update.validator); // [1]
-                }
-            }
-
-            // Clear pending updates for the new epoch [1]
-            delete pendingUpdates;
-
-            // Update the marker
-            lastProcessedEpoch = currentEpoch;
-
-            emit ListsRolledOver(currentEpoch, activeAddresses.length);
+        // Auto-promote previous status if already matured
+        if (cur.effectiveEpoch != 0 && currentEpoch >= cur.effectiveEpoch) {
+            cur.isActive = cur.targetStatus;
         }
+
+        cur.targetStatus = !isRemoval;
+        cur.effectiveEpoch = effectiveEpoch;
+
+        activeCommitment = newCommitment;
+        emit ValidatorStaged(validator, !isRemoval, effectiveEpoch, newCommitment);
     }
 
-    // --- Internal Helpers for State Manipulation ---
-
-    /// Deduplicates and appens a validator to the active set [1]
-    function _addActiveAddress(address _user) internal {
-        uint256 len = activeAddresses.length;
-        for (uint256 i = 0; i < len; i++) {
-            if (activeAddresses[i] == _user) {
-                return; // Already present, skip
-            }
+    // --- Admin Direct Fallback ---
+    function setActiveValidatorDirect(address validator, bool isActive) external onlyOwner {
+        if (!_isKnown[validator]) {
+            _isKnown[validator] = true;
+            _allValidators.push(validator);
         }
-        activeAddresses.push(_user);
+
+        _statuses[validator] = TimedStatus({
+            isActive: isActive,
+            effectiveEpoch: 0,
+            targetStatus: false
+        });
+
+        emit ValidatorDirectSet(validator, isActive);
     }
 
-    /// Gas-efficient swap-and-pop removal from the active set [1]
-    function _removeActiveAddress(address _user) internal {
-        uint256 len = activeAddresses.length;
-        for (uint256 i = 0; i < len; i++) {
-            if (activeAddresses[i] == _user) {
-                // Swap target element with the last element of the array, then pop [1]
-                activeAddresses[i] = activeAddresses[activeAddresses.length - 1];
-                activeAddresses.pop();
-                return;
-            }
+    // --- View Functions ---
+
+    /// $O(1)$ lookup for signature verification (eliminates nested loops in Delegator)
+    function isValidatorActive(address validator) public view returns (bool) {
+        TimedStatus memory cur = _statuses[validator];
+        if (cur.effectiveEpoch != 0 && epochManager.getCurrentEpoch() >= cur.effectiveEpoch) {
+            return cur.targetStatus;
         }
+        return cur.isActive;
     }
 
-    // --- ADMIN FUNCTION ---
-    function addActiveAddressDirect(address _user) external onlyOwner {
-        _addActiveAddress(_user);
-    }
-
-    // --- Helpers / Views ---
+    /// Returns dynamic list of validators active in the current epoch (zero storage writes)
     function getActiveAddresses() external view returns (address[] memory) {
-        return activeAddresses;
-    }
+        uint256 len = _allValidators.length;
+        uint256 count = 0;
 
-    /// Returns the raw PendingUpdate structs queue [1]
-    function getPendingUpdates() external view returns (PendingUpdate[] memory) {
-        return pendingUpdates;
-    }
-
-    /// Backwards compatibility helper: extracts just the addresses from pending queue [1]
-    function getPendingAddresses() external view returns (address[] memory) {
-        uint256 len = pendingUpdates.length;
-        address[] memory addresses = new address[](len);
         for (uint256 i = 0; i < len; i++) {
-            addresses[i] = pendingUpdates[i].validator;
+            if (isValidatorActive(_allValidators[i])) {
+                count++;
+            }
         }
-        return addresses;
-    }
 
-    function checkSystemEpoch() public view returns (uint256) {
-        return epochManager.getCurrentEpoch();
+        address[] memory active = new address[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < len; i++) {
+            address v = _allValidators[i];
+            if (isValidatorActive(v)) {
+                active[idx++] = v;
+            }
+        }
+        return active;
     }
 }

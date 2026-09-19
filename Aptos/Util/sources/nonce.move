@@ -24,10 +24,14 @@ module dev::QiaraNonceV4 {
     // === STRUCTS === //
     struct Nonces has key, store {
         table: Table<vector<u8>, Map<String, u256>>,
+        // User Nonces Tracker
+        // Balances & Qiara
     }
 
     struct GlobalNonces has key {
         table: Map<String, u64>,
+        // Global Nonce Tracker
+        // Validators & Variables 
     }
 
     // === EVENTS === //

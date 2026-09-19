@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV70 {
+module dev::QiaraProviderTypesV71 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -44,6 +44,12 @@ module dev::QiaraProviderTypesV70 {
         update_tokens_for_provider(signer, true, utf8(b"Aave"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
         update_tokens_for_provider(signer, true, utf8(b"Echelon"), utf8(b"Aptos"), vector[utf8(b"Aptos"), utf8(b"USDT"), utf8(b"USDC")]);
         update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Aptos"), vector[utf8(b"Qiara"), utf8(b"Burned Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Base"), vector[utf8(b"Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Ethereum"), vector[utf8(b"Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Solana"), vector[utf8(b"Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Robinhood"), vector[utf8(b"Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Sui"), vector[utf8(b"Qiara")]);
+        update_tokens_for_provider(signer, true, utf8(b"Qiara"), utf8(b"Monad"), vector[utf8(b"Qiara")]);
     }
 
     // === ENTRY FUNCTIONS === //

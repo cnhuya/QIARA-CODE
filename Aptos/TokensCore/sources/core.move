@@ -28,11 +28,11 @@ module dev::QiaraTokensCoreV70{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV70::{Self as Storages};
+    use dev::QiaraStoragesV71::{Self as Storages};
 
-    use dev::QiaraChainTypesV70::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV70::{Self as TokensType};
-    use dev::QiaraProviderTypesV70::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV71::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV71::{Self as TokensType};
+    use dev::QiaraProviderTypesV71::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -173,11 +173,13 @@ module dev::QiaraTokensCoreV70{
 
         // 13. AUSD
         init_token(admin, utf8(b"AUSD"), utf8(b"QAUSD"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/ausd.webp"), 0, utf8(b"0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a"), 0, 175_036_043, 175_036_043, 175_036_043, 255);
-    }
-
-    public entry fun init_qiara(admin: &signer){
+    
+        // 14. Qiara
         init_token(admin, utf8(b"Qiara"), utf8(b"QIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/qiara.webp"), 0, utf8(b"0x39dBED3a2bd333467115dE45665cC57F813C4571"), 3,0, 0, 0, 1);   
+       
+        // 15. Burned Qiara
         init_token(admin, utf8(b"Burned Qiara"), utf8(b"BQIARA"), utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/burned_qiara.webp"), 0, utf8(b"0x39dBED3a2bd333467115dE45665cC57F813C4571"),0, 0, 0, 0, 1);   
+
     }
 
 
@@ -238,39 +240,40 @@ module dev::QiaraTokensCoreV70{
 
 
 
-    fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: String, deflation_tier:u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable:u8 ){
-        let constructor_ref = &object::create_named_object(admin, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name))); // Ethereum -> Qiara31 Ethereum
-             //   tttta(10);
+    fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: String, deflation_tier: u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable: u8) {
+        let constructor_ref = &object::create_named_object(admin, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name)));
+        
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
             constructor_ref,
             option::none(),
             name,
             symbol, 
-            6, 
+            9, 
             icon,
             utf8(b"https://x.com/QiaraProtocol"),
         );
         fungible_asset::set_untransferable(constructor_ref);
         
         let asset = get_metadata(name);
-         //           tttta(111109);
-        // Create mint/burn/transfer refs to allow creator to manage the fungible asset.
+        
+        // 1. Generate refs for Core
         let mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
         let transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
         let burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
 
+        // 2. If token is QIARA, generate a second set of refs directly for the Qiara Bridge module
+        if (symbol == utf8(b"QIARA")) {
+            let qiara_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
+            let qiara_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+            TokensQiara::init_qiara(admin);
+            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref);
+        };
+
         let metadata_object_signer = object::generate_signer(constructor_ref);
+        let asset_address = object::create_object_address(&ADMIN, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name)));
+        assert!(fungible_asset::is_untransferable(asset), 1);
+        let _sign_wallet = primary_fungible_store::ensure_primary_store_exists(signer::address_of(admin), asset);
 
-
-       // tttta(109);
-        let asset_address = object::create_object_address(&ADMIN, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name))); // Ethereum -> Qiara31 Ethereum
-        assert!(fungible_asset::is_untransferable(asset),1);
-        let sign_wallet = primary_fungible_store::ensure_primary_store_exists(signer::address_of(admin),asset);
-
-        // Override the deposit and withdraw functions which mean overriding transfer.
-        // This ensures all transfer will call withdraw and deposit functions in this module
-        // and perform the necessary checks.
-        // This is OPTIONAL. It is an advanced feature and we don't NEED a global state to pause the FA coin.
         let deposit = function_info::new_function_info(
             admin,
             string::utf8(b"QiaraTokensCoreV70"),
@@ -289,16 +292,13 @@ module dev::QiaraTokensCoreV70{
             option::none(),
         );
    
-        move_to(&metadata_object_signer,ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref }); // <:!:initialize
+        move_to(&metadata_object_signer, ManagedFungibleAsset { transfer_ref, burn_ref, mint_ref });
         TokensMetadata::create_metadata(admin, name, creation, deflation_tier, oracleID, max_supply, circulating_supply, total_supply, stable);
-        if(symbol == utf8(b"QIARA")){
-            TokensQiara::init_qiara(admin);
-        }
     }
+
 // === PUBLIC FUNCTIONS === //
     public fun deposit<T: key>(shared: String, store: Object<T>,fa: FungibleAsset, chain: String) acquires  ManagedFungibleAsset{
-        internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))));
-    //tttta(99);
+        internal_deposit<T>(shared, store, fa, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))));s
     }
     public fun withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String): FungibleAsset acquires ManagedFungibleAsset {
         internal_withdraw<T>(shared, store, amount, chain, authorized_borrow_refs((fungible_asset::name(fungible_asset::store_metadata(store)))))

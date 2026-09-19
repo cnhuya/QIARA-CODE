@@ -18,9 +18,10 @@ interface IQiaraVault {
 }
 
 interface IVariables {
-    function addPendingVariable(string calldata header, string calldata name, bytes calldata data) external;
+    function stageVariable(string calldata header,string calldata name,bytes calldata data,uint256 effectiveEpoch,uint256 newCommitment) external;
     function getActiveVariable(string calldata header, string calldata name) external view returns (bytes memory);
 }
+
 interface IValidators{
     function addPendingAddress(address _user) external;
     function getActiveAddresses() external view returns (address[] memory);
@@ -32,7 +33,6 @@ contract QiaraZKDelegator is Ownable {
     IValidatorVerifier public immutable validator_verifier;
     IVariables public immutable variablesRegistry;
     IValidators public immutable validatorsRegistry;
-    string public vaultHeader; // 👈 Dynamic Vault Header
 
     mapping(uint256 => bool) public usedNullifiers;
 
@@ -42,48 +42,79 @@ contract QiaraZKDelegator is Ownable {
         address _validator_verifier, 
         address _variablesRegistry, 
         address _validatorsRegistry,
-        string memory _vaultHeader // 👈 Added Parameter
+        address _vault
     ) Ownable(msg.sender) {
         balance_verifier = IBalanceVerifier(_balance_verifier);
         variable_verifier = IVariableVerifier(_variable_verifier);
         validator_verifier = IValidatorVerifier(_validator_verifier);
         variablesRegistry = IVariables(_variablesRegistry);
         validatorsRegistry = IValidators(_validatorsRegistry);
-        vaultHeader = _vaultHeader; // 👈 Stored
+        if (_vault == address(0)) revert ZeroAddress();
+        vault = _vault;
+
     }
 
-    function processZkWithdraw(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[7] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
-        require(balance_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
+    // [0] OldAccountRoot, [1] NewAccountRoot, [2] UserAddressL, [3] UserAddressH, [4] ProviderName (VaultAddress), [5] PackedTxData
+    function processZkWithdraw(uint256[8] calldata proof,uint256[6] calldata pubSignals,bytes calldata signatures) external {
+        if (!balanceVerifier.verifyProof(proof, pubSignals)) revert InvalidProof();
 
-        (uint256 amount, address vaultAddr, string memory storageName) = _prepareWithdrawal(_pubSignals);
+        // 1. Unpack PackedTxData
+        uint256 packed = pubSignals[5];
+        uint256 amount = packed & 0xFFFFFFFFFFFFFFFF;
+        uint256 chainID = (packed >> 64) & 0xFFFFFFFF;
+        uint256 nonce = (packed >> 96) & 0xFFFFFFFF;
+        uint256 storageID = packed >> 128;
 
-        uint256 userL = _pubSignals[3];
-        uint256 userH = _pubSignals[4];
-        uint256 nullifier = _calculateNullifier7(_pubSignals);
-        _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
-        require(!usedNullifiers[nullifier], "Replay attack detected");
+        if (chainID != block.chainid) revert WrongChain();
+
+        // 2. Decode Identifiers & Destination
+        address user = address(uint160((pubSignals[3] << 128) | pubSignals[2]));
+        string memory providerName = fieldToString(pubSignals[4]);
+        string memory assetName = fieldToString(storageID);
+
+        // 3. Prevent Double-Spend (Per User + Token Nonce)
+        if (nonce != userNonces[user][storageID] + 1) revert InvalidNonce();
+        userNonces[user][storageID] = nonce;
+
+        // 4. Replay Protection & Multisig Verification
+        uint256 nullifier = uint256(keccak256(abi.encodePacked(
+            pubSignals[0], pubSignals[1], pubSignals[2], pubSignals[3], pubSignals[4], pubSignals[5]
+        )));
+
+        if (usedNullifiers[nullifier]) revert ReplayAttack();
         usedNullifiers[nullifier] = true;
 
-        address user = address(uint160((userH << 128) | userL));
-        IQiaraVault(vaultAddr).grantWithdrawalPermission(user, storageName, amount, nullifier);
+        _verifyAllSignatures(bytes32(nullifier), signatures);
+
+        // 5. Direct Dispatch to Central Vault
+        IQiaraVault(vault).directWithdraw(providerName, user, assetName, amount, nullifier);
     }
 
-    function processZkVariable(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
-        require(variable_verifier.verifyProof(_pA, _pB, _pC, _pubSignals), "Invalid ZK Proof");
+    // 🟢 Process ZK Variable Update (7 Public Inputs)
+    // [0] OldCommitment, [1] NewCommitment, [2] PackedContext ((Header << 16) | Epoch)
+    // [3] NameLow, [4] NameHigh, [5] DataLow, [6] DataHigh
+    function processZkVariable(uint256[8] calldata proof,uint256[7] calldata pubSignals,bytes calldata signatures) external {
+        if (!variableVerifier.verifyProof(proof, pubSignals)) revert InvalidProof();
 
-        uint256 chainID = _pubSignals[5];
-        require(chainID == block.chainid, "Wrong destination chain");
+        // Replay Protection & Multisig Verification
+        uint256 nullifier = uint256(keccak256(abi.encodePacked(
+            pubSignals[0], pubSignals[1], pubSignals[2], pubSignals[3],
+            pubSignals[4], pubSignals[5], pubSignals[6]
+        )));
 
-        string memory variableName = fieldToString(_pubSignals[3]);
-        string memory variableHeader = fieldToString(_pubSignals[2]);
-        bytes memory variableValue = fieldToBytes(_pubSignals[4]);
-
-        uint256 nullifier = _calculateNullifier6(_pubSignals);
-        _verifyAllSignatures(bytes32(nullifier), validators, _signatures);
-        require(!usedNullifiers[nullifier], "Replay attack detected");
+        if (usedNullifiers[nullifier]) revert ReplayAttack();
         usedNullifiers[nullifier] = true;
 
-        variablesRegistry.addPendingVariable(variableHeader, variableName, variableValue);
+        _verifyAllSignatures(bytes32(nullifier), signatures);
+
+        // Unpack signals
+        uint256 epoch = pubSignals[2] & 0xFFFF;
+        string memory variableHeader = fieldToString(pubSignals[2] >> 16);
+        string memory variableName = fieldToString((pubSignals[4] << 128) | pubSignals[3]);
+        bytes memory variableData = abi.encodePacked((pubSignals[6] << 128) | pubSignals[5]);
+
+        // Stage update to activate next epoch across all chains
+        variablesRegistry.stageVariable(variableHeader,variableName,variableData,epoch + 1,pubSignals[1]);
     }
 
     function processZkValidator(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[6] calldata _pubSignals, address[] calldata validators, bytes calldata _signatures) external {
@@ -144,23 +175,31 @@ contract QiaraZKDelegator is Ownable {
         vaultAddr = abi.decode(vaultBytes, (address));
     }
 
-    function _verifyAllSignatures(bytes32 _messageHash,address[] calldata validators,bytes calldata _signatures) internal view {
-        bytes32 ethHash = getEthSignedMessageHash(_messageHash);
-        address[] memory active_validators = validatorsRegistry.getActiveAddresses();
+    function _verifyAllSignatures(bytes32 _messageHash, bytes calldata _signatures) internal view {
+        uint256 numSignatures = _signatures.length / 65;
+        if (numSignatures == 0 || _signatures.length % 65 != 0) revert InvalidSignaturesLength();
+        if (numSignatures < _readMinValidators()) revert InsufficientValidators();
 
-        for (uint256 i = 0; i < validators.length; i++) {
-            bytes calldata signature = _signatures[i * 65 : (i + 1) * 65];
-            address signer = recoverSigner(ethHash, signature);
-            require(signer != address(0), "Invalid signature");
+        bytes32 ethHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash));
+        address lastSigner = address(0);
 
-            bool isAuthorized = false;
-            for (uint256 j = 0; j < active_validators.length; j++) {
-                if (active_validators[j] == signer) {
-                    isAuthorized = true;
-                    break;
-                }
+        for (uint256 i = 0; i < numSignatures; i++) {
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                let offset := add(_signatures.offset, mul(i, 65))
+                r := calldataload(offset)
+                s := calldataload(add(offset, 32))
+                v := byte(0, calldataload(add(offset, 64)))
             }
-            require(isAuthorized, "Signer not an active validator");
+
+            address signer = ecrecover(ethHash, v, r, s);
+            if (signer <= lastSigner) revert DuplicateOrUnorderedSigner();
+            lastSigner = signer;
+
+            // $O(1) direct status check (replaced array scan loop)
+            if (!validatorsRegistry.isValidatorActive(signer)) revert UnauthorizedValidator();
         }
     }
 
