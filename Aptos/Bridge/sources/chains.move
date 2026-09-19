@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV74{
+module dev::QiaraBridgeV75{
     use std::signer;
     use aptos_framework::account::{Self as address};
     use std::string::{Self as string, String, utf8};
@@ -24,16 +24,16 @@ module dev::QiaraBridgeV74{
     use dev::QiaraTokensCoreV71::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV71::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     
-    use dev::QiaraVaultsV91::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV92::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraMarginV71::{Self as Margin};
-    use dev::QiaraGovernanceV26::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraGovernanceV27::{Self as Governance, Access as GovernanceAccess};
 
-    use dev::QiaraPayloadV74::{Self as Payload};
-    use dev::QiaraValidatorsV74::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV75::{Self as Payload};
+    use dev::QiaraValidatorsV75::{Self as Validators, Access as ValidatorsAccess};
 
-    use dev::QiaraPerpsOrdersV59::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV59::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV60::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV60::{Self as Perps, Access as PerpAccess};
 
     //use dev::QiaraNonceV1::{Self as Nonce, Access as NonceAccess};
     /// Admin address constant
