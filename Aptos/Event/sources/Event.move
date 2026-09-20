@@ -155,8 +155,9 @@ module event::QiaraEventV1 {
             };
             i = i + 1;
         };
-
-        vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
+        // Exactly 64 hex characters (31 zero bytes + 0x12 = 32 bytes)
+        vector::append(&mut raw, x"0000000000000000000000000000000000000000000000000000000000000012");
+       // vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
         hash::sha2_256(raw)
     }
 
