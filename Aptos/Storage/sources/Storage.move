@@ -153,7 +153,7 @@ module dev::QiaraStorageV22 {
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MIN_LEND_APR_FACTOR"), 100_000, true,  false, &give_permission(&give_access(admin))); // 0.5%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"APR_SCAILING_FACTOR"), 10_00_000, true,  false, &give_permission(&give_access(admin))); // 10x
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"WITHDRAW_LIMIT"), 5_000_000, true, false,  &give_permission(&give_access(admin))); // 0.1x
-        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), 250_000, true, false, &give_permission(&give_access(admin))); // 0.0025%
+        register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.0025%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_REFUND"), 50_000_000, true,  false,&give_permission(&give_access(admin))); // 50%
         register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH"), 52, true,  false,&give_permission(&give_access(admin))); // 50%
 
@@ -248,11 +248,12 @@ module dev::QiaraStorageV22 {
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.1%  
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100), &give_permission(&give_access(admin))); // 0.0001%  
+     //   change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.1%  
+        change_constant(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), &give_permission(&give_access(admin))); // 0.001%  
     }
 
+       // register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.0025%
 
     public entry fun more5(admin: &signer)  acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
