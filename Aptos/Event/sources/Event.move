@@ -142,6 +142,27 @@ module event::QiaraEventV1 {
         assert!(signer::address_of(admin) == @event, 1);
     }
 
+    public fun safe_create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8> {
+        let raw = vector::empty<u8>();
+        let len = vector::length(&payload);
+        let i = 0;
+
+        // Hash type_names and payload contents sequentially
+        while (i < len) {
+            let name_bytes = bcs::to_bytes(vector::borrow(&type_names, i));
+            let val_bytes = vector::borrow(&payload, i);
+            
+            vector::append(&mut raw, name_bytes);
+            vector::append(&mut raw, *val_bytes);
+            i = i + 1;
+        };
+
+        // Chain domain separator (prevents cross-chain replay)
+        vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
+
+        hash::sha2_256(raw)
+    }
+
     public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {
         let vect = vector::empty<u8>();
     
