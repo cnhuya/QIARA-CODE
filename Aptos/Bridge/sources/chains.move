@@ -12,14 +12,14 @@ module dev::QiaraBridgeV76 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV71::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV71::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV92::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV27::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV75 as Payload;
-    use dev::QiaraValidatorsV75::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV60::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV60::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraTokensCoreV72::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV72::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraVaultsV93::{Self as Market, Access as MarketAccess};
+    use dev::QiaraGovernanceV28::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraPayloadV76 as Payload;
+    use dev::QiaraValidatorsV76::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPerpsOrdersV61::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV61::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 

@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV75{
+module dev::QiaraValidatorsV76{
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV75{
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV71::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV72::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage};
-    use dev::QiaraTokensQiaraV71::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV71::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV72::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV72::{Self as TokensCore, Access as TokensCoreAccess};
 
     use dev::QiaraOracleV14::{Self as Oracle, Access as OracleAccess};
 

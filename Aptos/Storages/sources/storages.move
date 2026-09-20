@@ -1,4 +1,4 @@
-module dev::QiaraStoragesV71 {
+module dev::QiaraStoragesV72 {
     use std::signer;
     use std::string::{Self as string, String, utf8};
     use std::table::{Self, Table};

@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV60"
+    name = "QiaraPerpsV61"
     version = "2.1.1"
     authors = []
 
@@ -29,7 +29,7 @@
     rev = 'main'
     subdir = 'Aptos/Util'
 
-    [dependencies.QiaraTokensV71]
+    [dependencies.QiaraTokensV72]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
@@ -39,12 +39,12 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV71]
+    [dependencies.QiaraMarginV72]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraLiquidityV89]
+    [dependencies.QiaraLiquidityV90]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Liquidity'
@@ -59,7 +59,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV92]
+    [dependencies.QiaraVaultsV93]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'

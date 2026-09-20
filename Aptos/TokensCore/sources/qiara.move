@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV71 {
+module dev::QiaraTokensQiaraV72 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,7 +19,7 @@ module dev::QiaraTokensQiaraV71 {
     use dev::QiaraTokenTypesV72 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
 
-    use dev::Groth16VerifierV71 as Groth16Verifier;
+    use dev::Groth16VerifierV72 as Groth16Verifier;
 
     const ADMIN: address = @dev;
     const CHAIN_ID_APTOS: u64 = 1; // Match runtime chain id
