@@ -158,7 +158,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, user_bytes);
         vector::append(&mut vect, bcs::to_bytes(&type));
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000011");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000012");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
@@ -182,7 +182,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, addedValidator_bytes);
         vector::append(&mut vect, removedValidator_bytes);
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000011");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000012");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
@@ -206,7 +206,7 @@ module event::QiaraEventV1 {
         vector::append(&mut vect, addedValidator_bytes);
         vector::append(&mut vect, removedValidator_bytes);
         vector::append(&mut vect, nonce_bytes);
-        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000011");
+        vector::append(&mut vect, x"00000000000000000000000000000000000000000000000000000012");
         
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
