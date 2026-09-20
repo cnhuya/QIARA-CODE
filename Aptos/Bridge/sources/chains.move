@@ -161,7 +161,7 @@ module dev::QiaraBridgeV76 {
 
     public entry fun register_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>) acquires EventsStore, Permissions {
         Payload::ensure_valid_payload(type_names, payload);
-        let identifier = Payload::safe_create_identifier(type_names, payload);
+        let identifier = Event::safe_create_identifier(type_names, payload);
 
         let (_, type_raw) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
@@ -281,7 +281,7 @@ module dev::QiaraBridgeV76 {
 
     public entry fun register_proof_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,proof: vector<u256>,inputs: vector<u256>,signature: vector<u8>) acquires EventsStore, Permissions {
         Payload::ensure_valid_payload(type_names, payload);
-        let identifier = Payload::safe_create_identifier(type_names, payload);
+        let identifier = Event::safe_create_identifier(type_names, payload);
 
         let store = borrow_global_mut<EventsStore>(STORAGE);
         if (table::contains(&store.proof, identifier)) {

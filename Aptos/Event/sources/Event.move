@@ -147,19 +147,16 @@ module event::QiaraEventV1 {
         let len = vector::length(&payload);
         let i = 0;
 
-        // Hash type_names and payload contents sequentially
         while (i < len) {
-            let name_bytes = bcs::to_bytes(vector::borrow(&type_names, i));
-            let val_bytes = vector::borrow(&payload, i);
-            
-            vector::append(&mut raw, name_bytes);
-            vector::append(&mut raw, *val_bytes);
+            let name = vector::borrow(&type_names, i);
+            if (name != &utf8(b"signature")) {
+                vector::append(&mut raw, bcs::to_bytes(name));
+                vector::append(&mut raw, *vector::borrow(&payload, i));
+            };
             i = i + 1;
         };
 
-        // Chain domain separator (prevents cross-chain replay)
         vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
-
         hash::sha2_256(raw)
     }
 
