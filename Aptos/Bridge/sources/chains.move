@@ -169,7 +169,7 @@ module dev::QiaraBridgeV77 {
 
         let (_, secp256k1_pub_key, isActive, _, _, vote_weight, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
-        Validators::take_snapshot(signer, validator);
+        //Validators::take_snapshot(signer, validator);
 
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
