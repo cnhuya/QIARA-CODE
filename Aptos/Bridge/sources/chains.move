@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV77 {
+module dev::QiaraBridgeV78 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -16,8 +16,8 @@ module dev::QiaraBridgeV77 {
     use dev::QiaraTokensOmnichainV72::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV93::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV28::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV77 as Payload;
-    use dev::QiaraValidatorsV77::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV78 as Payload;
+    use dev::QiaraValidatorsV78::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV61::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV61::{Self as Perps, Access as PerpAccess};
 
@@ -343,7 +343,7 @@ module dev::QiaraBridgeV77 {
             if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
+                Validators::acrue_vote(validator,(vote_weight as u256));
 
                 Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -422,7 +422,7 @@ module dev::QiaraBridgeV77 {
             if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                //Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
+                Validators::acrue_vote(validator, (vote_weight as u256));
 
                 Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -572,7 +572,7 @@ module dev::QiaraBridgeV77 {
             if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, zk_vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
+                Validators::acrue_vote(validator,(vote_weight as u256));
 
                 Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),

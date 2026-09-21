@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV77{
+module dev::QiaraValidatorsV78{
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -505,83 +505,68 @@ public entry fun take_staker_snapshot(
         per_epoch.total_credits = per_epoch.total_credits + flat_usd_fee;
     }
 
-    public fun acrue_vote(shared: String, user: vector<u8>, vote_weight: u256) acquires PerEpoch, Permissions {
+// 1. Removed unused `user` param and unused `Margin::get_total_staked_usd()`
+    public fun acrue_vote(shared: String, vote_weight: u256) acquires PerEpoch, Permissions {
         let per_epoch = borrow_global_mut<PerEpoch>(@dev);
-        let permissions = borrow_global<Permissions>(@dev);
 
-        // Check if this voter has already voted during the current epoch
+        // Single-pass map update: lookup once
         if (map::contains_key(&per_epoch.vote_weights, &shared)) {
-            // If the voter exists, retrieve a mutable reference to their weight and add the new weight
             let current_weight = map::borrow_mut(&mut per_epoch.vote_weights, &shared);
             *current_weight = *current_weight + vote_weight;
         } else {
-            // If they don't exist, insert them as a new voter
             map::add(&mut per_epoch.vote_weights, shared, vote_weight);
         };
 
-        // Update the sum of all vote weights for the epoch to keep the reward pool calculations accurate
         per_epoch.total_weight = per_epoch.total_weight + vote_weight;
-        per_epoch.total_staked = (Margin::get_total_staked_usd() as u256);
-        distribute_rewards(per_epoch, permissions);
 
+        // 2. Fast check: Only call distribute if epoch actually progressed
+        if ((Genesis::return_epoch() as u64) > per_epoch.epoch) {
+            let permissions = borrow_global<Permissions>(@dev);
+            distribute_rewards(per_epoch, permissions);
+        };
     }
 
+    // Can also be called externally as a crank so votes never pay loop gas
+    public entry fun trigger_epoch_distribution() acquires PerEpoch, Permissions {
+        let per_epoch = borrow_global_mut<PerEpoch>(@dev);
+        if ((Genesis::return_epoch() as u64) > per_epoch.epoch) {
+            let permissions = borrow_global<Permissions>(@dev);
+            distribute_rewards(per_epoch, permissions);
+        };
+    }
 
     fun distribute_rewards(per_epoch: &mut PerEpoch, permissions: &Permissions) {
         let current_epoch = (Genesis::return_epoch() as u64);
+        per_epoch.epoch = current_epoch;
 
-        if (Genesis::return_epoch() > (per_epoch.epoch as u256)) {
-            per_epoch.epoch = current_epoch;
-        } else {
-            return
-        };
-        
-        // Avoid division by zero
-        if (per_epoch.total_weight == 0) {
-            return
-        };
+        let total_weight = per_epoch.total_weight;
+        if (total_weight == 0) return;
 
-        // Extracted keys from the map; map::keys returns a copy (by value)
+        let emissions = per_epoch.emissions;
+        let total_credits = per_epoch.total_credits;
+
         let validators = map::keys(&per_epoch.vote_weights);
         let len = vector::length(&validators);
 
         while (len > 0) {
-            let voter = *vector::borrow(&validators, len - 1);
-            let weight = *map::borrow(&per_epoch.vote_weights, &voter);
-
-            // Calculate reward with safe order of operations to avoid precision loss
-            let validator_emission_reward = (weight * per_epoch.emissions) / per_epoch.total_weight;
-            let validator_credit_reward = (weight * per_epoch.total_credits) / per_epoch.total_weight;
-
-            let user_addr = Shared::return_shared_owner(voter);
-
-            Margin::add_credit(
-                voter, 
-                user_addr, 
-                validator_credit_reward, 
-                Margin::give_permission(&permissions.margin)
-            );
-            TokensCore::mint_qiara(
-                voter,  
-                user_addr,
-                (validator_emission_reward as u64), 
-                TokensCore::give_permission(&permissions.tokens_core)
-            );
             len = len - 1;
+            let voter = vector::borrow(&validators, len);
+            let weight = *map::borrow(&per_epoch.vote_weights, voter);
+
+            let emission_reward = (weight * emissions) / total_weight;
+            let credit_reward = (weight * total_credits) / total_weight;
+
+            let user_addr = Shared::return_shared_owner(*voter);
+
+            Margin::add_credit(*voter, user_addr, credit_reward, Margin::give_permission(&permissions.margin));
+            TokensCore::mint_qiara(*voter, user_addr, (emission_reward as u64), TokensCore::give_permission(&permissions.tokens_core));
         };
 
-        // === RESET STATE FOR THE NEW EPOCH ===
-        
-        // 1. Reset credits and weights back to 0
+        // Reset
         per_epoch.total_credits = 0;
         per_epoch.total_weight = 0;
-
-        // 2. Clear all previous votes so validators must be voted on again
         per_epoch.vote_weights = map::new<String, u256>();
-
-        // 3. Set the new emissions for the upcoming epoch.
-        per_epoch.emissions = (TokensQiara::calculate_emissions() as u256); 
-
+        per_epoch.emissions = (TokensQiara::calculate_emissions() as u256);
     }
 
 }
