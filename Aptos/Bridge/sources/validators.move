@@ -228,49 +228,54 @@ fun reg_validator(
         take_validator_snapshot_internal(shared, &mut validators.map, &mut pending_validators.list, active_validators);
     }
 
-    // Updates a specific staker's power, updates their validator's total power, and triggers the ranking update
+// Updates a specific staker's power, updates their validator's total power, and triggers ranking update
     public entry fun take_staker_snapshot(signer: &signer, staker: String) acquires PendingValidators, ActiveValidators, Validators, Stakers, Permissions {
         Shared::assert_is_sub_owner(staker, bcs::to_bytes(&signer::address_of(signer)));
-        
-        let validators = borrow_global_mut<Validators>(@dev);
-        
-        // 1. Skip if this specific validator already snapshotted for this epoch
-        let validator_struct = map::borrow(&validators.map, &shared);
-        if (validator_struct.snapshot >= current_epoch) {
-            return
-        };
-        
-        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
-        let pending_validators = borrow_global_mut<PendingValidators>(@dev);
-        let stakers = borrow_global_mut<Stakers>(@dev);
 
+        let stakers = borrow_global<Stakers>(@dev);
         assert!(table::contains(&stakers.table, staker), ERROR_NOT_STAKER);
         let validator = *table::borrow(&stakers.table, staker);
 
+        let current_epoch = (Genesis::return_epoch() as u64);
+        let validators = borrow_global_mut<Validators>(@dev);
         assert!(map::contains_key(&validators.map, &validator), ERROR_VALIDATOR_DOESNT_EXISTS);
-        let validator_struct = map::borrow_mut(&mut validators.map, &validator);
-        
-        let new_power = Margin::get_user_total_staked_usd(staker);
+
+        // 1. Check if this specific staker already snapshotted this epoch (saves Margin + IO gas)
         let old_staker_power = 0;
-        
-        if (map::contains_key(&validator_struct.stakers, &staker)) {
-            let staker_data = map::borrow(&validator_struct.stakers, &staker);
-            old_staker_power = staker_data.power;
+        {
+            let val_ref = map::borrow(&validators.map, &validator);
+            if (map::contains_key(&val_ref.stakers, &staker)) {
+                let staker_data = map::borrow(&val_ref.stakers, &staker);
+                if (staker_data.snapshot >= current_epoch) {
+                    return
+                };
+                old_staker_power = staker_data.power;
+            };
         };
-        
-        if (validator_struct.total_power >= old_staker_power) {
-            validator_struct.total_power = validator_struct.total_power - old_staker_power + new_power;
-        } else {
-            validator_struct.total_power = new_power;
-        };
-        
-        let epoch = active_validators.epoch;
-        let new_staker_data = StakerData {
-            power: new_power,
-            snapshot: epoch,
-        };
-        map::upsert(&mut validator_struct.stakers, staker, new_staker_data);
-        
+
+        // 2. Fetch new power only when snapshot is required
+        let new_power = Margin::get_user_total_staked_usd(staker);
+
+        // 3. Mutate staker & validator power in a scoped block to release the borrow on validators.map
+        {
+            let validator_struct = map::borrow_mut(&mut validators.map, &validator);
+            if (validator_struct.total_power >= old_staker_power) {
+                validator_struct.total_power = validator_struct.total_power - old_staker_power + new_power;
+            } else {
+                validator_struct.total_power = new_power;
+            };
+
+            let new_staker_data = StakerData {
+                power: new_power,
+                snapshot: current_epoch,
+            };
+            map::upsert(&mut validator_struct.stakers, staker, new_staker_data);
+        }; // borrow of validators.map released here
+
+        // 4. Load pending and active validator lists and run ranking update
+        let pending_validators = borrow_global_mut<PendingValidators>(@dev);
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
+
         take_validator_snapshot_internal(validator, &mut validators.map, &mut pending_validators.list, active_validators);
     }
 
