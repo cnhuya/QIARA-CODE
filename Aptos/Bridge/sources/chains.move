@@ -422,7 +422,7 @@ module dev::QiaraBridgeV77 {
             if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
+                //Validators::acrue_vote(validator, Shared::return_shared_owner(validator), (vote_weight as u256));
 
                 Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
