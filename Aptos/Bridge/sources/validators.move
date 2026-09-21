@@ -209,26 +209,37 @@ fun reg_validator(
         Event::emit_consensus_event(utf8(b"Change Validator Keys"), data);
     }
 
-public entry fun take_snapshot(
-        signer: &signer, 
-        shared: String
-    ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
+    public entry fun take_snapshot(signer: &signer, shared: String) acquires PendingValidators, ActiveValidators, Validators, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
-        let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
+
+        let current_epoch = (Genesis::return_epoch() as u64);
         let validators = borrow_global_mut<Validators>(@dev);
+        
+        // 1. Skip if this specific validator already snapshotted for this epoch
+        let validator_struct = map::borrow(&validators.map, &shared);
+        if (validator_struct.snapshot >= current_epoch) {
+            return
+        };
+
+        // 2. Only borrow remaining resources if execution is needed (saves IO gas)
         let pending_validators = borrow_global_mut<PendingValidators>(@dev);
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
 
         take_validator_snapshot_internal(shared, &mut validators.map, &mut pending_validators.list, active_validators);
     }
 
     // Updates a specific staker's power, updates their validator's total power, and triggers the ranking update
-public entry fun take_staker_snapshot(
-        signer: &signer, 
-        staker: String
-    ) acquires PendingValidators, ActiveValidators, Validators, Stakers, Permissions {
+    public entry fun take_staker_snapshot(signer: &signer, staker: String) acquires PendingValidators, ActiveValidators, Validators, Stakers, Permissions {
         Shared::assert_is_sub_owner(staker, bcs::to_bytes(&signer::address_of(signer)));
         
         let validators = borrow_global_mut<Validators>(@dev);
+        
+        // 1. Skip if this specific validator already snapshotted for this epoch
+        let validator_struct = map::borrow(&validators.map, &shared);
+        if (validator_struct.snapshot >= current_epoch) {
+            return
+        };
+        
         let active_validators = borrow_global_mut<ActiveValidators>(@dev);
         let pending_validators = borrow_global_mut<PendingValidators>(@dev);
         let stakers = borrow_global_mut<Stakers>(@dev);

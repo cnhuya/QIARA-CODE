@@ -194,7 +194,7 @@ module dev::QiaraStorageV22 {
         register_constant<u8>(admin, utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"), 3, true,  true, &give_permission(&give_access(admin))); // 3
         register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"), 10_000, true, false, &give_permission(&give_access(admin))); // 10000$
         register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTING_POWER"), 100_000_000, true, false, &give_permission(&give_access(admin))); // 100$
-        register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 1_000, true, false, &give_permission(&give_access(admin))); // 0.001$  
+        register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 10_000, true, false, &give_permission(&give_access(admin))); // 0.01$  
 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1x
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"NATIVE_ORACLE_WEIGHT_SLASHING"), 10_000_000, true, false, &give_permission(&give_access(admin))); // 10
@@ -247,9 +247,9 @@ module dev::QiaraStorageV22 {
 
     public entry fun more3(admin: &signer) acquires ConstantDatabase{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-
+//register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 10_000, true, false, &give_permission(&give_access(admin))); // 0.01$  
      //   change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.1%  
-        change_constant(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.0001%  
+        change_constant(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), bc::to_bytes(&10_000), &give_permission(&give_access(admin))); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), &give_permission(&give_access(admin))); // 0.001%  
     }
 
