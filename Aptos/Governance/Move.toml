@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraGovernanceV28"
+    name = "QiaraGovernanceV29"
     version = "1.0.0"
     authors = []
 
@@ -22,7 +22,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraMarginV72]
+    [dependencies.QiaraMarginV73]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'

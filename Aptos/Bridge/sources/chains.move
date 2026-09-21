@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV78 {
+module dev::QiaraBridgeV79 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -14,10 +14,10 @@ module dev::QiaraBridgeV78 {
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV73::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV73::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV93::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV28::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV78 as Payload;
-    use dev::QiaraValidatorsV78::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraVaultsV94::{Self as Market, Access as MarketAccess};
+    use dev::QiaraGovernanceV29::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraPayloadV79 as Payload;
+    use dev::QiaraValidatorsV79::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV61::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV61::{Self as Perps, Access as PerpAccess};
 
