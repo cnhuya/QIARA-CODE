@@ -16,11 +16,11 @@ module dev::QiaraVaultsV93 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV72::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV72::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV72::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV72::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV72::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV73::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV73::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV73::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV73::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV73::{Self as WrapperGate};
 
     use dev::QiaraMarginV72::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV72::{Self as Points, Access as PointsAccess};

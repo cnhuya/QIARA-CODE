@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraTokensV72"
+    name = "QiaraTokensV73"
     version = "2.1.1"
     authors = []
 
@@ -27,7 +27,7 @@
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraStoragesV72]
+    [dependencies.QiaraStoragesV73]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storages'

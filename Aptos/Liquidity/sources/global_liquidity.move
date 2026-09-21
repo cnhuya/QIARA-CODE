@@ -14,9 +14,9 @@ module dev::QiaraLiquidityV90 {
     use aptos_framework::account;
     use aptos_framework::from_bcs;
 
-    use dev::QiaraTokensMetadataV72::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV72::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV72::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV73::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV73::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV73::{Self as TokensTiers};
 
     use dev::QiaraMarginV72::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRanksV72::{Self as Points, Access as PointsAccess};
