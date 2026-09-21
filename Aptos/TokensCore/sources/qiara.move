@@ -16,7 +16,7 @@ module dev::QiaraTokensQiaraV72 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV72 as TokensType;
+    use dev::QiaraTokenTypesV73 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
 
     use dev::Groth16VerifierV72 as Groth16Verifier;
