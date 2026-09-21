@@ -14,7 +14,7 @@ module dev::QiaraValidatorsV78{
     use dev::QiaraTokensQiaraV73::{Self as TokensQiara};
     use dev::QiaraTokensCoreV73::{Self as TokensCore, Access as TokensCoreAccess};
 
-    use dev::QiaraOracleV14::{Self as Oracle, Access as OracleAccess};
+    use dev::QiaraOracleV15::{Self as Oracle, Access as OracleAccess};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
