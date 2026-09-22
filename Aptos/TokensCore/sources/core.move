@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV73{
+module dev::QiaraTokensCoreV74{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,10 +19,10 @@ module dev::QiaraTokensCoreV73{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV73::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV73::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV73::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV73::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV74::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV74::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV74::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
@@ -275,12 +275,12 @@ module dev::QiaraTokensCoreV73{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV73"),
+            string::utf8(b"QiaraTokensCoreV74"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV73"),
+            string::utf8(b"QiaraTokensCoreV74"),
             string::utf8(b"c_withdraw"),
         );
    

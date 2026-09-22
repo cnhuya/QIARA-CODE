@@ -12,8 +12,8 @@ module dev::QiaraBridgeV79 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV73::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV73::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV74::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV94::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV29::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV79 as Payload;
