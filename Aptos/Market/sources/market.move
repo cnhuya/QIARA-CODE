@@ -893,14 +893,14 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
         if(amount_u256_taxed == 0) { return };
-        tttta(200);
+        //tttta(200);
 
         let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit underlying assets and retrieve physical LP shares
         let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
-        Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        //Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //tttta(1);
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);

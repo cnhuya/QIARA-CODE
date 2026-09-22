@@ -368,6 +368,29 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
 
 
     #[view]
+    public fun calculate_price_impact_spot(token: String, liquidity: u256, value: u256, isDeposit: bool): u256 acquires Tokens {
+        let metadata = get_coin_metadata_by_symbol(token);
+        let valueUSD = getValue(token, value);
+        let liquidityUSD = getValue(token, liquidity);
+        let fdvUSD = (metadata.market.fdv as u256);
+
+        // 1% of FDV
+        let min_liq = fdvUSD / 100;
+        if (min_liq == 0) min_liq = 1;
+        liquidityUSD = liquidityUSD + min_liq;
+
+        let price = oracle::viewPrice(token);
+        // impact scaled to 1e18
+        let impact = (valueUSD * 1_000_000_000_000_000_000) / liquidityUSD;
+
+        if (isDeposit) {
+            (price * impact) / 1_000_000_000_000_000_000
+        } else {
+            ((price * impact) / 1_000_000_000_000_000_000) * 110 / 100
+        }
+    }
+
+  /*  #[view]
     public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256, isDeposit: bool): (u256) acquires Tokens{
         let metadata = get_coin_metadata_by_symbol(token);
         let valueUSD = getValue(token, value*1000000000000000000);
@@ -391,7 +414,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             ((price*impact)/1_000_000_000_000_000_000)*110/100
         };
         return result
-    }
+    }*/
 
     #[view]
     public fun calculate_price_impact_perp(token: String, additional_liquidity: u256, value: u256, isLong: bool): (u256) acquires Tokens{

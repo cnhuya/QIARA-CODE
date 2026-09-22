@@ -130,13 +130,7 @@ module dev::QiaraOracleV15 {
 
     // === SUBMISSION METHODS === //
 
-    public entry fun batch_submit_round_prices(
-        caller: &signer,
-        validator_shared: String,
-        symbols: vector<String>,
-        prices_vec: vector<u128>,
-        round_id: u64,
-    ) acquires Prices {
+    public entry fun batch_submit_round_prices(caller: &signer,validator_shared: String,symbols: vector<String>,prices_vec: vector<u128>,round_id: u64,) acquires Prices {
         let total = vector::length(&symbols);
         assert!(total == vector::length(&prices_vec), 100);
 
@@ -153,29 +147,22 @@ module dev::QiaraOracleV15 {
             i = i + 1;
         };
 
-        emit_round_settled(round_id, settled_count, error_count, total);
+    // Only emit when at least one oracle actually settled:
+        if (settled_count > 0) {
+            emit_round_settled(round_id, settled_count, error_count, total);
+        };
     }
 
-    public entry fun submit_round_price(
-        caller: &signer,
-        validator_shared: String,
-        symbol: String,
-        price: u128,
-        round_id: u64,
+    public entry fun submit_round_price(caller: &signer,validator_shared: String,symbol: String,price: u128,round_id: u64,
     ) acquires Prices {
         let (settled, is_error) = submit_round_price_internal(caller, validator_shared, symbol, price, round_id);
-        let s_count = if (settled) 1 else 0;
-        let e_count = if (is_error) 1 else 0;
-        emit_round_settled(round_id, s_count, e_count, 1);
+        if (settled) {
+            let e_count = if (is_error) 1 else 0;
+            emit_round_settled(round_id, 1, e_count, 1);
+        };
     }
 
-    fun submit_round_price_internal(
-        caller: &signer,
-        validator_shared: String,
-        symbol: String,
-        price: u128,
-        round_id: u64,
-    ): (bool, bool) acquires Prices {
+    fun submit_round_price_internal(caller: &signer,validator_shared: String,symbol: String,price: u128,round_id: u64,): (bool, bool) acquires Prices {
         if (!exists<Prices>(@dev)) {
             emit_oracle_error(&symbol, round_id, utf8(b"Not Initialized"));
             return (false, true)
@@ -312,13 +299,7 @@ module dev::QiaraOracleV15 {
         Event::emit_oracle_event(utf8(b"Round Settled"), data);
     }
 
-    fun emit_price_change(
-        symbol: &String, 
-        previous_price: u128, 
-        raw_input_price: u128, 
-        settled_price: u128, 
-        price: u256
-    ) {
+    fun emit_price_change(symbol: &String, previous_price: u128, raw_input_price: u128, settled_price: u128, price: u256) {
         let data = vector[
             Event::create_data_struct(utf8(b"symbol"), utf8(b"string"), bcs::to_bytes(symbol)),
             Event::create_data_struct(utf8(b"previous_price"), utf8(b"u128"), bcs::to_bytes(&previous_price)),
@@ -466,14 +447,7 @@ module dev::QiaraOracleV15 {
 
     // === PRICE IMPACT === //
 
-    public fun impact_price(
-        name: String, 
-        oracleID: String, 
-        impact: u256, 
-        isPositive: bool, 
-        native_oracle_weight: u256, 
-        _perm: Permission
-    ): u256 acquires Prices {
+    public fun impact_price(name: String, oracleID: String, impact: u256, isPositive: bool, native_oracle_weight: u256, _perm: Permission): u256 acquires Prices {
         let (raw_price, _) = get_raw_price(oracleID);
         let scaled_impact = (impact * 1_000_000) / native_oracle_weight;
         if (scaled_impact == 0) return 0;
