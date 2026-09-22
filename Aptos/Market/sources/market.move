@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV94 {
+module dev::QiaraVaultsV95 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -22,10 +22,10 @@ module dev::QiaraVaultsV94 {
     use dev::QiaraTokensTiersV74::{Self as TokensTiers};
     use dev::QiaraWrapperGateV74::{Self as WrapperGate};
 
-    use dev::QiaraMarginV73::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV73::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV73::{Self as RI};
-    use dev::QiaraBurnedQiaraV73::{Self as BurnedQiara};
+    use dev::QiaraMarginV74::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV74::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV74::{Self as RI};
+    use dev::QiaraBurnedQiaraV74::{Self as BurnedQiara};
 
     use dev::QiaraTokenTypesV74::{Self as TokensTypes};
     use dev::QiaraChainTypesV74::{Self as ChainTypes};
@@ -38,8 +38,8 @@ module dev::QiaraVaultsV94 {
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV91::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV91::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV92::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV92::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
