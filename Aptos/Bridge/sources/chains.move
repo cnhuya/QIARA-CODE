@@ -18,8 +18,8 @@ module dev::QiaraBridgeV79 {
     use dev::QiaraGovernanceV29::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV79 as Payload;
     use dev::QiaraValidatorsV79::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV61::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV61::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsOrdersV62::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV62::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 
