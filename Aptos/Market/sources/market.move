@@ -27,9 +27,9 @@ module dev::QiaraVaultsV94 {
     use dev::QiaraRIV73::{Self as RI};
     use dev::QiaraBurnedQiaraV73::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV73::{Self as TokensTypes};
-    use dev::QiaraChainTypesV73::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV73::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV74::{Self as TokensTypes};
+    use dev::QiaraChainTypesV74::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV74::{Self as ProviderTypes};
 
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV22::{Self as capabilities, Access as CapabilitiesAccess};
