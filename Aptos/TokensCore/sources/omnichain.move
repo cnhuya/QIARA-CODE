@@ -29,7 +29,7 @@ module dev::QiaraTokensOmnichainV74 {
         Permission {}
     }
 
-// === STRUCTS === //
+    // === STRUCTS === //
     struct Permissions has key {
         nonce: NonceAccess,
     }
@@ -38,12 +38,14 @@ module dev::QiaraTokensOmnichainV74 {
     struct AddressCounter has key {
         counter: u64,
         counter_outflow: u64,
+        counter_qiara_outflow: u64,
     }
 
     // Needed to track addresses, to avoid duplication
     struct AddressDatabase has key {
         table: Table<String, u64>,
         table_outflow: Table<vector<u8>, u64>,
+        table_qiara_outflow: Table<vector<u8>, u64>,
     }
 
     // Tracks allowed/supported chains for each Token.
@@ -52,21 +54,22 @@ module dev::QiaraTokensOmnichainV74 {
         book: Map<String, vector<String>>,
     }
 
-    // Tracks overall "liqudity" across chains for each token type (the string argument)
+    // Tracks overall "liquidity" across chains for each token type (the string argument)
     // i.e Ethereum (token) -> Base/Sui/Solana (chains)... -> supply
     struct CrosschainBook has key {
         book: Map<String, Map<String, u256>>,
     }
 
-    // Tracks "liqudity" across chains for each address
+    // Tracks "liquidity" across chains for each address
     // i.e 0/1/2...(page) -> 0x...123 (user) -> Base/Sui/Solana (chains).. -> Ethereum (token) -> supply
     struct UserCrosschainBook has key {
         outflows: Table<u64, Map<vector<u8>, Map<String, Map<String, u256>>>>,
     }
 
-    // i.e  0x...123  (user) -> Base/Sui/Solana (chains).. -> supply
+    // Paged QIARA outflow tracker:
+    // i.e 0/1/2...(page) -> 0x...123 (user) -> Base/Sui/Solana (chains).. -> supply
     struct UserQiaraCrosschainBook has key {
-        outflows: Table<vector<u8>, Map<String, u256>>,
+        outflows: Table<u64, Map<vector<u8>, Map<String, u256>>>,
     }
 
     // === EVENTS === //
@@ -93,10 +96,18 @@ module dev::QiaraTokensOmnichainV74 {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
         if (!exists<AddressCounter>(@dev)) {
-            move_to(admin, AddressCounter { counter: 0, counter_outflow: 0 });
+            move_to(admin, AddressCounter { 
+                counter: 0, 
+                counter_outflow: 0, 
+                counter_qiara_outflow: 0 
+            });
         };
         if (!exists<AddressDatabase>(@dev)) {
-            move_to(admin, AddressDatabase { table: table::new(), table_outflow: table::new() });
+            move_to(admin, AddressDatabase { 
+                table: table::new(), 
+                table_outflow: table::new(),
+                table_qiara_outflow: table::new()
+            });
         };
         if (!exists<TokensChains>(@dev)) {
             move_to(admin, TokensChains { book: map::new() });
@@ -117,13 +128,36 @@ module dev::QiaraTokensOmnichainV74 {
 
     // === QIARA TRACKER FUNCTIONS === //
 
-    public fun increment_QiaraUserOutflow(chain: String,shared: String,address: vector<u8>,amount: u64,isMint: bool,_perm: Permission) acquires UserQiaraCrosschainBook {
+    public fun increment_QiaraUserOutflow(
+        chain: String,
+        shared: String,
+        address: vector<u8>,
+        amount: u64,
+        isMint: bool,
+        _perm: Permission
+    ) acquires AddressCounter, AddressDatabase, UserQiaraCrosschainBook {
         let book = borrow_global_mut<UserQiaraCrosschainBook>(@dev);
-        if (!table::contains(&book.outflows, address)) {
-            table::add(&mut book.outflows, address, map::new());
+        let addressCounter_ref = borrow_global_mut<AddressCounter>(@dev);
+        let addressDatabase_ref = borrow_global_mut<AddressDatabase>(@dev);
+
+        // Deduplication check: assign page on first interaction; reuse on subsequent ones
+        if (!table::contains(&addressDatabase_ref.table_qiara_outflow, address)) {
+            let page_number = addressCounter_ref.counter_qiara_outflow / 100;
+            table::add(&mut addressDatabase_ref.table_qiara_outflow, address, page_number);
+            addressCounter_ref.counter_qiara_outflow = addressCounter_ref.counter_qiara_outflow + 1;
         };
 
-        let user_map = table::borrow_mut(&mut book.outflows, address);
+        let page_number = *table::borrow(&addressDatabase_ref.table_qiara_outflow, address);
+        if (!table::contains(&book.outflows, page_number)) {
+            table::add(&mut book.outflows, page_number, map::new());
+        };
+
+        let users = table::borrow_mut(&mut book.outflows, page_number);
+        if (!map::contains_key(users, &address)) {
+            map::add(users, address, map::new());
+        };
+
+        let user_map = map::borrow_mut(users, &address);
         let amount_u256 = (amount as u256);
 
         if (!map::contains_key(user_map, &chain)) {
@@ -148,7 +182,7 @@ module dev::QiaraTokensOmnichainV74 {
         };
     }
 
-    public entry fun dev_init_qiara_outflows(admin: &signer) {
+    public entry fun dev_init_qiara_outflows(admin: &signer) acquires AddressCounter, AddressDatabase {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
         if (!exists<UserQiaraCrosschainBook>(@dev)) {
             move_to(admin, UserQiaraCrosschainBook { outflows: table::new() });
@@ -156,19 +190,38 @@ module dev::QiaraTokensOmnichainV74 {
     }
 
     #[view]
-    public fun return_qiara_outflow_path(address: vector<u8>, chain: String): u256 acquires UserQiaraCrosschainBook {
+    public fun return_qiara_outflow_page(page_number: u64): Map<vector<u8>, Map<String, u256>> acquires UserQiaraCrosschainBook {
+        *table::borrow(&borrow_global<UserQiaraCrosschainBook>(@dev).outflows, page_number)
+    }
+
+    #[view]
+    public fun return_qiara_user_page(address: vector<u8>): u64 acquires AddressDatabase {
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+        assert!(table::contains(&addressDatabase_ref.table_qiara_outflow, address), ERROR_ADDRESS_NOT_INITIALIZED);
+        *table::borrow(&addressDatabase_ref.table_qiara_outflow, address)
+    }
+
+    #[view]
+    public fun return_qiara_outflow_path(address: vector<u8>, chain: String): u256 acquires UserQiaraCrosschainBook, AddressDatabase {
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+        if (!table::contains(&addressDatabase_ref.table_qiara_outflow, address)) return 0;
+        let page = *table::borrow(&addressDatabase_ref.table_qiara_outflow, address);
         let book = borrow_global<UserQiaraCrosschainBook>(@dev);
-        if (!table::contains(&book.outflows, address)) return 0;
-        let user_map = table::borrow(&book.outflows, address);
+        if (!table::contains(&book.outflows, page)) return 0;
+        let users = table::borrow(&book.outflows, page);
+        if (!map::contains_key(users, &address)) return 0;
+        let user_map = map::borrow(users, &address);
         if (!map::contains_key(user_map, &chain)) return 0;
         *map::borrow(user_map, &chain)
     }
 
     #[view]
-    public fun return_address_qiara_full_outflow(address: vector<u8>): Map<String, u256> acquires UserQiaraCrosschainBook {
+    public fun return_address_qiara_full_outflow(address: vector<u8>): Map<String, u256> acquires UserQiaraCrosschainBook, AddressDatabase {
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+        assert!(table::contains(&addressDatabase_ref.table_qiara_outflow, address), ERROR_ADDRESS_NOT_INITIALIZED);
+        let page = *table::borrow(&addressDatabase_ref.table_qiara_outflow, address);
         let book = borrow_global<UserQiaraCrosschainBook>(@dev);
-        if (!table::contains(&book.outflows, address)) abort ERROR_ADDRESS_NOT_INITIALIZED;
-        *table::borrow(&book.outflows, address)
+        *map::borrow(table::borrow(&book.outflows, page), &address)
     }
 
     // === STANDARD MULTI-TOKEN HELPERS === //
@@ -304,6 +357,13 @@ module dev::QiaraTokensOmnichainV74 {
     #[view]
     public fun return_outflow_page(page_number: u64): Map<vector<u8>, Map<String, Map<String, u256>>> acquires UserCrosschainBook {
         *table::borrow(&borrow_global<UserCrosschainBook>(@dev).outflows, page_number)
+    }
+
+    #[view]
+    public fun return_user_page(address: vector<u8>): u64 acquires AddressDatabase {
+        let addressDatabase_ref = borrow_global<AddressDatabase>(@dev);
+        assert!(table::contains(&addressDatabase_ref.table_outflow, address), ERROR_ADDRESS_NOT_INITIALIZED);
+        *table::borrow(&addressDatabase_ref.table_outflow, address)
     }
 
     #[view]

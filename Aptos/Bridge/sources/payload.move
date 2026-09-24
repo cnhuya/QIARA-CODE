@@ -496,7 +496,7 @@ public fun prepare_p_create_limit_order(type_names: vector<String>, payload: vec
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
-        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        Nonce::increment_nonce(user_bytes, utf8(b"qiara"), Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
         return (name, user_bytes, chain, amount, user_bytes)
     }
 
