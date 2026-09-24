@@ -13,6 +13,7 @@ module dev::QiaraBridgeV80 {
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV74::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV74::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV95::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV30::{Self as Governance, Access as GovernanceAccess};
@@ -50,6 +51,7 @@ module dev::QiaraBridgeV80 {
     struct Permissions has key, store, drop {
         market: MarketAccess,
         tokens_core: TokensCoreAccess,
+        qiara:  TokensCoreAccess,
         tokens_omnichain: TokensOmnichainAccess,
         validators: ValidatorsAccess,
         perps: PerpAccess,
@@ -150,7 +152,7 @@ module dev::QiaraBridgeV80 {
     // === INIT === //
     fun init_module(admin: &signer) {
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {governance: Governance::give_access(admin),shared: Shared::give_access(admin),perps: Perps::give_access(admin),perps_orders: PerpOrders::give_access(admin),market: Market::give_access(admin),tokens_core: TokensCore::give_access(admin),tokens_omnichain: TokensOmnichain::give_access(admin),validators: Validators::give_access(admin)});
+            move_to(admin, Permissions {qiara: TokensQiara::give_access(admin), governance: Governance::give_access(admin),shared: Shared::give_access(admin),perps: Perps::give_access(admin),perps_orders: PerpOrders::give_access(admin),market: Market::give_access(admin),tokens_core: TokensCore::give_access(admin),tokens_omnichain: TokensOmnichain::give_access(admin),validators: Validators::give_access(admin)});
         };
         if (!exists<EventsStore>(@dev)) {
             move_to(admin, EventsStore {main: table::new(),zk: table::new(),proof: table::new(),omnichain: table::new(),non_zk: table::new(),});
@@ -496,6 +498,10 @@ module dev::QiaraBridgeV80 {
                 let (name, _, shared, symbol, chain, provider, amount, _) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+            } else if (event_type == utf8(b"Modular Qiara Bridge")) {
+                let (shared, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
+                Validators::acrue_modularity_fee(shared, user);
+                TokensCore::p_request_qiara_bridge(signer, shared, user, chain, amount, user, TokensCore::give_permission(&cap.tokens_core));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
