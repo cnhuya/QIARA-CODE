@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV80 {
+module dev::QiaraBridgeV81 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -17,8 +17,8 @@ module dev::QiaraBridgeV80 {
     use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV95::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV30::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV80 as Payload;
-    use dev::QiaraValidatorsV80::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV81 as Payload;
+    use dev::QiaraValidatorsV81::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV63::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV63::{Self as Perps, Access as PerpAccess};
 
@@ -51,7 +51,7 @@ module dev::QiaraBridgeV80 {
     struct Permissions has key, store, drop {
         market: MarketAccess,
         tokens_core: TokensCoreAccess,
-        qiara:  TokensCoreAccess,
+        qiara:  TokensQiaraAccess,
         tokens_omnichain: TokensOmnichainAccess,
         validators: ValidatorsAccess,
         perps: PerpAccess,
@@ -501,7 +501,7 @@ module dev::QiaraBridgeV80 {
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
                 let (shared, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
-                TokensCore::p_request_qiara_bridge(signer, shared, user, chain, amount, user, TokensCore::give_permission(&cap.tokens_core));
+                TokensQiara::p_request_qiara_bridge(signer, shared, user, chain, amount, user, TokensQiara::give_permission(&cap.qiara));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
