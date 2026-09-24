@@ -298,6 +298,7 @@ module dev::QiaraBridgeV81 {
         let vote_weight = (vote_weight_raw as u128);
         assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
 
+
         let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(secp256k1_pub_key);
         let sig = Crypto::new_signature_from_bytes(signature);
         assert!(Crypto::signature_verify_strict(&sig, &pubkey_struct, identifier), ERROR_INVALID_SIGNATURE);
@@ -373,10 +374,12 @@ module dev::QiaraBridgeV81 {
 
             let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
             let cap = borrow_global<Permissions>(@dev);
-            Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&cap.market));
-            TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+
 
             if (is_balances) {
+                Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+                TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+
                 Event::emit_crosschain_event(utf8(b"Zk Balance"), vector[
                     Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
                     Event::create_data_struct(utf8(b"zk_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
