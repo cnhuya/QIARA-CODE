@@ -366,21 +366,30 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
         (((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"))) as u128),  ((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"))) as u128))
     }
 
-
     #[view]
     public fun calculate_price_impact_spot(token: String, liquidity: u256, value: u256, isDeposit: bool): u256 acquires Tokens {
         let metadata = get_coin_metadata_by_symbol(token);
-        let valueUSD = getValue(token, value);
-        let liquidityUSD = getValue(token, liquidity);
-        let fdvUSD = (metadata.market.fdv as u256);
+        let token_scale = Math::pow10_u256((metadata.decimals as u8));
+
+        // Both in scale: 1 USD = 1e18 * token_scale
+        let valueUSD = getValue(token, value * 1_000_000_000_000_000_000);
+        let liquidityUSD = getValue(token, liquidity * 1_000_000_000_000_000_000);
+
+        // FDV brought to identical scale: (whole USD) * 1e18 * token_scale
+        let fdvUSD = (metadata.market.fdv as u256) * 1_000_000_000_000_000_000 * token_scale;
 
         // 1% of FDV
         let min_liq = fdvUSD / 100;
-        if (min_liq == 0) min_liq = 1;
+
+        // Fallback floor ($100k) if FDV is uninitialized or 0
+        let floor_liq = 100_000 * 1_000_000_000_000_000_000 * token_scale;
+        if (min_liq < floor_liq) {
+            min_liq = floor_liq;
+        };
+
         liquidityUSD = liquidityUSD + min_liq;
 
         let price = oracle::viewPrice(token);
-        // impact scaled to 1e18
         let impact = (valueUSD * 1_000_000_000_000_000_000) / liquidityUSD;
 
         if (isDeposit) {
@@ -389,6 +398,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             ((price * impact) / 1_000_000_000_000_000_000) * 110 / 100
         }
     }
+
 
   /*  #[view]
     public fun calculate_price_impact_spot(token:String, liquidity: u256, value: u256, isDeposit: bool): (u256) acquires Tokens{

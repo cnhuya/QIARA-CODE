@@ -284,9 +284,9 @@ module dev::QiaraBridgeV80 {
         let identifier = Event::safe_create_identifier(type_names, payload);
 
         let store = borrow_global_mut<EventsStore>(STORAGE);
-        if (table::contains(&store.proof, identifier)) {
-            let entry = table::borrow(&store.proof, identifier);
-            assert!(!entry.is_validated, ERROR_DUPLICATE_EVENT);
+        let exists_entry = table::contains(&store.proof, identifier);
+        if (exists_entry) {
+            assert!(!table::borrow(&store.proof, identifier).is_validated, ERROR_DUPLICATE_EVENT);
         };
 
         Validators::take_snapshot(signer, validator);
@@ -302,7 +302,7 @@ module dev::QiaraBridgeV80 {
 
         let vote = ProofVote { signature, weight: vote_weight, secp256k1_pub_key };
 
-        if (!table::contains(&store.proof, identifier)) {
+        if (!exists_entry) {
             let (_, zk_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), type_names, payload);
             let zk_type = bcs_stream::deserialize_string(&mut bcs_stream::new(zk_type_raw));
 
@@ -343,7 +343,7 @@ module dev::QiaraBridgeV80 {
             if (!map::contains_key(&votes.votes, &validator)) {
                 map::add(&mut votes.votes, validator, vote);
                 votes.total_weight = votes.total_weight + vote_weight;
-                Validators::acrue_vote(validator,(vote_weight as u256));
+                Validators::acrue_vote(validator, (vote_weight as u256));
 
                 Event::emit_consensus_vote_event(vector[
                     Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -354,7 +354,7 @@ module dev::QiaraBridgeV80 {
             };
         };
 
-        // In-place mutation promotion check
+        // Finalization & quorum execution
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
 
@@ -365,12 +365,16 @@ module dev::QiaraBridgeV80 {
             let (_, event_type_raw) = Payload::find_payload_value(utf8(b"zk_type"), votes.data_types, votes.data);
             let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
 
-            if (event_type == utf8(b"Balances")) {
-                let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
-                let cap = borrow_global<Permissions>(@dev);
-                Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&cap.market));
-                TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+            let is_balances = (event_type == utf8(b"Balances"));
+            let is_qiara = (event_type == utf8(b"Qiara Bridge"));
+            assert!(is_balances || is_qiara, ERROR_INVALID_MESSAGE);
 
+            let (receiver, shared, validator_root, old_root, new_root, symbol, chain, provider, amount, total_outflow, nonce) = Payload::prepare_finalize_bridge(votes.data_types, votes.data);
+            let cap = borrow_global<Permissions>(@dev);
+            Market::c_bridge_withdraw(signer, shared, receiver, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+            TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&cap.tokens_omnichain));
+
+            if (is_balances) {
                 Event::emit_crosschain_event(utf8(b"Zk Balance"), vector[
                     Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
                     Event::create_data_struct(utf8(b"zk_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
@@ -387,7 +391,19 @@ module dev::QiaraBridgeV80 {
                     Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
                 ]);
             } else {
-                abort ERROR_INVALID_MESSAGE
+                // Qiara circuit contains only roots, address, amount, chain, and nonce
+                Event::emit_crosschain_event(utf8(b"Zk Qiara Bridge"), vector[
+                    Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"proof"))),
+                    Event::create_data_struct(utf8(b"zk_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
+                    Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+                    Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+                    Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
+                    Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+                    Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u256"), bcs::to_bytes(&(amount as u256))),
+                    Event::create_data_struct(utf8(b"old_root"), utf8(b"string"), bcs::to_bytes(&old_root)),
+                    Event::create_data_struct(utf8(b"new_root"), utf8(b"string"), bcs::to_bytes(&new_root)),
+                    Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+                ]);
             };
 
             Event::emit_validation_event(utf8(b"Validated Proof Event"), vector[

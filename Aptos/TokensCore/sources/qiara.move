@@ -18,8 +18,10 @@ module dev::QiaraTokensQiaraV74 {
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraTokenTypesV74 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
-
+    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::Groth16VerifierV74 as Groth16Verifier;
+    use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     const ADMIN: address = @dev;
     const CHAIN_ID_APTOS: u64 = 1; // Match runtime chain id
@@ -201,6 +203,35 @@ module dev::QiaraTokensQiaraV74 {
             i = i + 1;
         };
     }
+
+    // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
+    // Later implement function to claim locked tokens if the bridge tx fails
+    public fun p_request_qiara_bridge(validator: &signer, shared: String, user: vector<u8>, chain: String, amount: u64, receiver: vector<u8>,perm: Permission) {
+        
+        Shared::assert_is_sub_owner(shared, user);
+
+        //let legit_amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
+        //assert!(legit_amount >= amount, ERROR_SUFFICIENT_BALANCE);
+        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
+        
+        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
+
+        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
+            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+            
+        ];
+        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
+    }
+
 
     // === OPTIMIZED VIEW & HELPER FUNCTIONS === //
 
