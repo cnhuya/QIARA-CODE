@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV74{
+module dev::QiaraTokensCoreV75{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,16 +19,16 @@ module dev::QiaraTokensCoreV74{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV74::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV74::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV74::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV75::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV75::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV75::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV75::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV74::{Self as Storages};
+    use dev::QiaraStoragesV75::{Self as Storages};
 
     use dev::QiaraChainTypesV75::{Self as ChainTypes};
     use dev::QiaraTokenTypesV75::{Self as TokensType};
@@ -275,12 +275,12 @@ module dev::QiaraTokensCoreV74{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV74"),
+            string::utf8(b"QiaraTokensCoreV75"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV74"),
+            string::utf8(b"QiaraTokensCoreV75"),
             string::utf8(b"c_withdraw"),
         );
    

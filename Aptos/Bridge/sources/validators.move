@@ -11,8 +11,8 @@ module dev::QiaraValidatorsV81{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage};
-    use dev::QiaraTokensQiaraV74::{Self as TokensQiara};
-    use dev::QiaraTokensCoreV74::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV75::{Self as TokensQiara};
+    use dev::QiaraTokensCoreV75::{Self as TokensCore, Access as TokensCoreAccess};
 
     use dev::QiaraOracleV15::{Self as Oracle, Access as OracleAccess};
 

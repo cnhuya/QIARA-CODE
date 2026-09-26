@@ -1,4 +1,4 @@
-module dev::QiaraTokensTiersV74
+module dev::QiaraTokensTiersV75
 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
