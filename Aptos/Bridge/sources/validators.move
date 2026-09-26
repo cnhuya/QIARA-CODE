@@ -434,6 +434,7 @@ fun reg_validator(
             // ⚡ Automatically sync the new active validators to Oracle!
             let permissions = borrow_global<Permissions>(@dev);
             Oracle::sync_active_validators(vect, &Oracle::give_permission(&permissions.oracle));
+            TokensQiara::sync_validator_keys(active_keys, &TokensQiara::give_permission(&permissions.tokens_qiara)); // 👈 2. Call 
         };
     }
 

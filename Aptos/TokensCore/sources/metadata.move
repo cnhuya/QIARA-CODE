@@ -13,7 +13,7 @@ module dev::QiaraTokensMetadataV74{
     use dev::QiaraMathV4::{Self as Math};
 
     use dev::QiaraTokensTiersV74::{Self as tier};
-    use dev::QiaraTokenTypesV74::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokenTypesV75::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV15::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //

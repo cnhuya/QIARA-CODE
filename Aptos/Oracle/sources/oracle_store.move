@@ -153,8 +153,7 @@ module dev::QiaraOracleV15 {
         };
     }
 
-    public entry fun submit_round_price(caller: &signer,validator_shared: String,symbol: String,price: u128,round_id: u64,
-    ) acquires Prices {
+    public entry fun submit_round_price(caller: &signer,validator_shared: String,symbol: String,price: u128,round_id: u64) acquires Prices {
         let (settled, is_error) = submit_round_price_internal(caller, validator_shared, symbol, price, round_id);
         if (settled) {
             let e_count = if (is_error) 1 else 0;

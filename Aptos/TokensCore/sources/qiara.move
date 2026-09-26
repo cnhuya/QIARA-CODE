@@ -16,15 +16,15 @@ module dev::QiaraTokensQiaraV74 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV74 as TokensType;
+    use dev::QiaraTokenTypesV75 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
-    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraSharedV17::{Self as Shared};
+    use dev::QiaraTokensOmnichainV74::{Self as TokensOmnichain};
     use dev::Groth16VerifierV74 as Groth16Verifier;
-    use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
+    use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
-    const CHAIN_ID_APTOS: u64 = 1; // Match runtime chain id
+    const CHAIN_ID_APTOS: u64 = 1;
 
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
@@ -51,6 +51,7 @@ module dev::QiaraTokensQiaraV74 {
     struct BridgeState has key {
         used_nullifiers: Table<vector<u8>, bool>,
         vk: vector<u8>,
+        validator_keys: vector<vector<u8>>,
     }
 
     struct QiaraData has copy, drop {
@@ -93,6 +94,7 @@ module dev::QiaraTokensQiaraV74 {
             move_to(admin, BridgeState {
                 used_nullifiers: table::new(),
                 vk: vector::empty(),
+                validator_keys: vector::empty(),
             });
         };
     }
@@ -107,6 +109,12 @@ module dev::QiaraTokensQiaraV74 {
         borrow_global_mut<BridgeState>(ADMIN).vk = vk;
     }
 
+    public fun sync_validator_keys(keys: vector<vector<u8>>, _perm: &Permission) acquires BridgeState {
+        let state = borrow_global_mut<BridgeState>(ADMIN);
+        if (&state.validator_keys == &keys) return; // ⚡ Skips storage write if identical
+        state.validator_keys = keys;
+    }
+
     public fun change_last_claim(shared: String, _perm: Permission) acquires Timers {
         assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
         borrow_global_mut<Timers>(ADMIN).last_claimed = timestamp::now_seconds();
@@ -114,7 +122,7 @@ module dev::QiaraTokensQiaraV74 {
 
     // === BRIDGE & ZK FUNCTIONS === //
 
-    public entry fun request_bridge(user: &signer,shared: String,destination_chain: String,amount: u64) acquires AssetRefs {
+    public entry fun request_bridge(user: &signer, shared: String, destination_chain: String, amount: u64) acquires AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
         let refs = borrow_global<AssetRefs>(ADMIN);
@@ -129,13 +137,11 @@ module dev::QiaraTokensQiaraV74 {
         Event::emit_qiara_burn_event(data);
     }
 
-    public entry fun zk_mint(proof: vector<u8>,pub_signals: vector<vector<u8>>,signatures: vector<vector<u8>>,validator_keys: vector<vector<u8>>) acquires BridgeState, AssetRefs {
+    public entry fun zk_mint(proof: vector<u8>,pub_signals: vector<vector<u8>>,signatures: vector<vector<u8>>) acquires BridgeState, AssetRefs {
         let state = borrow_global_mut<BridgeState>(ADMIN);
 
-        // Groth16 Verification via dev::Groth16Verifier
         assert!(Groth16Verifier::verify(&state.vk, &proof, &pub_signals), ERROR_INVALID_PROOF);
 
-        // Packed signal 4: [Amount:64 | ChainID:32 | Nonce:32]
         let packed_bytes = *vector::borrow(&pub_signals, 4);
         let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8));
         let chain_id = (bcs_to_u32_le(&slice(&packed_bytes, 8, 12)) as u64);
@@ -143,7 +149,6 @@ module dev::QiaraTokensQiaraV74 {
 
         assert!(chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
 
-        // Nullifier computation: keccak256(pub_signals[0..5])
         let flat_signals = vector::empty<u8>();
         let i = 0;
         while (i < 5) {
@@ -155,9 +160,8 @@ module dev::QiaraTokensQiaraV74 {
         assert!(!table::contains(&state.used_nullifiers, nullifier), ERROR_REPLAY_ATTACK);
         table::add(&mut state.used_nullifiers, nullifier, true);
 
-        verify_signatures(&nullifier, &signatures, &validator_keys);
+        verify_signatures(&nullifier, &signatures, &state.validator_keys);
 
-        // Decode recipient: 16B from pub_signals[3] + 16B from pub_signals[2]
         let addr_bytes = slice(vector::borrow(&pub_signals, 3), 0, 16);
         vector::append(&mut addr_bytes, slice(vector::borrow(&pub_signals, 2), 0, 16));
         let recipient = from_bcs::to_address(addr_bytes);
@@ -176,7 +180,7 @@ module dev::QiaraTokensQiaraV74 {
 
     // === SIGNATURE VERIFICATION === //
 
-   fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
+    fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
         let num_sigs = vector::length(signatures);
         let min_validators = storage::expect_u64(storage::viewConstant(utf8(b"QiaraValidators"), utf8(b"MINIMUM_UNIQUE_VALIDATORS")));
         assert!(num_sigs >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
@@ -204,19 +208,21 @@ module dev::QiaraTokensQiaraV74 {
         };
     }
 
-    // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
-    // Later implement function to claim locked tokens if the bridge tx fails
-    public fun p_request_qiara_bridge(validator: &signer, shared: String, user: vector<u8>, chain: String, amount: u64, receiver: vector<u8>,perm: Permission) {
-        
+    public fun p_request_qiara_bridge(
+        _validator: &signer,
+        shared: String,
+        user: vector<u8>,
+        chain: String,
+        amount: u64,
+        receiver: vector<u8>,
+        _perm: Permission
+    ) {
         Shared::assert_is_sub_owner(shared, user);
 
-        //let legit_amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
-        //assert!(legit_amount >= amount, ERROR_SUFFICIENT_BALANCE);
         let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
-        
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
-
         let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
@@ -227,11 +233,9 @@ module dev::QiaraTokensQiaraV74 {
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
             Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
             Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-            
         ];
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
-
 
     // === OPTIMIZED VIEW & HELPER FUNCTIONS === //
 
@@ -395,13 +399,13 @@ module dev::QiaraTokensQiaraV74 {
         val | ((*vector::borrow(bytes, 3) as u32) << 24)
     }
 
-fun bcs_to_u64_le(bytes: &vector<u8>): u64 {
-    let val = (*vector::borrow(bytes, 0) as u64);
-    let i = 1;
-    while (i < 8) {
-        val = val | ((*vector::borrow(bytes, i) as u64) << ((i * 8) as u8));
-        i = i + 1;
-    };
-    val
-}
+    fun bcs_to_u64_le(bytes: &vector<u8>): u64 {
+        let val = (*vector::borrow(bytes, 0) as u64);
+        let i = 1;
+        while (i < 8) {
+            val = val | ((*vector::borrow(bytes, i) as u64) << ((i * 8) as u8));
+            i = i + 1;
+        };
+        val
+    }
 }

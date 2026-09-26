@@ -22,8 +22,8 @@ module dev::QiaraLiquidityV92 {
     use dev::QiaraRanksV74::{Self as Points, Access as PointsAccess};
     use dev::QiaraBurnedQiaraV74::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraChainTypesV74::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV74::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV75::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV75::{Self as ProviderTypes};
     use dev::QiaraGenesisV4::{Self as Genesis};
 
 // === ERRORS === //

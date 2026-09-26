@@ -5,8 +5,8 @@ module dev::QiaraRanksV74{
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV74::{Self as TokensType};
-    use dev::QiaraChainTypesV74::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV75::{Self as TokensType};
+    use dev::QiaraChainTypesV75::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
 
