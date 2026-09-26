@@ -9,6 +9,10 @@ module dev::QiaraBridgeV82 {
     use aptos_std::ed25519 as Crypto;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
+use aptos_std::secp256k1;
+use aptos_std::aptos_hash::keccak256;
+use std::option;
+
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
@@ -177,13 +181,33 @@ module dev::QiaraBridgeV82 {
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
         let store = borrow_global_mut<EventsStore>(STORAGE);
 
-        if (consensus_type == utf8(b"native")) {
+if (consensus_type == utf8(b"native")) {
             let (_, sig_bytes) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
-            
-            // Cryptographic bind of validator identity to full event identifier
-            let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(secp256k1_pub_key);
-            let signature = Crypto::new_signature_from_bytes(sig_bytes);
-            assert!(Crypto::signature_verify_strict(&signature, &pubkey_struct, identifier), ERROR_INVALID_SIGNATURE);
+            assert!(vector::length(&sig_bytes) == 65, ERROR_INVALID_SIGNATURE);
+
+            // Construct Ethereum signed hash: keccak256("\x19Ethereum Signed Message:\n32" || identifier)
+            let eth_prefix = b"\x19Ethereum Signed Message:\n32";
+            vector::append(&mut eth_prefix, identifier);
+            let eth_signed_hash = keccak256(eth_prefix);
+
+            // Extract 64B [R || S] and recovery ID
+            let sig_64 = vector::empty<u8>();
+            let i = 0;
+            while (i < 64) {
+                vector::push_back(&mut sig_64, *vector::borrow(&sig_bytes, i));
+                i = i + 1;
+            };
+
+            let v = *vector::borrow(&sig_bytes, 64);
+            let recovery_id = if (v >= 27) { v - 27 } else { v };
+
+            // Recover and verify Secp256k1 public key
+            let ecdsa_sig = secp256k1::ecdsa_signature_from_bytes(sig_64);
+            let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
+            assert!(option::is_some(&recovered_key), ERROR_INVALID_SIGNATURE);
+
+            let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
+            assert!(&pubkey_bytes == &secp256k1_pub_key, ERROR_INVALID_SIGNATURE);
 
             handle_main_event(
                 signer,

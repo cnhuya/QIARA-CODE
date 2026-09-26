@@ -11,7 +11,7 @@ module dev::QiaraValidatorsV82{
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV22::{Self as storage};
-    use dev::QiaraTokensQiaraV75::{Self as TokensQiara};
+    use dev::QiaraTokensQiaraV75::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensCoreV75::{Self as TokensCore, Access as TokensCoreAccess};
 
     use dev::QiaraOracleV15::{Self as Oracle, Access as OracleAccess};
@@ -75,6 +75,7 @@ module dev::QiaraValidatorsV82{
         margin: MarginAccess,
         tokens_core: TokensCoreAccess,
         oracle: OracleAccess, // 👈 Added
+        tokens_qiara: TokensQiaraAccess,
     }
 
     struct Stakers has key, store {
@@ -102,7 +103,7 @@ module dev::QiaraValidatorsV82{
             move_to(admin, Stakers { table: table::new<String, String>() });
         };
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { oracle: Oracle::give_access(admin), shared: Shared::give_access(admin), margin: Margin::give_access(admin), tokens_core: TokensCore::give_access(admin)});
+            move_to(admin, Permissions { tokens_qiara: TokensQiara::give_access(admin), oracle: Oracle::give_access(admin), shared: Shared::give_access(admin), margin: Margin::give_access(admin), tokens_core: TokensCore::give_access(admin)});
         };
     }
 
@@ -420,12 +421,19 @@ fun reg_validator(
         };
 
        // Update active list if epoch progressed
+      // Update active list if epoch progressed
         if (Genesis::return_epoch() > (active_validators.epoch as u256)) {
             let vect = vector::empty<String>();
+            let active_keys = vector::empty<vector<u8>>(); // 👈 1. Declare vector
             let len = vector::length(pending_validators);
             while(len > 0){
                 let xv = vector::borrow(pending_validators, len-1);
                 vector::push_back(&mut vect, *xv);
+
+                // 👈 2. Collect 64B public key for each active validator
+                let val_struct = map::borrow(validators, xv);
+                vector::push_back(&mut active_keys, *&val_struct.pub_key);
+
                 len = len - 1;
             };
             active_validators.list = vect;
@@ -434,7 +442,7 @@ fun reg_validator(
             // ⚡ Automatically sync the new active validators to Oracle!
             let permissions = borrow_global<Permissions>(@dev);
             Oracle::sync_active_validators(vect, &Oracle::give_permission(&permissions.oracle));
-            TokensQiara::sync_validator_keys(active_keys, &TokensQiara::give_permission(&permissions.tokens_qiara)); // 👈 2. Call 
+            TokensQiara::sync_validator_keys(active_keys, &TokensQiara::give_permission(&permissions.tokens_qiara)); // 👈 3. Call with populated keys
         };
     }
 
