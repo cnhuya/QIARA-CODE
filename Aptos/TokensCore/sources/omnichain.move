@@ -182,12 +182,6 @@ module dev::QiaraTokensOmnichainV75 {
         };
     }
 
-    public entry fun dev_init_qiara_outflows(admin: &signer) acquires AddressCounter, AddressDatabase {
-        assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
-        if (!exists<UserQiaraCrosschainBook>(@dev)) {
-            move_to(admin, UserQiaraCrosschainBook { outflows: table::new() });
-        };
-    }
 
     #[view]
     public fun return_qiara_outflow_page(page_number: u64): Map<vector<u8>, Map<String, u256>> acquires UserQiaraCrosschainBook {
