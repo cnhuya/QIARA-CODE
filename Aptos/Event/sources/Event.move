@@ -6,7 +6,7 @@ module event::QiaraEventV1 {
     use std::timestamp;
     use std::hash;
     use aptos_framework::event;
-
+    use aptos_std::aptos_hash;
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
@@ -159,6 +159,35 @@ module event::QiaraEventV1 {
         vector::append(&mut raw, x"0000000000000000000000000000000000000000000000000000000000000012");
        // vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
         hash::sha2_256(raw)
+    }
+
+    /// Overload for vector<vector<u8>> (used in zk_mint)
+/// Overload for vector<vector<u8>> (used in zk_mint)
+    public fun create_nullifier_from_signals(pub_signals: &vector<vector<u8>>): vector<u8> {
+        let raw = vector::empty<u8>();
+        let len = vector::length(pub_signals);
+        let i = 0;
+
+        while (i < len) {
+            vector::append(&mut raw, *vector::borrow(pub_signals, i));
+            i = i + 1;
+        };
+
+        aptos_hash::keccak256(raw)
+    }
+
+    /// Computes the 32B nullifier identifier from public inputs
+    public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
+        let raw = vector::empty<u8>();
+        let len = vector::length(inputs);
+        let i = 0;
+
+        while (i < len) {
+            vector::append(&mut raw, bcs::to_bytes(vector::borrow(inputs, i)));
+            i = i + 1;
+        };
+
+        aptos_hash::keccak256(raw)
     }
 
     public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {

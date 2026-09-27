@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV82 {
+module dev::QiaraBridgeV83 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -21,8 +21,8 @@ use std::option;
     use dev::QiaraTokensOmnichainV75::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV96::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV31::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV82 as Payload;
-    use dev::QiaraValidatorsV82::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV83 as Payload;
+    use dev::QiaraValidatorsV83::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV64::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV64::{Self as Perps, Access as PerpAccess};
 
@@ -181,7 +181,7 @@ use std::option;
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
         let store = borrow_global_mut<EventsStore>(STORAGE);
 
-if (consensus_type == utf8(b"native")) {
+        if (consensus_type == utf8(b"native")) {
             let (_, sig_bytes) = Payload::find_payload_value(utf8(b"signature"), type_names, payload);
             assert!(vector::length(&sig_bytes) == 65, ERROR_INVALID_SIGNATURE);
 
@@ -204,10 +204,10 @@ if (consensus_type == utf8(b"native")) {
             // Recover and verify Secp256k1 public key
             let ecdsa_sig = secp256k1::ecdsa_signature_from_bytes(sig_64);
             let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
-            assert!(option::is_some(&recovered_key), ERROR_INVALID_SIGNATURE);
+            assert!(option::is_some(&recovered_key), 101); // 101 = Malformed signature
 
             let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
-            assert!(&pubkey_bytes == &secp256k1_pub_key, ERROR_INVALID_SIGNATURE);
+            assert!(&pubkey_bytes == &secp256k1_pub_key, 102); // 102 = Key mismatch
 
             handle_main_event(
                 signer,
@@ -307,7 +307,7 @@ if (consensus_type == utf8(b"native")) {
 
     public entry fun register_proof_event(signer: &signer,validator: String,type_names: vector<String>,payload: vector<vector<u8>>,proof: vector<u256>,inputs: vector<u256>,signature: vector<u8>) acquires EventsStore, Permissions {
         Payload::ensure_valid_payload(type_names, payload);
-        let identifier = Event::safe_create_identifier(type_names, payload);
+        let identifier = Event::create_nullifier_identifier(&inputs);
 
         let store = borrow_global_mut<EventsStore>(STORAGE);
         let exists_entry = table::contains(&store.proof, identifier);
@@ -322,10 +322,28 @@ if (consensus_type == utf8(b"native")) {
         let vote_weight = (vote_weight_raw as u128);
         assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
 
+assert!(vector::length(&signature) == 65, 101); // 101 (0x65): Signature is not 65 bytes
 
-        let pubkey_struct = Crypto::new_unvalidated_public_key_from_bytes(secp256k1_pub_key);
-        let sig = Crypto::new_signature_from_bytes(signature);
-        assert!(Crypto::signature_verify_strict(&sig, &pubkey_struct, identifier), ERROR_INVALID_SIGNATURE);
+        let eth_prefix = b"\x19Ethereum Signed Message:\n32";
+        vector::append(&mut eth_prefix, identifier);
+        let eth_signed_hash = keccak256(eth_prefix);
+
+        let sig_64 = vector::empty<u8>();
+        let i = 0;
+        while (i < 64) {
+            vector::push_back(&mut sig_64, *vector::borrow(&signature, i));
+            i = i + 1;
+        };
+
+        let v = *vector::borrow(&signature, 64);
+        let recovery_id = if (v >= 27) { v - 27 } else { v };
+
+        let ecdsa_sig = secp256k1::ecdsa_signature_from_bytes(sig_64);
+        let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
+        assert!(option::is_some(&recovered_key), 102); // 102 (0x66): ecdsa_recover failed
+
+        let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
+        assert!(&pubkey_bytes == &secp256k1_pub_key, 103); // 103 (0x67): Key mismatch
 
         let vote = ProofVote { signature, weight: vote_weight, secp256k1_pub_key };
 
@@ -648,7 +666,7 @@ if (consensus_type == utf8(b"native")) {
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"event_type"), utf8(b"string"), bcs::to_bytes(&event_type)),
                 Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u128"), bcs::to_bytes(&vote_weight)),
-                Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+                Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),    
                 Event::create_data_struct(utf8(b"type_names"), utf8(b"vector<String>"), bcs::to_bytes(&type_names)),
                 Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
             ]);

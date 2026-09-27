@@ -16,7 +16,7 @@ module dev::Groth16VerifierV75 {
         let proof_b = ca::deserialize<G2, FormatG2Compr>(&slice(proof_bytes, 32, 96));
         let proof_c = ca::deserialize<G1, FormatG1Compr>(&slice(proof_bytes, 96, 128));
 
-        // 2. Unpack VK (392B)
+        // 2. Unpack VK Core (224B)
         let vk_alpha = ca::deserialize<G1, FormatG1Compr>(&slice(vk_bytes, 0, 32));
         let vk_beta  = ca::deserialize<G2, FormatG2Compr>(&slice(vk_bytes, 32, 96));
         let vk_gamma = ca::deserialize<G2, FormatG2Compr>(&slice(vk_bytes, 96, 160));
@@ -37,16 +37,18 @@ module dev::Groth16VerifierV75 {
         let v_g = option::extract(&mut vk_gamma);
         let v_d = option::extract(&mut vk_delta);
 
-        // 3. Unpack gamma_abc and build MSM: IC[0] + sum(IC[i+1] * pub_inputs[i])
+        // 3. Dynamically unpack gamma_abc IC points (offset 232 onwards)
         let ic_points = vector::empty<Element<G1>>();
         let offset = 232;
-        while (offset < 392) {
+        let vk_len = vector::length(vk_bytes);
+        while (offset + 32 <= vk_len) {
             let pt = ca::deserialize<G1, FormatG1Compr>(&slice(vk_bytes, offset, offset + 32));
             assert!(option::is_some(&pt), ERROR_DESERIALIZE);
             vector::push_back(&mut ic_points, option::extract(&mut pt));
             offset = offset + 32;
         };
 
+        // 4. Unpack public inputs into scalars: [1, in_0, in_1, ...]
         let scalars = vector[ca::from_u64<Fr>(1)];
         let i = 0;
         let num_inputs = vector::length(pub_inputs);
@@ -57,9 +59,11 @@ module dev::Groth16VerifierV75 {
             i = i + 1;
         };
 
+        assert!(vector::length(&ic_points) == vector::length(&scalars), ERROR_DESERIALIZE);
+
         let vk_x = ca::multi_scalar_mul(&ic_points, &scalars);
 
-        // 4. Pairings: e(A, B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
+        // 5. Pairings: e(A, B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
         let left = ca::pairing<G1, G2, Gt>(&p_a, &p_b);
 
         let right = ca::zero<Gt>();

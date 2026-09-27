@@ -24,7 +24,7 @@ module dev::QiaraTokensQiaraV75 {
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
-    const CHAIN_ID_APTOS: u64 = 1;
+    const CHAIN_ID_APTOS: u64 = 2;
 
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
@@ -182,8 +182,8 @@ module dev::QiaraTokensQiaraV75 {
 
     fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
         let num_sigs = vector::length(signatures);
-        let min_validators = storage::expect_u64(storage::viewConstant(utf8(b"QiaraValidators"), utf8(b"MINIMUM_UNIQUE_VALIDATORS")));
-        assert!(num_sigs >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
+        let min_validators = storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS")));
+                assert!((num_sigs as u8) >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
 
         let eth_prefix = b"\x19Ethereum Signed Message:\n32";
         vector::append(&mut eth_prefix, *msg_hash);
