@@ -9,8 +9,8 @@ module dev::QiaraPayloadV83
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV75::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV75::{Self as TokenTypes};
+    use dev::QiaraChainTypesV76::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV76::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};

@@ -30,9 +30,9 @@ module dev::QiaraTokensCoreV75{
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStoragesV75::{Self as Storages};
 
-    use dev::QiaraChainTypesV75::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV75::{Self as TokensType};
-    use dev::QiaraProviderTypesV75::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV76::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV76::{Self as TokensType};
+    use dev::QiaraProviderTypesV76::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
