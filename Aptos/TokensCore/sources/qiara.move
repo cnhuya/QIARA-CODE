@@ -143,7 +143,7 @@ module dev::QiaraTokensQiaraV75 {
         assert!(Groth16Verifier::verify(&state.vk, &proof, &pub_signals), ERROR_INVALID_PROOF);
 
         let packed_bytes = *vector::borrow(&pub_signals, 4);
-        let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8));
+        let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8))*1_000_000_000;
         let chain_id = (bcs_to_u32_le(&slice(&packed_bytes, 8, 12)) as u64);
         let nonce = (bcs_to_u32_le(&slice(&packed_bytes, 12, 16)) as u64);
 
