@@ -1,4 +1,4 @@
-module dev::Groth16VerifierV75 {
+module dev::Groth16VerifierV76 {
     use std::vector;
     use std::option;
     use aptos_std::crypto_algebra::{Self as ca, Element};
