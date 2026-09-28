@@ -16,9 +16,9 @@ use std::option;
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV22 as storage;
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV76::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV76::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV76::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV77::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV77::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV77::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV97::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV32::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV84 as Payload;
@@ -322,7 +322,7 @@ use std::option;
         let vote_weight = (vote_weight_raw as u128);
         assert!(vote_weight > 0, ERROR_INVALID_VOTING_POWER);
 
-assert!(vector::length(&signature) == 65, 101); // 101 (0x65): Signature is not 65 bytes
+        assert!(vector::length(&signature) == 65, 101); // 101 (0x65): Signature is not 65 bytes
 
         let eth_prefix = b"\x19Ethereum Signed Message:\n32";
         vector::append(&mut eth_prefix, identifier);
@@ -545,8 +545,8 @@ assert!(vector::length(&signature) == 65, 101); // 101 (0x65): Signature is not 
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
                 let (shared, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
-                Validators::acrue_modularity_fee(shared, user);
-                TokensQiara::p_request_qiara_bridge(signer, shared, user, chain, amount, user, TokensQiara::give_permission(&cap.qiara));
+                //Validators::acrue_modularity_fee(shared, user);
+                TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, user, TokensQiara::give_permission(&cap.qiara));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);

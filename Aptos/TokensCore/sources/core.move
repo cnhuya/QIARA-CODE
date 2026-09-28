@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV76{
+module dev::QiaraTokensCoreV77{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,20 +19,20 @@ module dev::QiaraTokensCoreV76{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV76::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV76::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV76::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV76::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV77::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV77::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV77::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV77::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV76::{Self as Storages};
+    use dev::QiaraStoragesV77::{Self as Storages};
 
-    use dev::QiaraChainTypesV76::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV76::{Self as TokensType};
-    use dev::QiaraProviderTypesV76::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV77::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV77::{Self as TokensType};
+    use dev::QiaraProviderTypesV77::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -275,12 +275,12 @@ module dev::QiaraTokensCoreV76{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV76"),
+            string::utf8(b"QiaraTokensCoreV77"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV76"),
+            string::utf8(b"QiaraTokensCoreV77"),
             string::utf8(b"c_withdraw"),
         );
    

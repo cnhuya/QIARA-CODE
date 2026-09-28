@@ -14,16 +14,16 @@ module dev::QiaraLiquidityV94 {
     use aptos_framework::account;
     use aptos_framework::from_bcs;
 
-    use dev::QiaraTokensMetadataV76::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV76::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV76::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV77::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV77::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV77::{Self as TokensTiers};
 
-    use dev::QiaraMarginV76::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV76::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV76::{Self as BurnedQiara};
+    use dev::QiaraMarginV77::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV77::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV77::{Self as BurnedQiara};
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraChainTypesV76::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV76::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV77::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV77::{Self as ProviderTypes};
     use dev::QiaraGenesisV4::{Self as Genesis};
 
 // === ERRORS === //

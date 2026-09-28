@@ -1,4 +1,4 @@
-module dev::QiaraTokenTypesV76 {
+module dev::QiaraTokenTypesV77 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -6,7 +6,7 @@ module dev::QiaraTokenTypesV76 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraNonceV4::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraChainTypesV76::{Self as ChainTypes};
+    use dev::QiaraChainTypesV77::{Self as ChainTypes};
 
     const TOKEN_PREFIX: vector<u8> = b"Qiara150 ";
 
@@ -52,10 +52,10 @@ module dev::QiaraTokenTypesV76 {
         register_token_with_chains(signer, utf8(b"Qiara150 Qiara"), utf8(b"Qiara"), 
             vector[
                 utf8(b"0x8C9621E38f74c59b0B784894f12C0CD5bE8a2f02"), //sui
-                utf8(b"0x72F726F722436b95a691cC438183e67632eBFF76"), // robinhood
-                utf8(b"0x3dcF78b52CDA82A6A4C853f6C284c54C5E15750F"),
-                utf8(b"0x913Ef77512293ce02B3EffC7347210B16d3bA017"),
-                utf8(b"0xACD0AE2fDAaFAB9bAF55e383edF5fcf21071046F"), //eth
+                utf8(b"0xe0472CDcD4f0f464b8aCF01F3Cd5EDe77A48d9a5"), // robinhood
+                utf8(b"0xF8EF8D134A8ef6480B54552cFBcCdDfAd6D75AB0"), // base
+                utf8(b"0x9C6A18Ab1227629c8cE87289DBD85b1a00EE774A"), // monad
+                utf8(b"0x1ddb512386D8325402C2303592583fFc6Aa6AF64"), //eth
                 utf8(b"0xf708ff4e10c59449c00615cb9f7a98a92fc305dba0c34638e5bbf208af91b5fc"), // aptos
                 utf8(b"0x0") // solana
             ], 

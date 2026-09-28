@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV76 {
+module dev::QiaraTokensQiaraV77 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -16,11 +16,11 @@ module dev::QiaraTokensQiaraV76 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV76 as TokensType;
+    use dev::QiaraTokenTypesV77 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraSharedV17::{Self as Shared};
-    use dev::QiaraTokensOmnichainV76::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV76 as Groth16Verifier;
+    use dev::QiaraTokensOmnichainV77::{Self as TokensOmnichain};
+    use dev::Groth16VerifierV77 as Groth16Verifier;
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
@@ -166,7 +166,7 @@ module dev::QiaraTokensQiaraV76 {
         Event::emit_qiara_burn_event(event_data);
     }
 
-    public entry fun request_bridge(user: &signer, shared: String, chain: String, amount: u64, receiver: vector<u8>,) acquires AssetRefs {
+    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>,) acquires AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
         let refs = borrow_global<AssetRefs>(ADMIN);
@@ -180,7 +180,6 @@ module dev::QiaraTokensQiaraV76 {
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user_addr)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
@@ -191,8 +190,8 @@ module dev::QiaraTokensQiaraV76 {
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
 
-    public fun p_request_qiara_bridge(_validator: &signer,shared: String,user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
-        Shared::assert_is_sub_owner(shared, user);
+    public fun p_request_qiara_bridge(_validator: &signer, user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
+        //Shared::assert_is_sub_owner(shared, user);
 
         let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
@@ -201,7 +200,7 @@ module dev::QiaraTokensQiaraV76 {
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            //Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
             Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),

@@ -7,11 +7,11 @@ module dev::QiaraPerpsV65 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV76::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV76::{Self as RI};
-    use dev::QiaraRanksV76::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV77::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV77::{Self as RI};
+    use dev::QiaraRanksV77::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV76::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV77::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
@@ -23,8 +23,8 @@ module dev::QiaraPerpsV65 {
     use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraCapabilitiesV22::{Self as capabilities};
 
-    use dev::QiaraChainTypesV76::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV76::{Self as TokensTypes};
+    use dev::QiaraChainTypesV77::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV77::{Self as TokensTypes};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
