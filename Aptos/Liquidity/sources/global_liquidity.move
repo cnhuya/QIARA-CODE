@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV94 {
+module dev::QiaraLiquidityV95 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
