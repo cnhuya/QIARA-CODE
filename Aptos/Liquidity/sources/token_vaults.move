@@ -1,4 +1,4 @@
-module dev::QiaraTokenVaultsV93{
+module dev::QiaraTokenVaultsV94{
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -18,8 +18,8 @@ module dev::QiaraTokenVaultsV93{
     use dev::QiaraTokensCoreV76::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensTiersV76::{Self as TokensTiers};
 
-    use dev::QiaraMarginV75::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV75::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV76::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV76::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV17::{Self as Shared};
     

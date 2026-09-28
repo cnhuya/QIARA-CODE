@@ -124,30 +124,6 @@ module dev::QiaraTokensQiaraV76 {
 
 
 
-    public entry fun request_bridge(user: &signer, shared: String, destination_chain: String, amount: u64, receiver: vector<u8>,) acquires AssetRefs {
-        assert!(amount > 0, ERROR_ZERO_AMOUNT);
-        let user_addr = signer::address_of(user);
-        let refs = borrow_global<AssetRefs>(ADMIN);
-        primary_fungible_store::burn(&refs.burn_ref, user_addr, amount);
-
-
-        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
-        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
-        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user_addr)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&destination_chain)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-        ];
-        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
-    }
 
     public entry fun zk_mint(proof: vector<u8>,pub_signals: vector<vector<u8>>,signatures: vector<vector<u8>>) acquires BridgeState, AssetRefs {
         let state = borrow_global_mut<BridgeState>(ADMIN);
@@ -190,6 +166,53 @@ module dev::QiaraTokensQiaraV76 {
         Event::emit_qiara_burn_event(event_data);
     }
 
+    public entry fun request_bridge(user: &signer, shared: String, chain: String, amount: u64, receiver: vector<u8>,) acquires AssetRefs {
+        assert!(amount > 0, ERROR_ZERO_AMOUNT);
+        let user_addr = signer::address_of(user);
+        let refs = borrow_global<AssetRefs>(ADMIN);
+        primary_fungible_store::burn(&refs.burn_ref, user_addr, amount);
+
+
+        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
+        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
+        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user_addr)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
+            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+        ];
+        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
+    }
+
+    public fun p_request_qiara_bridge(_validator: &signer,shared: String,user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
+        Shared::assert_is_sub_owner(shared, user);
+
+        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
+        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
+        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
+            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
+            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+        ];
+        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
+    }
+
+
     // === SIGNATURE VERIFICATION === //
 
     fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
@@ -218,27 +241,6 @@ module dev::QiaraTokensQiaraV76 {
             assert!(vector::contains(validator_pubkeys, &pubkey_bytes), ERROR_INVALID_SIGNATURES);
             i = i + 1;
         };
-    }
-
-    public fun p_request_qiara_bridge(_validator: &signer,shared: String,user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
-        Shared::assert_is_sub_owner(shared, user);
-
-        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
-        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
-        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-        ];
-        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
 
     // === OPTIMIZED VIEW & HELPER FUNCTIONS === //
