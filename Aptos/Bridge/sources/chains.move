@@ -21,8 +21,8 @@ use std::option;
     use dev::QiaraTokensOmnichainV78::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV98::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV33::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV84 as Payload;
-    use dev::QiaraValidatorsV84::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV85 as Payload;
+    use dev::QiaraValidatorsV85::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV66::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV66::{Self as Perps, Access as PerpAccess};
 
