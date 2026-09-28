@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV77 {
+module dev::QiaraTokensQiaraV78 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -16,11 +16,11 @@ module dev::QiaraTokensQiaraV77 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV77 as TokensType;
+    use dev::QiaraTokenTypesV78 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraSharedV17::{Self as Shared};
-    use dev::QiaraTokensOmnichainV77::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV77 as Groth16Verifier;
+    use dev::QiaraTokensOmnichainV78::{Self as TokensOmnichain};
+    use dev::Groth16VerifierV78 as Groth16Verifier;
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;

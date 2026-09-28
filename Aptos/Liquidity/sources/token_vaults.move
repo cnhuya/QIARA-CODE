@@ -14,12 +14,12 @@ module dev::QiaraTokenVaultsV94{
     use aptos_framework::account;
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraTokensMetadataV77::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV77::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV77::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV78::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV78::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV78::{Self as TokensTiers};
 
-    use dev::QiaraMarginV77::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV77::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV78::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV78::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV17::{Self as Shared};
     
