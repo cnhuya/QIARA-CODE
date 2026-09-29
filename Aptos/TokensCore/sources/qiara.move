@@ -215,7 +215,7 @@ module dev::QiaraTokensQiaraV80 {
         Event::emit_qiara_burn_event(event_data);
     }
 
-    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires AssetRefs {
+    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires BridgeState ,AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
         let refs = borrow_global<AssetRefs>(ADMIN);
