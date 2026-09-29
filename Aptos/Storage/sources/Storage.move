@@ -533,6 +533,21 @@ module dev::QiaraStorageV22 {
     public fun expect_bytes(data: vector<u8>): vector<u8> {
         from_bcs::to_bytes(data)
     }
+#[view]
+public fun expect_address_padded(data: vector<u8>): address {
+    let bytes = from_bcs::to_bytes(data);          // strip BCS length prefix
+    let len = vector::length(&bytes);
+    assert!(len <= 32, ERROR_INVALID_ADDRESS_LENGTH);
+
+    let padded = vector::empty<u8>();
+    let i = len;
+    while (i < 32) {
+        vector::push_back(&mut padded, 0);
+        i = i + 1;
+    };
+    vector::append(&mut padded, bytes);            // zeros first, then the bytes
+    from_bcs::to_address(padded)
+}
  #[view]
     public fun expect_string(data: vector<u8>): string::String {
         from_bcs::to_string(data)
