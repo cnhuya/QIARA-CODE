@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV85 {
+module dev::QiaraBridgeV87 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -21,8 +21,8 @@ use std::option;
     use dev::QiaraTokensOmnichainV78::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV98::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV33::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV85 as Payload;
-    use dev::QiaraValidatorsV85::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPayloadV87 as Payload;
+    use dev::QiaraValidatorsV87::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV66::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV66::{Self as Perps, Access as PerpAccess};
 
@@ -544,9 +544,9 @@ use std::option;
                 Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
-                let (shared, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
+                let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
                 //Validators::acrue_modularity_fee(shared, user);
-                TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, user, TokensQiara::give_permission(&cap.qiara));
+                TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, recepient, TokensQiara::give_permission(&cap.qiara));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);

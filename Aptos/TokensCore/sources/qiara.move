@@ -149,9 +149,14 @@ module dev::QiaraTokensQiaraV78 {
         table::add(&mut state.used_nullifiers, nullifier, true);
 
         verify_signatures(&nullifier, &signatures, &state.validator_keys);
+        let hi_chunk = slice(vector::borrow(&pub_signals, 3), 0, 16);
+        vector::reverse(&mut hi_chunk);
 
-        let addr_bytes = slice(vector::borrow(&pub_signals, 3), 0, 16);
-        vector::append(&mut addr_bytes, slice(vector::borrow(&pub_signals, 2), 0, 16));
+        let lo_chunk = slice(vector::borrow(&pub_signals, 2), 0, 16);
+        vector::reverse(&mut lo_chunk);
+
+        let addr_bytes = hi_chunk;
+        vector::append(&mut addr_bytes, lo_chunk);
         let recipient = from_bcs::to_address(addr_bytes);
 
         let refs = borrow_global<AssetRefs>(ADMIN);

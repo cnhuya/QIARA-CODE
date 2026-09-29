@@ -177,13 +177,15 @@ module event::QiaraEventV1 {
     }
 
     /// Computes the 32B nullifier identifier from public inputs
-    public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
+public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
         let raw = vector::empty<u8>();
         let len = vector::length(inputs);
         let i = 0;
 
         while (i < len) {
-            vector::append(&mut raw, bcs::to_bytes(vector::borrow(inputs, i)));
+            let b = bcs::to_bytes(vector::borrow(inputs, i));
+            vector::reverse(&mut b); // Reverse to Big-Endian
+            vector::append(&mut raw, b);
             i = i + 1;
         };
 

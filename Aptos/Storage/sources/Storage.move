@@ -255,9 +255,25 @@ module dev::QiaraStorageV22 {
 
        // register_constant<u64>(admin, utf8(b"QiaraMarket"), utf8(b"STAKE_FEE_PER_EPOCH"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.0025%
 
+
     public entry fun more5(admin: &signer)  acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-        register_constant<u64>(admin, utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE"), 100_000, true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"BASE_BRIDGE_TAX_FEE_RECEIVER"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"MONAD_BRIDGE_TAX_FEE_RECEIVER"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"APTOS_BRIDGE_TAX_FEE_RECEIVER"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"SUI_BRIDGE_TAX_FEE_RECEIVER"), x"a58fa2a3a4c292205292139e5d71771517a61ced2643b14fe8882264622f07b5", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"SOLANA_BRIDGE_TAX_FEE_RECEIVER"), x"b1734bbef4c28beb5d08c73b2c39f56efdb217382de02b9637d981a589d5e7e0", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"ETHEREUM_BRIDGE_TAX_FEE_RECEIVER"),x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"ROBINHOOD_BRIDGE_TAX_FEE_RECEIVER"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"BASE_WHITELIST_ADMIN"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"MONAD_WHITELIST_ADMIN"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"APTOS_WHITELIST_ADMIN"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"SUI_WHITELIST_ADMIN"), x"a58fa2a3a4c292205292139e5d71771517a61ced2643b14fe8882264622f07b5", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"SOLANA_WHITELIST_ADMIN"), x"b1734bbef4c28beb5d08c73b2c39f56efdb217382de02b9637d981a589d5e7e0", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"ETHEREUM_WHITELIST_ADMIN"),x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+        register_constant<vector<u8>>(admin, utf8(b"QiaraToken"), utf8(b"ROBINHOOD_WHITELIST_ADMIN"), x"92AafAC1636Fd7d7abEDA9297f05724eCBA21193", true, true, &give_permission(&give_access(admin))); // 0,1%
+
     }
 
 
