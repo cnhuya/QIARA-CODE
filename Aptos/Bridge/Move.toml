@@ -22,7 +22,7 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTokensV79]
+    [dependencies.QiaraTokensV80]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
@@ -32,12 +32,12 @@
     rev = 'main'
     subdir = 'Aptos/Governance'
 
-    [dependencies.QiaraTypesV79]
+    [dependencies.QiaraTypesV80]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV79]
+    [dependencies.QiaraMarginV80]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'

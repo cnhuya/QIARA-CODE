@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV79{
+module dev::QiaraTokensMetadataV80{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV79{
     use dev::QiaraStorageV22::{Self as storage};
     use dev::QiaraMathV4::{Self as Math};
 
-    use dev::QiaraTokensTiersV79::{Self as tier};
-    use dev::QiaraTokenTypesV79::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokensTiersV80::{Self as tier};
+    use dev::QiaraTokenTypesV80::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV15::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -821,7 +821,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    // In QiaraTokensMetadataV79::get_coin_metadata_by_symbol:
+                    // In QiaraTokensMetadataV80::get_coin_metadata_by_symbol:
                     let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                     price = (oracle::viewPrice(metadat.symbol) as u64);
                     denom = Math::pow10_u256((price_decimals as u8));

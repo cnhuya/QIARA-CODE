@@ -1,4 +1,4 @@
-module dev::QiaraTokenTypesV79 {
+module dev::QiaraTokenTypesV80 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -6,7 +6,7 @@ module dev::QiaraTokenTypesV79 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraNonceV4::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraChainTypesV79::{Self as ChainTypes};
+    use dev::QiaraChainTypesV80::{Self as ChainTypes};
 
     const TOKEN_PREFIX: vector<u8> = b"Qiara153 ";
 
