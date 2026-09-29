@@ -202,16 +202,7 @@ module dev::QiaraTokensQiaraV79 {
 
         let refs = borrow_global<AssetRefs>(ADMIN);
 
-        let fee_rate = get_bridge_tax_fee();
-        assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
-        let bridge_tax_amount = (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64);
-        let net_amount = amount - bridge_tax_amount;
-
-        if (bridge_tax_amount > 0) {
-            primary_fungible_store::mint(&refs.mint_ref, get_bridge_tax_receiver(), net_amount);
-        };
-
-        primary_fungible_store::mint(&refs.mint_ref, recipient, net_amount);
+        primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
         
 
         let event_data = vector[
@@ -226,9 +217,27 @@ module dev::QiaraTokensQiaraV79 {
     public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
-    let refs = borrow_global<AssetRefs>(ADMIN);
-        // 2. burn only what leaves Aptos
-        primary_fungible_store::burn(&refs.burn_ref, user_addr, amount);
+        let refs = borrow_global<AssetRefs>(ADMIN);
+
+        let fee_rate = get_bridge_tax_fee();
+        assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
+        let bridge_tax_amount = if (FeeExempt::is_fee_exempt(user_addr)) {
+            0
+        } else {
+            (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64)
+        };
+        let net_amount = amount - bridge_tax_amount;
+        assert!(net_amount > 0, ERROR_ZERO_AMOUNT);
+
+        if (bridge_tax_amount > 0) {
+            let metadata = fungible_asset::transfer_ref_metadata(&refs.transfer_ref);
+            let user_store = primary_fungible_store::primary_store(user_addr, metadata);
+            let receiver_store = primary_fungible_store::ensure_primary_store_exists(get_bridge_tax_receiver(), metadata);
+            let fee_fa = fungible_asset::withdraw_with_ref(&refs.transfer_ref, user_store, bridge_tax_amount);
+            fungible_asset::deposit_with_ref(&refs.transfer_ref, receiver_store, fee_fa);
+        };
+
+        primary_fungible_store::burn(&refs.burn_ref, user_addr, net_amount);
 
         let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));

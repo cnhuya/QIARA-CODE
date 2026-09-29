@@ -29,7 +29,7 @@ module dev::QiaraVaultsV99 {
 
     use dev::QiaraTokenTypesV79::{Self as TokensTypes};
     use dev::QiaraChainTypesV79::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV79::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV80::{Self as ProviderTypes};
 
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV22::{Self as capabilities, Access as CapabilitiesAccess};
