@@ -104,9 +104,9 @@ module dev::QiaraTokensQiaraV80 {
         };
     }
 
-    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef,) {
+    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef, transfer_ref: TransferRef) {
         assert!(signer::address_of(admin) == ADMIN, ERROR_NOT_ADMIN);
-        move_to(admin, AssetRefs { mint_ref, burn_ref });
+        move_to(admin, AssetRefs { mint_ref, burn_ref, transfer_ref });
     }
 
     public entry fun set_vk(admin: &signer, vk: vector<u8>) acquires BridgeState {
