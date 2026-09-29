@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV78 {
+module dev::QiaraTokensQiaraV79 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -8,7 +8,7 @@ module dev::QiaraTokensQiaraV78 {
     use aptos_std::table::{Self, Table};
     use aptos_std::secp256k1;
     use aptos_std::aptos_hash::keccak256;
-    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, TransferRef, Metadata};
+    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, Metadata};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_std::from_bcs;
@@ -16,11 +16,11 @@ module dev::QiaraTokensQiaraV78 {
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV78 as TokensType;
+    use dev::QiaraTokenTypesV79 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraSharedV17::{Self as Shared};
-    use dev::QiaraTokensOmnichainV78::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV78 as Groth16Verifier;
+    use dev::QiaraTokensOmnichainV79::{Self as TokensOmnichain};
+    use dev::Groth16VerifierV79 as Groth16Verifier;
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
@@ -48,7 +48,6 @@ module dev::QiaraTokensQiaraV78 {
     struct AssetRefs has key {
         mint_ref: MintRef,
         burn_ref: BurnRef,
-        transfer_ref: TransferRef,
     }
 
     struct BridgeState has key {
@@ -104,9 +103,9 @@ module dev::QiaraTokensQiaraV78 {
         };
     }
 
-    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef, transfer_ref: TransferRef) {
+    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef,) {
         assert!(signer::address_of(admin) == ADMIN, ERROR_NOT_ADMIN);
-        move_to(admin, AssetRefs { mint_ref, burn_ref, transfer_ref });
+        move_to(admin, AssetRefs { mint_ref, burn_ref });
     }
 
     public entry fun set_vk(admin: &signer, vk: vector<u8>) acquires BridgeState {
@@ -202,7 +201,18 @@ module dev::QiaraTokensQiaraV78 {
         let recipient = from_bcs::to_address(addr_bytes);
 
         let refs = borrow_global<AssetRefs>(ADMIN);
-        primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
+
+        let fee_rate = get_bridge_tax_fee();
+        assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
+        let bridge_tax_amount = (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64);
+        let net_amount = amount - bridge_tax_amount;
+
+        if (bridge_tax_amount > 0) {
+            primary_fungible_store::mint(&refs.mint_ref, get_bridge_tax_receiver(), net_amount);
+        };
+
+        primary_fungible_store::mint(&refs.mint_ref, recipient, net_amount);
+        
 
         let event_data = vector[
             Event::create_data_struct(utf8(b"to"), utf8(b"address"), bcs::to_bytes(&recipient)),
@@ -216,24 +226,9 @@ module dev::QiaraTokensQiaraV78 {
     public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
-        let refs = borrow_global<AssetRefs>(ADMIN);
-
-        let fee_rate = get_bridge_tax_fee();
-        assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
-        let bridge_tax_amount = (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64);
-        let net_amount = amount - bridge_tax_amount;
-
-        // 1. move the fee to the receiver (transfer_ref bypasses the frozen flag)
-        if (bridge_tax_amount > 0) {
-            let metadata = fungible_asset::transfer_ref_metadata(&refs.transfer_ref);
-            let user_store = primary_fungible_store::primary_store(user_addr, metadata);
-            let receiver_store = primary_fungible_store::ensure_primary_store_exists(get_bridge_tax_receiver(), metadata);
-            let fee_fa = fungible_asset::withdraw_with_ref(&refs.transfer_ref, user_store, bridge_tax_amount);
-            fungible_asset::deposit_with_ref(&refs.transfer_ref, receiver_store, fee_fa);
-        };
-
+    let refs = borrow_global<AssetRefs>(ADMIN);
         // 2. burn only what leaves Aptos
-        primary_fungible_store::burn(&refs.burn_ref, user_addr, net_amount);
+        primary_fungible_store::burn(&refs.burn_ref, user_addr, amount);
 
         let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));

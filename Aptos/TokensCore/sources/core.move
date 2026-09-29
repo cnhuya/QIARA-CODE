@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV78{
+module dev::QiaraTokensCoreV79{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,20 +19,20 @@ module dev::QiaraTokensCoreV78{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV78::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV78::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV78::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV78::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV79::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV79::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV79::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV79::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV78::{Self as Storages};
+    use dev::QiaraStoragesV79::{Self as Storages};
 
-    use dev::QiaraChainTypesV78::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV78::{Self as TokensType};
-    use dev::QiaraProviderTypesV78::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV79::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV79::{Self as TokensType};
+    use dev::QiaraProviderTypesV79::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -264,9 +264,8 @@ module dev::QiaraTokensCoreV78{
         if (symbol == utf8(b"QIARA")) {
             let qiara_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
             let qiara_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
-            let qiara_transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
             TokensQiara::init_qiara(admin);
-            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref, qiara_transfer_ref );
+            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref );
         };
 
         let metadata_object_signer = object::generate_signer(constructor_ref);
@@ -276,12 +275,12 @@ module dev::QiaraTokensCoreV78{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV78"),
+            string::utf8(b"QiaraTokensCoreV79"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV78"),
+            string::utf8(b"QiaraTokensCoreV79"),
             string::utf8(b"c_withdraw"),
         );
    
