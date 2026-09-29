@@ -69,6 +69,7 @@ module dev::QiaraStorageV22 {
     const ERROR_CONSTANT_ALREADY_EXISTS: u64 = 6;
     const ERROR_INVALID_VALUE_TYPE: u64 = 7;
     const ERROR_VALUE_NOT_IN_VECTOR: u64 = 8;
+    const ERROR_INVALID_ADDRESS_LENGTH: u64 = 9;
 
     fun make_constant(name: String, value: Any, editable: bool, index: u64, isCrossChain: bool): Constant {
         Constant { name, value, editable, index, isCrossChain }

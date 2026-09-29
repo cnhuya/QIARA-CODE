@@ -264,8 +264,9 @@ module dev::QiaraTokensCoreV78{
         if (symbol == utf8(b"QIARA")) {
             let qiara_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
             let qiara_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+            let qiara_transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
             TokensQiara::init_qiara(admin);
-            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref);
+            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref, qiara_transfer_ref );
         };
 
         let metadata_object_signer = object::generate_signer(constructor_ref);
@@ -317,20 +318,27 @@ module dev::QiaraTokensCoreV78{
             //   tttta(101);
         fungible_asset::deposit_with_ref(&managed.transfer_ref, store, fa);
     }
-    fun internal_withdraw<T: key>(shared: String, store: Object<T>,amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset  {
+
+    fun internal_withdraw<T: key>(shared: String, store: Object<T>, amount: u64, chain: String, managed: &ManagedFungibleAsset): FungibleAsset {
         ChainTypes::ensure_valid_chain_name(chain);
         fungible_asset::set_frozen_flag(&managed.transfer_ref, store, true);
-        if(fungible_asset::name(fungible_asset::store_metadata(store)) == utf8(b"Qiara")){
+
+        let owner_addr = object::owner(store);
+        let is_qiara = fungible_asset::name(fungible_asset::store_metadata(store)) == utf8(b"Qiara");
+
+        if (is_qiara && !TokensQiara::is_fee_exempt(owner_addr)) {
             let fee = TokensQiara::burn_calculation(amount);
-            if(fee >= amount){
-                amount = 0;
-                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));                      } else {
-                amount = amount - fee;
-                fungible_asset::burn(&managed.burn_ref, fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee));            };
-            return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
+            if (fee > amount) { fee = amount };   // never burn more than requested
+            if (fee > 0) {
+                fungible_asset::burn(
+                    &managed.burn_ref,
+                    fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, fee)
+                );
+            };
+            amount = amount - fee;
         };
 
-        return fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
+        fungible_asset::withdraw_with_ref(&managed.transfer_ref, store, amount)
     }
 
     fun internal_mint(symbol: String, chain: String, amount: u64, managed: &ManagedFungibleAsset): FungibleAsset acquires Permissions {

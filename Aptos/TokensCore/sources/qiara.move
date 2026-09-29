@@ -8,7 +8,7 @@ module dev::QiaraTokensQiaraV78 {
     use aptos_std::table::{Self, Table};
     use aptos_std::secp256k1;
     use aptos_std::aptos_hash::keccak256;
-    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, Metadata};
+    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, TransferRef, Metadata};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_std::from_bcs;
@@ -34,6 +34,8 @@ module dev::QiaraTokensQiaraV78 {
     const ERROR_INSUFFICIENT_VALIDATORS: u64 = 6;
     const ERROR_WRONG_CHAIN: u64 = 7;
     const ERROR_ZERO_AMOUNT: u64 = 8;
+    const ERROR_UNAUTHORIZED_WHITELIST_ADMIN: u64 = 9;
+    const ERROR_INVALID_FEE: u64 = 10;
 
     struct Access has store, key, drop {}
     struct Permission has copy, key, drop {}
@@ -46,12 +48,14 @@ module dev::QiaraTokensQiaraV78 {
     struct AssetRefs has key {
         mint_ref: MintRef,
         burn_ref: BurnRef,
+        transfer_ref: TransferRef,
     }
 
     struct BridgeState has key {
         used_nullifiers: Table<vector<u8>, bool>,
         vk: vector<u8>,
         validator_keys: vector<vector<u8>>,
+        fee_exempt: vector<address>,
     }
 
     struct QiaraData has copy, drop {
@@ -95,13 +99,14 @@ module dev::QiaraTokensQiaraV78 {
                 used_nullifiers: table::new(),
                 vk: vector::empty(),
                 validator_keys: vector::empty(),
+                fee_exempt: vector::empty(),
             });
         };
     }
 
-    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef) {
+    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef, transfer_ref: TransferRef) {
         assert!(signer::address_of(admin) == ADMIN, ERROR_NOT_ADMIN);
-        move_to(admin, AssetRefs { mint_ref, burn_ref });
+        move_to(admin, AssetRefs { mint_ref, burn_ref, transfer_ref });
     }
 
     public entry fun set_vk(admin: &signer, vk: vector<u8>) acquires BridgeState {
@@ -120,6 +125,43 @@ module dev::QiaraTokensQiaraV78 {
         borrow_global_mut<Timers>(ADMIN).last_claimed = timestamp::now_seconds();
     }
 
+    public entry fun set_fee_exempt(caller: &signer, account: address, exempt: bool) acquires BridgeState {
+        let caller_addr = signer::address_of(caller);
+        let state = borrow_global_mut<BridgeState>(ADMIN);
+
+        assert!(caller_addr == get_whitelist_admin(), ERROR_UNAUTHORIZED_WHITELIST_ADMIN);
+
+        let (found, idx) = vector::index_of(&state.fee_exempt, &account);
+
+        if (exempt && !found) {
+            vector::push_back(&mut state.fee_exempt, account);
+        } else if (!exempt && found) {
+            vector::swap_remove(&mut state.fee_exempt, idx);
+        };
+
+    }
+
+    public fun get_bridge_tax_receiver(): address{
+        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_BRIDGE_TAX_FEE_RECEIVER")))
+    }
+
+    public fun get_whitelist_admin(): address{
+        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_WHITELIST_ADMIN")))
+    }
+
+    public fun get_bridge_tax_fee(): u64{
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE")))
+    }
+
+    #[view]
+    public fun is_fee_exempt(account: address): bool acquires BridgeState {
+        vector::contains(&borrow_global<BridgeState>(ADMIN).fee_exempt, &account)
+    }
+
+    #[view]
+    public fun get_exempt_accounts(): vector<address> acquires BridgeState {
+        borrow_global<BridgeState>(ADMIN).fee_exempt
+    }
     // === BRIDGE & ZK FUNCTIONS === //
 
 
@@ -171,12 +213,27 @@ module dev::QiaraTokensQiaraV78 {
         Event::emit_qiara_burn_event(event_data);
     }
 
-    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>,) acquires AssetRefs {
+    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
         let refs = borrow_global<AssetRefs>(ADMIN);
-        primary_fungible_store::burn(&refs.burn_ref, user_addr, amount);
 
+        let fee_rate = get_bridge_tax_fee();
+        assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
+        let bridge_tax_amount = (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64);
+        let net_amount = amount - bridge_tax_amount;
+
+        // 1. move the fee to the receiver (transfer_ref bypasses the frozen flag)
+        if (bridge_tax_amount > 0) {
+            let metadata = fungible_asset::transfer_ref_metadata(&refs.transfer_ref);
+            let user_store = primary_fungible_store::primary_store(user_addr, metadata);
+            let receiver_store = primary_fungible_store::ensure_primary_store_exists(get_bridge_tax_receiver(), metadata);
+            let fee_fa = fungible_asset::withdraw_with_ref(&refs.transfer_ref, user_store, bridge_tax_amount);
+            fungible_asset::deposit_with_ref(&refs.transfer_ref, receiver_store, fee_fa);
+        };
+
+        // 2. burn only what leaves Aptos
+        primary_fungible_store::burn(&refs.burn_ref, user_addr, net_amount);
 
         let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
