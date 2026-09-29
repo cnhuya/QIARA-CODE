@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraBridgeV87"
+    name = "QiaraBridgeV88"
     version = "2.1.1"
     authors = []
 
@@ -27,7 +27,7 @@
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraGovernanceV33]
+    [dependencies.QiaraGovernanceV34]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Governance'
@@ -62,7 +62,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraPerpsV66]
+    [dependencies.QiaraPerpsV67]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Perpetuals'

@@ -247,6 +247,7 @@ module dev::QiaraTokensQiaraV79 {
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
 
+    //acts just as handler / messanger for consensus
     public fun p_request_qiara_bridge(_validator: &signer, user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
         //Shared::assert_is_sub_owner(shared, user);
 
