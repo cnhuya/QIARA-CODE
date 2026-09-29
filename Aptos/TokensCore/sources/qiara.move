@@ -8,7 +8,7 @@ module dev::QiaraTokensQiaraV80 {
     use aptos_std::table::{Self, Table};
     use aptos_std::secp256k1;
     use aptos_std::aptos_hash::keccak256;
-    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, Metadata};
+    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, TransferRef, Metadata};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_std::from_bcs;
@@ -48,6 +48,7 @@ module dev::QiaraTokensQiaraV80 {
     struct AssetRefs has key {
         mint_ref: MintRef,
         burn_ref: BurnRef,
+        transfer_ref: TransferRef,
     }
 
     struct BridgeState has key {
@@ -221,7 +222,7 @@ module dev::QiaraTokensQiaraV80 {
 
         let fee_rate = get_bridge_tax_fee();
         assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
-        let bridge_tax_amount = if (FeeExempt::is_fee_exempt(user_addr)) {
+        let bridge_tax_amount = if (is_fee_exempt(user_addr)) {
             0
         } else {
             (((amount as u128) * (fee_rate as u128) / 100_000_000) as u64)

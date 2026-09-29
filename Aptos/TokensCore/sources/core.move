@@ -264,8 +264,9 @@ module dev::QiaraTokensCoreV80{
         if (symbol == utf8(b"QIARA")) {
             let qiara_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
             let qiara_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+            let transfer_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
             TokensQiara::init_qiara(admin);
-            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref );
+            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref, transfer_burn_ref );
         };
 
         let metadata_object_signer = object::generate_signer(constructor_ref);
