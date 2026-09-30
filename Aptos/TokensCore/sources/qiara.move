@@ -173,19 +173,23 @@ module dev::QiaraTokensQiaraV80 {
         assert!(Groth16Verifier::verify(&state.vk, &proof, &pub_signals), ERROR_INVALID_PROOF);
 
         let packed_bytes = *vector::borrow(&pub_signals, 4);
-        let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8))*1_000_000_000;
+        let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8));
         let chain_id = (bcs_to_u32_le(&slice(&packed_bytes, 8, 12)) as u64);
         let nonce = (bcs_to_u32_le(&slice(&packed_bytes, 12, 16)) as u64);
 
         assert!(chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
 
-        let flat_signals = vector::empty<u8>();
+        assert!(vector::length(&pub_signals) == 5, 105);
+
+        let signals_u256 = vector::empty<u256>();
         let i = 0;
         while (i < 5) {
-            vector::append(&mut flat_signals, *vector::borrow(&pub_signals, i));
+            let s = *vector::borrow(&pub_signals, i);
+            assert!(vector::length(&s) == 32, 104);
+            vector::push_back(&mut signals_u256, from_bcs::to_u256(s));
             i = i + 1;
         };
-        let nullifier = keccak256(flat_signals);
+        let nullifier = Event::create_nullifier_identifier(&signals_u256);
 
         assert!(!table::contains(&state.used_nullifiers, nullifier), ERROR_REPLAY_ATTACK);
         table::add(&mut state.used_nullifiers, nullifier, true);
@@ -251,7 +255,7 @@ module dev::QiaraTokensQiaraV80 {
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&net_amount)),
             Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
         ];
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
@@ -294,7 +298,7 @@ module dev::QiaraTokensQiaraV80 {
         let i = 0;
         while (i < num_sigs) {
             let sig_65 = vector::borrow(signatures, i);
-            assert!(vector::length(sig_65) == 65, ERROR_INVALID_SIGNATURES);
+            assert!(vector::length(sig_65) == 65, 101);
 
             let sig_64 = slice(sig_65, 0, 64);
             let v = *vector::borrow(sig_65, 64);
@@ -302,10 +306,10 @@ module dev::QiaraTokensQiaraV80 {
 
             let ecdsa_sig = secp256k1::ecdsa_signature_from_bytes(sig_64);
             let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
-            assert!(option::is_some(&recovered_key), ERROR_INVALID_SIGNATURES);
+            assert!(option::is_some(&recovered_key), 102);
 
             let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
-            assert!(vector::contains(validator_pubkeys, &pubkey_bytes), ERROR_INVALID_SIGNATURES);
+            assert!(vector::contains(validator_pubkeys, &pubkey_bytes), 103);
             i = i + 1;
         };
     }
