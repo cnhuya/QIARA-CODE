@@ -216,7 +216,7 @@ module dev::QiaraTokensQiaraV80 {
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u64"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"nullifier"), utf8(b"vector<u8>"), nullifier)
         ];
-        Event::emit_qiara_burn_event(event_data);
+        Event::emit_consensus_event(utf8(b"ZK Mint"), event_data);
     }
 
     public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires BridgeState ,AssetRefs {

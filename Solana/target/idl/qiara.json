@@ -1,5 +1,5 @@
 {
-  "address": "14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo",
+  "address": "ECJDpyrsd1VeNbykjH22qAX8fXrKtNwG1ja9rbr9QTrE",
   "metadata": {
     "name": "qiara",
     "version": "0.1.0",
@@ -32,6 +32,10 @@
         {
           "name": "pubkey",
           "type": "bytes"
+        },
+        {
+          "name": "is_active",
+          "type": "bool"
         }
       ]
     },
@@ -49,6 +53,38 @@
       ],
       "accounts": [
         {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
           "name": "validator_state",
           "writable": true
         },
@@ -59,24 +95,23 @@
           "name": "epoch_config"
         },
         {
-          "name": "signer",
-          "signer": true
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "public_inputs",
-          "type": "bytes"
-        },
-        {
-          "name": "proof_points",
-          "type": "bytes"
-        },
-        {
-          "name": "signatures",
+          "name": "message_hash",
           "type": {
-            "vec": "bytes"
+            "array": [
+              "u8",
+              32
+            ]
           }
+        },
+        {
+          "name": "raw_payload",
+          "type": "bytes"
         }
       ]
     },
@@ -118,6 +153,309 @@
       ]
     },
     {
+      "name": "consensus_mint",
+      "discriminator": [
+        94,
+        31,
+        20,
+        199,
+        158,
+        200,
+        191,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nullifier"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_token_account",
+          "writable": true
+        },
+        {
+          "name": "nullifier_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  117,
+                  108,
+                  108,
+                  105,
+                  102,
+                  105,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nullifier"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "validator_state"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "nullifier",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "raw_payload",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "dev_add_tokens",
+      "discriminator": [
+        87,
+        237,
+        49,
+        253,
+        242,
+        187,
+        92,
+        27
+      ],
+      "accounts": [
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "provider_registry"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "tokens",
+          "type": {
+            "vec": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dev_set_token_address",
+      "discriminator": [
+        225,
+        72,
+        93,
+        232,
+        57,
+        192,
+        65,
+        191
+      ],
+      "accounts": [
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "provider_registry"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "token",
+          "type": "string"
+        },
+        {
+          "name": "token_address",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "friend_add_variable",
       "discriminator": [
         219,
@@ -131,6 +469,38 @@
       ],
       "accounts": [
         {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
           "name": "registry",
           "writable": true
         },
@@ -141,24 +511,23 @@
           "name": "epoch_config"
         },
         {
-          "name": "friend",
-          "signer": true
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "public_inputs",
-          "type": "bytes"
-        },
-        {
-          "name": "proof_points",
-          "type": "bytes"
-        },
-        {
-          "name": "signatures",
+          "name": "message_hash",
           "type": {
-            "vec": "bytes"
+            "array": [
+              "u8",
+              32
+            ]
           }
+        },
+        {
+          "name": "raw_payload",
+          "type": "bytes"
         }
       ]
     },
@@ -202,6 +571,66 @@
       ]
     },
     {
+      "name": "initialize_provider_registry",
+      "discriminator": [
+        51,
+        43,
+        80,
+        253,
+        110,
+        4,
+        30,
+        75
+      ],
+      "accounts": [
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "chain",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "initialize_registry",
       "discriminator": [
         189,
@@ -230,6 +659,251 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "initialize_token",
+      "discriminator": [
+        38,
+        209,
+        150,
+        50,
+        190,
+        117,
+        16,
+        54
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "metadata_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "variable_header",
+          "type": "string"
+        },
+        {
+          "name": "chain",
+          "type": "string"
+        },
+        {
+          "name": "chain_id",
+          "type": "u32"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
     },
     {
       "name": "initialize_validator_state",
@@ -286,47 +960,788 @@
       "args": []
     },
     {
-      "name": "verify_balance_proof",
-      "docs": [
-        "CPI TARGET: Verifies balance proof, enforces dynamic validator threshold, and checks signatures"
-      ],
+      "name": "request_bridge",
       "discriminator": [
-        16,
-        107,
-        81,
-        160,
-        246,
-        36,
-        116,
-        231
+        187,
+        180,
+        194,
+        118,
+        66,
+        63,
+        88,
+        83
       ],
       "accounts": [
         {
-          "name": "validator_state"
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "registry"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "fee_recipient_ata",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "public_inputs",
-          "type": "bytes"
+          "name": "shared",
+          "type": "string"
         },
         {
-          "name": "proof_points",
-          "type": "bytes"
+          "name": "destination_chain",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "revoke_dev_access",
+      "discriminator": [
+        141,
+        205,
+        90,
+        150,
+        119,
+        252,
+        16,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "provider_registry"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_chain",
+      "discriminator": [
+        19,
+        9,
+        62,
+        23,
+        42,
+        217,
+        31,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "provider_registry"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "chain",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_fee_exempt",
+      "discriminator": [
+        224,
+        228,
+        88,
+        87,
+        69,
+        164,
+        109,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "target_wallet"
+        },
+        {
+          "name": "exempt_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  109,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "target_wallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "exempt",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_fee_recipient",
+      "discriminator": [
+        227,
+        18,
+        215,
+        42,
+        237,
+        246,
+        151,
+        66
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "stage_signatures",
+      "discriminator": [
+        4,
+        214,
+        106,
+        237,
+        156,
+        166,
+        6,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "message_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "signatures",
           "type": {
-            "vec": "bytes"
+            "vec": {
+              "array": [
+                "u8",
+                65
+              ]
+            }
           }
+        }
+      ]
+    },
+    {
+      "name": "transfer_with_fee",
+      "discriminator": [
+        140,
+        41,
+        159,
+        221,
+        159,
+        13,
+        211,
+        126
+      ],
+      "accounts": [
+        {
+          "name": "from",
+          "writable": true
+        },
+        {
+          "name": "to",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "sender_exempt",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  109,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "from.owner",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_token_address",
+      "discriminator": [
+        93,
+        177,
+        191,
+        185,
+        192,
+        194,
+        86,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "docs": [
+            "Staged buffer closed after verification to refund rent to payer"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "validator_state"
+        },
+        {
+          "name": "var_reg"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "action_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "message_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "raw_payload",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "update_tokens",
+      "discriminator": [
+        124,
+        53,
+        15,
+        65,
+        139,
+        13,
+        95,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sig_buffer",
+          "docs": [
+            "Staged buffer closed after verification to refund rent to payer"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "validator_state"
+        },
+        {
+          "name": "var_reg"
+        },
+        {
+          "name": "epoch_config"
+        },
+        {
+          "name": "action_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "message_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "message_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "raw_payload",
+          "type": "bytes"
         }
       ]
     }
   ],
   "accounts": [
+    {
+      "name": "ActionRecord",
+      "discriminator": [
+        181,
+        208,
+        202,
+        70,
+        127,
+        154,
+        115,
+        80
+      ]
+    },
     {
       "name": "EpochConfig",
       "discriminator": [
@@ -338,6 +1753,45 @@
         153,
         144,
         193
+      ]
+    },
+    {
+      "name": "ExemptRecord",
+      "discriminator": [
+        143,
+        193,
+        230,
+        21,
+        153,
+        199,
+        69,
+        245
+      ]
+    },
+    {
+      "name": "NullifierRecord",
+      "discriminator": [
+        56,
+        18,
+        57,
+        175,
+        69,
+        202,
+        189,
+        70
+      ]
+    },
+    {
+      "name": "ProviderRegistry",
+      "discriminator": [
+        27,
+        101,
+        68,
+        38,
+        206,
+        197,
+        61,
+        114
       ]
     },
     {
@@ -354,6 +1808,32 @@
       ]
     },
     {
+      "name": "SignatureBuffer",
+      "discriminator": [
+        154,
+        35,
+        182,
+        170,
+        145,
+        151,
+        206,
+        225
+      ]
+    },
+    {
+      "name": "TokenConfig",
+      "discriminator": [
+        92,
+        73,
+        255,
+        43,
+        107,
+        51,
+        117,
+        101
+      ]
+    },
+    {
       "name": "ValidatorState",
       "discriminator": [
         217,
@@ -367,81 +1847,86 @@
       ]
     }
   ],
+  "events": [
+    {
+      "name": "VaultEvent",
+      "discriminator": [
+        232,
+        91,
+        155,
+        38,
+        189,
+        170,
+        216,
+        161
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
-      "name": "GenesisInFuture",
-      "msg": "Genesis timestamp is in the future."
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero."
     },
     {
       "code": 6001,
-      "name": "DurationIsZero",
-      "msg": "Epoch duration must be greater than zero."
+      "name": "FeeExceedsAmount",
+      "msg": "Fee exceeds total transfer amount."
     },
     {
       "code": 6002,
-      "name": "RegistryLocked",
-      "msg": "Registry variable map has been locked."
+      "name": "UnauthorizedWhitelistAdmin",
+      "msg": "Signer is not authorized to edit whitelist."
     },
     {
       "code": 6003,
-      "name": "InvalidProof",
-      "msg": "ZK variables proof validation failed."
+      "name": "UnauthorizedAdmin",
+      "msg": "Signer is not authorized admin."
     },
     {
       "code": 6004,
-      "name": "InvalidInputLength",
-      "msg": "Contiguous input parser out of bounds."
+      "name": "WrongChain",
+      "msg": "Packed chain ID does not match expected chain ID."
     },
     {
       "code": 6005,
-      "name": "InvalidSignatureLength",
-      "msg": "Signature size does not equal 65 bytes."
+      "name": "InvalidNullifier",
+      "msg": "Nullifier does not match computed payload hash."
     },
     {
       "code": 6006,
-      "name": "InvalidSignature",
-      "msg": "Derivation recovered invalid SECP256K1 signature."
+      "name": "NullifierAlreadyUsed",
+      "msg": "Nullifier has already been consumed."
     },
     {
       "code": 6007,
-      "name": "NotValidator",
-      "msg": "Caller is not a registered active validator."
+      "name": "UnauthorizedRecipient",
+      "msg": "Recipient does not match payload address."
     },
     {
       "code": 6008,
-      "name": "WrongChainId",
-      "msg": "Wrong chain ID."
+      "name": "MissingFeeRecipientAta",
+      "msg": "Missing fee recipient token account."
     },
     {
       "code": 6009,
-      "name": "InsufficientSignatures",
-      "msg": "Insufficient validator signatures for threshold."
-    },
-    {
-      "code": 6010,
-      "name": "DuplicateSigner",
-      "msg": "Duplicate validator signature detected."
+      "name": "InvalidFeeRecipient",
+      "msg": "Invalid fee recipient account owner."
     }
   ],
   "types": [
     {
-      "name": "ActiveVariableMap",
+      "name": "ActionRecord",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "header",
-            "type": "string"
-          },
-          {
-            "name": "variables",
+            "name": "action_hash",
             "type": {
-              "vec": {
-                "defined": {
-                  "name": "PendingVariable"
-                }
-              }
+              "array": [
+                "u8",
+                32
+              ]
             }
           }
         ]
@@ -468,28 +1953,16 @@
       }
     },
     {
-      "name": "PendingUpdate",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkey",
-            "type": "bytes"
-          },
-          {
-            "name": "is_removal",
-            "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "PendingVariable",
+      "name": "EventData",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "type_name",
             "type": "string"
           },
           {
@@ -500,26 +1973,112 @@
       }
     },
     {
-      "name": "Registry",
+      "name": "ExemptRecord",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "active_variables",
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_exempt",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NullifierRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_used",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderRegistry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "chain",
+            "type": "string"
+          },
+          {
+            "name": "dev_access_revoked",
+            "type": "bool"
+          },
+          {
+            "name": "providers",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "provider_tokens",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "ActiveVariableMap"
+                  "name": "ProviderTokensEntry"
                 }
               }
             }
           },
           {
-            "name": "pending_variables",
+            "name": "token_addresses",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "ActiveVariableMap"
+                  "name": "TokenAddressEntry"
+                }
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderTokensEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "string"
+          },
+          {
+            "name": "tokens",
+            "type": {
+              "vec": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Registry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "headers",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "VariableHeaderEntry"
                 }
               }
             }
@@ -527,10 +2086,142 @@
           {
             "name": "is_locked",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignatureBuffer",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            "name": "last_processed_epoch",
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  65
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TimedValidator",
+      "docs": [
+        "Matches EVM TimedStatus: isActive vs targetStatus with effectiveEpoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "bytes"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "target_status",
+            "type": "bool"
+          },
+          {
+            "name": "effective_epoch",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TimedVariable",
+      "docs": [
+        "Matches EVM TimedValue: active vs pending with effectiveEpoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "active_data",
+            "type": "bytes"
+          },
+          {
+            "name": "pending_data",
+            "type": "bytes"
+          },
+          {
+            "name": "effective_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenAddressEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token",
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "chain_id",
+            "type": "u32"
+          },
+          {
+            "name": "chain",
+            "type": "string"
+          },
+          {
+            "name": "variable_header",
+            "type": "string"
+          },
+          {
+            "name": "fee_recipient",
+            "type": {
+              "option": "pubkey"
+            }
           }
         ]
       }
@@ -541,24 +2232,58 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "active_pubkeys",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "pending_updates",
+            "name": "validators",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "PendingUpdate"
+                  "name": "TimedValidator"
                 }
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VariableHeaderEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": "string"
           },
           {
-            "name": "last_processed_epoch",
-            "type": "u64"
+            "name": "variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "TimedVariable"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "action",
+            "type": "string"
+          },
+          {
+            "name": "data",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "EventData"
+                }
+              }
+            }
           }
         ]
       }

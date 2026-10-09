@@ -141,28 +141,29 @@ module event::QiaraEventV1 {
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @event, 1);
     }
+public fun safe_create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8> {
+    let raw = vector::empty<u8>();
+    let len = vector::length(&payload);
+    let i = 0;
 
-    public fun safe_create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8> {
-        let raw = vector::empty<u8>();
-        let len = vector::length(&payload);
-        let i = 0;
-
-        while (i < len) {
-            let name = vector::borrow(&type_names, i);
-            if (name != &utf8(b"signature")) {
-                vector::append(&mut raw, bcs::to_bytes(name));
-                vector::append(&mut raw, *vector::borrow(&payload, i));
-            };
-            i = i + 1;
+    while (i < len) {
+        let name = vector::borrow(&type_names, i);
+        // Skip the signature field when computing the message identifier!
+        if (name != &utf8(b"signature")) {
+            // Append the raw BCS bytes of the field value
+            vector::append(&mut raw, *vector::borrow(&payload, i));
         };
-        // Exactly 64 hex characters (31 zero bytes + 0x12 = 32 bytes)
-        vector::append(&mut raw, x"0000000000000000000000000000000000000000000000000000000000000012");
-       // vector::append(&mut raw, x"00000000000000000000000000000000000000000000000000000012");
-        hash::sha2_256(raw)
-    }
+        i = i + 1;
+    };
 
-    /// Overload for vector<vector<u8>> (used in zk_mint)
-/// Overload for vector<vector<u8>> (used in zk_mint)
+    // Exactly 32-byte domain separator (0x00...0012) to match Go: DomainSeparator
+    vector::append(&mut raw, x"0000000000000000000000000000000000000000000000000000000000000012");
+
+    // Use KECCAK256 so the identifier is identical on Aptos, Go, Solana, and EVM!
+    aptos_hash::keccak256(raw)
+}
+
+    /// OUTDATED - DO NOT USE, DELETE IN FUTURE
     public fun create_nullifier_from_signals(pub_signals: &vector<vector<u8>>): vector<u8> {
         let raw = vector::empty<u8>();
         let len = vector::length(pub_signals);
@@ -176,7 +177,7 @@ module event::QiaraEventV1 {
         aptos_hash::keccak256(raw)
     }
 
-    /// Computes the 32B nullifier identifier from public inputs
+ /// OUTDATED - DO NOT USE, DELETE IN FUTURE
 public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
         let raw = vector::empty<u8>();
         let len = vector::length(inputs);
@@ -191,7 +192,7 @@ public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
 
         aptos_hash::keccak256(raw)
     }
-
+/// OUTDATED - DO NOT USE, DELETE IN FUTURE
     public fun create_identifier(addr: vector<u8>, type: String, nonce: vector<u8>): vector<u8> {
         let vect = vector::empty<u8>();
     
@@ -213,7 +214,7 @@ public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
     }
-
+/// OUTDATED - DO NOT USE, DELETE IN FUTURE
     public fun create_omnichain_identifier(addedValidator: vector<u8>, removedValidator: vector<u8>, nonce: vector<u8>): vector<u8> {
         let vect = vector::empty<u8>();
     
@@ -237,7 +238,7 @@ public fun create_nullifier_identifier(inputs: &vector<u256>): vector<u8> {
         // 4. SHA2-256 hash
         hash::sha2_256(vect)
     }
-
+/// OUTDATED - DO NOT USE, DELETE IN FUTURE
     public fun create_omnichain_identifier2(header: vector<u8>, constant: vector<u8>, nonce: vector<u8>): vector<u8> {
         let vect = vector::empty<u8>();
     

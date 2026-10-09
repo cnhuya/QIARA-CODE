@@ -104,16 +104,81 @@ pub const QIARA_IC_POINTS: &[[u8; 64]] = &[
     ],
 ];
 
+// =========================================================================
+// EXTERNAL QIARA REGISTRY / VALIDATOR INTERFACES
+// =========================================================================
+
+pub mod qiara {
+    use super::*;
+
+    #[account]
+    pub struct Registry {
+        pub min_unique_validators: u8,
+        pub variables: Vec<RegistryVariable>,
+    }
+
+    #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+    pub struct RegistryVariable {
+        pub header: String,
+        pub name: String,
+        pub value: Vec<u8>,
+    }
+
+    impl Registry {
+        pub fn get_active_variable(&self, header: &str, name: &str) -> Option<Vec<u8>> {
+            self.variables
+                .iter()
+                .find(|v| v.header == header && v.name == name)
+                .map(|v| v.value.clone())
+        }
+
+        pub fn get_min_unique_validators(&self) -> usize {
+            self.min_unique_validators as usize
+        }
+    }
+
+    #[account]
+    pub struct ValidatorState {
+        pub active_pubkeys: Vec<Vec<u8>>,
+    }
+
+    #[account]
+    pub struct EpochConfig {
+        pub current_epoch: u64,
+    }
+
+    impl EpochConfig {
+        pub fn get_current_epoch(&self) -> Result<u64> {
+            Ok(self.current_epoch)
+        }
+    }
+}
+
+// =========================================================================
+// PROGRAM INSTRUCTIONS
+// =========================================================================
+
 #[program]
 pub mod qiara_token {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, variable_header: String) -> Result<()> {
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        variable_header: String,
+        chain: String,
+        chain_id: u32,
+    ) -> Result<()> {
         let config = &mut ctx.accounts.config;
         config.authority = ctx.accounts.authority.key();
         config.mint = ctx.accounts.mint.key();
         config.mint_bump = ctx.bumps.mint_authority;
-        config.variable_header = if variable_header.is_empty() { "QiaraToken".to_string() } else { variable_header };
+        config.chain_id = chain_id;
+        config.chain = if chain.is_empty() { "SOLANA".to_string() } else { chain };
+        config.variable_header = if variable_header.is_empty() {
+            "QiaraToken".to_string()
+        } else {
+            variable_header
+        };
         config.fee_recipient = None;
 
         let seeds = &[b"mint-authority".as_ref(), &[config.mint_bump]];
@@ -139,13 +204,64 @@ pub mod qiara_token {
         amount: u64,
     ) -> Result<()> {
         require!(amount > 0, QiaraTokenError::InvalidAmount);
+
+        // 1. Calculate bridge tax
+        let fee = calculate_bridge_tax(
+            &ctx.accounts.registry,
+            &ctx.accounts.config.variable_header,
+            amount,
+        );
+        let net_amount = amount.checked_sub(fee).ok_or(QiaraTokenError::FeeExceedsAmount)?;
+        require!(net_amount > 0, QiaraTokenError::InvalidAmount);
+
+        // 2. Transfer the bridge tax to the fee receiver (if fee > 0)
+        if fee > 0 {
+            let fee_recipient = get_fee_recipient_admin(
+                &ctx.accounts.registry,
+                &ctx.accounts.config.variable_header,
+                &ctx.accounts.config.chain,
+                ctx.accounts.config.fee_recipient,
+                ctx.accounts.config.authority,
+            );
+
+            let fee_ata = ctx.accounts.fee_recipient_ata.as_ref().ok_or(QiaraTokenError::MissingFeeRecipientAta)?;
+            require!(fee_ata.owner == fee_recipient, QiaraTokenError::InvalidFeeRecipient);
+
+            token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.user_token_account.to_account_info(),
+                        to: fee_ata.to_account_info(),
+                        authority: ctx.accounts.user.to_account_info(),
+                    },
+                ),
+                fee,
+            )?;
+        }
+
+        // 3. Burn what leaves this chain
+        token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    from: ctx.accounts.user_token_account.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(),
+                },
+            ),
+            net_amount,
+        )?;
+
         emit!(RequestQiaraBridge {
             user: ctx.accounts.user.key(),
             shared,
             destination_chain,
-            amount,
+            amount: net_amount,
+            fee,
             timestamp: Clock::get()?.unix_timestamp,
         });
+
         Ok(())
     }
 
@@ -160,12 +276,15 @@ pub mod qiara_token {
         require!(public_inputs.len() == 160, QiaraTokenError::InvalidInputLength);
 
         // 1. Validator Quorum Check
-        verify_signatures(
+        let computed_nullifier = verify_signatures(
             &ctx.accounts.validator_state,
             &ctx.accounts.registry,
             &signatures,
             &public_inputs,
         )?;
+
+        // Ensure nullifier matches public inputs hash to prevent spoofing
+        require!(nullifier == computed_nullifier, QiaraTokenError::InvalidNullifier);
 
         // 2. Alt-BN128 Proof Verification
         let is_valid = verify_groth16_proof(&public_inputs, &proof_points)?;
@@ -181,10 +300,16 @@ pub mod qiara_token {
         let expected_user = Pubkey::new_from_array(user_bytes);
         require!(ctx.accounts.recipient.key() == expected_user, QiaraTokenError::UnauthorizedRecipient);
 
-        // 5. Unpack Amount from PackedTxData (Signal 4: bytes 128..136)
+        // 5. Unpack Signal 4: PackedTxData = [Amount:64 | ChainID:32 | Nonce:32]
         let amount = u64::from_le_bytes(public_inputs[128..136].try_into().unwrap());
+        let chain_id = u32::from_le_bytes(public_inputs[136..140].try_into().unwrap());
+        let nonce = u32::from_le_bytes(public_inputs[140..144].try_into().unwrap());
 
-        // 6. Mint tokens via PDA
+        if ctx.accounts.config.chain_id != 0 {
+            require!(chain_id == ctx.accounts.config.chain_id, QiaraTokenError::WrongChain);
+        }
+
+        // 6. Mint tokens via PDA authority
         let seeds = &[b"mint-authority".as_ref(), &[ctx.accounts.config.mint_bump]];
         token::mint_to(
             CpiContext::new_with_signer(
@@ -199,15 +324,14 @@ pub mod qiara_token {
             amount,
         )?;
 
-        emit!(ZkMintEvent { recipient: expected_user, amount, nullifier });
+        emit!(ZkMintEvent { recipient: expected_user, amount, nonce, nullifier });
         Ok(())
     }
 
     pub fn transfer_with_fee(ctx: Context<TransferWithFee>, amount: u64) -> Result<()> {
-        let is_sender_exempt = ctx.accounts.sender_exempt.is_some();
-        let is_recipient_exempt = ctx.accounts.recipient_exempt.is_some();
+        let is_sender_exempt = ctx.accounts.sender_exempt.as_ref().map_or(false, |r| r.is_exempt);
 
-        let fee = if is_sender_exempt || is_recipient_exempt {
+        let fee = if is_sender_exempt {
             0
         } else {
             calculate_transfer_fee(
@@ -220,53 +344,45 @@ pub mod qiara_token {
 
         let transfer_amount = amount.checked_sub(fee).ok_or(QiaraTokenError::FeeExceedsAmount)?;
 
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.from.to_account_info(),
-                    to: ctx.accounts.to.to_account_info(),
-                    authority: ctx.accounts.authority.to_account_info(),
-                },
-            ),
-            transfer_amount,
-        )?;
+        // Transfer recipient amount
+        if transfer_amount > 0 {
+            token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.from.to_account_info(),
+                        to: ctx.accounts.to.to_account_info(),
+                        authority: ctx.accounts.authority.to_account_info(),
+                    },
+                ),
+                transfer_amount,
+            )?;
+        }
 
+        // Burn the transfer fee (matches Solidity `_update(from, address(0), fee)`)
         if fee > 0 {
-            if let Some(fee_ata) = &ctx.accounts.fee_recipient_ata {
-                token::transfer(
-                    CpiContext::new(
-                        ctx.accounts.token_program.to_account_info(),
-                        Transfer {
-                            from: ctx.accounts.from.to_account_info(),
-                            to: fee_ata.to_account_info(),
-                            authority: ctx.accounts.authority.to_account_info(),
-                        },
-                    ),
-                    fee,
-                )?;
-            } else {
-                token::burn(
-                    CpiContext::new(
-                        ctx.accounts.token_program.to_account_info(),
-                        Burn {
-                            mint: ctx.accounts.mint.to_account_info(),
-                            from: ctx.accounts.from.to_account_info(),
-                            authority: ctx.accounts.authority.to_account_info(),
-                        },
-                    ),
-                    fee,
-                )?;
-            }
+            token::burn(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Burn {
+                        mint: ctx.accounts.mint.to_account_info(),
+                        from: ctx.accounts.from.to_account_info(),
+                        authority: ctx.accounts.authority.to_account_info(),
+                    },
+                ),
+                fee,
+            )?;
         }
         Ok(())
     }
 
     pub fn set_fee_exempt(ctx: Context<SetFeeExempt>, exempt: bool) -> Result<()> {
-        let admin_bytes = ctx.accounts.registry.get_active_variable(&ctx.accounts.config.variable_header, "WHITELIST_ADMIN");
-        let authorized_admin = admin_bytes
-            .and_then(|b| if b.len() == 32 { Some(Pubkey::new_from_array(b.try_into().unwrap())) } else { None })
-            .unwrap_or(ctx.accounts.config.authority);
+        let authorized_admin = get_whitelist_admin(
+            &ctx.accounts.registry,
+            &ctx.accounts.config.variable_header,
+            &ctx.accounts.config.chain,
+            ctx.accounts.config.authority,
+        );
 
         require!(
             ctx.accounts.signer.key() == authorized_admin || ctx.accounts.signer.key() == ctx.accounts.config.authority,
@@ -275,9 +391,32 @@ pub mod qiara_token {
 
         ctx.accounts.exempt_record.account = ctx.accounts.target_wallet.key();
         ctx.accounts.exempt_record.is_exempt = exempt;
+
+        emit!(FeeExemptUpdated {
+            account: ctx.accounts.target_wallet.key(),
+            exempt,
+        });
+
+        Ok(())
+    }
+
+    pub fn set_fee_recipient(ctx: Context<SetFeeRecipient>, new_recipient: Pubkey) -> Result<()> {
+        require!(
+            ctx.accounts.authority.key() == ctx.accounts.config.authority,
+            QiaraTokenError::UnauthorizedAdmin
+        );
+        ctx.accounts.config.fee_recipient = Some(new_recipient);
+
+        emit!(FeeRecipientUpdated {
+            recipient: new_recipient,
+        });
         Ok(())
     }
 }
+
+// =========================================================================
+// GROTH16 & SIGNATURE VERIFICATION
+// =========================================================================
 
 pub fn verify_groth16_proof(public_inputs: &[u8], proof_points: &[u8]) -> Result<bool> {
     if proof_points.len() < 256 || public_inputs.len() < 160 {
@@ -337,7 +476,7 @@ fn verify_signatures(
     registry: &qiara::Registry,
     signatures: &[Vec<u8>],
     inputs: &[u8],
-) -> Result<()> {
+) -> Result<[u8; 32]> {
     let min_required = registry.get_min_unique_validators();
     require!(signatures.len() >= min_required, QiaraTokenError::InsufficientSignatures);
 
@@ -349,15 +488,25 @@ fn verify_signatures(
         data.extend_from_slice(&chunk_rev);
     }
     let msg_hash = keccak::hash(&data).to_bytes();
+
+    // Support Ethereum prefix format if validators sign with eth_sign
+    let mut eth_msg = [0u8; 60];
+    eth_msg[..28].copy_from_slice(b"\x19Ethereum Signed Message:\n32");
+    eth_msg[28..60].copy_from_slice(&msg_hash);
+    let eth_signed_hash = keccak::hash(&eth_msg).to_bytes();
+
     let mut seen: Vec<Vec<u8>> = Vec::with_capacity(signatures.len());
 
     for sig in signatures {
         if sig.len() != 65 { continue; }
         let mut sig_bytes = [0u8; 64];
         sig_bytes.copy_from_slice(&sig[0..64]);
-        let recovery_id = sig[64];
+        let recovery_id = if sig[64] >= 27 { sig[64] - 27 } else { sig[64] };
 
-        if let Ok(recovered_raw) = secp256k1_recover(&msg_hash, recovery_id, &sig_bytes) {
+        let recovered = secp256k1_recover(&eth_signed_hash, recovery_id, &sig_bytes)
+            .or_else(|_| secp256k1_recover(&msg_hash, recovery_id, &sig_bytes));
+
+        if let Ok(recovered_raw) = recovered {
             let mut key = Vec::with_capacity(65);
             key.push(0x04);
             key.extend_from_slice(&recovered_raw.to_bytes());
@@ -369,8 +518,12 @@ fn verify_signatures(
     }
 
     require!(seen.len() >= min_required, QiaraTokenError::InsufficientSignatures);
-    Ok(())
+    Ok(msg_hash)
 }
+
+// =========================================================================
+// FEE HELPERS & REGISTRY LOOKUPS
+// =========================================================================
 
 pub fn calculate_transfer_fee(
     registry: &qiara::Registry,
@@ -392,27 +545,80 @@ pub fn calculate_transfer_fee(
 
     let mut fee = (((amount as u128) * rate) / FEE_DENOMINATOR) as u64;
     if let Some(raw_min) = read_u64(registry, header, "BURN_FEE_MINIMAL") {
-        let min_fee = if raw_min >= 100_000 { raw_min } else { raw_min * 1000 };
-        if fee < min_fee { fee = min_fee; }
+        if raw_min > 0 {
+            let min_fee = if raw_min >= 100_000 { raw_min } else { raw_min * 1000 };
+            if fee < min_fee { fee = min_fee; }
+        }
     }
 
     Ok(if fee > amount { amount } else { fee })
 }
 
+pub fn calculate_bridge_tax(registry: &qiara::Registry, header: &str, amount: u64) -> u64 {
+    let rate = read_u64(registry, header, "BRIDGE_TAX_FEE").unwrap_or(0);
+    let effective_rate = if (rate as u128) > FEE_DENOMINATOR { FEE_DENOMINATOR } else { rate as u128 };
+    (((amount as u128) * effective_rate) / FEE_DENOMINATOR) as u64
+}
+
+pub fn get_whitelist_admin(
+    registry: &qiara::Registry,
+    header: &str,
+    chain: &str,
+    fallback: Pubkey,
+) -> Pubkey {
+    let specific_var = format!("{}_WHITELIST_ADMIN", chain);
+    read_pubkey(registry, header, &specific_var)
+        .or_else(|| read_pubkey(registry, header, "WHITELIST_ADMIN"))
+        .unwrap_or(fallback)
+}
+
+pub fn get_fee_recipient_admin(
+    registry: &qiara::Registry,
+    header: &str,
+    chain: &str,
+    config_recipient: Option<Pubkey>,
+    fallback: Pubkey,
+) -> Pubkey {
+    let specific_var = format!("{}_BRIDGE_TAX_FEE_RECEIVER", chain);
+    read_pubkey(registry, header, &specific_var)
+        .or_else(|| read_pubkey(registry, header, "BRIDGE_TAX_FEE_RECEIVER"))
+        .or(config_recipient)
+        .unwrap_or(fallback)
+}
+
 fn read_u64(registry: &qiara::Registry, header: &str, name: &str) -> Option<u64> {
     let bytes = registry.get_active_variable(header, name)?;
     if bytes.len() == 8 {
-        Some(u64::from_be_bytes(bytes.try_into().unwrap()))
+        let be = u64::from_be_bytes(bytes.clone().try_into().unwrap());
+        let le = u64::from_le_bytes(bytes.try_into().unwrap());
+        if be > 0 && be <= (FEE_DENOMINATOR as u64) * 100 { Some(be) } else { Some(le) }
+    } else if bytes.len() == 32 {
+        Some(u64::from_be_bytes(bytes[24..32].try_into().unwrap()))
     } else {
         None
     }
 }
+
+fn read_pubkey(registry: &qiara::Registry, header: &str, name: &str) -> Option<Pubkey> {
+    let bytes = registry.get_active_variable(header, name)?;
+    if bytes.len() == 32 {
+        Some(Pubkey::new_from_array(bytes.try_into().unwrap()))
+    } else {
+        None
+    }
+}
+
+// =========================================================================
+// ACCOUNTS & STATE
+// =========================================================================
 
 #[account]
 pub struct Config {
     pub authority: Pubkey,
     pub mint: Pubkey,
     pub mint_bump: u8,
+    pub chain_id: u32,
+    pub chain: String,
     pub variable_header: String,
     pub fee_recipient: Option<Pubkey>,
 }
@@ -429,12 +635,12 @@ pub struct ExemptRecord {
 }
 
 #[derive(Accounts)]
-#[instruction(variable_header: String)]
+#[instruction(variable_header: String, chain: String, chain_id: u32)]
 pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        space = 8 + 32 + 32 + 1 + (4 + variable_header.len()) + 33,
+        space = 8 + 32 + 32 + 1 + 4 + (4 + 32) + (4 + 64) + 33,
         seeds = [b"config"],
         bump
     )]
@@ -456,6 +662,32 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct RequestBridge<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(seeds = [b"config"], bump)]
+    pub config: Account<'info, Config>,
+
+    pub registry: Account<'info, qiara::Registry>,
+
+    #[account(mut, address = config.mint)]
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        token::mint = mint,
+        token::authority = user,
+    )]
+    pub user_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub fee_recipient_ata: Option<Account<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 #[instruction(nullifier: [u8; 32])]
 pub struct ZkMint<'info> {
     #[account(mut)]
@@ -464,7 +696,7 @@ pub struct ZkMint<'info> {
     /// CHECK: Recipient user matching public signal
     pub recipient: AccountInfo<'info>,
 
-    #[account(mut)]
+    #[account(mut, seeds = [b"config"], bump)]
     pub config: Account<'info, Config>,
 
     #[account(mut, address = config.mint)]
@@ -507,34 +739,11 @@ pub struct TransferWithFee<'info> {
     pub registry: Account<'info, qiara::Registry>,
     pub epoch_config: Account<'info, qiara::EpochConfig>,
 
-    #[account(mut)]
-    pub fee_recipient_ata: Option<Account<'info, TokenAccount>>,
-
     #[account(seeds = [b"exempt", from.owner.as_ref()], bump)]
     pub sender_exempt: Option<Account<'info, ExemptRecord>>,
-    #[account(seeds = [b"exempt", to.owner.as_ref()], bump)]
-    pub recipient_exempt: Option<Account<'info, ExemptRecord>>,
 
     pub token_program: Program<'info, Token>,
 }
-
-#[derive(Accounts)]
-pub struct RequestBridge<'info> {
-    pub user: Signer<'info>,
-}
-
-#[event]
-pub struct RequestQiaraBridge {
-    pub user: Pubkey,
-    pub shared: String,
-    pub destination_chain: String,
-    pub amount: u64,
-    pub timestamp: i64,
-}
-
-// Inside enum QiaraTokenError:
-    #[msg("Vault: Deposit must be > 0")]
-    InvalidAmount,
 
 #[derive(Accounts)]
 pub struct SetFeeExempt<'info> {
@@ -558,15 +767,50 @@ pub struct SetFeeExempt<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct SetFeeRecipient<'info> {
+    pub authority: Signer<'info>,
+    #[account(mut, seeds = [b"config"], bump)]
+    pub config: Account<'info, Config>,
+}
+
+// =========================================================================
+// EVENTS & ERRORS
+// =========================================================================
+
+#[event]
+pub struct RequestQiaraBridge {
+    pub user: Pubkey,
+    pub shared: String,
+    pub destination_chain: String,
+    pub amount: u64,
+    pub fee: u64,
+    pub timestamp: i64,
+}
+
 #[event]
 pub struct ZkMintEvent {
     pub recipient: Pubkey,
     pub amount: u64,
+    pub nonce: u32,
     pub nullifier: [u8; 32],
+}
+
+#[event]
+pub struct FeeExemptUpdated {
+    pub account: Pubkey,
+    pub exempt: bool,
+}
+
+#[event]
+pub struct FeeRecipientUpdated {
+    pub recipient: Pubkey,
 }
 
 #[error_code]
 pub enum QiaraTokenError {
+    #[msg("Vault: Deposit must be > 0")]
+    InvalidAmount,
     #[msg("Input length must equal 160 bytes for 5 public signals.")]
     InvalidInputLength,
     #[msg("Alt-BN128 Groth16 proof verification failed.")]
@@ -579,4 +823,14 @@ pub enum QiaraTokenError {
     FeeExceedsAmount,
     #[msg("Signer is not authorized to edit whitelist.")]
     UnauthorizedWhitelistAdmin,
+    #[msg("Signer is not authorized admin.")]
+    UnauthorizedAdmin,
+    #[msg("Packed chain ID does not match expected chain ID.")]
+    WrongChain,
+    #[msg("Nullifier does not match computed public input hash.")]
+    InvalidNullifier,
+    #[msg("Missing fee recipient token account.")]
+    MissingFeeRecipientAta,
+    #[msg("Invalid fee recipient account owner.")]
+    InvalidFeeRecipient,
 }

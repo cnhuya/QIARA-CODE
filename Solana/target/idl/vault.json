@@ -1,5 +1,5 @@
 {
-  "address": "D6iMB9yKeXCqG1ERpa5ts9AVXZ2CnMfL2pfUbthT7Af8",
+  "address": "Hhwyx13xHVu9gfFAcnmtZgPPosARefKr1RbM5r6GozBd",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -47,6 +47,12 @@
           }
         },
         {
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
           "name": "supported_token",
           "pda": {
             "seeds": [
@@ -83,16 +89,7 @@
           }
         },
         {
-          "name": "user_ata",
-          "writable": true
-        },
-        {
-          "name": "vault_ata",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "user_ata"
         }
       ],
       "args": [
@@ -146,7 +143,7 @@
           }
         },
         {
-          "name": "registry"
+          "name": "provider_registry"
         },
         {
           "name": "payer",
@@ -210,6 +207,11 @@
               {
                 "kind": "account",
                 "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
               }
             ]
           }
@@ -238,7 +240,14 @@
           }
         },
         {
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
           "name": "supported_token",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -282,6 +291,12 @@
           "writable": true
         },
         {
+          "name": "mint",
+          "relations": [
+            "supported_token"
+          ]
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -296,7 +311,7 @@
           "type": "string"
         },
         {
-          "name": "_token_name",
+          "name": "token_name",
           "type": "string"
         },
         {
@@ -307,6 +322,9 @@
     },
     {
       "name": "direct_withdraw",
+      "docs": [
+        "Direct withdrawal using the unified cross-chain payload and staged signatures"
+      ],
       "discriminator": [
         136,
         23,
@@ -326,6 +344,76 @@
         {
           "name": "user",
           "writable": true
+        },
+        {
+          "name": "sig_buffer",
+          "docs": [
+            "Signature buffer created on qiara program, closed upon withdrawal to refund rent"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  95,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nullifier_bytes"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "verifier_program"
+            }
+          }
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  45,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
+              }
+            ]
+          }
         },
         {
           "name": "vault",
@@ -352,6 +440,7 @@
         },
         {
           "name": "supported_token",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -435,15 +524,14 @@
           "name": "validator_state"
         },
         {
+          "name": "epoch_config"
+        },
+        {
           "name": "verifier_program",
-          "address": "14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo"
+          "address": "ECJDpyrsd1VeNbykjH22qAX8fXrKtNwG1ja9rbr9QTrE"
         }
       ],
       "args": [
-        {
-          "name": "_shared",
-          "type": "string"
-        },
         {
           "name": "nullifier_bytes",
           "type": {
@@ -454,22 +542,8 @@
           }
         },
         {
-          "name": "token_name",
-          "type": "string"
-        },
-        {
-          "name": "public_inputs",
+          "name": "raw_payload",
           "type": "bytes"
-        },
-        {
-          "name": "proof_points",
-          "type": "bytes"
-        },
-        {
-          "name": "signatures",
-          "type": {
-            "vec": "bytes"
-          }
         }
       ]
     },
@@ -490,7 +564,10 @@
           "name": "vault"
         },
         {
-          "name": "registry"
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
         },
         {
           "name": "supported_token",
@@ -589,6 +666,12 @@
           }
         },
         {
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
           "name": "supported_token",
           "pda": {
             "seeds": [
@@ -644,6 +727,42 @@
       ]
     },
     {
+      "name": "set_provider_range",
+      "discriminator": [
+        14,
+        79,
+        138,
+        157,
+        150,
+        237,
+        36,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "min",
+          "type": "u64"
+        },
+        {
+          "name": "max",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "stake",
       "discriminator": [
         206,
@@ -662,7 +781,44 @@
           "signer": true
         },
         {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  45,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user_ata.mint",
+                "account": "TokenAccount"
+              }
+            ]
+          }
+        },
+        {
           "name": "vault",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -684,7 +840,14 @@
           }
         },
         {
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
           "name": "supported_token",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -730,6 +893,10 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -792,6 +959,12 @@
           }
         },
         {
+          "name": "provider_registry",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
           "name": "supported_token",
           "pda": {
             "seeds": [
@@ -828,16 +1001,7 @@
           }
         },
         {
-          "name": "user_ata",
-          "writable": true
-        },
-        {
-          "name": "vault_ata",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "user_ata"
         }
       ],
       "args": [
@@ -858,6 +1022,19 @@
   ],
   "accounts": [
     {
+      "name": "EpochConfig",
+      "discriminator": [
+        190,
+        66,
+        87,
+        197,
+        214,
+        153,
+        144,
+        193
+      ]
+    },
+    {
       "name": "NullifierRecord",
       "discriminator": [
         56,
@@ -871,6 +1048,19 @@
       ]
     },
     {
+      "name": "ProviderRegistry",
+      "discriminator": [
+        27,
+        101,
+        68,
+        38,
+        206,
+        197,
+        61,
+        114
+      ]
+    },
+    {
       "name": "Registry",
       "discriminator": [
         47,
@@ -881,6 +1071,19 @@
         182,
         252,
         218
+      ]
+    },
+    {
+      "name": "SignatureBuffer",
+      "discriminator": [
+        154,
+        35,
+        182,
+        170,
+        145,
+        151,
+        206,
+        225
       ]
     },
     {
@@ -938,6 +1141,19 @@
   ],
   "events": [
     {
+      "name": "ProviderRangeSet",
+      "discriminator": [
+        47,
+        37,
+        237,
+        77,
+        38,
+        214,
+        72,
+        83
+      ]
+    },
+    {
       "name": "TokenListed",
       "discriminator": [
         122,
@@ -967,58 +1183,71 @@
   "errors": [
     {
       "code": 6000,
-      "name": "WrongProviderProvided",
-      "msg": "Specified provider does not match the ZK proof."
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero."
     },
     {
       "code": 6001,
-      "name": "InsufficientBalance",
-      "msg": "User balance is too low to complete the action."
+      "name": "TokenNotSupported",
+      "msg": "Token is not supported by the provider."
     },
     {
       "code": 6002,
-      "name": "RegistryLocked",
-      "msg": "Registry variables have been locked."
+      "name": "InvalidAssetAddress",
+      "msg": "Invalid token asset address."
     },
     {
       "code": 6003,
+      "name": "InsufficientLiquidity",
+      "msg": "Provider reserves are insufficient to complete this withdrawal."
+    },
+    {
+      "code": 6004,
+      "name": "InvalidRange",
+      "msg": "Invalid rate range: max must be greater than or equal to min."
+    },
+    {
+      "code": 6005,
       "name": "NotValidator",
       "msg": "Caller is not authorized."
     },
     {
-      "code": 6004,
-      "name": "InvalidProof",
-      "msg": "ZK variables proof validation failed."
+      "code": 6006,
+      "name": "MathOverflow",
+      "msg": "Math operation resulted in an overflow."
     },
     {
-      "code": 6005,
-      "name": "InvalidInputLength",
-      "msg": "Contiguous input parser out of bounds."
+      "code": 6007,
+      "name": "WrongProviderProvided",
+      "msg": "Specified provider does not match the payload."
+    },
+    {
+      "code": 6008,
+      "name": "ProviderNotSupported",
+      "msg": "Provider is not registered in ProviderRegistry."
+    },
+    {
+      "code": 6009,
+      "name": "TokenMismatch",
+      "msg": "Token name does not match the registered mint."
+    },
+    {
+      "code": 6010,
+      "name": "InvalidActionHash",
+      "msg": "Action hash does not match computed payload hash."
+    },
+    {
+      "code": 6011,
+      "name": "InvalidPayloadEncoding",
+      "msg": "Invalid payload encoding format."
+    },
+    {
+      "code": 6012,
+      "name": "TrailingDataInPayload",
+      "msg": "Trailing data detected in signed payload."
     }
   ],
   "types": [
-    {
-      "name": "ActiveVariableMap",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "header",
-            "type": "string"
-          },
-          {
-            "name": "variables",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "PendingVariable"
-                }
-              }
-            }
-          }
-        ]
-      }
-    },
     {
       "name": "Data",
       "type": {
@@ -1040,6 +1269,26 @@
       }
     },
     {
+      "name": "EpochConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "genesis_timestamp_ms",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration_ms",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "NullifierRecord",
       "type": {
         "kind": "struct",
@@ -1052,33 +1301,89 @@
       }
     },
     {
-      "name": "PendingUpdate",
+      "name": "ProviderRangeSet",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "pubkey",
-            "type": "bytes"
+            "name": "provider",
+            "type": "string"
           },
           {
-            "name": "is_removal",
-            "type": "bool"
+            "name": "min",
+            "type": "u64"
+          },
+          {
+            "name": "max",
+            "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "PendingVariable",
+      "name": "ProviderRegistry",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "chain",
             "type": "string"
           },
           {
-            "name": "value",
-            "type": "bytes"
+            "name": "dev_access_revoked",
+            "type": "bool"
+          },
+          {
+            "name": "providers",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "provider_tokens",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ProviderTokensEntry"
+                }
+              }
+            }
+          },
+          {
+            "name": "token_addresses",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "TokenAddressEntry"
+                }
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderTokensEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "string"
+          },
+          {
+            "name": "tokens",
+            "type": {
+              "vec": "string"
+            }
           }
         ]
       }
@@ -1089,21 +1394,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "active_variables",
+            "name": "headers",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "ActiveVariableMap"
-                }
-              }
-            }
-          },
-          {
-            "name": "pending_variables",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "ActiveVariableMap"
+                  "name": "VariableHeaderEntry"
                 }
               }
             }
@@ -1111,10 +1406,34 @@
           {
             "name": "is_locked",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignatureBuffer",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
-            "name": "last_processed_epoch",
-            "type": "u64"
+            "name": "signatures",
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  65
+                ]
+              }
+            }
           }
         ]
       }
@@ -1127,6 +1446,92 @@
           {
             "name": "is_supported",
             "type": "bool"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "reserves",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TimedValidator",
+      "docs": [
+        "Matches EVM TimedStatus: isActive vs targetStatus with effectiveEpoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "bytes"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "target_status",
+            "type": "bool"
+          },
+          {
+            "name": "effective_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TimedVariable",
+      "docs": [
+        "Matches EVM TimedValue: active vs pending with effectiveEpoch"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "active_data",
+            "type": "bytes"
+          },
+          {
+            "name": "pending_data",
+            "type": "bytes"
+          },
+          {
+            "name": "effective_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenAddressEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token",
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "type": "string"
           }
         ]
       }
@@ -1173,24 +1578,36 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "active_pubkeys",
-            "type": {
-              "vec": "bytes"
-            }
-          },
-          {
-            "name": "pending_updates",
+            "name": "validators",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "PendingUpdate"
+                  "name": "TimedValidator"
                 }
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VariableHeaderEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": "string"
           },
           {
-            "name": "last_processed_epoch",
-            "type": "u64"
+            "name": "variables",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "TimedVariable"
+                }
+              }
+            }
           }
         ]
       }
@@ -1207,6 +1624,22 @@
           {
             "name": "authority",
             "type": "pubkey"
+          },
+          {
+            "name": "provider_registry",
+            "type": "pubkey"
+          },
+          {
+            "name": "min_rate",
+            "type": "u64"
+          },
+          {
+            "name": "max_rate",
+            "type": "u64"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
           },
           {
             "name": "bump",

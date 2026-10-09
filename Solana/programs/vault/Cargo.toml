@@ -11,6 +11,9 @@ name = "vault"
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = "0.31.1"
 qiara = { path = "../qiara", features = ["cpi"] }
+bcs = "0.1.6"
+serde = { version = "1.0", features = ["derive"] }
+
 
 [features]
 default = []

@@ -1,53 +1,37 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::secp256k1_recover::secp256k1_recover;
-use anchor_lang::solana_program::keccak;
 
-pub mod extractor;
-pub mod verifier;
-pub mod provider_registry;
+pub mod error;
+pub mod state;
+pub mod utils;
+pub mod variables;
+pub mod validators;
+pub mod registry;
+pub mod token;
 
-declare_id!("14BdGyUD3F8aag4bFX6QH51suUbWLg3FTnn5YUHkMsGo");
+pub use error::*;
+pub use state::*;
+pub use variables::*;
+pub use validators::*;
+pub use registry::*;
+pub use token::*;
+
+declare_id!("ECJDpyrsd1VeNbykjH22qAX8fXrKtNwG1ja9rbr9QTrE");
 
 #[program]
 pub mod qiara {
     use super::*;
 
+    // --- Epoch & Registry Instructions ---
     pub fn initialize_epoch(
         ctx: Context<InitializeEpoch>,
         genesis_timestamp_sec: u64,
         epoch_duration_sec: u64,
     ) -> Result<()> {
-        let clock = Clock::get()?;
-        let now_ms = (clock.unix_timestamp * 1000) as u64;
-        let genesis_ms = genesis_timestamp_sec * 1000;
-
-        require!(genesis_ms <= now_ms, QiaraError::GenesisInFuture);
-        require!(epoch_duration_sec > 0, QiaraError::DurationIsZero);
-
-        let config = &mut ctx.accounts.config;
-        config.genesis_timestamp_ms = genesis_ms;
-        config.epoch_duration_ms = epoch_duration_sec * 1000;
-        config.authority = ctx.accounts.authority.key();
-        Ok(())
+        variables::handle_initialize_epoch(ctx, genesis_timestamp_sec, epoch_duration_sec)
     }
 
     pub fn initialize_registry(ctx: Context<InitializeRegistry>) -> Result<()> {
-        let registry = &mut ctx.accounts.registry;
-        registry.is_locked = false;
-        registry.last_processed_epoch = 0;
-        registry.active_variables = Vec::new();
-        registry.pending_variables = Vec::new();
-        Ok(())
-    }
-    pub fn initialize_provider_registry(ctx: Context<provider_registry::InitializeProviderRegistry>) -> Result<()> {
-        provider_registry::initialize(ctx)
-    }
-    pub fn initialize_validator_state(ctx: Context<InitializeValidatorState>) -> Result<()> {
-        let state = &mut ctx.accounts.validator_state;
-        state.last_processed_epoch = 0;
-        state.active_pubkeys = Vec::new();
-        state.pending_updates = Vec::new();
-        Ok(())
+        variables::handle_initialize_registry(ctx)
     }
 
     pub fn admin_add_variable(
@@ -56,395 +40,136 @@ pub mod qiara {
         name: String,
         data: Vec<u8>,
     ) -> Result<()> {
-        let registry = &mut ctx.accounts.registry;
-        require!(!registry.is_locked, QiaraError::RegistryLocked);
-        internal_add_direct(registry, header, name, data);
-        Ok(())
+        variables::handle_admin_add_variable(ctx, header, name, data)
     }
 
-    pub fn friend_add_variable(
+pub fn friend_add_variable(
         ctx: Context<FriendAddVariable>,
-        public_inputs: Vec<u8>,
-        proof_points: Vec<u8>,
-        signatures: Vec<Vec<u8>>,
+        message_hash: [u8; 32],
+        raw_payload: Vec<u8>,
     ) -> Result<()> {
-        let registry = &mut ctx.accounts.registry;
-        require!(!registry.is_locked, QiaraError::RegistryLocked);
-
-        // Enforce threshold and signature validity
-        verify_signatures_with_threshold(&ctx.accounts.validator_state, registry, &signatures, &public_inputs)?;
-
-        let is_valid = verifier::verify_variable_proof(&public_inputs, &proof_points)?;
-        require!(is_valid, QiaraError::InvalidProof);
-
-        let (header, name, data) = extractor::extract_variable_strings(&public_inputs)?;
-
-        check_and_handle_epoch_rollover(registry, &ctx.accounts.epoch_config)?;
-        internal_add_pending(registry, header, name, data);
-        Ok(())
+        variables::handle_friend_add_variable(ctx, message_hash, raw_payload)
     }
 
     pub fn lock_registry(ctx: Context<LockRegistry>) -> Result<()> {
-        ctx.accounts.registry.is_locked = true;
-        Ok(())
+        variables::handle_lock_registry(ctx)
     }
 
-    pub fn add_pending_pubkey(
-        ctx: Context<AddPendingPubkey>,
-        public_inputs: Vec<u8>,
-        proof_points: Vec<u8>,
-        signatures: Vec<Vec<u8>>,
+    // --- Validator Management ---
+    pub fn initialize_validator_state(ctx: Context<InitializeValidatorState>) -> Result<()> {
+        validators::handle_initialize_validator_state(ctx)
+    }
+
+    pub fn stage_signatures(
+        ctx: Context<StageSignatures>,
+        message_hash: [u8; 32],
+        signatures: Vec<[u8; 65]>,
     ) -> Result<()> {
-        let validator_state = &mut ctx.accounts.validator_state;
-
-        verify_signatures_with_threshold(validator_state, &ctx.accounts.registry, &signatures, &public_inputs)?;
-
-        let is_valid = verifier::verify_validator_proof(&public_inputs, &proof_points)?;
-        require!(is_valid, QiaraError::InvalidProof);
-
-        let pubkey = extractor::extract_validator_pubkey(&public_inputs)?;
-        let is_removal = extractor::extract_validator_is_removal(&public_inputs)?;
-
-        check_and_handle_validator_rollover(validator_state, &ctx.accounts.epoch_config)?;
-        validator_state.pending_updates.push(PendingUpdate { pubkey, is_removal });
-        Ok(())
+        validators::handle_stage_signatures(ctx, message_hash, signatures)
     }
 
-    pub fn add_active_pubkey_direct(
+pub fn add_pending_pubkey(
+        ctx: Context<AddPendingPubkey>,
+        message_hash: [u8; 32],
+        raw_payload: Vec<u8>,
+    ) -> Result<()> {
+        validators::handle_add_pending_pubkey(ctx, message_hash, raw_payload)
+    }
+
+pub fn add_active_pubkey_direct(
         ctx: Context<AddActivePubkeyDirect>,
         pubkey: Vec<u8>,
+        is_active: bool,
     ) -> Result<()> {
-        let validator_state = &mut ctx.accounts.validator_state;
-        validator_state.active_pubkeys.push(pubkey);
-        Ok(())
+        validators::handle_add_active_pubkey_direct(ctx, pubkey, is_active)
+    }
+
+    // --- Provider Registry ---
+    pub fn initialize_provider_registry(
+        ctx: Context<InitializeProviderRegistry>,
+        chain: String,
+    ) -> Result<()> {
+        registry::handle_initialize(ctx, chain)
     }
 
     pub fn dev_add_tokens(
-        ctx: Context<provider_registry::DevTokensAction>,
-        provider_name: String,
+        ctx: Context<DevAction>,
+        provider: String,
         tokens: Vec<String>,
     ) -> Result<()> {
-        provider_registry::dev_add_tokens(ctx, provider_name, tokens)
+        registry::handle_dev_add_tokens(ctx, provider, tokens)
     }
 
-    pub fn revoke_dev_access(ctx: Context<provider_registry::DevTokensAction>) -> Result<()> {
-        provider_registry::revoke_dev_access(ctx)
-    }
-
-    pub fn update_tokens_with_signatures(
-        ctx: Context<provider_registry::UpdateTokensWithSignatures>,
-        is_add: bool,
-        chain_id: u64,
-        provider_name: String,
-        tokens: Vec<String>,
-        nonce: u64,
-        signatures: Vec<Vec<u8>>,
+    pub fn dev_set_token_address(
+        ctx: Context<DevAction>,
+        token: String,
+        token_address: String,
     ) -> Result<()> {
-        provider_registry::update_tokens_with_signatures(ctx, is_add, chain_id, provider_name, tokens, nonce, signatures)
+        registry::handle_dev_set_token_address(ctx, token, token_address)
     }
 
+    pub fn revoke_dev_access(ctx: Context<DevAction>) -> Result<()> {
+        registry::handle_revoke_dev_access(ctx)
+    }
 
-    /// CPI TARGET: Verifies balance proof, enforces dynamic validator threshold, and checks signatures
-    pub fn verify_balance_proof(
-        ctx: Context<VerifyBalanceProof>,
-        public_inputs: Vec<u8>,
-        proof_points: Vec<u8>,
-        signatures: Vec<Vec<u8>>,
+    pub fn set_chain(ctx: Context<DevAction>, chain: String) -> Result<()> {
+        registry::handle_set_chain(ctx, chain)
+    }
+pub fn update_tokens(
+        ctx: Context<UpdateTokensAction>,
+        message_hash: [u8; 32],
+        raw_payload: Vec<u8>,
     ) -> Result<()> {
-        // 1. Dynamic signature threshold and validity verification
-        verify_signatures_with_threshold(
-            &ctx.accounts.validator_state,
-            &ctx.accounts.registry,
-            &signatures,
-            &public_inputs,
-        )?;
-
-        // 2. 🟢 Verify ZK Balance Proof with precomputed BALANCE_VK (Low CU)
-        let is_valid = verifier::verify_balance_proof(&public_inputs, &proof_points)?;
-        require!(is_valid, QiaraError::InvalidProof);
-
-        Ok(())
-    }
-}
-
-// ==========================================
-// DATA STRUCTURES & CONTEXTS
-// ==========================================
-
-#[account]
-pub struct EpochConfig {
-    pub genesis_timestamp_ms: u64,
-    pub epoch_duration_ms: u64,
-    pub authority: Pubkey,
-}
-
-impl EpochConfig {
-    pub fn get_current_epoch(&self) -> Result<u64> {
-        let clock = Clock::get()?;
-        let now_ms = (clock.unix_timestamp * 1000) as u64;
-        if now_ms < self.genesis_timestamp_ms {
-            return Ok(0);
-        }
-        Ok((now_ms - self.genesis_timestamp_ms) / self.epoch_duration_ms)
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct PendingVariable {
-    pub name: String,
-    pub value: Vec<u8>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct ActiveVariableMap {
-    pub header: String,
-    pub variables: Vec<PendingVariable>,
-}
-
-#[account]
-pub struct Registry {
-    pub active_variables: Vec<ActiveVariableMap>,
-    pub pending_variables: Vec<ActiveVariableMap>,
-    pub is_locked: bool,
-    pub last_processed_epoch: u64,
-}
-
-impl Registry {
-    pub fn get_active_variable(&self, header: &str, name: &str) -> Option<Vec<u8>> {
-        if let Some(pos) = self.active_variables.iter().position(|x| x.header == header) {
-            let map = &self.active_variables[pos];
-            if let Some(v_pos) = map.variables.iter().position(|x| x.name == name) {
-                return Some(map.variables[v_pos].value.clone());
-            }
-        }
-        None
+        registry::handle_update_tokens(ctx, message_hash, raw_payload)
     }
 
-    /// Fetches MINIMUM_UNIQUE_VALIDATORS dynamically with fallback
-    pub fn get_min_unique_validators(&self) -> usize {
-        if let Some(data) = self.get_active_variable("QiaraBridge", "MINIMUM_UNIQUE_VALIDATORS") {
-            if !data.is_empty() {
-                return data[data.len() - 1] as usize;
-            }
-        }
-        1
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct PendingUpdate {
-    pub pubkey: Vec<u8>,
-    pub is_removal: bool,
-}
-
-#[account]
-pub struct ValidatorState {
-    pub active_pubkeys: Vec<Vec<u8>>,
-    pub pending_updates: Vec<PendingUpdate>,
-    pub last_processed_epoch: u64,
-}
-
-#[derive(Accounts)]
-pub struct VerifyBalanceProof<'info> {
-    pub validator_state: Account<'info, ValidatorState>,
-    pub registry: Account<'info, Registry>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeEpoch<'info> {
-    #[account(init, payer = authority, space = 8 + 8 + 8 + 32)]
-    pub config: Account<'info, EpochConfig>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeRegistry<'info> {
-    #[account(init, payer = admin, space = 8 + 4000)]
-    pub registry: Account<'info, Registry>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeValidatorState<'info> {
-    #[account(init, payer = admin, space = 8 + 2000)]
-    pub validator_state: Account<'info, ValidatorState>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct AdminAddVariable<'info> {
-    #[account(mut)]
-    pub registry: Account<'info, Registry>,
-    pub admin: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct FriendAddVariable<'info> {
-    #[account(mut)]
-    pub registry: Account<'info, Registry>,
-    pub validator_state: Account<'info, ValidatorState>,
-    pub epoch_config: Account<'info, EpochConfig>,
-    pub friend: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct LockRegistry<'info> {
-    #[account(mut)]
-    pub registry: Account<'info, Registry>,
-    pub admin: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct AddPendingPubkey<'info> {
-    #[account(mut)]
-    pub validator_state: Account<'info, ValidatorState>,
-    pub registry: Account<'info, Registry>,
-    pub epoch_config: Account<'info, EpochConfig>,
-    pub signer: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct AddActivePubkeyDirect<'info> {
-    #[account(mut)]
-    pub validator_state: Account<'info, ValidatorState>,
-    pub admin: Signer<'info>,
-}
-
-// Helpers
-fn internal_add_direct(registry: &mut Registry, header: String, name: String, data: Vec<u8>) {
-    if let Some(pos) = registry.active_variables.iter().position(|x| x.header == header) {
-        let active_map = &mut registry.active_variables[pos];
-        if let Some(v_pos) = active_map.variables.iter().position(|x| x.name == name) {
-            active_map.variables.remove(v_pos);
-        }
-        active_map.variables.push(PendingVariable { name, value: data });
-    } else {
-        registry.active_variables.push(ActiveVariableMap {
-            header,
-            variables: vec![PendingVariable { name, value: data }],
-        });
-    }
-}
-
-fn internal_add_pending(registry: &mut Registry, header: String, name: String, data: Vec<u8>) {
-    if let Some(pos) = registry.pending_variables.iter().position(|x| x.header == header) {
-        registry.pending_variables[pos].variables.push(PendingVariable { name, value: data });
-    } else {
-        registry.pending_variables.push(ActiveVariableMap {
-            header,
-            variables: vec![PendingVariable { name, value: data }],
-        });
-    }
-}
-
-fn check_and_handle_epoch_rollover(registry: &mut Registry, epoch_config: &EpochConfig) -> Result<()> {
-    let current_epoch = epoch_config.get_current_epoch()?;
-    if current_epoch > registry.last_processed_epoch {
-        let pending = std::mem::take(&mut registry.pending_variables);
-        for item in pending {
-            for v in item.variables {
-                internal_add_direct(registry, item.header.clone(), v.name, v.value);
-            }
-        }
-        registry.last_processed_epoch = current_epoch;
-    }
-    Ok(())
-}
-
-fn check_and_handle_validator_rollover(state: &mut ValidatorState, epoch_config: &EpochConfig) -> Result<()> {
-    let current_epoch = epoch_config.get_current_epoch()?;
-    if current_epoch > state.last_processed_epoch {
-        let updates = std::mem::take(&mut state.pending_updates);
-        for update in updates {
-            if update.is_removal {
-                if let Some(pos) = state.active_pubkeys.iter().position(|x| x == &update.pubkey) {
-                    state.active_pubkeys.remove(pos);
-                }
-            } else if !state.active_pubkeys.contains(&update.pubkey) {
-                state.active_pubkeys.push(update.pubkey);
-            }
-        }
-        state.last_processed_epoch = current_epoch;
-    }
-    Ok(())
-}
-fn get_signature_message_hash(inputs: &[u8]) -> [u8; 32] {
-    let mut data = Vec::with_capacity(inputs.len());
-    for chunk in inputs.chunks_exact(32) {
-        let mut chunk_rev = [0u8; 32];
-        chunk_rev.copy_from_slice(chunk);
-        chunk_rev.reverse();
-        data.extend_from_slice(&chunk_rev);
-    }
-    keccak::hash(&data).to_bytes()
-}
-
-pub fn verify_signatures_with_threshold(
-    state: &ValidatorState,
-    registry: &Registry,
-    signatures: &[Vec<u8>],
-    inputs: &[u8],
-) -> Result<()> {
-    let min_required = registry.get_min_unique_validators();
-    let msg_hash = get_signature_message_hash(inputs);
-
-    let mut valid_count = 0;
-    let mut seen_signers: Vec<Vec<u8>> = Vec::new();
-
-    for sig in signatures {
-        if sig.len() != 65 {
-            continue;
-        }
-
-        let mut sig_bytes = [0u8; 64];
-        sig_bytes.copy_from_slice(&sig[0..64]);
-        let recovery_id = sig[64];
-
-        if let Ok(recovered_raw) = secp256k1_recover(&msg_hash, recovery_id, &sig_bytes) {
-            let mut recovered_uncompressed = vec![0x04];
-            recovered_uncompressed.extend_from_slice(&recovered_raw.to_bytes());
-
-            // Check if recovered key is an active validator and not a duplicate
-            if state.active_pubkeys.contains(&recovered_uncompressed) 
-                && !seen_signers.contains(&recovered_uncompressed) {
-                seen_signers.push(recovered_uncompressed);
-                valid_count += 1;
-            }
-        }
+    pub fn update_token_address(
+        ctx: Context<UpdateTokenAddressAction>,
+        message_hash: [u8; 32],
+        raw_payload: Vec<u8>,
+    ) -> Result<()> {
+        registry::handle_update_token_address(ctx, message_hash, raw_payload)
     }
 
-    require!(valid_count >= 2, QiaraError::InsufficientSignatures);
-    Ok(())
-}
+    // --- Qiara Token ---
+    pub fn initialize_token(
+        ctx: Context<InitializeToken>,
+        variable_header: String,
+        chain: String,
+        chain_id: u32,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        token::handle_initialize_token(ctx, variable_header, chain, chain_id, name, symbol, uri)
+    }
 
-#[error_code]
-pub enum QiaraError {
-    #[msg("Genesis timestamp is in the future.")]
-    GenesisInFuture,
-    #[msg("Epoch duration must be greater than zero.")]
-    DurationIsZero,
-    #[msg("Registry variable map has been locked.")]
-    RegistryLocked,
-    #[msg("ZK variables proof validation failed.")]
-    InvalidProof,
-    #[msg("Contiguous input parser out of bounds.")]
-    InvalidInputLength,
-    #[msg("Signature size does not equal 65 bytes.")]
-    InvalidSignatureLength,
-    #[msg("Derivation recovered invalid SECP256K1 signature.")]
-    InvalidSignature,
-    #[msg("Caller is not a registered active validator.")]
-    NotValidator,
-    #[msg("Wrong chain ID.")]
-    WrongChainId,
-    #[msg("Insufficient validator signatures for threshold.")]
-    InsufficientSignatures,
-    #[msg("Duplicate validator signature detected.")]
-    DuplicateSigner,
+    pub fn request_bridge(
+        ctx: Context<RequestBridge>,
+        shared: String,
+        destination_chain: String,
+        amount: u64,
+    ) -> Result<()> {
+        token::handle_request_bridge(ctx, shared, destination_chain, amount)
+    }
+
+    pub fn consensus_mint(
+        ctx: Context<ConsensusMint>,
+        nullifier: [u8; 32],
+        raw_payload: Vec<u8>,
+    ) -> Result<()> {
+        token::handle_consensus_mint(ctx, nullifier, raw_payload)
+    }
+
+    pub fn transfer_with_fee(ctx: Context<TransferWithFee>, amount: u64) -> Result<()> {
+        token::handle_transfer_with_fee(ctx, amount)
+    }
+
+    pub fn set_fee_exempt(ctx: Context<SetFeeExempt>, exempt: bool) -> Result<()> {
+        token::handle_set_fee_exempt(ctx, exempt)
+    }
+
+    pub fn set_fee_recipient(ctx: Context<SetFeeRecipient>, new_recipient: Pubkey) -> Result<()> {
+        token::handle_set_fee_recipient(ctx, new_recipient)
+    }
 }

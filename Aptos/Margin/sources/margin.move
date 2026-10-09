@@ -479,78 +479,61 @@ module dev::QiaraMarginV80 {
     }
 
     #[view]
-    public fun get_user_total_staked_usd(shared: String): u256 acquires TokenHoldings {
+    public fun get_user_total_staked_qiara(shared: String): u256 acquires TokenHoldings {
         let tokens_holdings = borrow_global_mut<TokenHoldings>(@dev);
-        let tokens = TokensType::return_full_nick_names_list();
-        let total_staked_usd = 0u256;
 
-        let len_tokens = vector::length(&tokens);
-        let i = 0;
-
-        while (i < len_tokens) {
-            let token = *vector::borrow(&tokens, i);
-
-            if (!table::contains(&tokens_holdings.holdings, shared)) {
-                i = i + 1;
-                continue;
-            };
-
-            let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
-            let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
-            let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
-
-            let vect_chain = vector::empty<String>();
-            let vect_provider = vector::empty<String>();
-
-            {
-                let user_holdings_ref = table::borrow(&tokens_holdings.holdings, shared);
-                if (!table::contains(user_holdings_ref, token)) {
-                    i = i + 1;
-                    continue;
-                };
-
-                let chain_map = table::borrow(user_holdings_ref, token);
-                let chains = map::keys(chain_map);
-                let len_chain = vector::length(&chains);
-                let y = 0;
-                while (y < len_chain) {
-                    let chain = *vector::borrow(&chains, y);
-                    let providers_map = map::borrow(chain_map, &chain);
-                    let providers = map::keys(providers_map);
-                    let len_providers = vector::length(&providers);
-                    let x = 0;
-                    while (x < len_providers) {
-                        vector::push_back(&mut vect_chain, chain);
-                        vector::push_back(&mut vect_provider, *vector::borrow(&providers, x));
-                        x = x + 1;
-                    };
-                    y = y + 1;
-                };
-            };
-
-            let j = 0;
-            let len_inner = vector::length(&vect_chain);
-            while (j < len_inner) {
-                let chain_copy = *vector::borrow(&vect_chain, j);
-                let provider_copy = *vector::borrow(&vect_provider, j);
-                
-                let uv = *find_balance(tokens_holdings, shared, token, chain_copy, provider_copy);
-
-                if (denom > 0) {
-                    let current_staked_usd: u256;
-                    if (token == utf8(b"Qiara")) {
-                        current_staked_usd = uv.staked / denom;
-                    } else {
-                        current_staked_usd = (uv.staked * price) / denom;
-                    };
-                    total_staked_usd = total_staked_usd + current_staked_usd;
-                };
-                j = j + 1;
-            };
-            i = i + 1;
+        // 1. Early return if user has no holdings table at all
+        if (!table::contains(&tokens_holdings.holdings, shared)) {
+            return 0
         };
 
-        total_staked_usd
+        let token = utf8(b"Qiara");
+        let user_holdings_ref = table::borrow(&tokens_holdings.holdings, shared);
+
+        // 2. Early return if user has no Qiara holdings
+        if (!table::contains(user_holdings_ref, token)) {
+            return 0
+        };
+
+        // 3. Collect chain & provider keys into flat vectors
+        // (needed to release table borrow before calling find_balance)
+        let chain_map = table::borrow(user_holdings_ref, token);
+        let chains = map::keys(chain_map);
+        let len_chain = vector::length(&chains);
+
+        let vect_chain = vector::empty<String>();
+        let vect_provider = vector::empty<String>();
+
+        let y = 0;
+        while (y < len_chain) {
+            let chain = *vector::borrow(&chains, y);
+            let providers_map = map::borrow(chain_map, &chain);
+            let providers = map::keys(providers_map);
+            let len_providers = vector::length(&providers);
+            let x = 0;
+            while (x < len_providers) {
+                vector::push_back(&mut vect_chain, chain);
+                vector::push_back(&mut vect_provider, *vector::borrow(&providers, x));
+                x = x + 1;
+            };
+            y = y + 1;
+        };
+
+        // 4. Sum up staked Qiara across all chains and providers
+        let total_staked_qiara = 0u256;
+        let j = 0;
+        let len_inner = vector::length(&vect_chain);
+
+        while (j < len_inner) {
+            let chain_copy = *vector::borrow(&vect_chain, j);
+            let provider_copy = *vector::borrow(&vect_provider, j);
+            
+            let uv = *find_balance(tokens_holdings, shared, token, chain_copy, provider_copy);
+            total_staked_qiara = total_staked_qiara + uv.staked;
+            j = j + 1;
+        };
+
+        total_staked_qiara
     }
 
     #[view]
