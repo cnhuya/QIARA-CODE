@@ -124,7 +124,7 @@ module dev::QiaraTokensCoreV81{
 
 // === INIT === //
     fun init_module(admin: &signer){
- abort 999; 
+
         if (!exists<Permissions>(@dev)) {
             move_to(admin, Permissions { shared_access: Shared::give_access(admin), tokens_omnichain_access: TokensOmnichain::give_access(admin), tokens_qiara_access: TokensQiara::give_access(admin)});
         };
