@@ -3,7 +3,7 @@
 /// See the test cases in this module for an example of constructing with BLS12-381 curves.
 ///
 /// **WARNING:** This code has NOT been audited. If using it in a production system, proceed at your own risk.
-module dev::groth16v22 {
+module dev::groth16V23 {
     use aptos_std::crypto_algebra::{Element, from_u64, multi_scalar_mul, eq, multi_pairing, upcast, pairing, add, zero};
 
     /// Proof verification as specified in the original paper,

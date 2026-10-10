@@ -4,7 +4,7 @@ module dev::QiaraTokensTiersV81
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::type_info::{Self, TypeInfo};
-    use dev::QiaraStorageV22::{Self as storage};
+    use dev::QiaraStorageV23::{Self as storage};
 
 
 // === ERRORS === //

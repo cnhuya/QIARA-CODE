@@ -14,8 +14,8 @@ module dev::QiaraTokensQiaraV81 {
     use aptos_std::from_bcs;
   use aptos_std::bcs_stream::{Self};
     use event::QiaraEventV1 as Event;
-    use dev::QiaraCapabilitiesV22 as capabilities;
-    use dev::QiaraStorageV22 as storage;
+    use dev::QiaraCapabilitiesV23 as capabilities;
+    use dev::QiaraStorageV23 as storage;
     use dev::QiaraTokenTypesV81 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraSharedV18::{Self as Shared};

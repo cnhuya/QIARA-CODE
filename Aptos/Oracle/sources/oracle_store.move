@@ -7,7 +7,7 @@ module dev::QiaraOracleV15 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStorageV22::{Self as storage};
+    use dev::QiaraStorageV23::{Self as storage};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;

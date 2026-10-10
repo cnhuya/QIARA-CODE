@@ -14,7 +14,7 @@ use aptos_std::aptos_hash::keccak256;
 use std::option;
 
     use event::QiaraEventV1 as Event;
-    use dev::QiaraStorageV22 as storage;
+    use dev::QiaraStorageV23 as storage;
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV81::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV81::{Self as TokensQiara, Access as TokensQiaraAccess};
