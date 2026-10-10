@@ -300,7 +300,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
         let total_outflow = (TokensOmnichain::return_specified_outflow_path(receiver, chain, symbol) as u64);
 
-        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+        //let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(user))),
@@ -312,7 +312,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
             Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+            //Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
             
         ];
         Event::emit_consensus_event(utf8(b"Request Unstake"), data);
