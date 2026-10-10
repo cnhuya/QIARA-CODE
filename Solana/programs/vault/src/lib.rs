@@ -12,7 +12,6 @@ const YIELD_DENOMINATOR: u128 = 360_000_000_000;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
 pub struct DirectWithdrawPayload {
-    pub nullifier: [u8; 32],
     pub user: Pubkey,
     pub provider: String,
     pub token_name: String,
@@ -195,13 +194,14 @@ pub mod vault {
 
         Ok(())
     }
+    
 /// Direct withdrawal using the unified cross-chain payload and staged signatures
     pub fn direct_withdraw(
         ctx: Context<DirectWithdrawYieldToken>,
         nullifier_bytes: [u8; 32],
         raw_payload: Vec<u8>,
     ) -> Result<()> {
-        // 1. Cryptographic binding check
+        // 1. Cryptographic binding check (nullifier IS the hash of raw_payload)
         let computed_nullifier = anchor_lang::solana_program::keccak::hash(&raw_payload).to_bytes();
         require!(nullifier_bytes == computed_nullifier, QiaraError::InvalidActionHash);
         require!(
@@ -221,12 +221,10 @@ pub mod vault {
         )?;
 
         // 3. Unpack canonical Move-compatible BCS payload
-        // (bcs::from_bytes strictly validates and rejects trailing bytes automatically)
         let payload: DirectWithdrawPayload = bcs::from_bytes(&raw_payload)
             .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
 
         // 4. Assert payload matches instruction accounts & context
-        require!(payload.nullifier == nullifier_bytes, QiaraError::InvalidActionHash);
         require!(
             ctx.accounts.vault.provider_name.eq_ignore_ascii_case(&payload.provider),
             QiaraError::WrongProviderProvided
@@ -241,12 +239,13 @@ pub mod vault {
         require!(amount > 0, QiaraError::ZeroAmount);
 
         // 5. Mark nullifier as used (Replay protection)
+        require!(!ctx.accounts.nullifier_record.is_used, QiaraError::InvalidActionHash);
         ctx.accounts.nullifier_record.is_used = true;
 
         // 6. Liquidity and balance accounting
         let supported_token_mut = &mut ctx.accounts.supported_token;
         require!(supported_token_mut.reserves >= amount, QiaraError::InsufficientLiquidity);
-        supported_token_mut.reserves = supported_token_mut.reserves - amount;
+        supported_token_mut.reserves -= amount;
 
         let clock = Clock::get()?;
         let current_time = clock.unix_timestamp;

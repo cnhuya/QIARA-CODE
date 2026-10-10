@@ -78,7 +78,6 @@ pub fn handle_set_chain(ctx: Context<DevAction>, chain: String) -> Result<()> {
 }
 
 // --- Cross-Chain Consensus Handlers (Uniform Style) ---
-
 pub fn handle_update_tokens(
     ctx: Context<UpdateTokensAction>,
     message_hash: [u8; 32],
@@ -99,11 +98,9 @@ pub fn handle_update_tokens(
         current_epoch,
     )?;
 
-    // 3. Unpack typed payload struct
-    let mut slice: &[u8] = &raw_payload[..];
-    let payload = UpdateTokensPayload::deserialize(&mut slice)
+    // 3. Unpack canonical Move-compatible BCS payload
+    let payload: UpdateTokensPayload = bcs::from_bytes(&raw_payload)
         .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
-    require!(slice.is_empty(), QiaraError::TrailingDataInPayload);
 
     // 4. Mark action hash as consumed (replay protection)
     ctx.accounts.action_record.action_hash = message_hash;
@@ -130,7 +127,6 @@ pub fn handle_update_tokens(
 
     Ok(())
 }
-
 pub fn handle_update_token_address(
     ctx: Context<UpdateTokenAddressAction>,
     message_hash: [u8; 32],
@@ -151,11 +147,9 @@ pub fn handle_update_token_address(
         current_epoch,
     )?;
 
-    // 3. Unpack typed payload struct
-    let mut slice: &[u8] = &raw_payload[..];
-    let payload = UpdateTokenAddressPayload::deserialize(&mut slice)
+    // 3. Unpack canonical Move-compatible BCS payload
+    let payload: UpdateTokenAddressPayload = bcs::from_bytes(&raw_payload)
         .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
-    require!(slice.is_empty(), QiaraError::TrailingDataInPayload);
 
     // 4. Mark action hash as consumed (replay protection)
     ctx.accounts.action_record.action_hash = message_hash;
@@ -177,7 +171,6 @@ pub fn handle_update_token_address(
 
     Ok(())
 }
-
 // --- Helpers ---
 
 fn internal_insert_tokens(reg: &mut ProviderRegistry, provider: &str, tokens: &[String]) {

@@ -7,3 +7,5 @@ cp /home/kristian/solana/target/idl/qiara.json /mnt/x/project/QIARA-CODE/Solana/
  solana program deploy target/deploy/vault.so --program-id 9zRATq1yXiQK7tMtFazWHKDP8hy3MHoCXdTDRivv2y6E -u devnet
 
  solana program deploy target/deploy/unified_faucet.so --program-id target/deploy/unified_faucet-keypair.json -u devnet
+
+solana program extend Hhwyx13xHVu9gfFAcnmtZgPPosARefKr1RbM5r6GozBd 20480 -u devnet

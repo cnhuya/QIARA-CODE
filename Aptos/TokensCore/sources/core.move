@@ -424,7 +424,7 @@ module dev::QiaraTokensCoreV80{
 
         internal_deposit((storage_address_bytes),storage, fa, chain,managed);
 
-        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+        //let identifier = Event::safe_create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(user))),
@@ -436,7 +436,7 @@ module dev::QiaraTokensCoreV80{
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
             Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+          //  Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
             
         ];
         Event::emit_consensus_event(utf8(b"Request Bridge"), data);
@@ -477,7 +477,7 @@ module dev::QiaraTokensCoreV80{
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
         //TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
-        let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
+        //let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
@@ -489,7 +489,7 @@ module dev::QiaraTokensCoreV80{
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
             Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+          //  Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
             
         ];
         Event::emit_consensus_event(utf8(b"Request Bridge"), data);

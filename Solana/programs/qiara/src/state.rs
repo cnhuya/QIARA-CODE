@@ -36,6 +36,20 @@ pub fn create_data(name: &str, type_name: &str, value: Vec<u8>) -> EventData {
 // TYPED CONSENSUS PAYLOADS
 // ==========================================
 
+#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
+pub struct UpdateTokensPayload {
+    pub nonce: u64,
+    pub is_add: bool,
+    pub provider: String,
+    pub tokens: Vec<String>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
+pub struct UpdateTokenAddressPayload {
+    pub nonce: u64,
+    pub token: String,
+    pub token_address: String,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
 pub struct VariablePayload {
@@ -54,7 +68,6 @@ pub struct ValidatorRotationPayload {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
 pub struct MintPayload {
-    pub nullifier: [u8; 32],
     pub recipient: Pubkey,
     pub amount: u64,
     pub chain_id: u32,
@@ -216,19 +229,4 @@ pub struct TokenAddressEntry {
 #[account]
 pub struct ActionRecord {
     pub action_hash: [u8; 32],
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct UpdateTokensPayload {
-    pub nonce: u64,
-    pub is_add: bool,
-    pub provider: String,
-    pub tokens: Vec<String>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct UpdateTokenAddressPayload {
-    pub nonce: u64,
-    pub token: String,
-    pub token_address: String,
 }

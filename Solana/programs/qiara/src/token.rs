@@ -180,8 +180,7 @@ pub fn handle_consensus_mint(
         .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
 
     // 3. Replay Protection & Nullifier Checks
-    require!(payload.nullifier == nullifier, TokenError::InvalidNullifier);
-    require!(payload.nullifier == computed_nullifier, TokenError::InvalidNullifier);
+    require!(nullifier == computed_nullifier, TokenError::InvalidNullifier);
 
     let nullifier_record = &mut ctx.accounts.nullifier_record;
     require!(!nullifier_record.is_used, TokenError::NullifierAlreadyUsed);
@@ -218,7 +217,7 @@ pub fn handle_consensus_mint(
             create_data("to", "address", payload.recipient.to_bytes().to_vec()),
             create_data("amount", "u64", payload.amount.to_le_bytes().to_vec()),
             create_data("nonce", "u64", payload.nonce.to_le_bytes().to_vec()),
-            create_data("nullifier", "bytes32", payload.nullifier.to_vec()),
+            create_data("nullifier", "bytes32", nullifier.to_vec()),
         ],
     });
 
