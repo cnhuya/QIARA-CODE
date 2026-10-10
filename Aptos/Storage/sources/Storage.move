@@ -250,7 +250,7 @@ module dev::QiaraStorageV23 {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 //register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 10_000, true, false, &give_permission(&give_access(admin))); // 0.01$  
      //   change_constant(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), bc::to_bytes(&100_000), &give_permission(&give_access(admin))); // 0.1%  
-        change_constant(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), bc::to_bytes(&10_000), &give_permission(&give_access(admin))); // 0.0001%  
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), bc::to_bytes(&30_000), &give_permission(&give_access(admin))); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), &give_permission(&give_access(admin))); // 0.001%  
     }
 

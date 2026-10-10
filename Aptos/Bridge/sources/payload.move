@@ -48,40 +48,6 @@ module dev::QiaraPayloadV91
         abort error
     }
 
-
-    public fun create_omnichain_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
-        let (_, addedValidator) = find_payload_value(utf8(b"added_validator"), type_names, payload);
-        let (_, removedValidator) = find_payload_value(utf8(b"removed_validator"), type_names, payload);
-        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
-       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-
-        Event::create_omnichain_identifier(addedValidator, removedValidator, nonce)
-
-    }
-
-    public fun create_omnichain_identifier_variables(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
-        let (_, addedValidator) = find_payload_value(utf8(b"header"), type_names, payload);
-        let (_, removedValidator) = find_payload_value(utf8(b"constant"), type_names, payload);
-        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
-       // Nonce::increment_nonce(addr_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-
-        Event::create_omnichain_identifier2(addedValidator, removedValidator, nonce)
-
-    }
-
-    public fun create_identifier(type_names: vector<String>, payload: vector<vector<u8>>): vector<u8>{
-        let (_, addr) = find_payload_value(utf8(b"addr"), type_names, payload);
-        let (_, nonce) = find_payload_value(utf8(b"nonce"), type_names, payload);
-        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
-        let addr_stream = &mut bcs_stream::new(addr);
-        let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
-        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
-       // Nonce::increment_nonce(addr_bytes, re, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-
-        Event::create_identifier(addr, consensus, nonce)
-
-    }
-
     public fun find_payload_value(value: String, vect: vector<String>, from: vector<vector<u8>>): (String, vector<u8>){
         let (isFound, index) = vector::index_of(&vect, &value);
         assert!(isFound, ERROR_TYPE_NOT_FOUND);
@@ -216,12 +182,11 @@ module dev::QiaraPayloadV91
     }
 
 
-    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>, String, String, String, u64,u64,)  acquires Permissions {
+    public fun prepare_modular_storage_creation(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>, String, String, u64,u64,)  acquires Permissions {
         let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
         let (_, ref_code_raw) = find_payload_value(utf8(b"ref_code"), type_names, payload);
         let (_, used_ref_code_raw) = find_payload_value(utf8(b"used_ref_code"), type_names, payload);
-        let (_, selected_validator_raw) = find_payload_value(utf8(b"selected_validator"), type_names, payload);
         let (_, xp_tax_raw) = find_payload_value(utf8(b"xp_tax"), type_names, payload);
         let (_, fee_tax_raw) = find_payload_value(utf8(b"fee_tax"), type_names, payload);
 
@@ -229,7 +194,6 @@ module dev::QiaraPayloadV91
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
         let ref_code = bcs_stream::deserialize_string(&mut bcs_stream::new(ref_code_raw));
         let used_ref_code = bcs_stream::deserialize_string(&mut bcs_stream::new(used_ref_code_raw));
-        let selected_validator = bcs_stream::deserialize_string(&mut bcs_stream::new(selected_validator_raw));
         let xp_tax = bcs_stream::deserialize_u64(&mut bcs_stream::new(xp_tax_raw));
         let fee_tax = bcs_stream::deserialize_u64(&mut bcs_stream::new(fee_tax_raw));
 
@@ -237,7 +201,7 @@ module dev::QiaraPayloadV91
         let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
         Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
-        return (name, user_bytes, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax)
+        return (name, user_bytes, ref_code, used_ref_code, xp_tax, fee_tax)
     }
 
     public fun prepare_p_allow_sub_owner(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8>,vector<u8>)  acquires Permissions {

@@ -38,6 +38,7 @@ use std::option;
     const ERROR_INVALID_VOTING_POWER: u64 = 13;
     const ERROR_INVALID_TYPE: u64 = 14;
     const ERROR_VALIDATOR_NOT_ACTIVE: u64 = 17;
+    const ERROR_HASH_MISMATCH: u64 = 18;
 
     // === ACCESS & PERMISSIONS === //
     struct Access has store, key, drop {}
@@ -75,6 +76,7 @@ use std::option;
         votes: Map<String, Vote>,
         data_types: vector<String>,
         data: vector<vector<u8>>,
+        raw_payload: vector<u8>,
         total_weight: u128,
         time: u64,
         is_validated: bool,
@@ -109,14 +111,13 @@ use std::option;
         // 1. Verify that nullifier is cryptographically bound to raw_payload
         let computed_nullifier = keccak256(raw_payload);
         assert!(nullifier == computed_nullifier, ERROR_HASH_MISMATCH);
-
         // 2. Validate consensus type
         let (_, type_raw) = Payload::find_payload_value(utf8(b"consensus_type"), type_names, payload);
         let consensus_type = bcs_stream::deserialize_string(&mut bcs_stream::new(type_raw));
         if (consensus_type == utf8(b"none")) return;
 
         // 3. Validate validator permissions and active status
-        let (_, secp256k1_pub_key, isActive, _, _, vote_weight, _) = Validators::return_validator_raw(validator);
+        let (_, secp256k1_pub_key, isActive, vote_weight, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         // 4. Verify Secp256k1 Signature over nullifier
@@ -260,8 +261,8 @@ use std::option;
                 Validators::acrue_modularity_fee(shared, user);
                 TokensCore::p_request_bridge(signer, shared, user, symbol, chain, provider, amount, user, TokensCore::give_permission(&cap.tokens_core));
             } else if (event_type == utf8(b"Modular Storage Creation")) {
-                let (name, user, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
-                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, selected_validator, xp_tax, fee_tax, Shared::give_permission(&cap.shared));
+                let (name, user, ref_code, used_ref_code, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
+                Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, xp_tax, fee_tax, Shared::give_permission(&cap.shared));
                 Validators::acrue_modularity_fee(name, user);
             } else if (event_type == utf8(b"Modular Storage Sub Owner Added")) {
                 let (name, user, sub_owner) = Payload::prepare_p_allow_sub_owner(type_names, payload);
