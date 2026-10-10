@@ -1,4 +1,4 @@
-module dev::QiaraSharedV17 {
+module dev::QiaraSharedV18 {
     use std::signer;
     use std::table::{Self, Table};
     use std::vector;
@@ -66,7 +66,6 @@ module dev::QiaraSharedV17 {
     struct Ownership has store, drop {
         owner: vector<u8>,
         sub_owners: vector<vector<u8>>,
-        selected_validator: String,
         ref_code: String,
         ref_code_params: RefCodeParams,
         used_ref_code: String,
@@ -80,7 +79,6 @@ module dev::QiaraSharedV17 {
     struct OwnershipView has copy, drop, store {
         owner: vector<u8>,
         sub_owners: vector<vector<u8>>,
-        selected_validator: String,
         ref_code: String,
         ref_code_params: RefCodeParams,
         used_ref_code: String,
@@ -117,7 +115,7 @@ module dev::QiaraSharedV17 {
 
     // 🟢 HELPER: Creates a module-scoped unique seed
     fun construct_unique_seed(name: &String): vector<u8> {
-        let seed = b"QiaraSharedV17::";
+        let seed = b"QiaraSharedV18::";
         vector::append(&mut seed, *std::string::bytes(name));
         seed
     }
@@ -143,7 +141,6 @@ module dev::QiaraSharedV17 {
             table::add(&mut shared.storage, name, Ownership { 
                 owner: non_user_key, 
                 sub_owners: vector::empty<vector<u8>>(),
-                selected_validator: utf8(b""),
                 ref_code: utf8(b""), 
                 ref_code_params: RefCodeParams { xp_tax: 0, fee_tax: 0, }, 
                 used_ref_code: utf8(b""),
@@ -173,7 +170,7 @@ module dev::QiaraSharedV17 {
         Event::emit_shared_storage_event(utf8(b"Storage Created"), data);
     }
 
-    public entry fun create_shared_storage(signer: &signer, name: String, ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64) acquires SharedStorage {
+    public entry fun create_shared_storage(signer: &signer, name: String, ref_code: String, used_ref_code: String, xp_tax: u64, fee_tax: u64) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
         let sender_addr = signer::address_of(signer);
         let signer_addr_bytes = bcs::to_bytes(&sender_addr);
@@ -225,7 +222,6 @@ module dev::QiaraSharedV17 {
             owner: signer_addr_bytes,  
             sub_owners: sub_owners,
             ref_code: ref_code,
-            selected_validator: selected_validator,
             ref_code_params: ref_code_params,
             used_ref_code: used_ref_code,
             users: vector::empty<String>(),
@@ -345,7 +341,6 @@ module dev::QiaraSharedV17 {
         name: String, 
         ref_code: String, 
         used_ref_code: String, 
-        selected_validator: String, 
         xp_tax: u64, 
         fee_tax: u64, 
         perm: Permission
@@ -394,7 +389,6 @@ module dev::QiaraSharedV17 {
         table::add(&mut shared.storage, copy name, Ownership { 
             owner: user, 
             sub_owners: sub_owners,
-            selected_validator: selected_validator,
             ref_code: ref_code,
             ref_code_params: ref_code_params,
             used_ref_code: used_ref_code,
@@ -510,16 +504,6 @@ module dev::QiaraSharedV17 {
     // === EXTERNAL CONTRACTS PUBLIC INTERFACE === //
     // ----------------------------------------------------------------
 
-    public fun update_selected_validator(name: String, new_validator: String, _perm: Permission) acquires SharedStorage {
-        let shared = borrow_global_mut<SharedStorage>(@dev);
-        
-        if (!table::contains(&shared.storage, name)) {
-            abort ERROR_SHARED_STORAGE_WITH_THIS_NAME_DOESNT_EXISTS
-        };
-
-        let ownership_record = table::borrow_mut(&mut shared.storage, name);
-        ownership_record.selected_validator = new_validator;
-    }
 
     public fun update_gas_index(name: String, new_gas_index: u256, _perm: Permission) acquires SharedStorage {
         let shared = borrow_global_mut<SharedStorage>(@dev);
@@ -799,7 +783,6 @@ module dev::QiaraSharedV17 {
         OwnershipView {
             owner: record.owner,
             sub_owners: record.sub_owners,
-            selected_validator: record.selected_validator,
             ref_code: record.ref_code,
             ref_code_params: record.ref_code_params,
             used_ref_code: record.used_ref_code,

@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV80 {
+module dev::QiaraTokensQiaraV81 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -12,19 +12,19 @@ module dev::QiaraTokensQiaraV80 {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_std::from_bcs;
-
+  use aptos_std::bcs_stream::{Self};
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV22 as capabilities;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraTokenTypesV80 as TokensType;
+    use dev::QiaraTokenTypesV81 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
-    use dev::QiaraSharedV17::{Self as Shared};
-    use dev::QiaraTokensOmnichainV80::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV80 as Groth16Verifier;
+    use dev::QiaraSharedV18::{Self as Shared};
+    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain};
+    use dev::Groth16VerifierV81 as Groth16Verifier;
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
-    const CHAIN_ID_APTOS: u64 = 2;
+    const CHAIN_ID_APTOS:u32 = 2;
 
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
@@ -36,6 +36,10 @@ module dev::QiaraTokensQiaraV80 {
     const ERROR_ZERO_AMOUNT: u64 = 8;
     const ERROR_UNAUTHORIZED_WHITELIST_ADMIN: u64 = 9;
     const ERROR_INVALID_FEE: u64 = 10;
+
+const ERROR_INVALID_ACTION_HASH: u64 = 100;
+    const ERROR_INVALID_NULLIFIER: u64 = 101;
+    const ERROR_INVALID_PAYLOAD_ENCODING: u64 = 102;
 
     struct Access has store, key, drop {}
     struct Permission has copy, key, drop {}
@@ -166,57 +170,72 @@ module dev::QiaraTokensQiaraV80 {
 
 
 
+    struct MintPayload has copy, drop {
+        recipient: address,
+        amount: u64,
+        chain_id: u32,
+        nonce: u64,
+    }
 
-    public entry fun zk_mint(proof: vector<u8>,pub_signals: vector<vector<u8>>,signatures: vector<vector<u8>>) acquires BridgeState, AssetRefs {
+   /// 1:1 Match with Solana's handle_consensus_mint(nullifier, raw_payload)
+    public entry fun consensus_mint(
+        nullifier: vector<u8>,
+        raw_payload: vector<u8>,
+        signatures: vector<vector<u8>>,
+    ) acquires BridgeState, AssetRefs {
         let state = borrow_global_mut<BridgeState>(ADMIN);
 
-        assert!(Groth16Verifier::verify(&state.vk, &proof, &pub_signals), ERROR_INVALID_PROOF);
+        // 1. Verify signatures over raw_payload and derive computed nullifier
+        let computed_nullifier = keccak256(raw_payload);
+        assert!(vector::length(&nullifier) == 32, ERROR_INVALID_NULLIFIER);
+        assert!(nullifier == computed_nullifier, ERROR_INVALID_NULLIFIER);
 
-        let packed_bytes = *vector::borrow(&pub_signals, 4);
-        let amount = bcs_to_u64_le(&slice(&packed_bytes, 0, 8));
-        let chain_id = (bcs_to_u32_le(&slice(&packed_bytes, 8, 12)) as u64);
-        let nonce = (bcs_to_u32_le(&slice(&packed_bytes, 12, 16)) as u64);
+        // Verify validator signatures against active validator public keys
+        verify_signatures(&nullifier, &signatures, &state.validator_keys);
 
-        assert!(chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
-
-        assert!(vector::length(&pub_signals) == 5, 105);
-
-        let signals_u256 = vector::empty<u256>();
-        let i = 0;
-        while (i < 5) {
-            let s = *vector::borrow(&pub_signals, i);
-            assert!(vector::length(&s) == 32, 104);
-            vector::push_back(&mut signals_u256, from_bcs::to_u256(s));
-            i = i + 1;
-        };
-        let nullifier = Event::create_nullifier_identifier(&signals_u256);
-
+        // 2. Replay Protection: Check & mark nullifier as used
         assert!(!table::contains(&state.used_nullifiers, nullifier), ERROR_REPLAY_ATTACK);
         table::add(&mut state.used_nullifiers, nullifier, true);
 
-        verify_signatures(&nullifier, &signatures, &state.validator_keys);
-        let hi_chunk = slice(vector::borrow(&pub_signals, 3), 0, 16);
-        vector::reverse(&mut hi_chunk);
-
-        let lo_chunk = slice(vector::borrow(&pub_signals, 2), 0, 16);
-        vector::reverse(&mut lo_chunk);
-
-        let addr_bytes = hi_chunk;
-        vector::append(&mut addr_bytes, lo_chunk);
+        // 3. Unpack canonical BCS payload using native aptos_std::bcs_stream
+        let stream = bcs_stream::new(raw_payload);
+        
+        // A. Read 32-byte recipient address:
+        // In BCS, vector<u8> starts with length prefix followed by bytes
+        let addr_bytes = bcs_stream::deserialize_vector<u8>(&mut stream, |s| bcs_stream::deserialize_u8(s));
         let recipient = from_bcs::to_address(addr_bytes);
 
+        // B. Read amount (u64):
+        let amount = bcs_stream::deserialize_u64(&mut stream);
+
+        // C. Read chain_id (u32):
+        let chain_id = (bcs_stream::deserialize_u32(&mut stream) as u32);
+
+        // D. Read nonce (u64):
+        let nonce = bcs_stream::deserialize_u64(&mut stream);
+
+        let payload = MintPayload {
+            recipient,
+            amount,
+            chain_id,
+            nonce,
+        };
+
+        // 4. Chain ID Guard
+        assert!(payload.chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
+
+        // 5. Mint tokens via Primary Fungible Store
         let refs = borrow_global<AssetRefs>(ADMIN);
+        primary_fungible_store::mint(&refs.mint_ref, payload.recipient, payload.amount);
 
-        primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
-        
-
+        // 6. Emit vault event (Identical fields to Solana VaultEvent)
         let event_data = vector[
-            Event::create_data_struct(utf8(b"to"), utf8(b"address"), bcs::to_bytes(&recipient)),
-            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&amount)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u64"), bcs::to_bytes(&nonce)),
+            Event::create_data_struct(utf8(b"to"), utf8(b"address"), bcs::to_bytes(&payload.recipient)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&payload.amount)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u64"), bcs::to_bytes(&payload.nonce)),
             Event::create_data_struct(utf8(b"nullifier"), utf8(b"vector<u8>"), nullifier)
         ];
-        Event::emit_consensus_event(utf8(b"ZK Mint"), event_data);
+        Event::emit_consensus_event(utf8(b"Consensus Mint"), event_data);
     }
 
     public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires BridgeState ,AssetRefs {

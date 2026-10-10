@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV80{
+module dev::QiaraTokensCoreV81{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,20 +19,20 @@ module dev::QiaraTokensCoreV80{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV80::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV80::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV80::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV80::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV81::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV81::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV81::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
-    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV80::{Self as Storages};
+    use dev::QiaraStoragesV81::{Self as Storages};
 
-    use dev::QiaraChainTypesV80::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV80::{Self as TokensType};
-    use dev::QiaraProviderTypesV80::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV81::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV81::{Self as TokensType};
+    use dev::QiaraProviderTypesV81::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -276,12 +276,12 @@ module dev::QiaraTokensCoreV80{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV80"),
+            string::utf8(b"QiaraTokensCoreV81"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV80"),
+            string::utf8(b"QiaraTokensCoreV81"),
             string::utf8(b"c_withdraw"),
         );
    

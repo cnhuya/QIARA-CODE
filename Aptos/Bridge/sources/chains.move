@@ -15,10 +15,10 @@ use std::option;
 
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV22 as storage;
-    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV80::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV80::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV80::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraTokensCoreV81::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV81::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV100::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV35::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV90 as Payload;

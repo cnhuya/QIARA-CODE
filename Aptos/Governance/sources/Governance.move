@@ -10,12 +10,12 @@ module dev::QiaraGovernanceV35 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV80::{Self as Margin};
+    use dev::QiaraMarginV81::{Self as Margin};
 
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV22::{Self as capabilities, Access as CapabilitiesAccess};
     use dev::QiaraFunctionsV22::{Self as functions, Access as FunctionAccess};
-    use dev::QiaraSharedV17::{Self as TokensShared};
+    use dev::QiaraSharedV18::{Self as TokensShared};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     const OWNER: address = @dev;

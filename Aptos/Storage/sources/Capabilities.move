@@ -7,7 +7,7 @@ module dev::QiaraCapabilitiesV22 {
     use aptos_std::type_info;
     use aptos_std::from_bcs;
     use std::bcs::{Self as bc};
-    use dev::QiaraSharedV17::{Self as Shared};
+    use dev::QiaraSharedV18::{Self as Shared};
 
     struct Access has key, store, drop { }
     struct Permission has key, drop { }

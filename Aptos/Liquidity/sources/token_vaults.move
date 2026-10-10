@@ -14,14 +14,14 @@ module dev::QiaraTokenVaultsV97{
     use aptos_framework::account;
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraTokensMetadataV80::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV80::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV80::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV81::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV81::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV81::{Self as TokensTiers};
 
-    use dev::QiaraMarginV80::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV80::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV81::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV81::{Self as Points, Access as PointsAccess};
 
-    use dev::QiaraSharedV17::{Self as Shared};
+    use dev::QiaraSharedV18::{Self as Shared};
     
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

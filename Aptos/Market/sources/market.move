@@ -16,25 +16,25 @@ module dev::QiaraVaultsV100 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV80::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV80::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV80::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV80::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV80::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV81::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV81::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV81::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV81::{Self as WrapperGate};
 
-    use dev::QiaraMarginV80::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV80::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV80::{Self as RI};
-    use dev::QiaraBurnedQiaraV80::{Self as BurnedQiara};
+    use dev::QiaraMarginV81::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV81::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV81::{Self as RI};
+    use dev::QiaraBurnedQiaraV81::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV80::{Self as TokensTypes};
-    use dev::QiaraChainTypesV80::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV80::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV81::{Self as TokensTypes};
+    use dev::QiaraChainTypesV81::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV81::{Self as ProviderTypes};
 
     use dev::QiaraStorageV22::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV22::{Self as capabilities, Access as CapabilitiesAccess};
 
-    use dev::QiaraSharedV17::{Self as Shared, Access as SharedAccess};
+    use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 
     use dev::QiaraGasV11::{Self as Gas, Access as GasAccess};
 
