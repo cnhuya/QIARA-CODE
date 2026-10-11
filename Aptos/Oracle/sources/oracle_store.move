@@ -226,7 +226,7 @@ module dev::QiaraOracleV15 {
         };
 
         if (store.settled) {
-            emit_oracle_error(&symbol, round_id, utf8(b"Round Already Settled"));
+            //emit_oracle_error(&symbol, round_id, utf8(b"Round Already Settled"));
             return (false, false)
         };
 
