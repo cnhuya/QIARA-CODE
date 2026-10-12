@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV81 {
+module dev::QiaraTokensQiaraV82 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -14,13 +14,13 @@ module dev::QiaraTokensQiaraV81 {
     use aptos_std::from_bcs;
   use aptos_std::bcs_stream::{Self};
     use event::QiaraEventV1 as Event;
-    use dev::QiaraCapabilitiesV23 as capabilities;
-    use dev::QiaraStorageV23 as storage;
-    use dev::QiaraTokenTypesV81 as TokensType;
+    use dev::QiaraCapabilitiesV24 as capabilities;
+    use dev::QiaraStorageV24 as storage;
+    use dev::QiaraTokenTypesV82 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraSharedV18::{Self as Shared};
-    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV81 as Groth16Verifier;
+    use dev::QiaraTokensOmnichainV82::{Self as TokensOmnichain};
+    use dev::Groth16VerifierV82 as Groth16Verifier;
     use dev::QiaraNonceV4::{Self as Nonce};
 
     const ADMIN: address = @dev;
@@ -280,7 +280,7 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
 
-    //acts just as handler / messanger for consensus
+    //deprecated, remove in future
     public fun p_request_qiara_bridge(_validator: &signer, user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
         //Shared::assert_is_sub_owner(shared, user);
 

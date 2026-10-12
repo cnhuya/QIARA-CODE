@@ -1865,53 +1865,73 @@
   "errors": [
     {
       "code": 6000,
-      "name": "ZeroAmount",
-      "msg": "Amount must be greater than zero."
+      "name": "GenesisInFuture",
+      "msg": "Genesis timestamp is in the future."
     },
     {
       "code": 6001,
-      "name": "FeeExceedsAmount",
-      "msg": "Fee exceeds total transfer amount."
+      "name": "DurationIsZero",
+      "msg": "Epoch duration must be greater than zero."
     },
     {
       "code": 6002,
-      "name": "UnauthorizedWhitelistAdmin",
-      "msg": "Signer is not authorized to edit whitelist."
+      "name": "RegistryLocked",
+      "msg": "Registry variable map has been locked."
     },
     {
       "code": 6003,
-      "name": "UnauthorizedAdmin",
-      "msg": "Signer is not authorized admin."
+      "name": "InvalidPayloadEncoding",
+      "msg": "Invalid payload encoding format."
     },
     {
       "code": 6004,
-      "name": "WrongChain",
-      "msg": "Packed chain ID does not match expected chain ID."
+      "name": "TrailingDataInPayload",
+      "msg": "Trailing data detected in signed payload."
     },
     {
       "code": 6005,
-      "name": "InvalidNullifier",
-      "msg": "Nullifier does not match computed payload hash."
+      "name": "InvalidSignatureLength",
+      "msg": "Invalid signature size or format."
     },
     {
       "code": 6006,
-      "name": "NullifierAlreadyUsed",
-      "msg": "Nullifier has already been consumed."
+      "name": "InvalidSignature",
+      "msg": "Derivation recovered invalid SECP256K1 signature."
     },
     {
       "code": 6007,
-      "name": "UnauthorizedRecipient",
-      "msg": "Recipient does not match payload address."
+      "name": "NotValidator",
+      "msg": "Signer is not an active validator."
     },
     {
       "code": 6008,
-      "name": "MissingFeeRecipientAta",
-      "msg": "Missing fee recipient token account."
+      "name": "WrongChainId",
+      "msg": "Wrong chain ID."
     },
     {
       "code": 6009,
-      "name": "InvalidFeeRecipient",
-      "msg": "Invalid fee recipient account owner."
+      "name": "InsufficientSignatures",
+      "msg": "Insufficient validator signatures for quorum threshold."
+    },
+    {
+      "code": 6010,
+      "name": "DuplicateSigner",
+      "msg": "Duplicate validator signature detected."
+    },
+    {
+      "code": 6011,
+      "name": "DevAccessRevoked",
+      "msg": "Dev access has been permanently revoked."
+    },
+    {
+      "code": 6012,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized developer admin."
+    },
+    {
+      "code": 6013,
+      "name": "InvalidActionHash",
+      "msg": "Action hash does not match computed payload."
     }
   ],
   "types": [

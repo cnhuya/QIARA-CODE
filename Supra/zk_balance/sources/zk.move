@@ -11,7 +11,7 @@ module dev::Qiarax38 {
     use std::string::{Self as String, String, utf8};
 
     use dev::QiaraVv31::{Self as validators, };
-    use dev::genesisV23::{Self as genesis, };
+    use dev::genesisV24::{Self as genesis, };
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;

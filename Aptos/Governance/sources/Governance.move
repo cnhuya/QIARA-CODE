@@ -10,11 +10,11 @@ module dev::QiaraGovernanceV36 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV81::{Self as Margin};
+    use dev::QiaraMarginV82::{Self as Margin};
 
-    use dev::QiaraStorageV23::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV23::{Self as capabilities, Access as CapabilitiesAccess};
-    use dev::QiaraFunctionsV23::{Self as functions, Access as FunctionAccess};
+    use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraFunctionsV24::{Self as functions, Access as FunctionAccess};
     use dev::QiaraSharedV18::{Self as TokensShared};
 
     use dev::QiaraGenesisV4::{Self as Genesis};

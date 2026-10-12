@@ -22,8 +22,8 @@ module dev::QiaraVaultsV3 {
     use dev::QiaraMath::{Self as QiaraMath};
 
 
-    use dev::QiaraStorageV23::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV23::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
 
 
 // === ERRORS === //

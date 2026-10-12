@@ -16,23 +16,23 @@ module dev::QiaraVaultsV101 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV81::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV81::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV81::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV81::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV82::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV82::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV82::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV82::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV82::{Self as WrapperGate};
 
-    use dev::QiaraMarginV81::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV81::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV81::{Self as RI};
-    use dev::QiaraBurnedQiaraV81::{Self as BurnedQiara};
+    use dev::QiaraMarginV82::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV82::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV82::{Self as RI};
+    use dev::QiaraBurnedQiaraV82::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV81::{Self as TokensTypes};
-    use dev::QiaraChainTypesV81::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV81::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV82::{Self as TokensTypes};
+    use dev::QiaraChainTypesV82::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV82::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV23::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV23::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 

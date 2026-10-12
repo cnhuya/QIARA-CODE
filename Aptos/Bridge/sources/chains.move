@@ -14,11 +14,11 @@ use aptos_std::aptos_hash::keccak256;
 use std::option;
 
     use event::QiaraEventV1 as Event;
-    use dev::QiaraStorageV23 as storage;
+    use dev::QiaraStorageV24 as storage;
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV81::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV81::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV81::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV82::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV82::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV82::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV101::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV36::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV91 as Payload;
@@ -254,8 +254,8 @@ use std::option;
                 Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
-                let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
-                TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, recepient, TokensQiara::give_permission(&cap.qiara));
+                //let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
+                //TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, recepient, TokensQiara::give_permission(&cap.qiara));
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
@@ -327,6 +327,9 @@ use std::option;
                 k_idx = k_idx + 1;
             };
 
+            let (_, chain_raw) = Payload::find_payload_value(utf8(b"chain"), type_names, payload);
+            let chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+
             // 7. Emit Validated Event with the identical raw_payload & signatures
             Event::emit_validation_event(utf8(b"Validated Event"), vector[
                 Event::create_data_struct(utf8(b"validator"), utf8(b"string"), bcs::to_bytes(&validator)),
@@ -338,6 +341,7 @@ use std::option;
                 Event::create_data_struct(utf8(b"payload"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&payload)),
                 Event::create_data_struct(utf8(b"raw_payload"), utf8(b"vector<u8>"), raw_payload),
                 Event::create_data_struct(utf8(b"signatures"), utf8(b"vector<vector<u8>>"), bcs::to_bytes(&collected_sigs)),
+                Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             ]);
         };
     }
