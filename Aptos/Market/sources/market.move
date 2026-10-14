@@ -321,7 +321,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     }
 
     public fun c_bridge_unstake(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64, permission: Permission ) acquires Permissions {
-        let sender = bcs::to_bytes(&signer::address_of(validator));
+        //let sender = bcs::to_bytes(&signer::address_of(validator));
         let amount_u256 = (amount as u256) * 1000000000000000000;
 
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);

@@ -98,6 +98,11 @@ pub fn handle_friend_add_variable(
     // 4. Stage variable to activate at effective_epoch (current_epoch + 1)
     let effective_epoch = current_epoch + 1;
 
+    let local_chain_id = 901; // or from config PDA
+    if payload.chain_id != 0 {
+        require!(payload.chain_id == local_chain_id, QiaraError::WrongChainId);
+    }
+
     if let Some(head) = registry_acc.headers.iter_mut().find(|h| h.header == payload.header) {
         if let Some(var) = head.variables.iter_mut().find(|v| v.name == payload.name) {
             // Auto-promote matured value before overwriting (exact EVM match)

@@ -5,7 +5,7 @@ use crate::state::*;
 use crate::utils::verify_signatures;
 
 // --- Admin & Dev Handlers ---
-
+const SOLANA_CHAIN_ID: u32 = 901;
 pub fn handle_initialize(ctx: Context<InitializeProviderRegistry>, chain: String) -> Result<()> {
     let reg = &mut ctx.accounts.provider_registry;
     reg.admin = ctx.accounts.admin.key();
@@ -102,9 +102,14 @@ pub fn handle_update_tokens(
     let payload: UpdateTokensPayload = bcs::from_bytes(&raw_payload)
         .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
 
+if payload.chain_id != 0 {
+    require!(payload.chain_id == SOLANA_CHAIN_ID, QiaraError::WrongChainId);
+}
+
     // 4. Mark action hash as consumed (replay protection)
     ctx.accounts.action_record.action_hash = message_hash;
 
+    
     // 5. Update state
     let reg = &mut ctx.accounts.provider_registry;
     if payload.is_add {
@@ -150,6 +155,10 @@ pub fn handle_update_token_address(
     // 3. Unpack canonical Move-compatible BCS payload
     let payload: UpdateTokenAddressPayload = bcs::from_bytes(&raw_payload)
         .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
+
+if payload.chain_id != 0 {
+    require!(payload.chain_id == SOLANA_CHAIN_ID, QiaraError::WrongChainId);
+}
 
     // 4. Mark action hash as consumed (replay protection)
     ctx.accounts.action_record.action_hash = message_hash;

@@ -129,4 +129,6 @@ pub enum QiaraError {
     RefCodeCantBeEmpty,          // Mapped from Sui constant: 1
     #[msg("Sub owner can't be empty")]
     SubOwnerCantBeEmpty,         // Mapped from Sui constant: 2
+    #[msg("Wrong chain ID.")]
+    WrongChainId, // <--- Add this here in programs/vault/src/lib.rs!
 }

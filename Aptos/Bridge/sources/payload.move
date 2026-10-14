@@ -146,7 +146,7 @@ module dev::QiaraPayloadV92
         
         // 1. Extract raw byte chunks
         let (_, addr_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
-        let (_, recepient_raw) = find_payload_value(utf8(b"recepient"), type_names, payload);
+        //let (_, recepient_raw) = find_payload_value(utf8(b"recepient"), type_names, payload);
         let (_, shared_raw) = find_payload_value(utf8(b"shared"), type_names, payload);
         let (_, token_raw) = find_payload_value(utf8(b"token"), type_names, payload);
         let (_, chain_raw) = find_payload_value(utf8(b"chain"), type_names, payload);
@@ -159,12 +159,12 @@ module dev::QiaraPayloadV92
         let addr_stream = &mut bcs_stream::new(addr_raw);
         let addr_bytes = bcs_stream::deserialize_vector(addr_stream, |s| bcs_stream::deserialize_u8(s));
 
-        let recepient_stream = &mut bcs_stream::new(recepient_raw);
-        let recepient_bytes = bcs_stream::deserialize_vector(recepient_stream, |s| bcs_stream::deserialize_u8(s));
+        //let recepient_stream = &mut bcs_stream::new(recepient_raw);
+        //let recepient_bytes = bcs_stream::deserialize_vector(recepient_stream, |s| bcs_stream::deserialize_u8(s));
         
         let a = addr_bytes;
         let x = addr_bytes;
-        let u = recepient_bytes;
+        let u = addr_bytes;
 
         // Extract Strings
         let k = bcs_stream::deserialize_string(&mut bcs_stream::new(shared_raw));

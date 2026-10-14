@@ -460,9 +460,7 @@ module dev::QiaraTokensCoreV82{
         internal_deposit(to_shared, to, fa, chain, managed);
 
     }
-
-    // Function to pre-"burn" tokens when bridging out, but the transaction isnt yet validated so the tokens arent really burned yet.
-    // Later implement function to claim locked tokens if the bridge tx fails
+    // USELESS, REMOVE IN FUTURE
     public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) {
         
         Shared::assert_is_sub_owner(shared, user);
@@ -496,6 +494,7 @@ module dev::QiaraTokensCoreV82{
 
     }
 // === CONSENSUS FUNCTIONS === //
+// remove in future, useless
     public fun c_finalize_bridge(validator: &signer, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
         ensure_safety(symbol, chain);
     
@@ -544,7 +543,7 @@ module dev::QiaraTokensCoreV82{
         Event::emit_bridge_event(utf8(b"Finalized Bridge to Aptos"), data);    
 
     }
-
+// remove in future, useless
     public fun c_finalize_failed_bridge(validator: &signer, shared: String, user: address, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&user));
         ensure_safety(symbol, chain);

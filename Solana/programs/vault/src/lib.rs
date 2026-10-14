@@ -12,7 +12,8 @@ const YIELD_DENOMINATOR: u128 = 360_000_000_000;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
 pub struct DirectWithdrawPayload {
-    pub user: Pubkey,
+    pub chain_id: u32,
+    pub user: Vec<u8>, // <--- Vec<u8> reads the ULEB128 length prefix!
     pub provider: String,
     pub token_name: String,
     pub amount: u64,
@@ -229,11 +230,20 @@ pub mod vault {
             ctx.accounts.vault.provider_name.eq_ignore_ascii_case(&payload.provider),
             QiaraError::WrongProviderProvided
         );
-        require!(ctx.accounts.user.key() == payload.user, QiaraError::NotValidator);
+
+        require!(
+            ctx.accounts.user.key().to_bytes().as_ref() == payload.user.as_slice(), 
+            QiaraError::NotValidator
+        );
         
         let supported_token = &ctx.accounts.supported_token;
         require!(supported_token.is_supported, QiaraError::TokenNotSupported);
         require!(supported_token.name.eq_ignore_ascii_case(&payload.token_name), QiaraError::TokenMismatch);
+
+        let local_chain_id = 901; // or from config PDA
+        if payload.chain_id != 0 {
+            require!(payload.chain_id == local_chain_id, QiaraError::WrongChainId);
+        }
 
         let amount = payload.amount;
         require!(amount > 0, QiaraError::ZeroAmount);
@@ -274,10 +284,11 @@ pub mod vault {
             amount,
         )?;
 
+
         // 8. Emit Direct Withdraw event
         let data = vec![
             Data { name: "sender".to_string(), type_name: "address".to_string(), value: ctx.accounts.payer.key().to_bytes().to_vec() },
-            Data { name: "user".to_string(), type_name: "address".to_string(), value: payload.user.to_bytes().to_vec() },
+            Data { name: "user".to_string(), type_name: "address".to_string(), value: payload.user }, // <--- Fixed here
             Data { name: "amount".to_string(), type_name: "uint256".to_string(), value: amount.to_le_bytes().to_vec() },
             Data { name: "token".to_string(), type_name: "string".to_string(), value: payload.token_name.into_bytes() },
             Data { name: "provider".to_string(), type_name: "string".to_string(), value: payload.provider.into_bytes() },
@@ -574,10 +585,9 @@ pub struct DirectWithdrawYieldToken<'info> {
     #[account(mut)]
     pub user: AccountInfo<'info>,
 
-    /// Signature buffer created on qiara program, closed upon withdrawal to refund rent
+    /// Signature buffer created on qiara program.
+    /// Remove `close = payer` because `vault` does not own this account!
     #[account(
-        mut,
-        close = payer,
         seeds = [b"sig_buffer", nullifier_bytes.as_ref()],
         seeds::program = verifier_program.key(),
         bump,
@@ -820,4 +830,6 @@ pub enum QiaraError {
     InvalidPayloadEncoding,
     #[msg("Trailing data detected in signed payload.")]
     TrailingDataInPayload,
+    #[msg("Wrong chain ID.")]
+    WrongChainId, // <--- Add this here in programs/vault/src/lib.rs!
 }

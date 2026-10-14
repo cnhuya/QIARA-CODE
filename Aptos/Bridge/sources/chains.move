@@ -259,7 +259,7 @@ use std::option;
             } else if (event_type == utf8(b"Modular Withdraw")) {
                 let (shared, user, symbol, chain, provider, amount, _) = Payload::prepare_modular_withdraw(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
-                TokensCore::p_request_bridge(signer, shared, user, symbol, chain, provider, amount, user, TokensCore::give_permission(&cap.tokens_core));
+                Market::c_bridge_withdraw(signer, shared, user, symbol, chain, provider, amount, Market::give_permission(&cap.market));
             } else if (event_type == utf8(b"Modular Storage Creation")) {
                 let (name, user, ref_code, used_ref_code, xp_tax, fee_tax) = Payload::prepare_modular_storage_creation(type_names, payload);
                 Shared::p_create_shared_storage(signer, user, name, ref_code, used_ref_code, xp_tax, fee_tax, Shared::give_permission(&cap.shared));
