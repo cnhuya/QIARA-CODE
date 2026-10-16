@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV82 {
+module dev::QiaraTokensQiaraV83 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -8,38 +8,34 @@ module dev::QiaraTokensQiaraV82 {
     use aptos_std::table::{Self, Table};
     use aptos_std::secp256k1;
     use aptos_std::aptos_hash::keccak256;
-    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, TransferRef, Metadata};
+    use aptos_framework::fungible_asset::{Self, MintRef, BurnRef, TransferRef, Metadata, FungibleAsset};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
+    use aptos_framework::dispatchable_fungible_asset;
+    use aptos_framework::function_info;
     use aptos_std::from_bcs;
-  use aptos_std::bcs_stream::{Self};
+    use aptos_std::bcs_stream;
+
     use event::QiaraEventV1 as Event;
     use dev::QiaraCapabilitiesV24 as capabilities;
     use dev::QiaraStorageV24 as storage;
-    use dev::QiaraTokenTypesV82 as TokensType;
     use dev::QiaraGenesisV4 as Genesis;
-    use dev::QiaraSharedV18::{Self as Shared};
-    use dev::QiaraTokensOmnichainV82::{Self as TokensOmnichain};
-    use dev::Groth16VerifierV82 as Groth16Verifier;
-    use dev::QiaraNonceV4::{Self as Nonce};
+    use dev::QiaraNonceV4 as Nonce;
 
     const ADMIN: address = @dev;
-    const CHAIN_ID_APTOS:u32 = 2;
+    const CHAIN_ID_APTOS: u32 = 2;
+    const DECIMALS: u8 = 9;
+    const INITIAL_SUPPLY: u64 = 1_000_000 * 1_000_000_000; // 1,000,000 QIARA (9 decimals)
 
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
     const ERROR_REPLAY_ATTACK: u64 = 3;
-    const ERROR_INVALID_PROOF: u64 = 4;
-    const ERROR_INVALID_SIGNATURES: u64 = 5;
     const ERROR_INSUFFICIENT_VALIDATORS: u64 = 6;
     const ERROR_WRONG_CHAIN: u64 = 7;
     const ERROR_ZERO_AMOUNT: u64 = 8;
     const ERROR_UNAUTHORIZED_WHITELIST_ADMIN: u64 = 9;
     const ERROR_INVALID_FEE: u64 = 10;
-
-const ERROR_INVALID_ACTION_HASH: u64 = 100;
     const ERROR_INVALID_NULLIFIER: u64 = 101;
-    const ERROR_INVALID_PAYLOAD_ENCODING: u64 = 102;
 
     struct Access has store, key, drop {}
     struct Permission has copy, key, drop {}
@@ -57,7 +53,6 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
 
     struct BridgeState has key {
         used_nullifiers: Table<vector<u8>, bool>,
-        vk: vector<u8>,
         validator_keys: vector<vector<u8>>,
         fee_exempt: vector<address>,
     }
@@ -91,160 +86,237 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
         Permission {}
     }
 
+    // =========================================================================
+    // INITIALIZATION (Standard Fungible Asset + Dispatchable Hooks)
+    // =========================================================================
+
     public entry fun init_qiara(admin: &signer) {
         let addr = signer::address_of(admin);
         assert!(addr == ADMIN, ERROR_NOT_ADMIN);
 
         if (!exists<Timers>(ADMIN)) {
-            move_to(admin, Timers { creation: timestamp::now_seconds(), last_claimed: timestamp::now_seconds() });
+            move_to(admin, Timers {
+                creation: timestamp::now_seconds(),
+                last_claimed: timestamp::now_seconds()
+            });
         };
+
         if (!exists<BridgeState>(ADMIN)) {
             move_to(admin, BridgeState {
                 used_nullifiers: table::new(),
-                vk: vector::empty(),
                 validator_keys: vector::empty(),
                 fee_exempt: vector::empty(),
             });
         };
+
+        // Create the official, non-prefixed standard Fungible Asset directly
+        if (!exists<AssetRefs>(ADMIN)) {
+            let constructor_ref = &object::create_named_object(admin, b"QIARA");
+
+            primary_fungible_store::create_primary_store_enabled_fungible_asset(
+                constructor_ref,
+                option::none(),              // Max supply: unbounded (managed by mint_ref)
+                utf8(b"Qiara"),              // Name
+                utf8(b"QIARA"),              // Symbol
+                DECIMALS,                    // Decimals: 9
+                utf8(b"https://raw.githubusercontent.com/cnhuya/AEXIS-CDN/main/tokens/qiara.webp"),
+                utf8(b"https://x.com/QiaraProtocol"),
+            );
+
+            // Register native dispatch hooks to ensure dynamic burn fees on all transfers
+            let withdraw_hook = function_info::new_function_info(
+                admin,
+                utf8(b"QiaraTokensQiaraV83"),
+                utf8(b"withdraw"),
+            );
+            let deposit_hook = function_info::new_function_info(
+                admin,
+                utf8(b"QiaraTokensQiaraV83"),
+                utf8(b"deposit"),
+            );
+            dispatchable_fungible_asset::register_dispatch_functions(
+                constructor_ref,
+                option::some(withdraw_hook),
+                option::some(deposit_hook),
+                option::none(),
+            );
+
+            let mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
+            let burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+            let transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
+
+            // Mint 1,000,000 QIARA directly to deployer's primary store (Shows in Petra!)
+            primary_fungible_store::mint(&mint_ref, addr, INITIAL_SUPPLY);
+
+            move_to(admin, AssetRefs { mint_ref, burn_ref, transfer_ref });
+        };
     }
 
-    public fun init_token_refs(admin: &signer, mint_ref: MintRef, burn_ref: BurnRef, transfer_ref: TransferRef) {
-        assert!(signer::address_of(admin) == ADMIN, ERROR_NOT_ADMIN);
-        move_to(admin, AssetRefs { mint_ref, burn_ref, transfer_ref });
-    }
+    // =========================================================================
+    // DISPATCHABLE HOOKS (Matches EVM _update())
+    // =========================================================================
 
-    public entry fun set_vk(admin: &signer, vk: vector<u8>) acquires BridgeState {
-        assert!(signer::address_of(admin) == ADMIN, ERROR_NOT_ADMIN);
-        borrow_global_mut<BridgeState>(ADMIN).vk = vk;
-    }
+    /// Custom withdraw hook called whenever QIARA is withdrawn from any store (transfers, DEX swaps, etc.)
+    public fun withdraw<T: key>(
+        store: Object<T>,
+        amount: u64,
+        transfer_ref: &TransferRef,
+    ): FungibleAsset acquires BridgeState, Timers, AssetRefs {
+        let store_owner = object::owner(store);
+        let mut_fa = fungible_asset::withdraw_with_ref(transfer_ref, store, amount);
 
-    public fun sync_validator_keys(keys: vector<vector<u8>>, _perm: &Permission) acquires BridgeState {
-        let state = borrow_global_mut<BridgeState>(ADMIN);
-        if (&state.validator_keys == &keys) return; // ⚡ Skips storage write if identical
-        state.validator_keys = keys;
-    }
-
-    public fun change_last_claim(shared: String, _perm: Permission) acquires Timers {
-        assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
-        borrow_global_mut<Timers>(ADMIN).last_claimed = timestamp::now_seconds();
-    }
-
-    public entry fun set_fee_exempt(caller: &signer, account: address, exempt: bool) acquires BridgeState {
-        let caller_addr = signer::address_of(caller);
-        let state = borrow_global_mut<BridgeState>(ADMIN);
-
-        assert!(caller_addr == get_whitelist_admin(), ERROR_UNAUTHORIZED_WHITELIST_ADMIN);
-
-        let (found, idx) = vector::index_of(&state.fee_exempt, &account);
-
-        if (exempt && !found) {
-            vector::push_back(&mut state.fee_exempt, account);
-        } else if (!exempt && found) {
-            vector::swap_remove(&mut state.fee_exempt, idx);
+        // If sender is fee exempt or amount is 0, transfer without fee
+        if (is_fee_exempt(store_owner) || amount == 0) {
+            return mut_fa
         };
 
+        let fee = burn_calculation(amount);
+        if (fee > 0) {
+            let refs = borrow_global<AssetRefs>(ADMIN);
+            // Extract the fee and burn it directly (1:1 with EVM _update burn)
+            let fee_fa = fungible_asset::extract(&mut mut_fa, fee);
+            fungible_asset::burn(&refs.burn_ref, fee_fa);
+        };
+
+        mut_fa
     }
 
-    public fun get_bridge_tax_receiver(): address{
-        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_BRIDGE_TAX_FEE_RECEIVER")))
+    /// Custom deposit hook for dispatchable fungible asset standard compliance
+    public fun deposit<T: key>(
+        store: Object<T>,
+        fa: FungibleAsset,
+        transfer_ref: &TransferRef,
+    ) {
+        fungible_asset::deposit_with_ref(transfer_ref, store, fa);
     }
 
-    public fun get_whitelist_admin(): address{
-        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_WHITELIST_ADMIN")))
+    // =========================================================================
+    // INFLATION CLAIMING
+    // =========================================================================
+
+    /// Claims accrued inflation and mints directly to the recipient primary store
+    public entry fun claim_inflation(claimer: &signer,shared: String,recipient: address) acquires Timers, AssetRefs {
+        let claimer_addr = signer::address_of(claimer);
+
+        // Caller must either be ADMIN or authorized with the INFLATION_CLAIM capability on the shared wallet
+        if (claimer_addr != ADMIN) {
+            assert!(
+                capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")),
+                ERROR_NOT_AUTHORIZED_FOR_CLAIMING
+            );
+        };
+
+        let metadata = get_metadata();
+        let supply = (option::destroy_with_default(fungible_asset::supply(metadata), 0) as u128);
+        let claimable_amount = (claimable(supply) as u64);
+        assert!(claimable_amount > 0, ERROR_ZERO_AMOUNT);
+
+        // Update timer
+        borrow_global_mut<Timers>(ADMIN).last_claimed = timestamp::now_seconds();
+
+        // Mint inflation to recipient
+        let refs = borrow_global<AssetRefs>(ADMIN);
+        primary_fungible_store::mint(&refs.mint_ref, recipient, claimable_amount);
+
+        // Emit on-chain event
+        let event_data = vector[
+            Event::create_data_struct(utf8(b"claimer"), utf8(b"address"), bcs::to_bytes(&claimer_addr)),
+            Event::create_data_struct(utf8(b"recipient"), utf8(b"address"), bcs::to_bytes(&recipient)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&claimable_amount)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        ];
+        Event::emit_consensus_event(utf8(b"Claim Inflation"), event_data);
     }
 
-    public fun get_bridge_tax_fee(): u64{
-        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE")))
+    /// Convenience entry function to claim inflation directly to the caller's account
+    public entry fun claim_inflation_to_self(claimer: &signer,shared: String) acquires Timers, AssetRefs {
+        let caller = signer::address_of(claimer);
+        claim_inflation(claimer, shared, caller);
+    }
+
+    // =========================================================================
+    // PERMISSIONED BRIDGE / WRAPPER HOOKS
+    // =========================================================================
+
+    public fun mint_to_user(recipient: address, amount: u64, _perm: &Permission) acquires AssetRefs {
+        let refs = borrow_global<AssetRefs>(ADMIN);
+        primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
+    }
+
+    public fun burn_from_user(account: address, amount: u64, _perm: &Permission) acquires AssetRefs {
+        let refs = borrow_global<AssetRefs>(ADMIN);
+        primary_fungible_store::burn(&refs.burn_ref, account, amount);
+    }
+
+    public fun mint_fa(amount: u64, _perm: &Permission): FungibleAsset acquires AssetRefs {
+        let refs = borrow_global<AssetRefs>(ADMIN);
+        fungible_asset::mint(&refs.mint_ref, amount)
+    }
+
+    // =========================================================================
+    // METADATA RESOLVERS
+    // =========================================================================
+
+    #[view]
+    public fun get_metadata(): Object<Metadata> {
+        let metadata_address = object::create_object_address(&ADMIN, b"QIARA");
+        object::address_to_object<Metadata>(metadata_address)
     }
 
     #[view]
-    public fun is_fee_exempt(account: address): bool acquires BridgeState {
-        vector::contains(&borrow_global<BridgeState>(ADMIN).fee_exempt, &account)
+    public fun get_metadata_address(): address {
+        object::create_object_address(&ADMIN, b"QIARA")
     }
 
-    #[view]
-    public fun get_exempt_accounts(): vector<address> acquires BridgeState {
-        borrow_global<BridgeState>(ADMIN).fee_exempt
-    }
-    // === BRIDGE & ZK FUNCTIONS === //
+    // =========================================================================
+    // CONSENSUS MINT (1:1 with Solana & EVM)
+    // =========================================================================
 
-
-
-    struct MintPayload has copy, drop {
-        recipient: address,
-        amount: u64,
-        chain_id: u32,
-        nonce: u64,
-    }
-
-   /// 1:1 Match with Solana's handle_consensus_mint(nullifier, raw_payload)
-    public entry fun consensus_mint(
-        nullifier: vector<u8>,
-        raw_payload: vector<u8>,
-        signatures: vector<vector<u8>>,
-    ) acquires BridgeState, AssetRefs {
+    public entry fun consensus_mint(nullifier: vector<u8>,raw_payload: vector<u8>,signatures: vector<vector<u8>>) acquires BridgeState, AssetRefs {
         let state = borrow_global_mut<BridgeState>(ADMIN);
 
-        // 1. Verify signatures over raw_payload and derive computed nullifier
         let computed_nullifier = keccak256(raw_payload);
         assert!(vector::length(&nullifier) == 32, ERROR_INVALID_NULLIFIER);
         assert!(nullifier == computed_nullifier, ERROR_INVALID_NULLIFIER);
 
-        // Verify validator signatures against active validator public keys
         verify_signatures(&nullifier, &signatures, &state.validator_keys);
 
-        // 2. Replay Protection: Check & mark nullifier as used
         assert!(!table::contains(&state.used_nullifiers, nullifier), ERROR_REPLAY_ATTACK);
         table::add(&mut state.used_nullifiers, nullifier, true);
 
-        // 3. Unpack canonical BCS payload using native aptos_std::bcs_stream
         let stream = bcs_stream::new(raw_payload);
-        
-        // A. Read 32-byte recipient address:
-        // In BCS, vector<u8> starts with length prefix followed by bytes
         let addr_bytes = bcs_stream::deserialize_vector<u8>(&mut stream, |s| bcs_stream::deserialize_u8(s));
         let recipient = from_bcs::to_address(addr_bytes);
-
-        // B. Read amount (u64):
         let amount = bcs_stream::deserialize_u64(&mut stream);
-
-        // C. Read chain_id (u32):
         let chain_id = (bcs_stream::deserialize_u32(&mut stream) as u32);
-
-        // D. Read nonce (u64):
         let nonce = bcs_stream::deserialize_u64(&mut stream);
 
-        let payload = MintPayload {
-            recipient,
-            amount,
-            chain_id,
-            nonce,
-        };
+        assert!(chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
 
-        // 4. Chain ID Guard
-        assert!(payload.chain_id == CHAIN_ID_APTOS, ERROR_WRONG_CHAIN);
-
-        // 5. Mint tokens via Primary Fungible Store
         let refs = borrow_global<AssetRefs>(ADMIN);
-        primary_fungible_store::mint(&refs.mint_ref, payload.recipient, payload.amount);
+        primary_fungible_store::mint(&refs.mint_ref, recipient, amount);
 
-        // 6. Emit vault event (Identical fields to Solana VaultEvent)
         let event_data = vector[
-            Event::create_data_struct(utf8(b"to"), utf8(b"address"), bcs::to_bytes(&payload.recipient)),
-            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&payload.amount)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u64"), bcs::to_bytes(&payload.nonce)),
+            Event::create_data_struct(utf8(b"to"), utf8(b"address"), bcs::to_bytes(&recipient)),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&amount)),
+            Event::create_data_struct(utf8(b"nonce"), utf8(b"u64"), bcs::to_bytes(&nonce)),
             Event::create_data_struct(utf8(b"nullifier"), utf8(b"vector<u8>"), nullifier)
         ];
         Event::emit_consensus_event(utf8(b"Consensus Mint"), event_data);
     }
 
-    public entry fun request_bridge(user: &signer, chain: String, amount: u64, receiver: vector<u8>) acquires BridgeState ,AssetRefs {
+    // =========================================================================
+    // BRIDGE REQUEST
+    // =========================================================================
+
+    public entry fun request_bridge(user: &signer,chain: String,amount: u64,receiver: vector<u8>) acquires BridgeState, AssetRefs {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let user_addr = signer::address_of(user);
         let refs = borrow_global<AssetRefs>(ADMIN);
 
         let fee_rate = get_bridge_tax_fee();
         assert!(fee_rate <= 100_000_000, ERROR_INVALID_FEE);
+
         let bridge_tax_amount = if (is_fee_exempt(user_addr)) {
             0
         } else {
@@ -253,8 +325,9 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
         let net_amount = amount - bridge_tax_amount;
         assert!(net_amount > 0, ERROR_ZERO_AMOUNT);
 
+        let metadata = fungible_asset::transfer_ref_metadata(&refs.transfer_ref);
+
         if (bridge_tax_amount > 0) {
-            let metadata = fungible_asset::transfer_ref_metadata(&refs.transfer_ref);
             let user_store = primary_fungible_store::primary_store(user_addr, metadata);
             let receiver_store = primary_fungible_store::ensure_primary_store_exists(get_bridge_tax_receiver(), metadata);
             let fee_fa = fungible_asset::withdraw_with_ref(&refs.transfer_ref, user_store, bridge_tax_amount);
@@ -263,9 +336,7 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
 
         primary_fungible_store::burn(&refs.burn_ref, user_addr, net_amount);
 
-        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
         let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
-      //  let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
@@ -273,42 +344,20 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
             Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
             Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
             Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&net_amount)),
-          //  Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
+            Event::create_data_struct(utf8(b"amount"), utf8(b"u64"), bcs::to_bytes(&net_amount)),
+            Event::create_data_struct(utf8(b"fee"), utf8(b"u64"), bcs::to_bytes(&bridge_tax_amount)),
         ];
         Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
     }
 
-    //deprecated, remove in future
-    public fun p_request_qiara_bridge(_validator: &signer, user: vector<u8>,chain: String,amount: u64,receiver: vector<u8>,_perm: Permission) {
-        //Shared::assert_is_sub_owner(shared, user);
-
-        let total_outflow = (TokensOmnichain::return_qiara_outflow_path(receiver, chain) as u64);
-        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"qiara"));
-       // let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            //Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-         //   Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-        ];
-        Event::emit_consensus_event(utf8(b"Request Qiara Bridge"), data);
-    }
-
-
-    // === SIGNATURE VERIFICATION === //
+    // =========================================================================
+    // SIGNATURE VERIFICATION
+    // =========================================================================
 
     fun verify_signatures(msg_hash: &vector<u8>, signatures: &vector<vector<u8>>, validator_pubkeys: &vector<vector<u8>>) {
         let num_sigs = vector::length(signatures);
         let min_validators = storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS")));
-                assert!((num_sigs as u8) >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
+        assert!((num_sigs as u8) >= min_validators, ERROR_INSUFFICIENT_VALIDATORS);
 
         let eth_prefix = b"\x19Ethereum Signed Message:\n32";
         vector::append(&mut eth_prefix, *msg_hash);
@@ -333,24 +382,59 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
         };
     }
 
-    // === OPTIMIZED VIEW & HELPER FUNCTIONS === //
+    // =========================================================================
+    // ADMIN & CONFIGURATION
+    // =========================================================================
 
-    public fun emit_qiara_events() acquires Timers {
-        let d = get_qiara_data();
-        let data = vector[
-            Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&d.qiara_supply)),
-            Event::create_data_struct(utf8(b"total_burned"), utf8(b"u256"), bcs::to_bytes(&d.burned_qiara)),
-            Event::create_data_struct(utf8(b"inflation"), utf8(b"u64"), bcs::to_bytes(&d.actual_inflation)),
-            Event::create_data_struct(utf8(b"burn_fee"), utf8(b"u64"), bcs::to_bytes(&d.actual_burn_fee)),
-            Event::create_data_struct(utf8(b"burned_qiara_rate"), utf8(b"u64"), bcs::to_bytes(&d.burned_qiara_rate))
-        ];
-        Event::emit_qiara_burn_event(data);
+    public fun sync_validator_keys(keys: vector<vector<u8>>, _perm: &Permission) acquires BridgeState {
+        let state = borrow_global_mut<BridgeState>(ADMIN);
+        if (&state.validator_keys == &keys) return;
+        state.validator_keys = keys;
+    }
+
+    public entry fun set_fee_exempt(caller: &signer, account: address, exempt: bool) acquires BridgeState {
+        let caller_addr = signer::address_of(caller);
+        let state = borrow_global_mut<BridgeState>(ADMIN);
+
+        assert!(caller_addr == get_whitelist_admin(), ERROR_UNAUTHORIZED_WHITELIST_ADMIN);
+
+        let (found, idx) = vector::index_of(&state.fee_exempt, &account);
+        if (exempt && !found) {
+            vector::push_back(&mut state.fee_exempt, account);
+        } else if (!exempt && found) {
+            vector::swap_remove(&mut state.fee_exempt, idx);
+        };
+    }
+
+    public fun change_last_claim(shared: String, _perm: Permission) acquires Timers {
+        assert!(capabilities::assert_wallet_capability(shared, utf8(b"QiaraToken"), utf8(b"INFLATION_CLAIM")), ERROR_NOT_AUTHORIZED_FOR_CLAIMING);
+        borrow_global_mut<Timers>(ADMIN).last_claimed = timestamp::now_seconds();
+    }
+
+    public fun get_bridge_tax_receiver(): address {
+        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_BRIDGE_TAX_FEE_RECEIVER")))
+    }
+
+    public fun get_whitelist_admin(): address {
+        storage::expect_address_padded(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"APTOS_WHITELIST_ADMIN")))
+    }
+
+    public fun get_bridge_tax_fee(): u64 {
+        storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE")))
     }
 
     #[view]
-    public fun get_metadata(symbol: String): Object<Metadata> {
-        let asset_address = object::create_object_address(&ADMIN, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(symbol)));
-        object::address_to_object<Metadata>(asset_address)
+    public fun is_fee_exempt(account: address): bool acquires BridgeState {
+        // ADMIN and Token Metadata address are inherently exempt to prevent recursive taxation
+        if (account == ADMIN || account == get_metadata_address()) {
+            return true
+        };
+        vector::contains(&borrow_global<BridgeState>(ADMIN).fee_exempt, &account)
+    }
+
+    #[view]
+    public fun get_exempt_accounts(): vector<address> acquires BridgeState {
+        borrow_global<BridgeState>(ADMIN).fee_exempt
     }
 
     #[view]
@@ -386,15 +470,14 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
 
     #[view]
     public fun get_ratio(): (u256, u256, u256) {
-        let b = (option::destroy_some(fungible_asset::supply(get_metadata(utf8(b"Burned Qiara")))) as u256);
-        let q = (option::destroy_some(fungible_asset::supply(get_metadata(utf8(b"Qiara")))) as u256);
-        (b, q, (b * 100_000_000) / q)
+        let metadata = get_metadata();
+        let q = (option::destroy_some(fungible_asset::supply(metadata)) as u256);
+        (0, q, 0)
     }
 
     #[view]
     public fun get_burned_qiara_rate(): u64 {
-        let (_, _, ratio) = get_ratio();
-        get_locked_qiara_rate() + ((ratio as u64) / 10)
+        get_locked_qiara_rate()
     }
 
     #[view]
@@ -449,9 +532,9 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
 
     #[view]
     public fun claimable(circulating_supply: u128): u128 acquires Timers {
-        let delta = timestamp::now_seconds() - borrow_global<Timers>(ADMIN).last_claimed;
-        let actual_inflation = (get_inflation() - get_inflation_debt()) / 100_000_000;
-        (circulating_supply * (actual_inflation as u128) * (delta as u128)) / 31_536_000
+        let delta = (timestamp::now_seconds() - borrow_global<Timers>(ADMIN).last_claimed as u128);
+        let actual_inflation = (get_actual_inflation() as u128);
+        (circulating_supply * actual_inflation * delta) / (31_536_000u128 * 100_000_000u128)
     }
 
     #[view]
@@ -462,21 +545,20 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
     #[view]
     public fun burn_calculation(amount: u64): u64 acquires Timers {
         let min = get_burn_fee_minimal();
-        let fee = (amount * burn_fee()) / 100_000_000;
-        if (fee == 0) {
+        let fee = (((amount as u128) * (burn_fee() as u128) / 100_000_000) as u64);
+        let final_fee = if (fee == 0) {
             if (min > amount) amount else min
         } else {
             if (fee > min) fee else min
-        }
+        };
+        if (final_fee > amount) { amount } else { final_fee }
     }
 
     #[view]
     public fun calculate_emissions(): u64 {
-        let cur_supply = option::destroy_with_default(fungible_asset::supply(get_metadata(utf8(b"Qiara"))), 0) / 100_000_000;
+        let cur_supply = option::destroy_with_default(fungible_asset::supply(get_metadata()), 0) / 100_000_000;
         (get_emissions_validators() * (cur_supply as u64)) / 100_000_000
     }
-
-    // === INLINE SLICE & INT UTILS === //
 
     fun slice(bytes: &vector<u8>, from: u64, to: u64): vector<u8> {
         let out = vector::empty();
@@ -486,22 +568,5 @@ const ERROR_INVALID_ACTION_HASH: u64 = 100;
             i = i + 1;
         };
         out
-    }
-
-    fun bcs_to_u32_le(bytes: &vector<u8>): u32 {
-        let val = (*vector::borrow(bytes, 0) as u32);
-        val = val | ((*vector::borrow(bytes, 1) as u32) << 8);
-        val = val | ((*vector::borrow(bytes, 2) as u32) << 16);
-        val | ((*vector::borrow(bytes, 3) as u32) << 24)
-    }
-
-    fun bcs_to_u64_le(bytes: &vector<u8>): u64 {
-        let val = (*vector::borrow(bytes, 0) as u64);
-        let i = 1;
-        while (i < 8) {
-            val = val | ((*vector::borrow(bytes, i) as u64) << ((i * 8) as u8));
-            i = i + 1;
-        };
-        val
     }
 }

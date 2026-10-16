@@ -1,17 +1,18 @@
-module dev::QiaraValidatorsV92 {
+module dev::QiaraValidatorsV93 {
     use std::signer;
     use std::vector;
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
+    use aptos_std::from_bcs;
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV82::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV83::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV24::{Self as storage};
-    use dev::QiaraTokensQiaraV82::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensCoreV82::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV83::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensCoreV83::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraOracleV16::{Self as Oracle, Access as OracleAccess};
 
     // === ERRORS === //
@@ -403,18 +404,36 @@ module dev::QiaraValidatorsV92 {
         let validators = map::keys(&per_epoch.vote_weights);
         let len = vector::length(&validators);
 
+
+        assert!(total_weight > 0, ERROR_ZERO_AMOUNT);
+
         while (len > 0) {
             len = len - 1;
             let voter = vector::borrow(&validators, len);
             let weight = *map::borrow(&per_epoch.vote_weights, voter);
 
-            let emission_reward = (weight * emissions) / total_weight;
-            let credit_reward = (weight * total_credits) / total_weight;
+            // Cast to u128 to prevent overflow during multiplication
+            let emission_reward = (((weight as u128) * (emissions as u128) / (total_weight as u128)) as u64);
+            let credit_reward = (((weight as u128) * (total_credits as u128) / (total_weight as u128)) as u64);
 
-            let user_addr = Shared::return_shared_owner(*voter);
+            let user_addr_bytes = Shared::return_shared_owner(*voter);
+            let user_address = from_bcs::to_address(user_addr_bytes);
 
-            Margin::add_credit(*voter, user_addr, credit_reward, Margin::give_permission(&permissions.margin));
-            TokensCore::mint_qiara(*voter, user_addr, (emission_reward as u64), TokensCore::give_permission(&permissions.tokens_core));
+            // If Margin::add_credit expects `vector<u8>`, pass `user_addr_bytes`
+            // If it expects `address`, pass `user_address`
+            Margin::add_credit(
+                *voter, 
+                user_addr_bytes, 
+                credit_reward, 
+                Margin::give_permission(&permissions.margin)
+            );
+
+            let qiara_perm = TokensQiara::give_permission(&permissions.tokens_qiara);
+            TokensQiara::mint_to_user(
+                user_address, 
+                emission_reward, 
+                &qiara_perm
+            );
         };
 
         // Reset
