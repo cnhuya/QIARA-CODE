@@ -22,6 +22,7 @@ module dev::QiaraValidatorsV93 {
     const ERROR_VALIDATOR_DOESNT_EXISTS: u64 = 3;
     const ERROR_NOT_REGISTERED_VALIDATOR: u64 = 4;
     const ERROR_KEYS_CANNOT_BE_EMPTY: u64 = 6;
+    const ERROR_ZERO_AMOUNT: u64 = 7;
 
     // === ACCESS === //
     struct Access has store, key, drop {}
@@ -424,7 +425,7 @@ module dev::QiaraValidatorsV93 {
             Margin::add_credit(
                 *voter, 
                 user_addr_bytes, 
-                credit_reward, 
+                (credit_reward as u256), 
                 Margin::give_permission(&permissions.margin)
             );
 
