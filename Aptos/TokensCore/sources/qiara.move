@@ -423,6 +423,29 @@ module dev::QiaraTokensQiaraV83 {
         storage::expect_u64(storage::viewConstant(utf8(b"QiaraToken"), utf8(b"BRIDGE_TAX_FEE")))
     }
 
+// =========================================================================
+    // PROTOCOL STATE EVENT EMISSION
+    // =========================================================================
+
+    /// Emits the current token protocol state (epoch, supply, inflation, burn rate, etc.)
+    /// Called after key state changes (like burns / reward claims) or by off-chain indexers.
+    public entry fun emit_qiara_events() acquires Timers {
+        let data = get_qiara_data();
+        let event_data = vector[
+            Event::create_data_struct(utf8(b"epoch"), utf8(b"u64"), bcs::to_bytes(&data.epoch)),
+            Event::create_data_struct(utf8(b"inflation"), utf8(b"u64"), bcs::to_bytes(&data.inflation)),
+            Event::create_data_struct(utf8(b"actual_inflation"), utf8(b"u64"), bcs::to_bytes(&data.actual_inflation)),
+            Event::create_data_struct(utf8(b"burn_fee"), utf8(b"u64"), bcs::to_bytes(&data.burn_fee)),
+            Event::create_data_struct(utf8(b"actual_burn_fee"), utf8(b"u64"), bcs::to_bytes(&data.actual_burn_fee)),
+            Event::create_data_struct(utf8(b"validator_emissions"), utf8(b"u64"), bcs::to_bytes(&data.validator_emissions)),
+            Event::create_data_struct(utf8(b"base_burned_qiara_rate"), utf8(b"u64"), bcs::to_bytes(&data.base_burned_qiara_rate)),
+            Event::create_data_struct(utf8(b"burned_qiara_rate"), utf8(b"u64"), bcs::to_bytes(&data.burned_qiara_rate)),
+            Event::create_data_struct(utf8(b"qiara_supply"), utf8(b"u256"), bcs::to_bytes(&data.qiara_supply)),
+            Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&data.ratio)),
+        ];
+        Event::emit_consensus_event(utf8(b"Qiara Token Update"), event_data);
+    }
+
     #[view]
     public fun is_fee_exempt(account: address): bool acquires BridgeState {
         // ADMIN and Token Metadata address are inherently exempt to prevent recursive taxation

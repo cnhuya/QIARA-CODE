@@ -260,15 +260,6 @@ module dev::QiaraTokensCoreV83{
         let transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
         let burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
 
-        // 2. If token is QIARA, generate a second set of refs directly for the Qiara Bridge module
-        if (symbol == utf8(b"QIARA")) {
-            let qiara_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
-            let qiara_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
-            let transfer_burn_ref = fungible_asset::generate_transfer_ref(constructor_ref);
-            TokensQiara::init_qiara(admin);
-            TokensQiara::init_token_refs(admin, qiara_mint_ref, qiara_burn_ref, transfer_burn_ref );
-        };
-
         let metadata_object_signer = object::generate_signer(constructor_ref);
         let asset_address = object::create_object_address(&ADMIN, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name)));
         assert!(fungible_asset::is_untransferable(asset), 1);

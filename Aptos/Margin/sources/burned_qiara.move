@@ -17,30 +17,32 @@ module dev::QiaraBurnedQiaraV83 {
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV83::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV83::{Self as TokensQiara};
+    use dev::QiaraTokensQiaraV83::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraStorageV24::{Self as storage};
     use dev::QiaraRanksV83::{Self as Ranks};
 
     use event::QiaraEventV1::{Self as Event};
+
 // === CONSTANTS === //
     const ADMIN: address = @dev;
-    const PRECISION: u64 = 1_000_000;  // 6 decimals for reward rate
-    const SECONDS_PER_YEAR: u64 = 31_536_000;  // 365 * 24 * 60 * 60
+    const PRECISION: u64 = 1_000_000;          // 6 decimals for reward rate
+    const SECONDS_PER_YEAR: u64 = 31_536_000;   // 365 * 24 * 60 * 60
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
     const ERROR_NOT_AUTHORIZED_FOR_CLAIMING: u64 = 2;
+    const ERROR_ZERO_AMOUNT: u64 = 3;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
     struct Permission has copy, key, drop {}
 
     public fun give_access(s: &signer): Access {
-        assert!(signer::address_of(s) == @dev, ERROR_NOT_ADMIN);
+        assert!(signer::address_of(s) == ADMIN, ERROR_NOT_ADMIN);
         Access {}
     }
 
-    public fun give_permission(access: &Access): Permission {
+    public fun give_permission(_access: &Access): Permission {
         Permission {}
     }
     
@@ -58,74 +60,95 @@ module dev::QiaraBurnedQiaraV83 {
     /// Stores the secure custom fee store and tracks balance updates per shared name
     struct BurnedQiara has key {
         tracked_amounts: SmartTable<String, u64>,
-        user_claims: SmartTable<String, UserClaimState>,  // NEW: track claim history
+        user_claims: SmartTable<String, UserClaimState>,
     }
 
     struct Permissions has key {
+        tokens_qiara: TokensQiaraAccess,
         token_core: TokensCoreAccess,
-        shared: SharedAccess
+        shared: SharedAccess,
     }
 
 // === INIT === //
 
-    fun init_module(admin: &signer){
-        let deploy_addr = signer::address_of(admin);
-
-        if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions { shared: Shared::give_access(admin), token_core: TokensCore::give_access(admin)});
-        };
-
-        if (!exists<BurnedQiara>(@dev)) {
-            move_to(admin, BurnedQiara {
-                tracked_amounts: smart_table::new<String, u64>(),
-                user_claims: smart_table::new<String, UserClaimState>(),  // Initialize new table
+    fun init_module(admin: &signer) {
+        if (!exists<Permissions>(ADMIN)) {
+            move_to(admin, Permissions { 
+                tokens_qiara: TokensQiara::give_access(admin),
+                shared: Shared::give_access(admin), 
+                token_core: TokensCore::give_access(admin),
             });
         };
 
+        if (!exists<BurnedQiara>(ADMIN)) {
+            move_to(admin, BurnedQiara {
+                tracked_amounts: smart_table::new<String, u64>(),
+                user_claims: smart_table::new<String, UserClaimState>(),
+            });
+        };
     }
 
 // === ENTRY FUNCTIONS === //
 
-    /// Deposits tokens from the user's primary store into our custom store and 
-    /// tracks the accumulated amount sent by a specific 'shared_name' (string).
-public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions  {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
-        let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
+    /// Burns canonical QIARA directly from the user's primary store, credits their 'shared' identity,
+    /// and mints internal 'Burned Qiara' receipt tokens to the shared wallet storage.
+    public entry fun deposit_and_burn_qiara(
+        sender: &signer, 
+        shared: String, 
+        amount: u64
+    ) acquires BurnedQiara, Permissions {
+        assert!(amount > 0, ERROR_ZERO_AMOUNT);
+        let sender_addr = signer::address_of(sender);
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&sender_addr));
 
-        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
-        let fa = TokensCore::withdraw(shared, obj, amount, utf8(b"Aptos"));
-        
-        // 1. Read the actual amount from the FungibleAsset resource BEFORE burning/consuming it
-        let actual_amount = fungible_asset::amount(&fa);
-        
-        // 2. Burn the FungibleAsset (this consumes 'fa')
-        TokensCore::burn_fa(utf8(b"Qiara"), utf8(b"Aptos"), fa, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
-        
-        // Record the actual burned amount in our tracking table per shared name
+        // 1. Settle any pending rewards accrued prior to this new burn
+        claim_rewards(sender, shared);
+
+        // 2. Burn canonical QIARA directly from user's primary fungible store
+        let perms = borrow_global<Permissions>(ADMIN);
+        let qiara_perm = TokensQiara::give_permission(&perms.tokens_qiara);
+        TokensQiara::burn_from_user(sender_addr, amount, &qiara_perm);
+
+        // 3. Record the burned amount in our tracking table per shared name
+        let burn_qiara = borrow_global_mut<BurnedQiara>(ADMIN);
         if (smart_table::contains(&burn_qiara.tracked_amounts, shared)) {
             let current_amount = smart_table::borrow_mut(&mut burn_qiara.tracked_amounts, shared);
-            *current_amount = *current_amount + actual_amount;
+            *current_amount = *current_amount + amount;
         } else {
-            smart_table::add(&mut burn_qiara.tracked_amounts, shared, actual_amount);
+            smart_table::add(&mut burn_qiara.tracked_amounts, shared, amount);
         };
 
-        let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Burned Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
+        // 4. Mint internal 'Burned Qiara' receipt token into shared storage for Ranks / Margin systems
+        let shared_perm = Shared::give_permission(&perms.shared);
+        let obj = Shared::ensure_shared_fungible_storage(
+            shared,
+            TokensCore::get_metadata(utf8(b"Burned Qiara")), 
+            shared_perm
+        );
         
-        // 3. Mint the exact post-fee 'actual_amount' that was burned
-        let new_fa = TokensCore::mint(utf8(b"Burned Qiara"), utf8(b"Aptos"), actual_amount, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
-        
-        claim_rewards(sender, shared);
+        let core_perm = TokensCore::give_permission(&perms.token_core);
+        let new_fa = TokensCore::mint(
+            utf8(b"Burned Qiara"), 
+            utf8(b"Aptos"), 
+            amount, 
+            core_perm
+        );
         TokensCore::deposit(shared, obj, new_fa, utf8(b"Aptos"));
     }
-    /// Claims accumulated rewards based on burned amount and time since last claim
-    public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(sender)));
+
+    /// Claims accumulated rewards based on burned amount and time elapsed,
+    /// minting canonical QIARA directly to the user's primary fungible store.
+    public entry fun claim_rewards(
+        sender: &signer, 
+        shared: String
+    ) acquires BurnedQiara, Permissions {
+        let sender_addr = signer::address_of(sender);
+        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&sender_addr));
         
-        // 1. Fetch total_burned FIRST while global resource is not mutably borrowed
-        let (total_burned, qiara_supply, _) = TokensQiara::get_ratio();
+        // Fetch total ratio/burned if needed by ratio logic
+        let (_total_burned, _qiara_supply, _) = TokensQiara::get_ratio();
         
-        // 2. Now mutably borrow BurnedQiara safely
-        let burn_qiara = borrow_global_mut<BurnedQiara>(@dev);
+        let burn_qiara = borrow_global_mut<BurnedQiara>(ADMIN);
         let current_time = timestamp::now_seconds();
         
         // Get burned amount for this shared name
@@ -152,7 +175,7 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
         let time_elapsed = current_time - last_claim;
         let view_user_rank = Ranks::return_shared_rank(shared);
         let user_increased_reward_rate = Ranks::extract_gas_fee_reduction(view_user_rank);
-        let (user_dedicated_reward_rate, base_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
+        let (user_dedicated_reward_rate, _base_reward_rate) = calculate_increased_reward_rate((user_increased_reward_rate as u64));
         let reward = calculate_reward(burned_amount, user_dedicated_reward_rate, time_elapsed);
         
         // Update last claim timestamp
@@ -161,20 +184,17 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
             state.last_claim_timestamp = current_time;
         };
         
-        // Mint and deposit rewards if any
+        // Mint canonical QIARA rewards directly to user's primary store
         if (reward > 0) {
-            let obj = Shared::ensure_shared_fungible_storage(shared,TokensCore::get_metadata(utf8(b"Qiara")), Shared::give_permission(&borrow_global<Permissions>(@dev).shared));
-            let reward_fa = TokensCore::mint(utf8(b"Qiara"), utf8(b"Aptos"), reward, TokensCore::give_permission(&borrow_global<Permissions>(@dev).token_core));
-            TokensCore::deposit(shared, obj, reward_fa, utf8(b"Aptos"));
+            let perms = borrow_global<Permissions>(ADMIN);
+            let qiara_perm = TokensQiara::give_permission(&perms.tokens_qiara);
+            TokensQiara::mint_to_user(sender_addr, reward, &qiara_perm);
         };
 
         TokensQiara::emit_qiara_events();
-
-    
     }
 
-
-// === HELPER FUNCTIONS === //
+// === HELPER & VIEW FUNCTIONS === //
    
     /// Calculates reward: (burned * rate * elapsed) / (PRECISION * SECONDS_PER_YEAR)
     #[view]
@@ -192,9 +212,8 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
     /// View: Returns both burned amount and last claim timestamp for a shared name
     #[view]
     public fun get_user_burn_summary(shared_name: String): UserBurnSummary acquires BurnedQiara {
-        let burn_qiara = borrow_global<BurnedQiara>(@dev);
+        let burn_qiara = borrow_global<BurnedQiara>(ADMIN);
         
-        // 1. Optimize tracked_amounts to a single lookup using borrow_with_default
         let default_amount = 0;
         let burned_amount = *smart_table::borrow_with_default(
             &burn_qiara.tracked_amounts, 
@@ -202,12 +221,11 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
             &default_amount
         );
         
-        // 2. Optimize user_claims lookup from 4 operations down to 1-2, and fix the copy-paste bug
-        let (last_claim_timestamp) = if (smart_table::contains(&burn_qiara.user_claims, shared_name)) {
+        let last_claim_timestamp = if (smart_table::contains(&burn_qiara.user_claims, shared_name)) {
             let claim = smart_table::borrow(&burn_qiara.user_claims, shared_name);
-            (claim.last_claim_timestamp)
+            claim.last_claim_timestamp
         } else {
-            (0) // Never claimed
+            0
         };
         
         UserBurnSummary {
@@ -215,7 +233,6 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
             last_claim_timestamp,
         }
     }
-
 
     #[view]
     public fun get_reward_rate(): u64 {
@@ -230,33 +247,24 @@ public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount:
     #[view]
     public fun calculate_increased_reward_rate(increase: u64): (u64, u64) {
         let reward_rate = TokensQiara::get_burned_qiara_rate();
-        let (_,_, ratio) = TokensQiara::get_ratio();
         let scale = 100_000_000;
-        // 25_000_000 + 554 092 = 25 554 092
-        // e.g., (25 554 092 * 50_000_000) / 100_000_000
-        // (1 277 704 600 000 000 / 100_000_000 )
-        // 12 777 046, which equals 12,77% (correct)
-       ((reward_rate * increase) / scale, reward_rate)
-
-
+        let increased_rate = (((reward_rate as u128) * (increase as u128) / (scale as u128)) as u64);
+        (increased_rate, reward_rate)
     }
 
     #[view]
     public fun calculate_required_locked_tokens_u256(shared_name: String, dolars: u256): (u256, u256, bool) {
         let conversion_rate = (get_required_conversion_rate() as u256);
-        let scale = 1_000_000;
         let user_burned = (get_user_burn_summary(shared_name).burned_amount as u256);
 
-        if(user_burned == 0){
-            return (0, 0, false);
+        if (user_burned == 0 || conversion_rate == 0) {
+            return (0, user_burned, false);
         };
-        // e.g., (10_000_000 / 1_000
-        let actual_user_dedicated_reward_rate = (dolars/1000000000000000000) / conversion_rate;
-        if ( user_burned >= actual_user_dedicated_reward_rate) {
+        
+        let actual_user_dedicated_reward_rate = (dolars / 1_000_000_000_000_000_000) / conversion_rate;
+        if (user_burned >= actual_user_dedicated_reward_rate) {
             return (actual_user_dedicated_reward_rate, user_burned, true);
         };
         (actual_user_dedicated_reward_rate, user_burned, false)
-
     }
-
 }
