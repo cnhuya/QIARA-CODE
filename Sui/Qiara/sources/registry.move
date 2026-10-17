@@ -14,7 +14,7 @@ module Qiara::QiaraRegistryV1 {
     use Qiara::QiaraVariablesV1::{Self as vars, Registry as VariablesRegistry};
     use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState};
 
-    const SUI_CHAIN_ID: u64 = 901;
+    const SUI_CHAIN_ID: u64 = 103;
 
     // --- Errors ---
     const EDevAccessRevoked: u64 = 0;
