@@ -1,4 +1,4 @@
-module dev::QiaraTokenTypesV83 {
+module dev::QiaraTokenTypesV84 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -6,9 +6,9 @@ module dev::QiaraTokenTypesV83 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraNonceV4::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraChainTypesV83::{Self as ChainTypes};
+    use dev::QiaraChainTypesV84::{Self as ChainTypes};
 
-    const TOKEN_PREFIX: vector<u8> = b"Qiara156 ";
+    const TOKEN_PREFIX: vector<u8> = b"Qiara157 ";
 
     // === ERRORS === //
     const ERROR_INVALID_TOKEN: u64 = 1;
@@ -49,118 +49,118 @@ module dev::QiaraTokenTypesV83 {
     }
 
     fun x_init(signer: &signer) acquires Tokens {
-        register_token_with_chains(signer, utf8(b"Qiara156 Qiara"), utf8(b"Qiara"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 Qiara"), utf8(b"Qiara"), 
             vector[
                 utf8(b"0x8C9621E38f74c59b0B784894f12C0CD5bE8a2f02"), //sui
-                utf8(b"0xe0472CDcD4f0f464b8aCF01F3Cd5EDe77A48d9a5"), // robinhood
-                utf8(b"0xF8EF8D134A8ef6480B54552cFBcCdDfAd6D75AB0"), // base
-                utf8(b"0x3254f2d8547692b1049CA024CEbACDEBE1878E9c"), // monad
-                utf8(b"0x1ddb512386D8325402C2303592583fFc6Aa6AF64"), //eth
+                utf8(b"0xe0472CDcD4f0f464b8aCF01F3Cd5EDe77A48d9a5"), // robinhood (unchanged: no new Qiara EVM addr provided)
+                utf8(b"0xF8EF8D134A8ef6480B54552cFBcCdDfAd6D75AB0"), // base (unchanged)
+                utf8(b"0x3254f2d8547692b1049CA024CEbACDEBE1878E9c"), // monad (unchanged)
+                utf8(b"0x1ddb512386D8325402C2303592583fFc6Aa6AF64"), //eth (unchanged)
                 utf8(b"0xf708ff4e10c59449c00615cb9f7a98a92fc305dba0c34638e5bbf208af91b5fc"), // aptos
                 utf8(b"HvctpZ1iszDdxLc6PuRsfTwdMeaGNVJz8JTwVMF9JcSx") // solana
             ], 
             vector[utf8(b"Sui"), utf8(b"Robinhood"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Aptos"), utf8(b"Solana")],
             vector[9u8, 9u8, 9u8, 9u8, 9u8, 9u8, 9u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Solana"), utf8(b"Solana"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 Solana"), utf8(b"Solana"), 
             vector[utf8(b"AhC5BeQ238gzcoZ174B1xup4hnT1ckL5Tw3jS2Lph754")], 
             vector[utf8(b"Solana")],
             vector[8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 USDG"), utf8(b"USDG"), 
-            vector[utf8(b"77fFeadUKQfgr6uKh1uZyCUVYZsdM4qQrm9mSsxxCdj2"), utf8(b"0x14eF7c5BFA22941eb49cf2AC3F99aC060942161b")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 USDG"), utf8(b"USDG"), 
+            vector[utf8(b"77fFeadUKQfgr6uKh1uZyCUVYZsdM4qQrm9mSsxxCdj2"), utf8(b"0x6a9612777617de559F3B9f0CaD38B42Aca99C089")], 
             vector[utf8(b"Solana"), utf8(b"Robinhood")],
             vector[8u8, 18u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 JLP"), utf8(b"JLP"), 
-            vector[utf8(b"CVi7oUumG14WjyWPSpdEQiHTBTfZTRX76c2KEKjQKRUr")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 JLP"), utf8(b"JLP"), 
+            vector[utf8(b"3CS59N9gGzSA3Bny77B54rwvvyqxwe8WPKTboMcWcxnn")], 
             vector[utf8(b"Solana")],
             vector[8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Burned Qiara"), utf8(b"Burned Qiara"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 Burned Qiara"), utf8(b"Burned Qiara"), 
             vector[utf8(b"0x0")], 
             vector[utf8(b"Aptos")],
             vector[8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 USDC"), utf8(b"USDC"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 USDC"), utf8(b"USDC"), 
             vector[
-                utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::usdc::USDC"),
-                utf8(b"0x467a3b8A38fE71709F05BAf2B890C73acfD4cd89"),
-                utf8(b"0x8d90fEE017450a47C8B873557e5B40670b0E0a6a"),
-                utf8(b"0x32c6017328463463f781462e045BBD249eC111E1"),
-                utf8(b"0x1E7A5656bAb1789398aC73159163ffB203e2645B"),
-                utf8(b"9LPXvqdXQdLiFSSFqMsRzwiABpoNNh2oLrMc5vk84RB"),
+                utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::usdc::USDC"),
+                utf8(b"0x3b064561F5DBA483E98633B400BB5ac64458E18f"),
+                utf8(b"0xac736a71F847955f1a933F3111E3fDe82B628Af2"),
+                utf8(b"0xFded46A46659d46Ed5BC8e9da4a75d38A119A81D"),
+                utf8(b"0x8f91EaF4913C87902Eef8221822D9139273BD6dc"),
+                utf8(b"3bn1pP4LnVw647qWQqrhcgy5PzeBnmcnPBJPfZfhbT3G"),
                 utf8(b"0x0")
             ], 
             vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Solana"), utf8(b"Aptos")],
             vector[8u8, 18u8, 18u8, 18u8, 18u8, 8u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 USDT"), utf8(b"USDT"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 USDT"), utf8(b"USDT"), 
             vector[
-                utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::usdt::USDT"),
-                utf8(b"0xb4c0119069E9c82D031cCFF167eB6a33AAd9347C"),
-                utf8(b"0x2d6c8F8eD8667f42D931E73a57f033D03b11b477"),
-                utf8(b"DWRhorhZnoxWHSe3fpJF5Gtz4YoAfevRZgyt3JnwF4i3"),
+                utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::usdt::USDT"),
+                utf8(b"0x175d94b8c8E5bBe2D462030657aD9638BEb97e47"),
+                utf8(b"0x957d2bC6986208ec011bceBe4c02E9705576D309"),
+                utf8(b"FSaYe2UDmemy31cnH657C4vDR9GZnvE7hCXN3PvH6DXZ"),
                 utf8(b"0x0")
             ], 
             vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
             vector[8u8, 18u8, 18u8, 8u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 AUSD"), utf8(b"AUSD"), 
-            vector[utf8(b"0xef2b49A7B11b61eeFce6c5a0C0466D13e6C7aeA7"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 AUSD"), utf8(b"AUSD"), 
+            vector[utf8(b"0xA4200C0C470081ebf5d4baB0B0521eC5003d6320"), utf8(b"0x0")], 
             vector[utf8(b"Monad"), utf8(b"Aptos")],
             vector[18u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 earnAUSD"), utf8(b"earnAUSD"), 
-            vector[utf8(b"0x54328f1bD6438A8EE35CdeB412233511008F8B06"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 earnAUSD"), utf8(b"earnAUSD"), 
+            vector[utf8(b"0x5B9A0eDfD33d1C562792187585f98d7010bE5d05"), utf8(b"0x0")], 
             vector[utf8(b"Monad"), utf8(b"Aptos")],
             vector[18u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Ethereum"), utf8(b"Ethereum"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 Ethereum"), utf8(b"Ethereum"), 
             vector[
-                utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::eth::ETH"),
-                utf8(b"0x3C09a5dB101fb4aC18A96Fc638ACF075b94a0aAc"),
-                utf8(b"0x6C138f06Bd305c421678DC9C47dd92f6cb0E6f09"),
-                utf8(b"0x118cE2B6010006C423c89D16056A068142bDDAFB"),
-                utf8(b"0x7831e01f7168Be7E84690AfFfA436BcbCF64eC33"),
+                utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::eth::ETH"),
+                utf8(b"0xEa3B5FC75f473a67De8ea1544516798B37963d98"),
+                utf8(b"0x6056deA2be946Cd119685C3Bb15CD6F07F22663B"),
+                utf8(b"0x7806C9b38E892958612943e9E1D319F6D2673a37"),
+                utf8(b"0x20B11f85209625C37FfBa3dD4C85EeDA79F2d9E3"),
                 utf8(b"0x0")
             ], 
             vector[utf8(b"Sui"), utf8(b"Base"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Robinhood"), utf8(b"Aptos")],
             vector[8u8, 18u8, 18u8, 18u8, 18u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Bitcoin"), utf8(b"Bitcoin"),
+        register_token_with_chains(signer, utf8(b"Qiara157 Bitcoin"), utf8(b"Bitcoin"),
             vector[
-                utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::btc::BTC"),
-                utf8(b"0x0e95449332B68158fA8fb06a145c50f743ad368A"),
-                utf8(b"0xd7fa256f739b144649a45C7cd120aE1A60927908"),
+                utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::btc::BTC"),
+                utf8(b"0xaBD6808E3c58c5d9BEC4aa72846f28A7A1632367"),
+                utf8(b"0x7C1E2f905FCfB83F53705595cAEf3F01c267dBdF"),
                 utf8(b"Drsao83oXx9aiCxtfpQXs8jNSggjLxFuwM3hYid8CpgQ"),
                 utf8(b"0x0")
             ], 
             vector[utf8(b"Sui"), utf8(b"Monad"), utf8(b"Ethereum"), utf8(b"Solana"), utf8(b"Aptos")],
             vector[8u8, 18u8, 18u8, 8u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Monad"), utf8(b"Monad"), 
-            vector[utf8(b"0x860d01d42D8557F9A2f9725ef86Af24d1CDa3AE8"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 Monad"), utf8(b"Monad"), 
+            vector[utf8(b"0xea8752Ce9468C60E4e6686dB21F73FfD8d3bcB79"), utf8(b"0x0")], 
             vector[utf8(b"Monad"), utf8(b"Aptos")],
             vector[18u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Aptos"), utf8(b"Aptos"), 
+        register_token_with_chains(signer, utf8(b"Qiara157 Aptos"), utf8(b"Aptos"), 
             vector[utf8(b"0x0")], 
             vector[utf8(b"Aptos")],
             vector[8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Sui"), utf8(b"Sui"), 
-            vector[utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::sui::SUI"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 Sui"), utf8(b"Sui"), 
+            vector[utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::sui::SUI"), utf8(b"0x0")], 
             vector[utf8(b"Sui"), utf8(b"Aptos")],
             vector[8u8, 8u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Deepbook"), utf8(b"Deepbook"), 
-            vector[utf8(b"0x072651bd55f5894dea1fd9733b85409f1e16680ea2476fe2398b17904b8df7bc::DEEP::DEEP"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 Deepbook"), utf8(b"Deepbook"), 
+            vector[utf8(b"0xde561eea5832d179193e66468bc7c05a22ab19862cdc38b3d72d337b70e0aeee::DEEP::DEEP"), utf8(b"0x0")], 
             vector[utf8(b"Sui"), utf8(b"Aptos")],
             vector[8u8, 6u8]
         );
-        register_token_with_chains(signer, utf8(b"Qiara156 Virtuals"), utf8(b"Virtuals"), 
-            vector[utf8(b"0x4a93DC1C3dEBd53F4aFc4D5040313B81a3D763B1"), utf8(b"0x0")], 
+        register_token_with_chains(signer, utf8(b"Qiara157 Virtuals"), utf8(b"Virtuals"), 
+            vector[utf8(b"0xB3189Cff7301232B9E60C39B07bBF932bF6758fb"), utf8(b"0x0")], 
             vector[utf8(b"Base"), utf8(b"Aptos")],
             vector[18u8, 8u8]
         );

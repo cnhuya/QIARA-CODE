@@ -43,7 +43,7 @@ module qiara_faucet::usdc {
     fun init(witness: USDC, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"USDC",           // Symbol
             b"USDC",  // Name
             ctx
@@ -60,7 +60,7 @@ module qiara_faucet::usdt {
     fun init(witness: USDT, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"USDT",           // Symbol
             b"USDT",  // Name
             ctx
@@ -68,7 +68,7 @@ module qiara_faucet::usdt {
     }
 }
 
-/// Qiara Test Wrapped BTC (8 Decimals)
+/// Qiara Test Wrapped BTC (9 Decimals)
 module qiara_faucet::eth {
     use qiara_faucet::coin_helperV2;
 
@@ -77,7 +77,7 @@ module qiara_faucet::eth {
     fun init(witness: ETH, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"ETH",            // Symbol
             b"Ether",  // Name
             ctx
@@ -85,7 +85,7 @@ module qiara_faucet::eth {
     }
 }
 
-/// Qiara Test Wrapped BTC (8 Decimals)
+/// Qiara Test Wrapped BTC (9 Decimals)
 module qiara_faucet::btc {
     use qiara_faucet::coin_helperV2;
 
@@ -94,7 +94,7 @@ module qiara_faucet::btc {
     fun init(witness: BTC, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"BTC",            // Symbol
             b"Bitcoin",  // Name
             ctx
@@ -110,7 +110,7 @@ module qiara_faucet::sui {
     fun init(witness: SUI, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"SUI",            // Symbol
             b"Sui",  // Name
             ctx
@@ -126,7 +126,7 @@ module qiara_faucet::DEEP {
     fun init(witness: DEEP, ctx: &mut TxContext) {
         coin_helperV2::create_token(
             witness,
-            8,                  // Decimals
+            9,                  // Decimals
             b"DEEP",            // Symbol
             b"deepbook",  // Name
             ctx

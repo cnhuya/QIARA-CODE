@@ -10,7 +10,7 @@ module dev::QiaraGovernanceV38 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV83::{Self as Margin};
+    use dev::QiaraMarginV84::{Self as Margin};
 
     use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};

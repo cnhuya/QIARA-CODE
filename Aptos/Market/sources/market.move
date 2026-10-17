@@ -16,20 +16,20 @@ module dev::QiaraVaultsV103 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV83::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV83::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV83::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV83::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV83::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV84::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV84::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV84::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV84::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV84::{Self as WrapperGate};
 
-    use dev::QiaraMarginV83::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV83::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV83::{Self as RI};
-    use dev::QiaraBurnedQiaraV83::{Self as BurnedQiara};
+    use dev::QiaraMarginV84::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV84::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV84::{Self as RI};
+    use dev::QiaraBurnedQiaraV84::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV83::{Self as TokensTypes};
-    use dev::QiaraChainTypesV83::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV83::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV84::{Self as TokensTypes};
+    use dev::QiaraChainTypesV84::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV84::{Self as ProviderTypes};
 
     use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};

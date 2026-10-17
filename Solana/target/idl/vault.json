@@ -1,5 +1,5 @@
 {
-  "address": "Hhwyx13xHVu9gfFAcnmtZgPPosARefKr1RbM5r6GozBd",
+  "address": "3Qjxo2dutJc5aktnk1bJZGuujVsRiH6JHp3UkusYJXuc",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -348,9 +348,9 @@
         {
           "name": "sig_buffer",
           "docs": [
-            "Signature buffer created on qiara program, closed upon withdrawal to refund rent"
+            "Signature buffer created on qiara program.",
+            "Remove `close = payer` because `vault` does not own this account!"
           ],
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -528,7 +528,7 @@
         },
         {
           "name": "verifier_program",
-          "address": "ECJDpyrsd1VeNbykjH22qAX8fXrKtNwG1ja9rbr9QTrE"
+          "address": "CvyoqMRZ79NRGDq1ZrMEYDmMSqCxrkGVjykqHU1HV9Ad"
         }
       ],
       "args": [
@@ -1245,6 +1245,11 @@
       "code": 6012,
       "name": "TrailingDataInPayload",
       "msg": "Trailing data detected in signed payload."
+    },
+    {
+      "code": 6013,
+      "name": "WrongChainId",
+      "msg": "Wrong chain ID."
     }
   ],
   "types": [

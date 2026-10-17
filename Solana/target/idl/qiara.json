@@ -1,5 +1,5 @@
 {
-  "address": "ECJDpyrsd1VeNbykjH22qAX8fXrKtNwG1ja9rbr9QTrE",
+  "address": "CvyoqMRZ79NRGDq1ZrMEYDmMSqCxrkGVjykqHU1HV9Ad",
   "metadata": {
     "name": "qiara",
     "version": "0.1.0",
@@ -1865,73 +1865,53 @@
   "errors": [
     {
       "code": 6000,
-      "name": "GenesisInFuture",
-      "msg": "Genesis timestamp is in the future."
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero."
     },
     {
       "code": 6001,
-      "name": "DurationIsZero",
-      "msg": "Epoch duration must be greater than zero."
+      "name": "FeeExceedsAmount",
+      "msg": "Fee exceeds total transfer amount."
     },
     {
       "code": 6002,
-      "name": "RegistryLocked",
-      "msg": "Registry variable map has been locked."
+      "name": "UnauthorizedWhitelistAdmin",
+      "msg": "Signer is not authorized to edit whitelist."
     },
     {
       "code": 6003,
-      "name": "InvalidPayloadEncoding",
-      "msg": "Invalid payload encoding format."
+      "name": "UnauthorizedAdmin",
+      "msg": "Signer is not authorized admin."
     },
     {
       "code": 6004,
-      "name": "TrailingDataInPayload",
-      "msg": "Trailing data detected in signed payload."
+      "name": "WrongChain",
+      "msg": "Packed chain ID does not match expected chain ID."
     },
     {
       "code": 6005,
-      "name": "InvalidSignatureLength",
-      "msg": "Invalid signature size or format."
+      "name": "InvalidNullifier",
+      "msg": "Nullifier does not match computed payload hash."
     },
     {
       "code": 6006,
-      "name": "InvalidSignature",
-      "msg": "Derivation recovered invalid SECP256K1 signature."
+      "name": "NullifierAlreadyUsed",
+      "msg": "Nullifier has already been consumed."
     },
     {
       "code": 6007,
-      "name": "NotValidator",
-      "msg": "Signer is not an active validator."
+      "name": "UnauthorizedRecipient",
+      "msg": "Recipient does not match payload address."
     },
     {
       "code": 6008,
-      "name": "WrongChainId",
-      "msg": "Wrong chain ID."
+      "name": "MissingFeeRecipientAta",
+      "msg": "Missing fee recipient token account."
     },
     {
       "code": 6009,
-      "name": "InsufficientSignatures",
-      "msg": "Insufficient validator signatures for quorum threshold."
-    },
-    {
-      "code": 6010,
-      "name": "DuplicateSigner",
-      "msg": "Duplicate validator signature detected."
-    },
-    {
-      "code": 6011,
-      "name": "DevAccessRevoked",
-      "msg": "Dev access has been permanently revoked."
-    },
-    {
-      "code": 6012,
-      "name": "UnauthorizedAdmin",
-      "msg": "Unauthorized developer admin."
-    },
-    {
-      "code": 6013,
-      "name": "InvalidActionHash",
-      "msg": "Action hash does not match computed payload."
+      "name": "InvalidFeeRecipient",
+      "msg": "Invalid fee recipient account owner."
     }
   ],
   "types": [
