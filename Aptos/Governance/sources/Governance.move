@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV38 {
+module dev::QiaraGovernanceV39 {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream  will not work

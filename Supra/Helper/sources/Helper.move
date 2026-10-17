@@ -8,7 +8,7 @@ module dev::QiaraHelperV28 {
     use dev::QiaraStorageV30::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV30::{Self as capabilities, Access as CapabilitiesAccess};
     use dev::QiaraVaultRatesV14::{Self as VaultRates};
-    use dev::QiaraVaultsV38::{Self as Market, Vault};
+    use dev::QiaraVaultsV39::{Self as Market, Vault};
 
     use dev::QiaraMathV9::{Self as QiaraMath};
 
