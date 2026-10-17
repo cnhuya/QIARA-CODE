@@ -18,7 +18,7 @@ module 0x0::QiaraBluefinInterfaceV1 {
     }
 
 // --- Permissionless Asset Listing ---
-    public entry fun m_create_shared_storage(name: String,ref_code: String, used_ref_code: String, selected_validator: String, xp_tax: u64, fee_tax: u64, clock: &sui::clock::Clock, ctx: &mut TxContext) {
+    public entry fun m_create_shared_storage(name: String,ref_code: String, used_ref_code: String, xp_tax: u64, fee_tax: u64, clock: &sui::clock::Clock, ctx: &mut TxContext) {
         if (name == string::utf8(b"")) {
             abort ERROR_SHARED_NAME_CANT_BE_EMPTY
         };
@@ -35,7 +35,6 @@ module 0x0::QiaraBluefinInterfaceV1 {
             Event::create_data_struct(string::utf8(b"name"), string::utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(string::utf8(b"ref_code"), string::utf8(b"string"), bcs::to_bytes(&ref_code)),
             Event::create_data_struct(string::utf8(b"used_ref_code"), string::utf8(b"string"), bcs::to_bytes(&used_ref_code)),
-            Event::create_data_struct(string::utf8(b"selected_validator"), string::utf8(b"string"), bcs::to_bytes(&selected_validator)),
             Event::create_data_struct(string::utf8(b"xp_tax"), string::utf8(b"u64"), bcs::to_bytes(&xp_tax)),
             Event::create_data_struct(string::utf8(b"fee_tax"), string::utf8(b"u64"), bcs::to_bytes(&fee_tax)),
         ];

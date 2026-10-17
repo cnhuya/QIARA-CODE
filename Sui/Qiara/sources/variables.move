@@ -1,37 +1,51 @@
 module Qiara::QiaraVariablesV1 {
     use std::string::{Self, String};
+    use std::vector;
     use sui::vec_map::{Self, VecMap};
     use sui::tx_context::{Self, TxContext};
     use sui::clock::Clock;
     use sui::object::{Self, UID};
     use sui::transfer;
-    use sui::address; // Added to resolve address::from_bytes [1]
+    use sui::address;
+    use sui::hash;
+    use sui::bcs;
 
-    use Qiara::QiaraEpochManagerV1 as epoch_manager;
-    use Qiara::QiaraEpochManagerV1::Config;
-    use Qiara::QiaraVerifierV1 as zk;
-    use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState}; 
+    use Qiara::QiaraEpochManagerV1::{Self as epoch_manager, Config};
+    use Qiara::QiaraValidatorsV1::{Self as validators, ValidatorState};
 
     // --- Errors ---
     const ERegistryLocked: u64 = 0;
     const EVariableNotFound: u64 = 1;
+    const EInvalidActionHash: u64 = 2;
+    const EWrongChainId: u64 = 3;
+
+    const LOCAL_CHAIN_ID: u64 = 901;
 
     // --- Structs ---
 
     public struct AdminCap has key, store { id: UID }
     public struct FriendCap has key, store { id: UID }
 
-    public struct PendingVariable has store, drop {
+    /// Matches Solana/EVM TimedVariable
+    public struct TimedVariable has store, drop, copy {
         name: String,
-        value: vector<u8>,
+        active_data: vector<u8>,
+        pending_data: vector<u8>,
+        effective_epoch: u64,
+    }
+
+    /// BCS payload struct matching Solana VariablePayload
+    public struct VariablePayload has drop {
+        header: String,
+        name: String,
+        data: vector<u8>,
+        chain_id: u64,
     }
 
     public struct Registry has key {
         id: UID,
-        active_variables: VecMap<String, VecMap<String, vector<u8>>>,
-        pending_variables: VecMap<String, vector<PendingVariable>>,
+        variables: VecMap<String, VecMap<String, TimedVariable>>,
         is_locked: bool,
-        last_processed_epoch: u64,
     }
 
     fun init(ctx: &mut TxContext) {
@@ -40,10 +54,8 @@ module Qiara::QiaraVariablesV1 {
 
         let registry = Registry {
             id: object::new(ctx),
-            active_variables: vec_map::empty(),
-            pending_variables: vec_map::empty(),
+            variables: vec_map::empty(),
             is_locked: false,
-            last_processed_epoch: 0,
         };
         transfer::share_object(registry);
     }
@@ -55,142 +67,175 @@ module Qiara::QiaraVariablesV1 {
         transfer::transfer(cap, recipient);
     }
 
-    // --- Core Logic (Internal) ---
-
-    fun internal_add_direct(registry: &mut Registry, header: String, name: String, data: vector<u8>) {
-        assert!(!registry.is_locked, ERegistryLocked);
-
-        if (!vec_map::contains(&registry.active_variables, &header)) {
-            let mut inner_map = vec_map::empty();
-            vec_map::insert(&mut inner_map, name, data);
-            vec_map::insert(&mut registry.active_variables, header, inner_map);
-        } else {
-            let inner_map = vec_map::get_mut(&mut registry.active_variables, &header);
-            if (vec_map::contains(inner_map, &name)) {
-                let (_, _) = vec_map::remove(inner_map, &name);
-            };
-            vec_map::insert(inner_map, name, data);
-        }
-    }
-
-    fun internal_add_pending(registry: &mut Registry, header: String, name: String, data: vector<u8>) {
-        assert!(!registry.is_locked, ERegistryLocked);
-
-        let pending_var = PendingVariable {
-            name: name,
-            value: data,
-        };
-        
-        if (!vec_map::contains(&registry.pending_variables, &header)) {
-            let mut vec = vector::empty();
-            vector::push_back(&mut vec, pending_var);
-            vec_map::insert(&mut registry.pending_variables, header, vec);
-        } else {
-            let vec = vec_map::get_mut(&mut registry.pending_variables, &header);
-            vector::push_back(vec, pending_var);
-        }
-    }
-
-    fun check_and_handle_epoch_rollover(
-        registry: &mut Registry,
-        epoch_manager_state: &Config,
-        clock: &Clock,
-        _ctx: &mut TxContext
-    ) {
-        let current_epoch = epoch_manager::get_current_epoch(epoch_manager_state, clock);
-        
-        if (current_epoch > registry.last_processed_epoch) {
-            let mut moved_count = 0;
-            
-            // Get all headers that have pending variables
-            let headers = vec_map::keys(&registry.pending_variables);
-            let mut i = 0;
-            let headers_len = vector::length(&headers);
-            
-            while (i < headers_len) {
-                let header = vector::borrow(&headers, i);
-                
-                // Remove the pending vector for this header
-                let (_, pending_vec) = vec_map::remove(&mut registry.pending_variables, header);
-                
-                // Process each pending variable
-                let mut j = 0;
-                let vec_len = vector::length(&pending_vec);
-                while (j < vec_len) {
-                    let pending_var = vector::borrow(&pending_vec, j);
-                    moved_count = moved_count + 1;
-                    
-                    // Add to active variables
-                    if (!vec_map::contains(&registry.active_variables, header)) {
-                        let mut inner_map = vec_map::empty();
-                        vec_map::insert(&mut inner_map, pending_var.name, pending_var.value);
-                        vec_map::insert(&mut registry.active_variables, *header, inner_map);
-                    } else {
-                        let inner_map = vec_map::get_mut(&mut registry.active_variables, header);
-                        if (vec_map::contains(inner_map, &pending_var.name)) {
-                            let (_, _) = vec_map::remove(inner_map, &pending_var.name);
-                        };
-                        vec_map::insert(inner_map, pending_var.name, pending_var.value);
-                    };
-                    
-                    j = j + 1;
-                };
-                
-                // Clean up the vector
-                vector::destroy_empty(pending_vec);
-                i = i + 1;
-            };
-            
-            registry.last_processed_epoch = current_epoch;
-        }
-    }
-
-    // --- Entry Points ---
-    public entry fun admin_add_variable(_: &AdminCap, registry: &mut Registry, header: String, name: String, data: vector<u8>) {
-        internal_add_direct(registry, header, name, data);
-    }
-
-    public entry fun friend_add_variable(
-        state: &ValidatorState,
-        registry: &mut Registry, 
-        epoch_manager_state: &Config,
-        public_inputs: vector<u8>, 
-        proof_points: vector<u8>,
-        signatures: vector<vector<u8>>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        validators::verify_signatures(state, signatures, public_inputs);
-        let (header, name, data) = zk::verify_variable(public_inputs, proof_points);
-        
-        // Handle epoch rollover before adding
-        check_and_handle_epoch_rollover(registry, epoch_manager_state, clock, ctx);
-        
-        internal_add_pending(registry, header, name, data);
-    }
-
     public entry fun lock_registry(_: &AdminCap, registry: &mut Registry) {
         registry.is_locked = true;
     }
 
-    // --- Getters ---
-    public fun get_variable(registry: &Registry, header: String, name: String): vector<u8> {
-        let inner_map = vec_map::get(&registry.active_variables, &header);
-        if (!vec_map::contains(inner_map, &name)) {
-            abort EVariableNotFound
+    // --- Core Operations ---
+
+    /// Matches Solana handle_admin_add_variable: immediate overwrite
+    public entry fun admin_add_variable(
+        _: &AdminCap,
+        registry: &mut Registry,
+        header: String,
+        name: String,
+        data: vector<u8>
+    ) {
+        assert!(!registry.is_locked, ERegistryLocked);
+
+        if (!vec_map::contains(&registry.variables, &header)) {
+            let mut inner = vec_map::empty();
+            vec_map::insert(&mut inner, name, TimedVariable {
+                name,
+                active_data: data,
+                pending_data: vector::empty(),
+                effective_epoch: 0,
+            });
+            vec_map::insert(&mut registry.variables, header, inner);
+        } else {
+            let inner = vec_map::get_mut(&mut registry.variables, &header);
+            if (vec_map::contains(inner, &name)) {
+                let var = vec_map::get_mut(inner, &name);
+                var.active_data = data;
+                var.pending_data = vector::empty();
+                var.effective_epoch = 0;
+            } else {
+                vec_map::insert(inner, name, TimedVariable {
+                    name,
+                    active_data: data,
+                    pending_data: vector::empty(),
+                    effective_epoch: 0,
+                });
+            };
         };
-        *vec_map::get(inner_map, &name)
     }
 
-    // --- Robust Helper Getters ---
-    
+    /// Matches Solana handle_friend_add_variable: stages variable for effective_epoch (current_epoch + 1)
+    public entry fun friend_add_variable(
+        state: &ValidatorState,
+        registry: &mut Registry,
+        epoch_manager_state: &Config,
+        message_hash: vector<u8>,
+        raw_payload: vector<u8>,
+        signatures: vector<vector<u8>>,
+        clock: &Clock,
+        _ctx: &mut TxContext
+    ) {
+        // 1. Assert canonical keccak256 hash matches Solana require!(message_hash == computed_hash)
+        let computed_hash = hash::keccak256(&raw_payload);
+        assert!(message_hash == computed_hash, EInvalidActionHash);
+
+        assert!(!registry.is_locked, ERegistryLocked);
+        let current_epoch = epoch_manager::get_current_epoch(epoch_manager_state, clock);
+
+        // 2. Verify validator signatures against current epoch active validator set
+        validators::verify_signatures(state, signatures, message_hash, current_epoch);
+
+        // 3. Deserialize canonical BCS payload
+        let payload = unpack_variable_payload(&raw_payload);
+
+        // 4. Assert chain_id if specified
+        if (payload.chain_id != 0) {
+            assert!(payload.chain_id == LOCAL_CHAIN_ID, EWrongChainId);
+        };
+
+        // 5. Stage variable to activate at effective_epoch (current_epoch + 1)
+        let effective_epoch = current_epoch + 1;
+
+        if (!vec_map::contains(&registry.variables, &payload.header)) {
+            let mut inner = vec_map::empty();
+            vec_map::insert(&mut inner, payload.name, TimedVariable {
+                name: payload.name,
+                active_data: vector::empty(),
+                pending_data: payload.data,
+                effective_epoch,
+            });
+            vec_map::insert(&mut registry.variables, payload.header, inner);
+        } else {
+            let inner = vec_map::get_mut(&mut registry.variables, &payload.header);
+            if (vec_map::contains(inner, &payload.name)) {
+                let var = vec_map::get_mut(inner, &payload.name);
+                // Auto-promote matured value before overwriting (exact Solana/EVM match)
+                if (var.effective_epoch != 0 && current_epoch >= var.effective_epoch) {
+                    var.active_data = var.pending_data;
+                };
+                var.pending_data = payload.data;
+                var.effective_epoch = effective_epoch;
+            } else {
+                vec_map::insert(inner, payload.name, TimedVariable {
+                    name: payload.name,
+                    active_data: vector::empty(),
+                    pending_data: payload.data,
+                    effective_epoch,
+                });
+            };
+        };
+    }
+
+    // --- BCS Helper ---
+
+    fun unpack_variable_payload(raw_payload: &vector<u8>): VariablePayload {
+        let mut bcs_data = bcs::new(*raw_payload);
+        let header_bytes = bcs::peel_vec_u8(&mut bcs_data);
+        let header = string::utf8(header_bytes);
+        let name_bytes = bcs::peel_vec_u8(&mut bcs_data);
+        let name = string::utf8(name_bytes);
+        let data = bcs::peel_vec_u8(&mut bcs_data);
+        let chain_id = bcs::peel_u64(&mut bcs_data);
+
+        VariablePayload { header, name, data, chain_id }
+    }
+
+    // --- Getters ---
+
+    /// Reads variable data with auto-evaluation for a specific epoch
+    public fun get_variable_at_epoch(
+        registry: &Registry,
+        header: String,
+        name: String,
+        current_epoch: u64
+    ): vector<u8> {
+        assert!(vec_map::contains(&registry.variables, &header), EVariableNotFound);
+        let inner = vec_map::get(&registry.variables, &header);
+        assert!(vec_map::contains(inner, &name), EVariableNotFound);
+        let var = vec_map::get(inner, &name);
+
+        if (var.effective_epoch != 0 && current_epoch >= var.effective_epoch) {
+            var.pending_data
+        } else {
+            var.active_data
+        }
+    }
+
+    /// Standard reader returning active data (or pending data if newly initialized)
+    public fun get_variable(registry: &Registry, header: String, name: String): vector<u8> {
+        assert!(vec_map::contains(&registry.variables, &header), EVariableNotFound);
+        let inner = vec_map::get(&registry.variables, &header);
+        assert!(vec_map::contains(inner, &name), EVariableNotFound);
+        let var = vec_map::get(inner, &name);
+
+        if (!vector::is_empty(&var.active_data)) {
+            var.active_data
+        } else {
+            var.pending_data
+        }
+    }
+
+    public fun has_variable(registry: &Registry, header: String, name: String): bool {
+        if (!vec_map::contains(&registry.variables, &header)) return false;
+        let inner = vec_map::get(&registry.variables, &header);
+        vec_map::contains(inner, &name)
+    }
+
+    // --- Helper Type Converters ---
+
     public fun get_variable_to_u8(registry: &Registry, header: String, name: String): u8 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
         assert!(len > 0, EVariableNotFound);
-        *vector::borrow(&data, len - 1) // Decodes the very last byte (LSB)
+        *vector::borrow(&data, len - 1)
     }
-    
+
     public fun get_variable_to_u16(registry: &Registry, header: String, name: String): u16 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
@@ -202,7 +247,7 @@ module Qiara::QiaraVariablesV1 {
         };
         res
     }
-    
+
     public fun get_variable_to_u32(registry: &Registry, header: String, name: String): u32 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
@@ -214,7 +259,7 @@ module Qiara::QiaraVariablesV1 {
         };
         res
     }
-    
+
     public fun get_variable_to_u64(registry: &Registry, header: String, name: String): u64 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
@@ -226,7 +271,7 @@ module Qiara::QiaraVariablesV1 {
         };
         res
     }
-    
+
     public fun get_variable_to_u128(registry: &Registry, header: String, name: String): u128 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
@@ -238,7 +283,7 @@ module Qiara::QiaraVariablesV1 {
         };
         res
     }
-    
+
     public fun get_variable_to_u256(registry: &Registry, header: String, name: String): u256 {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
@@ -250,8 +295,7 @@ module Qiara::QiaraVariablesV1 {
         };
         res
     }
-    
-    /// Safely trims null padding bytes (0x00) to recover the original vector payload
+
     public fun get_variable_to_vecu8(registry: &Registry, header: String, name: String): vector<u8> {
         let data = get_variable(registry, header, name);
         let mut trimmed = vector::empty<u8>();
@@ -266,21 +310,19 @@ module Qiara::QiaraVariablesV1 {
         };
         trimmed
     }
-    
-    /// Converts the trimmed byte array to a readable String
+
     public fun get_variable_as_string(registry: &Registry, header: String, name: String): String {
         let bytes = get_variable_to_vecu8(registry, header, name);
         string::utf8(bytes)
     }
-    
+
     public fun get_variable_to_bool(registry: &Registry, header: String, name: String): bool {
         let data = get_variable(registry, header, name);
         let len = vector::length(&data);
         assert!(len > 0, EVariableNotFound);
         *vector::borrow(&data, len - 1) != 0
     }
-    
-    /// Converts the 32-byte representation directly into a Sui Address
+
     public fun get_variable_to_address(registry: &Registry, header: String, name: String): address {
         let data = get_variable(registry, header, name);
         address::from_bytes(data)
