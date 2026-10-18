@@ -111,7 +111,7 @@ module dev::QiaraTokensQiaraV84 {
 
         // Create the official, non-prefixed standard Fungible Asset directly
         if (!exists<AssetRefs>(ADMIN)) {
-            let constructor_ref = &object::create_named_object(admin, b"QIARA");
+            let constructor_ref = &object::create_named_object(admin, b"QIARA1");
 
             primary_fungible_store::create_primary_store_enabled_fungible_asset(
                 constructor_ref,

@@ -16,7 +16,7 @@ pub struct DirectWithdrawPayload {
     pub user: Vec<u8>, // <--- Vec<u8> reads the ULEB128 length prefix!
     pub provider: String,
     pub token_name: String,
-    pub amount: u64,
+    pub amount: u128, // <--- Changed from u64 to u128
     pub nonce: u64,
 }
 
@@ -245,7 +245,10 @@ pub mod vault {
             require!(payload.chain_id == local_chain_id, QiaraError::WrongChainId);
         }
 
-        let amount = payload.amount;
+        let amount: u64 = payload.amount
+        .try_into()
+        .map_err(|_| error!(QiaraError::AmountOverflow))?;
+
         require!(amount > 0, QiaraError::ZeroAmount);
 
         // 5. Mark nullifier as used (Replay protection)
@@ -816,6 +819,8 @@ pub enum QiaraError {
     InvalidRange,
     #[msg("Caller is not authorized.")]
     NotValidator,
+    #[msg("Amount overflow.")]
+    AmountOverflow,
     #[msg("Math operation resulted in an overflow.")]
     MathOverflow,
     #[msg("Specified provider does not match the payload.")]

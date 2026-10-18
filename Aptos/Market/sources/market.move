@@ -291,7 +291,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         if(user_borrow_interest > 0){
             vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)))
         };
-        Event::emit_market_event(utf8(b"Bridge Deposit"), data);
+        Event::emit_market_event(utf8(b"Bridge Stake"), data);
     }
 
     public entry fun request_unstake(user: &signer, shared: String, symbol: String, chain: String, provider: String, amount: u64, tokenTo: String, receiver: vector<u8>) {
