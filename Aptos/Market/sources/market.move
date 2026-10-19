@@ -243,7 +243,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Persist the updated weighted target unlock epoch in state
-        Margin::update_user_lock_period(shared, sender, token, chain, provider, current_epoch, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_user_lock_period(shared, sender, token, chain, provider, (current_epoch as u64), (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         // 2. Deposit physical LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -759,7 +759,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Persist the updated weighted target unlock epoch in state
-        Margin::update_user_lock_period(shared, sender, token, chain, provider, current_epoch, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_user_lock_period(shared, sender, token, chain, provider, (current_epoch as u64), (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
