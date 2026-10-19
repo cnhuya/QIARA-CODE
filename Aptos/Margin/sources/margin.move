@@ -653,7 +653,7 @@ module dev::QiaraMarginV86 {
 
     #[view]
     public fun calculate_staked_increased_ltv(base_ltv: u256, locked_for_epochs: u256): (u256,u256,u256,u256){
-        base_ltv = base_ltv*10000; // because base ltv is in 5 decimals i.e 85% = 8500
+       //base_ltv = base_ltv*10000; // because base ltv is in 5 decimals i.e 85% = 8500
         let max_ltv = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256;
         let staked_ltv_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256;
          let staked_ltv_increase_missing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"))) as u256;
