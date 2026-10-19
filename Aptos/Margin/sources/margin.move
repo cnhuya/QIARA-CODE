@@ -427,7 +427,7 @@ module dev::QiaraMarginV86 {
                     let reward_usd = (uv.rewards * price) / denom;
                     let interest_usd = (uv.interest * price) / denom;
 
-                    let staked_efficiency = calculate_staked_increased_ltv(efficiency, (uv.stake_unlock - uv.stake_lock) as u256);
+                    let (_,_, staked_efficiency, _) = calculate_staked_increased_ltv(efficiency, (uv.stake_unlock - uv.stake_lock) as u256);
 
                     let current_staked_usd = (((uv.staked * price) / denom) * staked_efficiency) / 100_000_000;
 
