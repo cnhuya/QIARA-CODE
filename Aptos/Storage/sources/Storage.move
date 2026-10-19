@@ -175,10 +175,10 @@ module dev::QiaraStorageV24 {
         //register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"EXP_AGGRESION"), 10, true, &give_permission(&give_access(admin)));
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"), 250_000, true,  false, &give_permission(&give_access(admin))); // 10%
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"), 250_000, true,  false, &give_permission(&give_access(admin))); // 10%
-        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"), 110_000_000, true, false,  &give_permission(&give_access(admin))); // 99%
+        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"), 99_900_000, true, false,  &give_permission(&give_access(admin))); // 99%
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"CREDIT_SWAP_FEE"), 1_000_000, true, false,  &give_permission(&give_access(admin))); // 99%
         register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"), 2_500_000, true, false,  &give_permission(&give_access(admin))); // 2,5%
-        register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"), 2_500_000, true, false, &give_permission(&give_access(admin))); // 5%
+        //register_constant<u64>(admin, utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"), 2_500_000, true, false, &give_permission(&give_access(admin))); // 5%
 
         register_constant<u64>(admin, utf8(b"QiaraGovernance"), utf8(b"MINIMUM_TOKENS_TO_PROPOSE"), 100_000_000, true, false, &give_permission(&give_access(admin))); // 100 Qiara Tokens
         register_constant<u64>(admin, utf8(b"QiaraGovernance"), utf8(b"BURN_TAX"), 1_000_000, true, false, &give_permission(&give_access(admin))); // 1 Qiara Token
@@ -238,7 +238,7 @@ module dev::QiaraStorageV24 {
     public entry fun more4(admin: &signer) acquires ConstantDatabase, KeyRegistry, ConstantCounter{
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), 2, true, false, &give_permission(&give_access(admin))); // 2 VALIDATORS SIGNATURES
-        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 3000, true, false, &give_permission(&give_access(admin))); // 30 SECONDS?
+        register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), 30000, true, false, &give_permission(&give_access(admin))); // 30 SECONDS?
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MAX_PRICE_DIVERGENCE_DRIFT"), 100_000, true, false, &give_permission(&give_access(admin))); // 0.1% 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"MIN_PRICE_DIVERGENCE_DRIFT"), 100, true, false, &give_permission(&give_access(admin))); // 0.0001% 
         register_constant<u64>(admin, utf8(b"QiaraOracle"), utf8(b"COMMITTEE_POOL_SIZE"), 3, true, false, &give_permission(&give_access(admin))); // 3

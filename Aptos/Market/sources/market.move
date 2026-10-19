@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV104 {
+module dev::QiaraVaultsV105 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -16,20 +16,20 @@ module dev::QiaraVaultsV104 {
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
 
-    use dev::QiaraTokensCoreV84::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV84::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV84::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV84::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV84::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV85::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV85::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV85::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV85::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV85::{Self as WrapperGate};
 
-    use dev::QiaraMarginV84::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV84::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV84::{Self as RI};
-    use dev::QiaraBurnedQiaraV84::{Self as BurnedQiara};
+    use dev::QiaraMarginV85::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV85::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV85::{Self as RI};
+    use dev::QiaraBurnedQiaraV85::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV84::{Self as TokensTypes};
-    use dev::QiaraChainTypesV84::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV84::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV85::{Self as TokensTypes};
+    use dev::QiaraChainTypesV85::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV85::{Self as ProviderTypes};
 
     use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
@@ -38,8 +38,8 @@ module dev::QiaraVaultsV104 {
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV101::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV101::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV102::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV102::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
@@ -243,7 +243,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Persist the updated weighted target unlock epoch in state
-        Margin::update_user_lock_period(shared, sender, token, chain, provider, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_user_lock_period(shared, sender, token, chain, provider, current_epoch, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         // 2. Deposit physical LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -759,7 +759,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Persist the updated weighted target unlock epoch in state
-        Margin::update_user_lock_period(shared, sender, token, chain, provider, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+        Margin::update_user_lock_period(shared, sender, token, chain, provider, current_epoch, (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
         let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);

@@ -15,7 +15,7 @@ pub use validators::*;
 pub use registry::*;
 pub use token::*;
 
-declare_id!("CvyoqMRZ79NRGDq1ZrMEYDmMSqCxrkGVjykqHU1HV9Ad");
+declare_id!("4DBj1qh8KTC7TNgEenyxSmNc7YK3ceyaMzhYASm159Uo");
 
 #[program]
 pub mod qiara {

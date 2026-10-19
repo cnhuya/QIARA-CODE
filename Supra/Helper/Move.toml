@@ -28,7 +28,7 @@ git = 'https://github.com/cnhuya/AEXIS-CODE.git'
 rev = 'main'
 subdir = 'Supra/Storage'
 
-[dependencies.QiaraMarketV39]
+[dependencies.QiaraMarketV40]
 git = 'https://github.com/cnhuya/AEXIS-CODE.git'
 rev = 'main'
 subdir = 'Supra/Market'

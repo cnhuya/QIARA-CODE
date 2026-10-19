@@ -1,4 +1,4 @@
-module dev::QiaraMarginV84 {
+module dev::QiaraMarginV85 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,9 +8,9 @@ module dev::QiaraMarginV84 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use std::bcs;
 
-    use dev::QiaraRanksV84::{Self as Ranks};
-    use dev::QiaraTokensMetadataV84::{Self as TokensMetadata};
-    use dev::QiaraTokenTypesV84::{Self as TokensType};
+    use dev::QiaraRanksV85::{Self as Ranks};
+    use dev::QiaraTokensMetadataV85::{Self as TokensMetadata};
+    use dev::QiaraTokenTypesV85::{Self as TokensType};
     
     use dev::QiaraMathV4::{Self as QiaraMath};
     use dev::QiaraGenesisV4::{Self as Genesis};
@@ -59,7 +59,8 @@ module dev::QiaraMarginV84 {
         virtual_borrow: u256,
         virtual_deposit: u256,  
         staked: u256,
-        stake_lock: u64, // epoch
+        stake_unlock: u64, // epoch at which its unlocked
+        stake_lock: u64, // epoch at which it was locked
         stake_locked_fee: u256,
         rewards: u256,
         interest: u256,
@@ -249,11 +250,12 @@ module dev::QiaraMarginV84 {
         *staked_value = *staked_value + value;
     }
 
-    public fun update_user_lock_period(shared: String, user: vector<u8>, token: String, chain: String,provider: String, period: u64, cap: Permission) acquires TokenHoldings{
+    public fun update_user_lock_period(shared: String, user: vector<u8>, token: String, chain: String,provider: String, current_epoch: u64, period: u64, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);
         {
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
-            balance.stake_lock = period;
+            balance.stake_lock = current_epoch;
+            balance.stake_unlock = current_epoch + period;
         };
     }
 
@@ -347,8 +349,6 @@ module dev::QiaraMarginV84 {
         let tokens_holdings = borrow_global_mut<TokenHoldings>(@dev);
         let tokens = TokensType::return_full_nick_names_list();
 
-        let staked_ltv_increase = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256);
-
         let total_staked = 0u256;
         let total_dep = 0u256;
         let total_margin = 0u256;
@@ -374,17 +374,11 @@ module dev::QiaraMarginV84 {
             let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
             let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
             let efficiency = (TokensMetadata::get_coin_metadata_tier_efficiency(&metadata) as u256);
-            let (deflation_ltv_increase, deflation_ltv_increase_missing) = 
-                TokensMetadata::calculate_deflationary_bonus(
-                    TokensMetadata::get_coin_metadata_deflation_tier(&metadata)
-                );
+            let (deflation_ltv_increase) = TokensMetadata::calculate_deflationary_bonus(TokensMetadata::get_coin_metadata_deflation_tier(&metadata));
 
             let deflation_ltv_increase = (deflation_ltv_increase as u256);
-            let deflation_ltv_increase_missing = (deflation_ltv_increase_missing as u256);
-            let (ltv_increase, _, _) = Ranks::return_raw_shared_rank(shared);
-            efficiency = calculate_increased_efficiency(efficiency+deflation_ltv_increase_missing, ltv_increase+deflation_ltv_increase);
-            let staked_efficiency = calculate_increased_efficiency_by_staking(efficiency, staked_ltv_increase);
-            
+            let (ltv_increase_missing, _, _) = Ranks::return_raw_shared_rank(shared);
+            efficiency = calculate_increased_efficiency(efficiency+deflation_ltv_increase, ltv_increase_missing);
             let vect_chain = vector::empty<String>();
             let vect_provider = vector::empty<String>();
 
@@ -433,12 +427,9 @@ module dev::QiaraMarginV84 {
                     let reward_usd = (uv.rewards * price) / denom;
                     let interest_usd = (uv.interest * price) / denom;
 
-                    let current_staked_usd: u256;
-                    if (token == utf8(b"Qiara")) {
-                        current_staked_usd = uv.staked / denom;
-                    } else {
-                        current_staked_usd = (((uv.staked * price) / denom) * staked_efficiency) / 100_000_000;
-                    };
+                    let staked_efficiency = calculate_staked_increased_ltv(efficiency, (uv.stake_unlock - uv.stake_lock) as u256);
+
+                    let current_staked_usd = (((uv.staked * price) / denom) * staked_efficiency) / 100_000_000;
 
                     total_staked = total_staked + current_staked_usd;
                     total_dep = total_dep + dep_usd;
@@ -661,6 +652,24 @@ module dev::QiaraMarginV84 {
     }
 
     #[view]
+    public fun calculate_staked_increased_ltv(base_ltv: u256, locked_for_epochs: u256): (u256,u256,u256,u256){
+        base_ltv = base_ltv*10000; // because base ltv is in 5 decimals i.e 85% = 8500
+        let max_ltv = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256;
+        let staked_ltv_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256;
+         let staked_ltv_increase_missing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"))) as u256;
+        
+        let ltv_increase_per_epoch = base_ltv + locked_for_epochs*staked_ltv_increase;
+
+        let ltv_increase_per_epoch_missing = (100_000_000 - base_ltv) * staked_ltv_increase_missing*locked_for_epochs;
+
+        let final_increased_ltv = ltv_increase_per_epoch+ltv_increase_per_epoch_missing/1_000_000/100;
+        if(final_increased_ltv > max_ltv){
+            final_increased_ltv = max_ltv;
+        };
+        (ltv_increase_per_epoch,ltv_increase_per_epoch_missing/1_000_000/100,final_increased_ltv,0)
+    }
+
+    #[view]
     public fun calculate_increased_efficiency(base_efficiency: u256, efficiency_factor: u256): (u256)  {
         let missing_increase = 100_000_000 - base_efficiency; 
         let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
@@ -677,19 +686,6 @@ module dev::QiaraMarginV84 {
 
 
 
-
-    #[view]
-    public fun calculate_increased_efficiency_by_staking(base_efficiency: u256, efficiency_factor: u256): (u256)  {
-        let max_allowed_ltv = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256);
-        let efficiency_increase = (base_efficiency * efficiency_factor) / 1_000_000 / 100;
-        let new_efficiency = base_efficiency + efficiency_increase;
-
-        if (new_efficiency > 100_000_000) {
-            (max_allowed_ltv)
-        } else {
-            (new_efficiency)
-        }
-    }
 // === MUT RETURNS === //
     fun find_balance(feature_table: &mut TokenHoldings,shared: String,token: String,chain: String, provider: String,): &mut Credit {
         {
@@ -721,6 +717,7 @@ module dev::QiaraMarginV84 {
             virtual_deposit: 0,
             staked: 0,
             stake_lock: 0,
+            stake_unlock: 0,
             rewards: 0,
             interest: 0,
             native_reward_index_snapshot: 0,
@@ -768,25 +765,6 @@ module dev::QiaraMarginV84 {
         map::borrow_mut(holdings, &provider)
     }
 
-
-
-
-        #[view]
-        public fun calculate_staked_increased_ltv(base_ltv: u256, locked_for_epochs: u256): (u256,u256,u256,u256){
-            let max_ltv = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"MAX_LTV_RATE"))) as u256;
-            let staked_ltv_increase = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE"))) as u256;
-            let staked_ltv_increase_missing = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"STAKED_LTV_INCREASE_MISSING"))) as u256;
-        
-            let ltv_increase_per_epoch = base_ltv + locked_for_epochs*staked_ltv_increase;
-
-            let ltv_increase_per_epoch_missing = (100_000_000 - base_ltv) * staked_ltv_increase_missing*locked_for_epochs;
-
-            let final_increased_ltv = ltv_increase_per_epoch+ltv_increase_per_epoch_missing/1_000_000/100;
-            if(final_increased_ltv > max_ltv){
-                final_increased_ltv = max_ltv;
-            };
-            (ltv_increase_per_epoch,ltv_increase_per_epoch_missing/1_000_000/100,final_increased_ltv,0)
-        }
 
 
 // === HELPERS === //

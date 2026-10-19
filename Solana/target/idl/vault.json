@@ -1,5 +1,5 @@
 {
-  "address": "3Qjxo2dutJc5aktnk1bJZGuujVsRiH6JHp3UkusYJXuc",
+  "address": "3AyGPU1WaKuiawCAmxz6ykY89Wr6NYT1jBBKqmWaQX3L",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -528,7 +528,7 @@
         },
         {
           "name": "verifier_program",
-          "address": "CvyoqMRZ79NRGDq1ZrMEYDmMSqCxrkGVjykqHU1HV9Ad"
+          "address": "4DBj1qh8KTC7TNgEenyxSmNc7YK3ceyaMzhYASm159Uo"
         }
       ],
       "args": [
@@ -1213,41 +1213,46 @@
     },
     {
       "code": 6006,
+      "name": "AmountOverflow",
+      "msg": "Amount overflow."
+    },
+    {
+      "code": 6007,
       "name": "MathOverflow",
       "msg": "Math operation resulted in an overflow."
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "WrongProviderProvided",
       "msg": "Specified provider does not match the payload."
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "ProviderNotSupported",
       "msg": "Provider is not registered in ProviderRegistry."
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "TokenMismatch",
       "msg": "Token name does not match the registered mint."
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "InvalidActionHash",
       "msg": "Action hash does not match computed payload hash."
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "InvalidPayloadEncoding",
       "msg": "Invalid payload encoding format."
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "TrailingDataInPayload",
       "msg": "Trailing data detected in signed payload."
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "WrongChainId",
       "msg": "Wrong chain ID."
     }

@@ -4,7 +4,7 @@ use qiara::program::Qiara;
 use qiara::{EpochConfig, ProviderRegistry, Registry, SignatureBuffer, ValidatorState};
 use serde::{Deserialize, Serialize};
 
-declare_id!("3Qjxo2dutJc5aktnk1bJZGuujVsRiH6JHp3UkusYJXuc");
+declare_id!("3AyGPU1WaKuiawCAmxz6ykY89Wr6NYT1jBBKqmWaQX3L");
 
 const DEFAULT_MIN_RATE: u64 = 2_750_000;
 const DEFAULT_MAX_RATE: u64 = 11_275_000;

@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV84{
+module dev::QiaraTokensMetadataV85{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV84{
     use dev::QiaraStorageV24::{Self as storage};
     use dev::QiaraMathV4::{Self as Math};
 
-    use dev::QiaraTokensTiersV84::{Self as tier};
-    use dev::QiaraTokenTypesV84::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokensTiersV85::{Self as tier};
+    use dev::QiaraTokenTypesV85::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV16::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -361,9 +361,9 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
 
     
     #[view]
-    public fun calculate_deflationary_bonus(id: u8): (u128, u128) {
+    public fun calculate_deflationary_bonus(id: u8): (u128) {
 
-        (((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"))) as u128),  ((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_MISSING_LTV_INCREASE"))) as u128))
+        ((id as u64) * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMargin"), utf8(b"DEFLATIONARY_LTV_INCREASE"))) as u128)
     }
 
     #[view]
@@ -821,7 +821,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    // In QiaraTokensMetadataV84::get_coin_metadata_by_symbol:
+                    // In QiaraTokensMetadataV85::get_coin_metadata_by_symbol:
                     let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                     price = (oracle::viewPrice(metadat.symbol) as u64);
                     denom = Math::pow10_u256((price_decimals as u8));

@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraBridgeV94"
+    name = "QiaraBridgeV95"
     version = "2.1.1"
     authors = []
 
@@ -22,27 +22,27 @@
     rev = "testnet"
     subdir = "aptos-move/framework/aptos-framework"
 
-    [dependencies.QiaraTokensV84]
+    [dependencies.QiaraTokensV85]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/TokensCore'
 
-    [dependencies.QiaraGovernanceV39]
+    [dependencies.QiaraGovernanceV40]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Governance'
 
-    [dependencies.QiaraTypesV84]
+    [dependencies.QiaraTypesV85]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Types'
 
-    [dependencies.QiaraMarginV84]
+    [dependencies.QiaraMarginV85]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraVaultsV104]
+    [dependencies.QiaraVaultsV105]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
@@ -62,7 +62,7 @@
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraPerpsV72]
+    [dependencies.QiaraPerpsV73]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Perpetuals'

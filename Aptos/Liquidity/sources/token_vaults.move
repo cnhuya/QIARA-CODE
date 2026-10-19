@@ -1,4 +1,4 @@
-module dev::QiaraTokenVaultsV101{
+module dev::QiaraTokenVaultsV102{
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -14,12 +14,12 @@ module dev::QiaraTokenVaultsV101{
     use aptos_framework::account;
     use event::QiaraEventV1::{Self as Event};
 
-    use dev::QiaraTokensMetadataV84::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV84::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV84::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV85::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV85::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV85::{Self as TokensTiers};
 
-    use dev::QiaraMarginV84::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV84::{Self as Points, Access as PointsAccess};
+    use dev::QiaraMarginV85::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV85::{Self as Points, Access as PointsAccess};
 
     use dev::QiaraSharedV18::{Self as Shared};
     
