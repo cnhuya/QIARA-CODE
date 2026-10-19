@@ -185,7 +185,7 @@ module dev::QiaraTokensCoreV86{
 
     public entry fun init_depo(signer: &signer, shared: String) acquires ManagedFungibleAsset, Permissions{
         ma_drilla_lul(signer, shared, utf8(b"Ethereum"), utf8(b"Base"));
-        tttta(1);
+        //tttta(1);
         ma_drilla_lul(signer, shared, utf8(b"Ethereum"), utf8(b"Sui"));
         ma_drilla_lul(signer, shared, utf8(b"Ethereum"), utf8(b"Monad"));
         ma_drilla_lul(signer, shared, utf8(b"Ethereum"), utf8(b"Ethereum"));
