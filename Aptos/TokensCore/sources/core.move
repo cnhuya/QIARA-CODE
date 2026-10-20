@@ -616,6 +616,13 @@ module dev::QiaraTokensCoreV86{
         object::address_to_object<Metadata>(address) // here
     }
 
+#[view]
+public fun get_metadata_named(symbol: String): Object<Metadata> {
+    // *string::bytes(&symbol) gives raw bytes without the BCS length header
+    let asset_address = object::create_object_address(&ADMIN, *string::bytes(&symbol));
+    object::address_to_object<Metadata>(asset_address)
+}
+
     #[view]
     public fun get_coin_metadata(token:String): CoinMetadata {
         let metadata = get_metadata(token);
