@@ -592,7 +592,7 @@ public fun prepare_modular_governance_proposal(
         let (_, val_type_raw) = find_payload_value(utf8(b"value_type"), type_names, payload);
         let (_, duration_raw) = find_payload_value(utf8(b"duration"), type_names, payload);
         let (_, editable_raw) = find_payload_value(utf8(b"editable"), type_names, payload);
-        let (_, is_multichain_raw) = find_payload_value(utf8(b"is_multichain"), type_names, payload);
+        let (_, is_multichain_raw) = find_payload_value(utf8(b"isMultichain"), type_names, payload);
 
         let user_stream = &mut bcs_stream::new(user_raw);
         let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));

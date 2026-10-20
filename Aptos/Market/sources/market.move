@@ -702,6 +702,133 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     }
 // === NATIVE INTERFACE === //
 
+public entry fun stake_raw(
+    signer: &signer,
+    shared: String,
+    token: String,
+    chain: String,
+    provider: String,
+    amount: u64,
+    epoch: u64
+) acquires Permissions {
+    let max_stake_epoch = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH")));
+    assert!(epoch <= max_stake_epoch, ERROR_STAKE_EXCEEDS_MAX_ALLOWED_EPOCH);
+
+    let sender = bcs::to_bytes(&signer::address_of(signer));
+    let amount_u256 = (amount as u256) * 1000000000000000000;
+    let (
+        total_liquidity,
+        total_borrowed,
+        total_deposited,
+        total_staked,
+        total_accumulated_rewards,
+        total_native_accumulated_rewards,
+        total_accumulated_interest,
+        virtual_borrowed,
+        virtual_deposited,
+        total_shares,
+        total_staked_locked_fee,
+        last_update
+    ) = Liquidity::return_raw_vault(token, chain, provider);
+
+    let (_, _fee) = TokensMetadata::impact(
+        token,
+        amount_u256 / 1000000000000000000,
+        total_deposited / 1000000000000000000,
+        true,
+        utf8(b"spot"),
+        TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata)
+    );
+
+    let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+    let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
+    if (amount_u256_taxed == 0) { return };
+
+    // --- WITHDRAW NORMAL FUNGIBLE ASSET FROM USER'S PRIMARY STORE ---
+    let token_metadata = TokensCore::get_metadata(token);
+    let fa = primary_fungible_store::withdraw(signer, token_metadata, amount);
+
+    // 1. Deposit underlying assets and retrieve physical LP shares
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+    // Retrieve existing user balance and absolute unlock epoch
+    let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, _, _, user_lock_period) = Margin::get_user_raw_balance(shared, token, chain, provider);
+    let current_epoch = Genesis::return_epoch();
+    let current_epoch_u256 = (current_epoch as u256);
+    let epoch_u256 = (epoch as u256);
+
+    // Absolute target epoch for the new deposit
+    let new_stake_unlock_epoch = current_epoch_u256 + epoch_u256;
+
+    let (weighted_unlock_epoch, weighted_duration) = if (user_staked == 0) {
+        (new_stake_unlock_epoch, epoch_u256)
+    } else {
+        // Floor expired locks at current_epoch
+        let existing_unlock_epoch = if ((user_lock_period as u256) < current_epoch_u256) {
+            current_epoch_u256
+        } else {
+            (user_lock_period as u256)
+        };
+
+        let total_staked_new = user_staked + amount_u256;
+        let weighted_sum = (user_staked * existing_unlock_epoch) + (amount_u256 * new_stake_unlock_epoch);
+
+        // Round to nearest target unlock epoch
+        let target_unlock = (weighted_sum + (total_staked_new / 2)) / total_staked_new;
+        let duration = if (target_unlock > current_epoch_u256) {
+            target_unlock - current_epoch_u256
+        } else {
+            0
+        };
+
+        (target_unlock, duration)
+    };
+
+    // Calculate stake fee using weighted lock DURATION
+    let (stake_fee, _) = calculate_stake_fee(amount_u256_taxed, (weighted_duration as u64));
+    Margin::update_stake_locked_fee(shared, sender, token, chain, provider, stake_fee, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+    Liquidity::add_staked_locked_fee(token, chain, provider, stake_fee, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+    // Persist the updated weighted target unlock epoch in state
+    Margin::update_user_lock_period(shared, sender, token, chain, provider, (current_epoch as u64), (weighted_unlock_epoch as u64), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+
+    // Deposit minted LP shares directly using Shared's secure storage logic
+    let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
+    let user_lp_store = Shared::ensure_shared_fungible_storage(shared, lp_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+    fungible_asset::deposit(user_lp_store, shares_fa);
+
+    Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+    Margin::add_stake(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+    let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+
+    let data = vector[
+        Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+        Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+        Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+        Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+        Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256)),
+
+        Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
+        Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
+        Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
+        Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
+        Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+        Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+        Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
+
+        Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&shares_ratio)),
+
+        Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&total_deposited)),
+        Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
+        Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+        Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+    ];
+    Event::emit_market_event(utf8(b"Stake"), data);
+}
+
     public entry fun stake(signer: &signer, shared: String, token: String, chain: String, provider: String, amount: u64, epoch: u64) acquires Permissions {
         let max_stake_epoch = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"MAX_STAKE_EPOCH")));
         assert!(epoch <= max_stake_epoch, ERROR_STAKE_EXCEEDS_MAX_ALLOWED_EPOCH);

@@ -1,0 +1,163 @@
+{
+  "address": "2rZG6L4StdcgD9a97NgEp1ST5xnQiKjQHscSAXcAw9pF",
+  "metadata": {
+    "name": "governance_interface",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Modular Governance Interface on Solana"
+  },
+  "instructions": [
+    {
+      "name": "m_propose",
+      "docs": [
+        "1:1 equivalent to `m_propose(ProposeParams calldata params)`"
+      ],
+      "discriminator": [
+        39,
+        133,
+        92,
+        132,
+        219,
+        95,
+        78,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "ProposeParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "m_vote",
+      "docs": [
+        "1:1 equivalent to `m_vote(...)`"
+      ],
+      "discriminator": [
+        182,
+        150,
+        114,
+        188,
+        180,
+        135,
+        13,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sub_owner",
+          "type": "bytes"
+        },
+        {
+          "name": "shared_storage_name",
+          "type": "string"
+        },
+        {
+          "name": "proposal_id",
+          "type": "u64"
+        },
+        {
+          "name": "is_yes",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "ProposeParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sub_owner",
+            "type": "bytes"
+          },
+          {
+            "name": "shared_storage_name",
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "desc",
+            "type": "string"
+          },
+          {
+            "name": "type_",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "is_change",
+            "type": {
+              "vec": "bool"
+            }
+          },
+          {
+            "name": "is_multichain",
+            "type": {
+              "vec": "bool"
+            }
+          },
+          {
+            "name": "header",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "constant_name",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "new_value",
+            "type": {
+              "vec": "bytes"
+            }
+          },
+          {
+            "name": "value_type",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "duration",
+            "type": "u64"
+          },
+          {
+            "name": "editable",
+            "type": {
+              "vec": "bool"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
