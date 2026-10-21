@@ -18,7 +18,7 @@ module dev::QiaraPerpsV74 {
     use dev::QiaraVaultsV106::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV103::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV102::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraTokenVaultsV103::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV24::{Self as storage};
     use dev::QiaraCapabilitiesV24::{Self as capabilities};
@@ -28,7 +28,7 @@ module dev::QiaraPerpsV74 {
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV73::{Self as Orders};
+    use dev::QiaraPerpsOrdersV74::{Self as Orders};
 
 
 // === ERRORS === //

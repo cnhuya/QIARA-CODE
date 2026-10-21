@@ -23,7 +23,7 @@ use std::option;
     use dev::QiaraGovernanceV41::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV95 as Payload;
     use dev::QiaraValidatorsV96::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV73::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsOrdersV74::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV74::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
