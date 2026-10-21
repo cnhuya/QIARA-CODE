@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV102 {
+module dev::QiaraLiquidityV103 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -119,6 +119,7 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
         mint_ref: MintRef,
         burn_ref: BurnRef,
         lp_metadata: Object<Metadata>,
+        vault_extend_ref: object::ExtendRef, // 🟢 Stores vault signer capability
     }
 
     struct GlobalLPCapabilities has key {
@@ -332,7 +333,7 @@ public fun claim_accumulated_fee_rewards(
         current_global_index
     }
 
-   public fun deposit_token(
+public fun deposit_token(
     signer: &signer, 
     token: String, 
     chain: String,
@@ -357,10 +358,13 @@ public fun claim_accumulated_fee_rewards(
 
     assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    // 1. Physically store assets
-    TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
+    // 🟢 FIX: Store real tokens directly; only use TokensCore for cross-chain synthetics
+    if (chain == utf8(b"Aptos")) {
+        fungible_asset::deposit(vault.storage, fa);
+    } else {
+        TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
+    };
 
-    // 2. 🟢 UNCOMMENT THIS: Update total_deposited so total_assets matches total_shares!
     vault.total_deposited = vault.total_deposited + deposit_amount;
 
     let vault_seed = *String::bytes(&token);
@@ -378,129 +382,144 @@ public fun claim_accumulated_fee_rewards(
 }
  /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
    /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-    public fun withdraw_token(
-        signer: &signer,
-        shared: String, 
-        token: String, 
-        chain: String,
-        provider: String, 
-        raw_scaled: u256,
-        net_scaled: u256,
-        _cap: Permission
-    ) acquires GlobalVault, GlobalLPCapabilities, Permissions {
-        let vaults = borrow_global_mut<GlobalVault>(@dev);
-        let vault = find_vault(vaults, token, chain, provider);
-        let storage_address_string = non_user_storage_helper(signer, &vault.storage);
+public fun withdraw_token(
+    signer: &signer,
+    shared: String, 
+    token: String, 
+    chain: String,
+    provider: String, 
+    raw_scaled: u256,
+    net_scaled: u256,
+    _cap: Permission
+) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    let vaults = borrow_global_mut<GlobalVault>(@dev);
+    let vault = find_vault(vaults, token, chain, provider);
+    let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-        // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it to 1e18
-        if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
-            raw_scaled = raw_scaled * 1000000000000000000;
-            net_scaled = net_scaled * 1000000000000000000;
+    // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it to 1e18
+    if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
+        raw_scaled = raw_scaled * 1000000000000000000;
+        net_scaled = net_scaled * 1000000000000000000;
+    };
+
+    // 🟢 2. AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
+    if (raw_scaled > 100000000000000000000000000000) {
+        raw_scaled = raw_scaled / 1000000000000;
+        net_scaled = net_scaled / 1000000000000;
+    };
+
+    internal_daily_withdraw_limit(token, vault, raw_scaled);
+
+    let total_assets = get_total_assets(vault);
+    let total_shares = vault.total_shares;
+
+    assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
+    assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
+
+    // 3. Calculate LP shares to burn based on vault ratio
+    let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
+        raw_scaled
+    } else {
+        (raw_scaled * total_shares) / total_assets
+    };
+    let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
+
+    // 🟢 4. ROUND UP: Guarantee at least 1 share is burned so integer division never rounds to 0
+    if (shares_to_burn_u64 == 0 && raw_scaled > 0) {
+        shares_to_burn_u64 = 1;
+    };
+
+    // 5. Fetch Vault LP Capabilities and Metadata
+    let vault_seed = *String::bytes(&token);
+    vector::append(&mut vault_seed, *String::bytes(&chain));
+    vector::append(&mut vault_seed, *String::bytes(&provider));
+    let vault_address = account::create_resource_address(&@dev, vault_seed);
+
+    let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+    let cap = table::borrow(&lp_caps.caps, vault_address);
+
+    // 6. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
+    let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
+    let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
+    let derived_address = Shared::return_shared_derived_address(shared);
+    let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
+
+    let primary_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
+    let custom_balance = fungible_asset::balance(shared_lp_store);
+    let user_lp_balance = primary_balance + custom_balance; // 🟢 Combines both stores!
+
+    assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
+
+    // 7. Tolerance & Safety Clamps
+    if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
+        shares_to_burn_u64 = user_lp_balance;
+    };
+
+    if (shares_to_burn_u64 > user_lp_balance) {
+        let one_to_one_shares = (raw_scaled / 1000000000000000000 as u64);
+        if (one_to_one_shares == 0 && raw_scaled > 0) {
+            one_to_one_shares = 1;
         };
-
-        // 🟢 2. AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
-        if (raw_scaled > 100000000000000000000000000000) {
-            raw_scaled = raw_scaled / 1000000000000;
-            net_scaled = net_scaled / 1000000000000;
-        };
-
-        internal_daily_withdraw_limit(token, vault, raw_scaled);
-
-        let total_assets = get_total_assets(vault);
-        let total_shares = vault.total_shares;
-
-        assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
-        assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
-
-        // 3. Calculate LP shares to burn based on vault ratio
-        let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
-            raw_scaled
+        if (one_to_one_shares <= user_lp_balance) {
+            shares_to_burn_u64 = one_to_one_shares;
+            shares_to_burn_scaled = (one_to_one_shares as u256) * 1000000000000000000;
         } else {
-            (raw_scaled * total_shares) / total_assets
-        };
-        let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
-
-        // 🟢 4. ROUND UP: Guarantee at least 1 share is burned so integer division never rounds to 0
-        if (shares_to_burn_u64 == 0 && raw_scaled > 0) {
-            shares_to_burn_u64 = 1;
-        };
-
-        // 5. Fetch Vault LP Capabilities and Metadata
-        let vault_seed = *String::bytes(&token);
-        vector::append(&mut vault_seed, *String::bytes(&chain));
-        vector::append(&mut vault_seed, *String::bytes(&provider));
-        let vault_address = account::create_resource_address(&@dev, vault_seed);
-
-        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
-        let cap = table::borrow(&lp_caps.caps, vault_address);
-
-        // 6. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
-        let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
-        let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
-        let derived_address = Shared::return_shared_derived_address(shared);
-        let shared_lp_store = Shared::ensure_shared_fungible_storage(shared, cap.lp_metadata, shared_perm);
-
-        let primary_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
-        let custom_balance = fungible_asset::balance(shared_lp_store);
-        let user_lp_balance = primary_balance + custom_balance; // 🟢 Combines both stores!
-
-        assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
-
-        // 7. Tolerance & Safety Clamps
-        if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
             shares_to_burn_u64 = user_lp_balance;
+            shares_to_burn_scaled = (user_lp_balance as u256) * 1000000000000000000;
         };
+    };
 
-        if (shares_to_burn_u64 > user_lp_balance) {
-            let one_to_one_shares = (raw_scaled / 1000000000000000000 as u64);
-            if (one_to_one_shares == 0 && raw_scaled > 0) {
-                one_to_one_shares = 1;
-            };
-            if (one_to_one_shares <= user_lp_balance) {
-                shares_to_burn_u64 = one_to_one_shares;
-                shares_to_burn_scaled = (one_to_one_shares as u256) * 1000000000000000000;
-            } else {
-                shares_to_burn_u64 = user_lp_balance;
-                shares_to_burn_scaled = (user_lp_balance as u256) * 1000000000000000000;
-            };
-        };
+    assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
+    assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
 
-        assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
-        assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
+    // 8. 🟢 Burn LP Shares from whichever store holds them
+    let shares_fa = if (primary_balance >= shares_to_burn_u64) {
+        primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64)
+    } else if (custom_balance >= shares_to_burn_u64) {
+        fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64)
+    } else {
+        let p_fa = primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, primary_balance);
+        let rem = shares_to_burn_u64 - primary_balance;
+        let c_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, rem);
+        fungible_asset::merge(&mut p_fa, c_fa);
+        p_fa
+    };
+    fungible_asset::burn(&cap.burn_ref, shares_fa);
+    
+    if (shares_to_burn_scaled <= vault.total_shares) {
+        vault.total_shares = vault.total_shares - shares_to_burn_scaled;
+    } else {
+        vault.total_shares = 0;
+    };
 
-        // 8. 🟢 Burn LP Shares from whichever store holds them
-        let shares_fa = if (primary_balance >= shares_to_burn_u64) {
-            primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64)
-        } else if (custom_balance >= shares_to_burn_u64) {
-            fungible_asset::withdraw(&shared_signer, shared_lp_store, shares_to_burn_u64)
-        } else {
-            let p_fa = primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, primary_balance);
-            let rem = shares_to_burn_u64 - primary_balance;
-            let c_fa = fungible_asset::withdraw(&shared_signer, shared_lp_store, rem);
-            fungible_asset::merge(&mut p_fa, c_fa);
-            p_fa
-        };
-        fungible_asset::burn(&cap.burn_ref, shares_fa);
-        
-        if (shares_to_burn_scaled <= vault.total_shares) {
-            vault.total_shares = vault.total_shares - shares_to_burn_scaled;
-        } else {
-            vault.total_shares = 0;
-        };
+    // 9. Ensure vault storage has enough liquidity to pay out
+    let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
+    if (net_amount_u64 == 0 && net_scaled > 0) {
+        net_amount_u64 = 1;
+    };
+    let vault_balance = fungible_asset::balance(vault.storage);
+    assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
 
-        // 9. Ensure vault storage has enough liquidity to pay out
-        let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
-        if (net_amount_u64 == 0 && net_scaled > 0) {
-            net_amount_u64 = 1;
-        };
-        let vault_balance = fungible_asset::balance(vault.storage);
-        assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
+    // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
+    if (chain == utf8(b"Aptos")) {
+        // A. Generate vault owner signer to withdraw native token
+        let vault_signer = object::generate_signer_for_extending(&cap.vault_extend_ref);
+        let underlying_fa = fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
 
-        // 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
+        // B. Get real metadata and store inside user's Shared account
+        let addr_str = TokensType::get_token_address_from_name(chain, token);
+        let token_addr = string_to_address(&addr_str);
+        let real_metadata = object::address_to_object<Metadata>(token_addr);
+
+        let shared_real_store = Shared::ensure_shared_fungible_storage(shared, real_metadata, shared_perm);
+        fungible_asset::deposit(shared_real_store, underlying_fa);
+    } else {
+        // Cross-chain synthetic tokens using TokensCore
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
         let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
         TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
-    }
+    };
+}
     // ========================================================================
     // 🔍 SIMULATION & PREVIEW VIEW FUNCTION
     // ========================================================================
@@ -1033,119 +1052,117 @@ public fun claim_accumulated_fee_rewards(
     }
 
 // === MUT RETURNS === //
-    fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
-        ChainTypes::ensure_valid_chain_name(chain);
-        
-        // 🟢 FIX: Use real FA metadata for Aptos, synthetic for other chains
-        let metadata = if (chain == utf8(b"Aptos")) {
-            let addr_str = TokensType::get_token_address_from_name(chain, token);
-            let token_addr = string_to_address(&addr_str);
-            object::address_to_object<Metadata>(token_addr)
-        } else {
-            TokensCore::get_metadata(token)
-        };
+   fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
+    ChainTypes::ensure_valid_chain_name(chain);
+    
+    // 🟢 1. Resolve REAL metadata for Aptos, synthetic for cross-chain
+    let metadata = if (chain == utf8(b"Aptos")) {
+        let addr_str = TokensType::get_token_address_from_name(chain, token);
+        let token_addr = string_to_address(&addr_str);
+        object::address_to_object<Metadata>(token_addr)
+    } else {
+        TokensCore::get_metadata(token)
+    };
 
-        if (!table::contains(&vaults.balances, token)) {
-            table::add(&mut vaults.balances, token, map::new<String, Map<String,Vault>>());
-        };
-        let token_table = table::borrow_mut(&mut vaults.balances, token);
-        if (!map::contains_key(token_table, &chain)) {
-            map::add(token_table, chain, map::new<String, Vault>());
-        };
+    if (!table::contains(&vaults.balances, token)) {
+        table::add(&mut vaults.balances, token, map::new<String, Map<String, Vault>>());
+    };
+    let token_table = table::borrow_mut(&mut vaults.balances, token);
+    if (!map::contains_key(token_table, &chain)) {
+        map::add(token_table, chain, map::new<String, Vault>());
+    };
 
-        let chain_map = map::borrow_mut(token_table, &chain);
-        if (!map::contains_key(chain_map, &provider)) {
-            let vault_seed = *String::bytes(&token);
-            vector::append(&mut vault_seed, *String::bytes(&chain));
-            vector::append(&mut vault_seed, *String::bytes(&provider));
+    let chain_map = map::borrow_mut(token_table, &chain);
+    if (!map::contains_key(chain_map, &provider)) {
+        let vault_seed = *String::bytes(&token);
+        vector::append(&mut vault_seed, *String::bytes(&chain));
+        vector::append(&mut vault_seed, *String::bytes(&provider));
 
-            let random_address = account::create_resource_address(&@dev, vault_seed);
-            let constructor_ref = object::create_object(random_address);
-            
-            // This store now holds REAL metadata if chain == "Aptos"
-            let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
+        let random_address = account::create_resource_address(&@dev, vault_seed);
+        let constructor_ref = object::create_object(random_address);
+        let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
 
-            // ==========================================
-            // NEW: Initialize LP Fungible Asset Token
-            // ==========================================
-// ==========================================
-            // NEW: Initialize LP Fungible Asset Token
-            // ==========================================
-            let lp_seed = *String::bytes(&token);
-            vector::append(&mut lp_seed, *String::bytes(&chain));
-            vector::append(&mut lp_seed, *String::bytes(&provider));
-            vector::append(&mut lp_seed, b"-LP");
+        // 🟢 2. Enable Vault to sign withdrawals for real tokens
+        let vault_extend_ref = object::generate_extend_ref(&constructor_ref);
+        let transfer_ref = object::generate_transfer_ref(&constructor_ref);
+        let linear_transfer_ref = object::generate_linear_transfer_ref(&transfer_ref);
+        let store_addr = object::address_from_constructor_ref(&constructor_ref);
+        object::transfer_with_ref(linear_transfer_ref, store_addr); // store owns itself
 
-            let lp_random_address = account::create_resource_address(&@dev, lp_seed);
-            
-            // FIXED: Change from create_object to create_sticky_object to make it non-deletable
-            let lp_constructor_ref = object::create_sticky_object(lp_random_address); 
+        // ==========================================
+        // LP Fungible Asset Token Initialization
+        // ==========================================
+        let lp_seed = *String::bytes(&token);
+        vector::append(&mut lp_seed, *String::bytes(&chain));
+        vector::append(&mut lp_seed, *String::bytes(&provider));
+        vector::append(&mut lp_seed, b"-LP");
 
-            // Dynamically construct LP Token Name & Symbol based on underlying token
-            let name_bytes = b"Qiara LP ";
-            vector::append(&mut name_bytes, *String::bytes(&token));
-            let lp_name = utf8(name_bytes);
+        let lp_random_address = account::create_resource_address(&@dev, lp_seed);
+        let lp_constructor_ref = object::create_sticky_object(lp_random_address); 
 
-            let symbol_bytes = b"LP_";
-            vector::append(&mut symbol_bytes, *String::bytes(&token));
-            let lp_symbol = utf8(symbol_bytes);
+        let name_bytes = b"Qiara LP ";
+        vector::append(&mut name_bytes, *String::bytes(&token));
+        let lp_name = utf8(name_bytes);
 
-            let decimals = fungible_asset::decimals(metadata); // Match exact asset decimals
+        let symbol_bytes = b"LP_";
+        vector::append(&mut symbol_bytes, *String::bytes(&token));
+        let lp_symbol = utf8(symbol_bytes);
 
-            // Create Metadata & Register primary stores dynamically
-            primary_fungible_store::create_primary_store_enabled_fungible_asset(
-                &lp_constructor_ref,
-                std::option::none(),
-                lp_name,
-                lp_symbol,
-                decimals,
-                utf8(b""),
-                utf8(b"")
-            );
+        let decimals = fungible_asset::decimals(metadata);
 
-            // Generate Control capabilities
-            let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
-            let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
-            let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &lp_constructor_ref,
+            std::option::none(),
+            lp_name,
+            lp_symbol,
+            decimals,
+            utf8(b""),
+            utf8(b"")
+        );
 
-            let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
-            table::add(&mut lp_caps.caps, random_address, LPCapabilities {
-                mint_ref,
-                burn_ref,
-                lp_metadata,
-            });
+        let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
+        let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
+        let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
 
-            map::add(chain_map, provider, Vault {
-                last_update: timestamp::now_seconds(),
-                total_shares: 0,
-                total_staked: 0,
-                total_native_accumulated_rewards: 0,
-                total_accumulated_interest: 0,
-                total_accumulated_rewards: 0,
-                virtual_deposited: 0,
-                accumulated_rewards_index: 0,
-                virtual_borrowed: 0,
-                total_borrowed: 0,
-                total_deposited: 0,
-                total_staked_locked_fee: 0,
-                w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
-                storage: vault_store,
-                incentive: Incentive {
-                    deployer: @0x0,
-                    total_amount: 0,
-                    reward_rate: 0,
-                    deposit_weight: 0,
-                    borrow_weight: 0,
-                    period_finish: 0,
-                    last_update_time: 0,
-                    deposit_index: 0,
-                    borrow_index: 0,
-                }
-            });
-        };
+        let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
+        table::add(&mut lp_caps.caps, random_address, LPCapabilities {
+            mint_ref,
+            burn_ref,
+            lp_metadata,
+            vault_extend_ref, // 🟢 Saved here
+        });
 
-        map::borrow_mut(chain_map, &provider)
-    }
+        map::add(chain_map, provider, Vault {
+            last_update: timestamp::now_seconds(),
+            total_shares: 0,
+            total_staked: 0,
+            total_native_accumulated_rewards: 0,
+            total_accumulated_interest: 0,
+            total_accumulated_rewards: 0,
+            virtual_deposited: 0,
+            accumulated_rewards_index: 0,
+            virtual_borrowed: 0,
+            total_borrowed: 0,
+            total_deposited: 0,
+            total_staked_locked_fee: 0,
+            w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
+            storage: vault_store,
+            incentive: Incentive {
+                deployer: @0x0,
+                total_amount: 0,
+                reward_rate: 0,
+                deposit_weight: 0,
+                borrow_weight: 0,
+                period_finish: 0,
+                last_update_time: 0,
+                deposit_index: 0,
+                borrow_index: 0,
+            }
+        });
+    };
+
+    map::borrow_mut(chain_map, &provider)
+}
 
     // Dynamic calculator helper for Data metrics
     fun get_vault_data(token: String, chain: String, provider: String, vault: &Vault): Data {

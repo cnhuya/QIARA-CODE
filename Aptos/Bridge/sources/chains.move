@@ -19,12 +19,12 @@ use std::option;
     use dev::QiaraTokensCoreV86::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV86::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV86::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV105::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV40::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraVaultsV106::{Self as Market, Access as MarketAccess};
+    use dev::QiaraGovernanceV41::{Self as Governance, Access as GovernanceAccess};
     use dev::QiaraPayloadV95 as Payload;
-    use dev::QiaraValidatorsV95::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraValidatorsV96::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV73::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV73::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPerpsV74::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 
