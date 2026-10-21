@@ -23,6 +23,7 @@ module dev::QiaraLiquidityV102 {
     use dev::QiaraBurnedQiaraV86::{Self as BurnedQiara};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraChainTypesV86::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV86::{Self as TokensType};
     use dev::QiaraProviderTypesV86::{Self as ProviderTypes};
     use dev::QiaraGenesisV4::{Self as Genesis};
 
@@ -1035,14 +1036,21 @@ public fun claim_accumulated_fee_rewards(
     fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
         ChainTypes::ensure_valid_chain_name(chain);
         
-        let metadata = TokensCore::get_metadata(token);
+        // 🟢 FIX: Use real FA metadata for Aptos, synthetic for other chains
+        let metadata = if (chain == utf8(b"Aptos")) {
+            let addr_str = TokensType::get_token_address_from_name(chain, token);
+            let token_addr = string_to_address(&addr_str);
+            object::address_to_object<Metadata>(token_addr)
+        } else {
+            TokensCore::get_metadata(token)
+        };
 
         if (!table::contains(&vaults.balances, token)) {
             table::add(&mut vaults.balances, token, map::new<String, Map<String,Vault>>());
         };
         let token_table = table::borrow_mut(&mut vaults.balances, token);
         if (!map::contains_key(token_table, &chain)) {
-            map::add( token_table, chain, map::new<String, Vault>());
+            map::add(token_table, chain, map::new<String, Vault>());
         };
 
         let chain_map = map::borrow_mut(token_table, &chain);
@@ -1053,6 +1061,8 @@ public fun claim_accumulated_fee_rewards(
 
             let random_address = account::create_resource_address(&@dev, vault_seed);
             let constructor_ref = object::create_object(random_address);
+            
+            // This store now holds REAL metadata if chain == "Aptos"
             let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
 
             // ==========================================
