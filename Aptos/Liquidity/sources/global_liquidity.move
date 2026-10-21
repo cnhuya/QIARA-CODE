@@ -501,20 +501,27 @@ public fun withdraw_token(
     assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
 
     // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
+// 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
     if (chain == utf8(b"Aptos")) {
-        // A. Generate vault owner signer to withdraw native token
-        let vault_signer = object::generate_signer_for_extending(&cap.vault_extend_ref);
-        let underlying_fa = fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
-
-        // B. Get real metadata and store inside user's Shared account
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
-        let real_metadata = object::address_to_object<Metadata>(token_addr);
 
-        let shared_real_store = Shared::ensure_shared_fungible_storage(shared, real_metadata, shared_perm);
-        fungible_asset::deposit(shared_real_store, underlying_fa);
+        if (object::object_exists<Metadata>(token_addr)) {
+            // Real FA withdrawal
+            let vault_signer = object::generate_signer_for_extending(&cap.vault_extend_ref);
+            let underlying_fa = fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
+
+            let real_metadata = object::address_to_object<Metadata>(token_addr);
+            let shared_real_store = Shared::ensure_shared_fungible_storage(shared, real_metadata, shared_perm);
+            fungible_asset::deposit(shared_real_store, underlying_fa);
+        } else {
+            // Synthetic fallback
+            let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
+            let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
+            TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
+        }
     } else {
-        // Cross-chain synthetic tokens using TokensCore
+        // Cross-chain synthetic tokens
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
         let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
         TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
@@ -1052,14 +1059,18 @@ public fun withdraw_token(
     }
 
 // === MUT RETURNS === //
-   fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
+fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
     ChainTypes::ensure_valid_chain_name(chain);
     
-    // 🟢 1. Resolve REAL metadata for Aptos, synthetic for cross-chain
+    // 🟢 SAFE RESOLUTION: Only use real FA if it actually exists on-chain; otherwise fallback to TokensCore
     let metadata = if (chain == utf8(b"Aptos")) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
-        object::address_to_object<Metadata>(token_addr)
+        if (object::object_exists<Metadata>(token_addr)) {
+            object::address_to_object<Metadata>(token_addr)
+        } else {
+            TokensCore::get_metadata(token)
+        }
     } else {
         TokensCore::get_metadata(token)
     };
@@ -1074,24 +1085,6 @@ public fun withdraw_token(
 
     let chain_map = map::borrow_mut(token_table, &chain);
     if (!map::contains_key(chain_map, &provider)) {
-        let vault_seed = *String::bytes(&token);
-        vector::append(&mut vault_seed, *String::bytes(&chain));
-        vector::append(&mut vault_seed, *String::bytes(&provider));
-
-        let random_address = account::create_resource_address(&@dev, vault_seed);
-        let constructor_ref = object::create_object(random_address);
-        let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
-
-        // 🟢 2. Enable Vault to sign withdrawals for real tokens
-        let vault_extend_ref = object::generate_extend_ref(&constructor_ref);
-        let transfer_ref = object::generate_transfer_ref(&constructor_ref);
-        let linear_transfer_ref = object::generate_linear_transfer_ref(&transfer_ref);
-        let store_addr = object::address_from_constructor_ref(&constructor_ref);
-        object::transfer_with_ref(linear_transfer_ref, store_addr); // store owns itself
-
-        // ==========================================
-        // LP Fungible Asset Token Initialization
-        // ==========================================
         let lp_seed = *String::bytes(&token);
         vector::append(&mut lp_seed, *String::bytes(&chain));
         vector::append(&mut lp_seed, *String::bytes(&provider));
@@ -1110,6 +1103,7 @@ public fun withdraw_token(
 
         let decimals = fungible_asset::decimals(metadata);
 
+        // 🟢 1. Create the Fungible Asset FIRST (this attaches the Metadata resource to lp_constructor_ref)
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
             &lp_constructor_ref,
             std::option::none(),
@@ -1120,16 +1114,27 @@ public fun withdraw_token(
             utf8(b"")
         );
 
+        // 🟢 2. NOW extract capabilities and metadata object (Metadata exists now!)
         let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
         let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
         let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
+        let vault_extend_ref = object::generate_extend_ref(&lp_constructor_ref);
+
+        // 🟢 3. Create Vault Store owned by lp_random_address
+        let constructor_ref = object::create_object(lp_random_address);
+        let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
+
+        let vault_seed = *String::bytes(&token);
+        vector::append(&mut vault_seed, *String::bytes(&chain));
+        vector::append(&mut vault_seed, *String::bytes(&provider));
+        let random_address = account::create_resource_address(&@dev, vault_seed);
 
         let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
         table::add(&mut lp_caps.caps, random_address, LPCapabilities {
             mint_ref,
             burn_ref,
             lp_metadata,
-            vault_extend_ref, // 🟢 Saved here
+            vault_extend_ref,
         });
 
         map::add(chain_map, provider, Vault {
