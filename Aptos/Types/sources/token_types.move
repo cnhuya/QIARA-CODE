@@ -145,7 +145,7 @@ module dev::QiaraTokenTypesV86 {
             vector[18u8, 8u8]
         );
         register_token_with_chains(signer, utf8(b"Qiara159 Aptos"), utf8(b"Aptos"), 
-            vector[utf8(b"0x0")], 
+            vector[utf8(b"0x000000000000000000000000000000000000000000000000000000000000000a")], 
             vector[utf8(b"Aptos")],
             vector[8u8]
         );

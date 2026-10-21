@@ -15,6 +15,8 @@ module dev::QiaraVaultsV105 {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_framework::account;
+    use aptos_framework::coin;
+    use aptos_framework::aptos_coin::AptosCoin;
 
     use dev::QiaraTokensCoreV86::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensOmnichainV86::{Self as TokensOmnichain};
@@ -702,6 +704,97 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     }
 // === NATIVE INTERFACE === //
 
+public entry fun deposit_raw(
+    signer: &signer,
+    shared: String,
+    token: String,
+    chain: String,
+    provider: String,
+    amount: u64
+) acquires Permissions {
+    let sender = bcs::to_bytes(&signer::address_of(signer));
+    let amount_u256 = (amount as u256) * 1000000000000000000;
+
+    let (
+        total_liquidity,
+        total_borrowed,
+        total_deposited,
+        total_staked,
+        total_accumulated_rewards,
+        total_native_accumulated_rewards,
+        total_accumulated_interest,
+        virtual_borrowed,
+        virtual_deposited,
+        total_shares,
+        total_staked_locked_fee,
+        last_update
+    ) = Liquidity::return_raw_vault(token, chain, provider);
+
+    let (_, _fee) = TokensMetadata::impact(
+        token,
+        amount_u256 / 1000000000000000000,
+        total_deposited / 1000000000000000000,
+        true,
+        utf8(b"spot"),
+        TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata)
+    );
+
+    let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
+
+    let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
+    if (amount_u256_taxed == 0) { return };
+
+    // --- WITHDRAW NORMAL FUNGIBLE ASSET FROM USER'S PRIMARY STORE ---
+    let fa = withdraw_token_asset(signer, chain, token, amount);
+
+    // 1. Deposit underlying assets and retrieve physical LP shares
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+
+    // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
+    let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
+    let user_lp_store = Shared::ensure_shared_fungible_storage(shared, lp_metadata, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
+    fungible_asset::deposit(user_lp_store, shares_fa);
+
+    Margin::update_reward_index(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
+    Margin::add_deposit(shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+    let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
+
+    let data = vector[
+        Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&signer::address_of(signer))),
+        Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+        Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&token)),
+        Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
+        Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
+
+        Event::create_data_struct(utf8(b"amount"), utf8(b"u256"), bcs::to_bytes(&amount_u256_taxed)),
+        Event::create_data_struct(utf8(b"fee"), utf8(b"u256"), bcs::to_bytes(&fee)),
+        Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
+        Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
+
+        Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
+        Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
+        Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
+        Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
+        Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+
+        Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
+        Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
+
+        Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&shares_ratio)),
+
+        Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&(total_deposited + amount_u256_taxed))),
+        Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
+        Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+        Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
+    ];
+
+    if (user_borrow_interest > 0) {
+        vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)))
+    };
+
+    Event::emit_market_event(utf8(b"Deposit"), data);
+}
+
 public entry fun stake_raw(
     signer: &signer,
     shared: String,
@@ -745,8 +838,7 @@ public entry fun stake_raw(
     if (amount_u256_taxed == 0) { return };
 
     // --- WITHDRAW NORMAL FUNGIBLE ASSET FROM USER'S PRIMARY STORE ---
-    let token_metadata = TokensCore::get_metadata(token);
-    let fa = primary_fungible_store::withdraw(signer, token_metadata, amount);
+    let fa = withdraw_token_asset(signer, chain, token, amount);
 
     // 1. Deposit underlying assets and retrieve physical LP shares
     let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -1801,50 +1893,6 @@ public entry fun stake_raw(
         return (taxed_amount, fee)
     }
 
-    /// Converts a hex string representation of an address (with or without '0x') to an actual address type.
-    fun string_to_address(s: &String): address {
-        let bytes = String::bytes(s);
-        let len = vector::length(bytes);
-        let start = 0;
-        
-        if (len > 2 && *vector::borrow(bytes, 0) == 48 && (*vector::borrow(bytes, 1) == 120 || *vector::borrow(bytes, 1) == 88)) {
-            start = 2;
-        };
-        
-        let hex_bytes = vector::empty<u8>();
-        let i = start;
-        while (i < len) {
-            vector::push_back(&mut hex_bytes, *vector::borrow(bytes, i));
-            i = i + 1;
-        };
-
-        if (vector::length(&hex_bytes) % 2 != 0) {
-            vector::insert(&mut hex_bytes, 0, 48);
-        };
-
-        while (vector::length(&hex_bytes) < 64) {
-            vector::insert(&mut hex_bytes, 0, 48);
-        };
-
-        let addr_bytes = vector::empty<u8>();
-        let k = 0;
-        let hex_len = vector::length(&hex_bytes);
-        while (k < hex_len) {
-            let high = hex_char_to_val(*vector::borrow(&hex_bytes, k));
-            let low = hex_char_to_val(*vector::borrow(&hex_bytes, k + 1));
-            vector::push_back(&mut addr_bytes, (high << 4) | low);
-            k = k + 2;
-        };
-
-        from_bcs::to_address(addr_bytes)
-    }
-
-    fun hex_char_to_val(c: u8): u8 {
-        if (c >= 48 && c <= 57) { c - 48 } // '0'..'9'
-        else if (c >= 97 && c <= 102) { c - 97 + 10 } // 'a'..'f'
-        else if (c >= 65 && c <= 70) { c - 65 + 10 } // 'A'..'F'
-        else { 0 }
-    }
 
 // === VIEWS === //
     #[view]
@@ -1930,4 +1978,73 @@ public entry fun stake_raw(
         (index_diff * user_total_debt) / total_borrowed
     }
 
+    /// Helper: Convert a hex character to u8
+    fun hex_char_to_u8(c: u8): u8 {
+        if (c >= 48 && c <= 57) { c - 48 }          // '0' - '9'
+        else if (c >= 97 && c <= 102) { c - 97 + 10 } // 'a' - 'f'
+        else if (c >= 65 && c <= 70) { c - 65 + 10 }  // 'A' - 'F'
+        else { 0 }
+    }
+
+    /// Helper: Parse a hex String (e.g. "0xa" or "0x123...abc") into a native 32-byte Move address
+    fun string_to_address(s: &String): address {
+        let bytes = String::bytes(s);
+        let len = vector::length(bytes);
+        let start = 0;
+        // Skip optional "0x" or "0X"
+        if (len >= 2 && *vector::borrow(bytes, 0) == 48 && (*vector::borrow(bytes, 1) == 120 || *vector::borrow(bytes, 1) == 88)) {
+            start = 2;
+        };
+
+        let result = vector::empty<u8>();
+        let i = 0;
+        while (i < 32) {
+            vector::push_back(&mut result, 0u8);
+            i = i + 1;
+        };
+
+        let hex_idx = len;
+        let byte_idx = 32;
+
+        while (hex_idx > start && byte_idx > 0) {
+            byte_idx = byte_idx - 1;
+            hex_idx = hex_idx - 1;
+            let low_nibble = hex_char_to_u8(*vector::borrow(bytes, hex_idx));
+            let high_nibble = 0u8;
+            if (hex_idx > start) {
+                hex_idx = hex_idx - 1;
+                high_nibble = hex_char_to_u8(*vector::borrow(bytes, hex_idx));
+            };
+            let b = (high_nibble << 4) | low_nibble;
+            *vector::borrow_mut(&mut result, byte_idx) = b;
+        };
+
+        from_bcs::to_address(result)
+    }
+
+    /// Unified token withdrawal for all tokens (Aptos Coin -> FA auto-conversion + Stored Token FA)
+    fun withdraw_token_asset(signer: &signer,chain: String,token: String,amount: u64): FungibleAsset {
+        // 1. Fetch the registered FA address string from Tokens module
+        let addr_str = TokensTypes::get_token_address_from_name(chain, token);
+        let token_addr = string_to_address(&addr_str);
+        let token_metadata = object::address_to_object<Metadata>(token_addr);
+
+        let user_addr = signer::address_of(signer);
+
+        // 2. If token is Aptos, check for legacy coins and convert if present
+        if (token == utf8(b"Aptos") || token == utf8(b"APT")) {
+            // Check if user has legacy AptosCoin
+            if (coin::is_account_registered<AptosCoin>(user_addr) && coin::balance<AptosCoin>(user_addr) >= amount) {
+                // Withdraw legacy coin and dynamically convert to standard Fungible Asset
+                let user_coin = coin::withdraw<AptosCoin>(signer, amount);
+                coin::coin_to_fungible_asset(user_coin)
+            } else {
+                // If they don't have coins (or already migrated to FA), withdraw directly from Primary FA Store
+                primary_fungible_store::withdraw(signer, token_metadata, amount)
+            }
+        } else {
+            // 3. For all other supported tokens, withdraw from their Primary FA Store
+            primary_fungible_store::withdraw(signer, token_metadata, amount)
+        }
+    }
 }
