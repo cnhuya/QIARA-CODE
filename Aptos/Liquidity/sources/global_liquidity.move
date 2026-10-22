@@ -14,6 +14,7 @@ module dev::QiaraLiquidityV103 {
     use aptos_framework::account;
     use aptos_framework::from_bcs;
 
+
     use dev::QiaraTokensMetadataV86::{Self as TokensMetadata};
     use dev::QiaraTokensCoreV86::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
     use dev::QiaraTokensTiersV86::{Self as TokensTiers};
@@ -360,7 +361,7 @@ public fun deposit_token(
 
     // 🟢 FIX: Store real tokens directly; only use TokensCore for cross-chain synthetics
     if (chain == utf8(b"Aptos")) {
-        fungible_asset::deposit(vault.storage, fa);
+       dispatchable_fungible_asset::deposit(vault.storage, fa);
     } else {
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
     };
@@ -502,26 +503,27 @@ public fun withdraw_token(
 
     // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
 // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
-    if (chain == utf8(b"Aptos")) {
+   if (chain == utf8(b"Aptos")) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
 
         if (object::object_exists<Metadata>(token_addr)) {
-            // Real FA withdrawal
             let vault_signer = object::generate_signer_for_extending(&cap.vault_extend_ref);
-            let underlying_fa = fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
+
+            // 🟢 USE dispatchable_fungible_asset::withdraw
+            let underlying_fa = dispatchable_fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
 
             let real_metadata = object::address_to_object<Metadata>(token_addr);
             let shared_real_store = Shared::ensure_shared_fungible_storage(shared, real_metadata, shared_perm);
-            fungible_asset::deposit(shared_real_store, underlying_fa);
+
+            // 🟢 USE dispatchable_fungible_asset::deposit
+            dispatchable_fungible_asset::deposit(shared_real_store, underlying_fa);
         } else {
-            // Synthetic fallback
             let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
             let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
             TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
         }
     } else {
-        // Cross-chain synthetic tokens
         let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
         let shared_lp_store_token = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), shared_perm);
         TokensCore::deposit(shared, shared_lp_store_token, underlying_fa, chain);
