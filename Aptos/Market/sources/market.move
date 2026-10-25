@@ -134,7 +134,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit standard assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, false, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Deposit physical LP shares directly using Shared's secure storage logic
@@ -205,7 +205,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit standard assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, false, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, _, _, user_lock_period) = Margin::get_user_raw_balance(shared, token, chain, provider);
@@ -748,7 +748,7 @@ public entry fun deposit_raw(
     let fa = withdraw_token_asset(signer, chain, token, amount);
 
     // 1. Deposit underlying assets and retrieve physical LP shares
-    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, true, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, true, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
     // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
     let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -841,7 +841,7 @@ public entry fun stake_raw(
     let fa = withdraw_token_asset(signer, chain, token, amount);
 
     // 1. Deposit underlying assets and retrieve physical LP shares
-    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, true, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, true, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
     Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
     // Retrieve existing user balance and absolute unlock epoch
@@ -937,7 +937,7 @@ public entry fun stake_raw(
         let obj = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
         // 1. Deposit underlying assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, false, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Retrieve existing user balance and absolute unlock epoch
@@ -1124,7 +1124,7 @@ public entry fun stake_raw(
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit underlying assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, false, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //tttta(1);
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
