@@ -401,9 +401,15 @@ module dev::QiaraTokenTypesV87 {
         *map::borrow(&tokens.nick_names, &token_name)
     }
 
-    public fun ensure_valid_token_nick_name(token_name: String) acquires Tokens {
+public fun ensure_valid_token_nick_name(token_name: String) acquires Tokens {
+    let full_name = convert_token_nickName_to_name(token_name);
+    let tokens = borrow_global<Tokens>(@dev);
+    assert!(map::contains_key(&tokens.map, &full_name), ERROR_INVALID_TOKEN);
+}
+
+/*    public fun ensure_valid_token_nick_name(token_name: String) acquires Tokens {
         let tokens = borrow_global<Tokens>(@dev);
         let vals = map::values(&tokens.nick_names);
         assert!(vector::contains(&vals, &token_name), ERROR_INVALID_TOKEN);
-    }
+    }*/
 }

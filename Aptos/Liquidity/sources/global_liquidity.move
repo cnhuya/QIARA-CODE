@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV105 {
+module dev::QiaraLiquidityV106 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -92,7 +92,8 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
         total_staked_locked_fee: u256,
         virtual_borrowed: u256, 
         virtual_deposited: u256, 
-        storage: Object<FungibleStore>,         // Storage of the underlying asset
+        storage: Object<FungibleStore>,     // Holds synthetic TokensCore tokens (for normal stake)
+        raw_storage: Object<FungibleStore>, // Holds real FA tokens (for stake_raw)
         incentive: Incentive,           
         w_tracker: WithdrawTracker,
         last_update: u64,
@@ -338,8 +339,7 @@ public fun deposit_token(
     signer: &signer, 
     token: String, 
     chain: String,
-    provider: String,
-    isRaw: bool, 
+    provider: String, 
     fa: FungibleAsset, 
     _cap: Permission
 ): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
@@ -361,7 +361,7 @@ public fun deposit_token(
     assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
     // 🟢 FIX: Store real tokens directly; only use TokensCore for cross-chain synthetics
-    if (isRaw) {
+    if (chain == utf8(b"Aptos")) {
        dispatchable_fungible_asset::deposit(vault.storage, fa);
     } else {
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
@@ -392,7 +392,6 @@ public fun withdraw_token(
     provider: String, 
     raw_scaled: u256,
     net_scaled: u256,
-    isRaw: bool,
     _cap: Permission
 ) acquires GlobalVault, GlobalLPCapabilities, Permissions {
     let vaults = borrow_global_mut<GlobalVault>(@dev);
@@ -505,7 +504,7 @@ public fun withdraw_token(
 
     // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
 // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
-   if (isRaw) {
+   if (chain == utf8(b"Aptos")) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
 
@@ -1066,17 +1065,20 @@ public fun withdraw_token(
 fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
     ChainTypes::ensure_valid_chain_name(chain);
     
-    // 🟢 SAFE RESOLUTION: Only use real FA if it actually exists on-chain; otherwise fallback to TokensCore
-    let metadata = if (chain == utf8(b"Aptos")) {
+    // 1. Synthetic metadata (from TokensCore)
+    let synthetic_metadata = TokensCore::get_metadata(token);
+
+    // 2. Real native metadata (from TokensType when chain == "Aptos")
+    let raw_metadata = if (chain == utf8(b"Aptos")) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
         if (object::object_exists<Metadata>(token_addr)) {
             object::address_to_object<Metadata>(token_addr)
         } else {
-            TokensCore::get_metadata(token)
+            synthetic_metadata
         }
     } else {
-        TokensCore::get_metadata(token)
+        synthetic_metadata
     };
 
     if (!table::contains(&vaults.balances, token)) {
@@ -1089,6 +1091,9 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
 
     let chain_map = map::borrow_mut(token_table, &chain);
     if (!map::contains_key(chain_map, &provider)) {
+        // ==========================================
+        // 1. Initialize LP Token Object
+        // ==========================================
         let lp_seed = *String::bytes(&token);
         vector::append(&mut lp_seed, *String::bytes(&chain));
         vector::append(&mut lp_seed, *String::bytes(&provider));
@@ -1105,9 +1110,9 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
         vector::append(&mut symbol_bytes, *String::bytes(&token));
         let lp_symbol = utf8(symbol_bytes);
 
-        let decimals = fungible_asset::decimals(metadata);
+        let decimals = fungible_asset::decimals(raw_metadata);
 
-        // 🟢 1. Create the Fungible Asset FIRST (this attaches the Metadata resource to lp_constructor_ref)
+        // Create the LP Fungible Asset
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
             &lp_constructor_ref,
             std::option::none(),
@@ -1118,16 +1123,24 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
             utf8(b"")
         );
 
-        // 🟢 2. NOW extract capabilities and metadata object (Metadata exists now!)
+        // Generate capabilities & extend ref for vault owner signing
         let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
         let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
         let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
         let vault_extend_ref = object::generate_extend_ref(&lp_constructor_ref);
 
-        // 🟢 3. Create Vault Store owned by lp_random_address
+        // ==========================================
+        // 2. Create Both Stores Owned by LP Object
+        // ==========================================
+        // A. Synthetic store for TokensCore deposits (stake / deposit)
         let constructor_ref = object::create_object(lp_random_address);
-        let vault_store = fungible_asset::create_store(&constructor_ref, metadata);
+        let vault_store = fungible_asset::create_store(&constructor_ref, synthetic_metadata);
 
+        // B. Real store for native FA deposits (stake_raw / deposit_raw)
+        let raw_constructor_ref = object::create_object(lp_random_address);
+        let raw_vault_store = fungible_asset::create_store(&raw_constructor_ref, raw_metadata);
+
+        // Store LP caps & vault extend_ref
         let vault_seed = *String::bytes(&token);
         vector::append(&mut vault_seed, *String::bytes(&chain));
         vector::append(&mut vault_seed, *String::bytes(&provider));
@@ -1141,6 +1154,9 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
             vault_extend_ref,
         });
 
+        // ==========================================
+        // 3. Register Vault with Both Stores
+        // ==========================================
         map::add(chain_map, provider, Vault {
             last_update: timestamp::now_seconds(),
             total_shares: 0,
@@ -1155,7 +1171,8 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
             total_deposited: 0,
             total_staked_locked_fee: 0,
             w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
-            storage: vault_store,
+            storage: vault_store,         // Synthetic store
+            raw_storage: raw_vault_store, // Real FA store
             incentive: Incentive {
                 deployer: @0x0,
                 total_amount: 0,
