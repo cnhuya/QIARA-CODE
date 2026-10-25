@@ -134,7 +134,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit standard assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Deposit physical LP shares directly using Shared's secure storage logic
@@ -205,7 +205,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit standard assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(validator, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         let (_, _, _, _, user_staked, _, _, _, _, _, _, _, _, _, _, user_lock_period) = Margin::get_user_raw_balance(shared, token, chain, provider);
@@ -347,7 +347,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         } else {
             (user_stake_locked_fee * amount_u256) / user_staked
         };
-        Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Refund only 50% (STAKE_FEE_REFUND) of that proportional fee to the user
         let fee_refund = (proportional_fee * stake_fee_refund) / 100_000_000;
@@ -445,7 +445,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     Margin::remove_deposit(shared, sender, token, chain, provider, gross_after_impact, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
     // 1. Burns LP shares and transfers net underlying tokens to user_shared_store
-    Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    Liquidity::withdraw_token(validator, shared, token, chain, provider, amount_u256, amount_u256_taxed, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
     Liquidity::remove_deposit(token, chain, provider, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
     // 2. Withdraw NET amount from user_shared_store and burn it
@@ -748,7 +748,7 @@ public entry fun deposit_raw(
     let fa = withdraw_token_asset(signer, chain, token, amount);
 
     // 1. Deposit underlying assets and retrieve physical LP shares
-    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, true, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
     // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
     let lp_metadata = Liquidity::return_lp_metadata(token, chain, provider);
@@ -841,7 +841,7 @@ public entry fun stake_raw(
     let fa = withdraw_token_asset(signer, chain, token, amount);
 
     // 1. Deposit underlying assets and retrieve physical LP shares
-    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+    let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, true, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
     Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
     // Retrieve existing user balance and absolute unlock epoch
@@ -937,7 +937,7 @@ public entry fun stake_raw(
         let obj = Shared::ensure_shared_fungible_storage(shared, TokensCore::get_metadata(token), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
         // 1. Deposit underlying assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::add_stake(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Retrieve existing user balance and absolute unlock epoch
@@ -1041,7 +1041,7 @@ public entry fun stake_raw(
         } else {
             (user_stake_locked_fee * amount_u256) / user_staked
         };
-        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Refund only 50% (STAKE_FEE_REFUND) of that proportional fee to the user
         let fee_refund = (proportional_fee * stake_fee_refund) / 100_000_000;
@@ -1124,7 +1124,7 @@ public entry fun stake_raw(
         let fa = TokensCore::withdraw(shared, obj, amount, chain);
 
         // 1. Deposit underlying assets and retrieve physical LP shares
-        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        let shares_fa = Liquidity::deposit_token(signer, token, chain, provider, fa, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //Liquidity::add_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         //tttta(1);
         // UPGRADE: Deposit minted LP shares directly using Shared's secure storage logic
@@ -1187,7 +1187,7 @@ public entry fun stake_raw(
         assert!(total_deposited >= amount_u256_taxed, ERROR_NOT_ENOUGH_LIQUIDITY);
 
         // 1. Redeem shares and deposit underlying into shared storage
-        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, amount_u256_taxed, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::remove_deposit(token, chain, provider, amount_u256_taxed, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // 2. Withdraw custom wrapped token from shared storage
@@ -1260,7 +1260,7 @@ public entry fun stake_raw(
         if (gross_after_impact == 0) return;
 
         // Burn gross, send net
-        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
+        Liquidity::withdraw_token(signer, shared, token, chain, provider, amount_u256, gross_after_impact, false, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         Liquidity::remove_deposit(token, chain, provider, gross_after_impact, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
 
         // Margin: remove gross, NO locked_fee

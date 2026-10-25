@@ -338,7 +338,8 @@ public fun deposit_token(
     signer: &signer, 
     token: String, 
     chain: String,
-    provider: String, 
+    provider: String,
+    isRaw: bool, 
     fa: FungibleAsset, 
     _cap: Permission
 ): FungibleAsset acquires GlobalVault, GlobalLPCapabilities {
@@ -360,7 +361,7 @@ public fun deposit_token(
     assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
     // 🟢 FIX: Store real tokens directly; only use TokensCore for cross-chain synthetics
-    if (chain == utf8(b"Aptos")) {
+    if (isRaw) {
        dispatchable_fungible_asset::deposit(vault.storage, fa);
     } else {
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
@@ -391,6 +392,7 @@ public fun withdraw_token(
     provider: String, 
     raw_scaled: u256,
     net_scaled: u256,
+    isRaw: bool,
     _cap: Permission
 ) acquires GlobalVault, GlobalLPCapabilities, Permissions {
     let vaults = borrow_global_mut<GlobalVault>(@dev);
@@ -503,7 +505,7 @@ public fun withdraw_token(
 
     // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
 // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
-   if (chain == utf8(b"Aptos")) {
+   if (isRaw) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
 
