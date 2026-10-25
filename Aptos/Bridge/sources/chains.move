@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV98 {
+module dev::QiaraBridgeV99 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -21,10 +21,10 @@ use std::option;
     use dev::QiaraTokensOmnichainV87::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV109::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV42::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV98 as Payload;
-    use dev::QiaraValidatorsV98::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV76::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV76::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPayloadV99 as Payload;
+    use dev::QiaraValidatorsV99::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPerpsOrdersV77::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV77::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 
