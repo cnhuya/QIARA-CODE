@@ -334,7 +334,6 @@ public fun claim_accumulated_fee_rewards(
         };
         current_global_index
     }
-
 public fun deposit_token(
     signer: &signer, 
     token: String, 
@@ -361,9 +360,9 @@ public fun deposit_token(
 
     assert!(shares_to_mint > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    // 🟢 FIX: Store real tokens directly; only use TokensCore for cross-chain synthetics
+    // 🟢 Real tokens into raw_storage; synthetic tokens into storage
     if (isRaw) {
-       dispatchable_fungible_asset::deposit(vault.storage, fa);
+       dispatchable_fungible_asset::deposit(vault.raw_storage, fa); // 🟢 raw_storage
     } else {
         TokensCore::deposit(storage_address_string, vault.storage, fa, chain);
     };
@@ -382,10 +381,7 @@ public fun deposit_token(
     vault.total_shares = vault.total_shares + shares_to_mint;
 
     shares_fa
-}
- /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-   /// Accepts physical LP shares, burns them, and returns the pro-rata underlying asset.
-public fun withdraw_token(
+}public fun withdraw_token(
     signer: &signer,
     shared: String, 
     token: String, 
@@ -400,13 +396,11 @@ public fun withdraw_token(
     let vault = find_vault(vaults, token, chain, provider);
     let storage_address_string = non_user_storage_helper(signer, &vault.storage);
 
-    // 🟢 1. AUTO-SCALE UP: If amount came in unscaled (< 1e18), scale it to 1e18
     if (raw_scaled < 1000000000000000000 && raw_scaled > 0) {
         raw_scaled = raw_scaled * 1000000000000000000;
         net_scaled = net_scaled * 1000000000000000000;
     };
 
-    // 🟢 2. AUTO-NORMALIZE: If amount came in as 18-decimal wei (> 10^29), scale it to 1e24
     if (raw_scaled > 100000000000000000000000000000) {
         raw_scaled = raw_scaled / 1000000000000;
         net_scaled = net_scaled / 1000000000000;
@@ -420,7 +414,6 @@ public fun withdraw_token(
     assert!(total_shares > 0, ERROR_INSUFFICIENT_BALANCE);
     assert!(total_assets > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    // 3. Calculate LP shares to burn based on vault ratio
     let shares_to_burn_scaled = if (total_assets == 0 || total_shares == 0) {
         raw_scaled
     } else {
@@ -428,12 +421,10 @@ public fun withdraw_token(
     };
     let shares_to_burn_u64 = (shares_to_burn_scaled / 1000000000000000000 as u64);
 
-    // 🟢 4. ROUND UP: Guarantee at least 1 share is burned so integer division never rounds to 0
     if (shares_to_burn_u64 == 0 && raw_scaled > 0) {
         shares_to_burn_u64 = 1;
     };
 
-    // 5. Fetch Vault LP Capabilities and Metadata
     let vault_seed = *String::bytes(&token);
     vector::append(&mut vault_seed, *String::bytes(&chain));
     vector::append(&mut vault_seed, *String::bytes(&provider));
@@ -442,7 +433,6 @@ public fun withdraw_token(
     let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
     let cap = table::borrow(&lp_caps.caps, vault_address);
 
-    // 6. 🟢 Fetch Shared Signer, Primary Store AND Custom Store
     let shared_perm = Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access);
     let shared_signer = Shared::get_shared_signer(shared, &shared_perm);
     let derived_address = Shared::return_shared_derived_address(shared);
@@ -450,11 +440,10 @@ public fun withdraw_token(
 
     let primary_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
     let custom_balance = fungible_asset::balance(shared_lp_store);
-    let user_lp_balance = primary_balance + custom_balance; // 🟢 Combines both stores!
+    let user_lp_balance = primary_balance + custom_balance;
 
     assert!(user_lp_balance > 0, ERROR_USER_INSUFFICIENT_LP_SHARES);
 
-    // 7. Tolerance & Safety Clamps
     if (shares_to_burn_u64 > user_lp_balance && (shares_to_burn_u64 - user_lp_balance) <= 5) {
         shares_to_burn_u64 = user_lp_balance;
     };
@@ -476,7 +465,6 @@ public fun withdraw_token(
     assert!(user_lp_balance >= shares_to_burn_u64, ERROR_USER_INSUFFICIENT_LP_SHARES);
     assert!(shares_to_burn_u64 > 0, ERROR_INSUFFICIENT_BALANCE);
 
-    // 8. 🟢 Burn LP Shares from whichever store holds them
     let shares_fa = if (primary_balance >= shares_to_burn_u64) {
         primary_fungible_store::withdraw(&shared_signer, cap.lp_metadata, shares_to_burn_u64)
     } else if (custom_balance >= shares_to_burn_u64) {
@@ -496,30 +484,32 @@ public fun withdraw_token(
         vault.total_shares = 0;
     };
 
-    // 9. Ensure vault storage has enough liquidity to pay out
+    // 🟢 9. Check the correct store's balance
     let net_amount_u64 = (net_scaled / 1000000000000000000 as u64);
     if (net_amount_u64 == 0 && net_scaled > 0) {
         net_amount_u64 = 1;
     };
-    let vault_balance = fungible_asset::balance(vault.storage);
+    let vault_balance = if (isRaw) {
+        fungible_asset::balance(vault.raw_storage) // 🟢 raw_storage
+    } else {
+        fungible_asset::balance(vault.storage)     // 🟢 storage
+    };
     assert!(vault_balance >= net_amount_u64, ERROR_VAULT_INSUFFICIENT_LIQUIDITY);
 
-    // 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
-// 🟢 10. Withdraw NET underlying tokens from Vault and credit to user's shared store
-   if (isRaw) {
+    // 🟢 10. Withdraw from the correct store
+    if (isRaw) {
         let addr_str = TokensType::get_token_address_from_name(chain, token);
         let token_addr = string_to_address(&addr_str);
 
         if (object::object_exists<Metadata>(token_addr)) {
             let vault_signer = object::generate_signer_for_extending(&cap.vault_extend_ref);
 
-            // 🟢 USE dispatchable_fungible_asset::withdraw
-            let underlying_fa = dispatchable_fungible_asset::withdraw(&vault_signer, vault.storage, net_amount_u64);
+            // 🟢 Withdraw from vault.raw_storage!
+            let underlying_fa = dispatchable_fungible_asset::withdraw(&vault_signer, vault.raw_storage, net_amount_u64);
 
             let real_metadata = object::address_to_object<Metadata>(token_addr);
             let shared_real_store = Shared::ensure_shared_fungible_storage(shared, real_metadata, shared_perm);
 
-            // 🟢 USE dispatchable_fungible_asset::deposit
             dispatchable_fungible_asset::deposit(shared_real_store, underlying_fa);
         } else {
             let underlying_fa = TokensCore::withdraw(storage_address_string, vault.storage, net_amount_u64, chain);
