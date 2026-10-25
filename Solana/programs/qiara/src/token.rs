@@ -176,8 +176,7 @@ pub fn handle_consensus_mint(
     )?;
 
     // 2. Unpack canonical Move-compatible BCS payload
-    let payload: MintPayload = bcs::from_bytes(&raw_payload)
-        .map_err(|_| error!(QiaraError::InvalidPayloadEncoding))?;
+   let payload = MintPayload::decode(&raw_payload)?;
 
     // 3. Replay Protection & Nullifier Checks
     require!(nullifier == computed_nullifier, TokenError::InvalidNullifier);

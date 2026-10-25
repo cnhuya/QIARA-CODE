@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV41 {
+module dev::QiaraGovernanceV42  {
     use std::signer;
     use std::string::{Self, String, utf8};
     use aptos_std::bcs_stream; // Note: Imported as aptos_std::bcs_stream or std::bcs_stream  will not work
@@ -10,7 +10,7 @@ module dev::QiaraGovernanceV41 {
     use aptos_std::from_bcs;
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV86::{Self as Margin};
+    use dev::QiaraMarginV87::{Self as Margin};
 
     use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
@@ -501,7 +501,7 @@ module dev::QiaraGovernanceV41 {
     fun vote_internal(shared_storage_name: String, proposal_id: u64, isYes: bool): u256 acquires PendingProposals {
         let registry = borrow_global_mut<PendingProposals>(OWNER);
         let len = vector::length(&registry.proposals);
-        let (_, _, _, _, _, _, _, _, vote_value, _) = Margin::get_user_total_usd(shared_storage_name);
+        let vote_value = Margin::get_user_total_staked_qiara(shared_storage_name);
 
         while (len > 0) {
             len = len - 1;

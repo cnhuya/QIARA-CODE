@@ -1,4 +1,4 @@
-module dev::QiaraOracleV16 {
+module dev::QiaraOracleV15 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;

@@ -9,7 +9,7 @@ module dev::QiaraGasV12{
     use aptos_std::math128 ::{Self as math128};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraOracleV16::{Self as Oracle};
+    use dev::QiaraOracleV15::{Self as Oracle};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;
@@ -125,12 +125,12 @@ module dev::QiaraGasV12{
 
     #[view]
     public fun calculateGas_test(deposits: u256, withdrawals: u256, new_deposit: u256, new_withdrawal: u256, leverage: u256, last_update_sec: u256): (u256, u256, u256, u256, u256, u256) {
-        let base = 1_000_000;
-        let withdrawal_weight = 5_000_000;
+        let base = 500_000;
+        let withdrawal_weight = 1_000_000;
         let e6 = 1_000_000;
         
         let e8 = 100_000_000u256;
-        let percentage_decay = 1_000u256; 
+        let percentage_decay = 2_500u256; 
         let max_decay = 25_000_000u256;   
 
         let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
@@ -179,12 +179,12 @@ module dev::QiaraGasV12{
     }
 
     public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256, u256, u256, u256, u256, u256) {
-        let base = 1_000_000u256;
-        let withdrawal_weight = 5_000_000u256; 
-        let e6 = 1_000_000u256;
+        let base = 500_000;
+        let withdrawal_weight = 1_000_000;
+        let e6 = 1_000_000;
         
-        let e8 = 100_000_000u256; 
-        let percentage_decay = 1_000u256; 
+        let e8 = 100_000_000u256;
+        let percentage_decay = 2_500u256; 
         let max_decay = 25_000_000u256;   
 
         let last_update_sec = ((timestamp::now_seconds() - gas_ref.last_update) as u256);
@@ -244,6 +244,7 @@ module dev::QiaraGasV12{
         )
     }
 
+    // DEPRECATED
     #[view]
     public fun calculate_gas_fee(time: u64, gas_fee: u256, amount: u256): u256 {
         let time_u256 = (time as u256);
@@ -251,7 +252,8 @@ module dev::QiaraGasV12{
         return total_fee
     }
 
-#[view]
+    //DEPRECATED
+    #[view]
     public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): (u256, u256) acquires Gas {
         let gas_state = borrow_global<Gas>(@dev);
         let now = timestamp::now_seconds();

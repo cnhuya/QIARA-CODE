@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use crate::QiaraError; // 🟢 Add this line (or `use crate::errors::QiaraError;` if in errors.rs)
 // ==========================================
 // CENTRAL SIGNATURE BUFFER & EVENTS
 // ==========================================
@@ -69,12 +71,40 @@ pub struct ValidatorRotationPayload {
     pub is_removal: bool,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct MintPayload {
     pub recipient: Pubkey,
     pub amount: u64,
     pub chain_id: u32,
     pub nonce: u64,
+}
+
+impl MintPayload {
+    pub fn decode(data: &[u8]) -> Result<Self> {
+        // 🟢 53-byte BCS payload from MarshalActionPayload:
+        // [0: 0x20 len prefix] [1..33: 32-byte address] [33..41: amount (8)] [41..45: chain_id (4)] [45..53: nonce (8)]
+        if data.len() == 53 {
+            let recipient = Pubkey::new_from_array(data[1..33].try_into().unwrap());
+            let amount = u64::from_le_bytes(data[33..41].try_into().unwrap());
+            let chain_id = u32::from_le_bytes(data[41..45].try_into().unwrap());
+            let nonce = u64::from_le_bytes(data[45..53].try_into().unwrap());
+
+            return Ok(Self { recipient, amount, chain_id, nonce });
+        }
+
+        // 🟢 52-byte fixed payload:
+        // [0..32: 32-byte address] [32..40: amount (8)] [40..44: chain_id (4)] [44..52: nonce (8)]
+        if data.len() == 52 {
+            let recipient = Pubkey::new_from_array(data[0..32].try_into().unwrap());
+            let amount = u64::from_le_bytes(data[32..40].try_into().unwrap());
+            let chain_id = u32::from_le_bytes(data[40..44].try_into().unwrap());
+            let nonce = u64::from_le_bytes(data[44..52].try_into().unwrap());
+
+            return Ok(Self { recipient, amount, chain_id, nonce });
+        }
+
+        err!(QiaraError::InvalidPayloadEncoding)
+    }
 }
 
 // ==========================================

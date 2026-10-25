@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV96
+module dev::QiaraPayloadV97
 
 {
     use std::signer;
@@ -9,8 +9,8 @@ module dev::QiaraPayloadV96
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV86::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV86::{Self as TokenTypes};
+    use dev::QiaraChainTypesV87::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV87::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};

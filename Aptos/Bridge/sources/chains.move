@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV96 {
+module dev::QiaraBridgeV97 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -16,15 +16,15 @@ use std::option;
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV24 as storage;
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV86::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV86::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV86::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV106::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV41::{Self as Governance, Access as GovernanceAccess};
-    use dev::QiaraPayloadV96 as Payload;
-    use dev::QiaraValidatorsV96::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV74::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV74::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraTokensCoreV87::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV87::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV87::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraVaultsV107::{Self as Market, Access as MarketAccess};
+    use dev::QiaraGovernanceV42 ::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraPayloadV97 as Payload;
+    use dev::QiaraValidatorsV97::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPerpsOrdersV75::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV75::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 
