@@ -40,8 +40,8 @@ module dev::QiaraVaultsV109 {
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV106::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV106::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV107::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV107::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
