@@ -427,14 +427,14 @@ module dev::QiaraOracleV15 {
 
     #[view]
     public fun convert_to_usd(name: String, size: u256): u256 acquires Prices {
-        (viewPrice(name) * size) / 1000000000000000000
+        (viewPrice(name) * size) / 100_000_000
     }
 
     #[view]
     public fun convert_to_token(name: String, usd: u256): u256 acquires Prices {
         let price = viewPrice(name);
         if (price == 0) return 0;
-        (usd * 1000000000000000000) / price
+        (usd * 100_000_000) / price
     }
 
     #[view]

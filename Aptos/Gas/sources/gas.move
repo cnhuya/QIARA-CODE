@@ -88,8 +88,12 @@ module dev::QiaraGasV12{
 
     public fun add_deposit(token: String, deposit: u256, _cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
-        gas.usd_deposits = gas.usd_deposits + Oracle::convert_to_usd(token, deposit);
-        let (gas_rate, _, _, _, _, _) = calculateGas(gas, deposit, 0);
+        let usd_val = Oracle::convert_to_usd(token, deposit);
+
+        gas.usd_deposits = gas.usd_deposits + usd_val;
+
+        // Pass the USD value, not the raw token amount:
+        let (gas_rate, _, _, _, _, _) = calculateGas(gas, usd_val, 0);
         gas.gas = gas_rate;
         return gas_rate
     }

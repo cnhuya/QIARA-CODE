@@ -804,8 +804,12 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
 */
 
         public fun get_coin_metadata_market_w_fee(metadata: &VMetadata): u64 {
-            
-            (metadata.full_tier.multiplier * storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE")))) / (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP")))/100)
+            // tier_multiplier * w_fee / new_multiplier_handicap + w_fee
+            // 50_000_000 * 2500 / 10_000_000  + 2500
+            // = 15_000 (0,015%)
+            let scale = 10_000;
+            let w_fee = storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"W_FEE")));
+            (metadata.full_tier.multiplier*scale * w_fee) / (storage::expect_u64(storage::viewConstant(utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP")))) + w_fee
         
         }
 
