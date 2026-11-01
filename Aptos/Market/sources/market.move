@@ -33,8 +33,8 @@ module dev::QiaraVaultsV109 {
     use dev::QiaraChainTypesV87::{Self as ChainTypes};
     use dev::QiaraProviderTypesV87::{Self as ProviderTypes};
 
-    use dev::QiaraStorageV24::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV24::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraStorageV25::{Self as storage, Access as StorageAccess};
+    use dev::QiaraCapabilitiesV25::{Self as capabilities, Access as CapabilitiesAccess};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 

@@ -20,8 +20,8 @@ module dev::QiaraPerpsV77 {
     use dev::QiaraLiquidityV107::{Self as Liquidity};
     use dev::QiaraTokenVaultsV107::{Self as TokenVaults, Access as TokenVaultsAccess};
 
-    use dev::QiaraStorageV24::{Self as storage};
-    use dev::QiaraCapabilitiesV24::{Self as capabilities};
+    use dev::QiaraStorageV25::{Self as storage};
+    use dev::QiaraCapabilitiesV25::{Self as capabilities};
 
     use dev::QiaraChainTypesV87::{Self as ChainTypes};
     use dev::QiaraTokenTypesV87::{Self as TokensTypes};

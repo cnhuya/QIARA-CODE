@@ -239,7 +239,7 @@ module dev::QiaraTokenTypesV87 {
         Event::emit_types_event(action, event_data);
     }
 
-   public entry fun register_token_with_chains(signer: &signer,token: String,nick_name: String,token_addresses: vector<String>,chains: vector<String>,decimals: vector<u8>) acquires Tokens {
+    public entry fun register_token_with_chains(signer: &signer,token: String,nick_name: String,token_addresses: vector<String>,chains: vector<String>,decimals: vector<u8>) acquires Tokens {
         assert!(signer::address_of(signer) == @dev, ERROR_NOT_AUTHORIZED);
         
         let len = vector::length(&chains);

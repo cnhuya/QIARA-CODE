@@ -37,38 +37,38 @@ pub fn create_data(name: &str, type_name: &str, value: Vec<u8>) -> EventData {
 // ==========================================
 // TYPED CONSENSUS PAYLOADS
 // ==========================================
-#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
-pub struct UpdateTokensPayload {
-    pub chain_id: u32, // 🟢 Added
-    pub nonce: u64,
-    pub is_add: bool,
-    pub provider: String,
-    pub tokens: Vec<String>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
-pub struct UpdateTokenAddressPayload {
-    pub chain_id: u32, // 🟢 Added
-    pub nonce: u64,
-    pub token: String,
-    pub token_address: String,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
 pub struct VariablePayload {
-    pub chain_id: u32, // 🟢 Added (0 for all chains, or specific chain_id)
-    pub nonce: u64,
     pub header: String,
     pub name: String,
     pub data: Vec<u8>,
+    pub nonce: u64,
+    pub chain_id: u32,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
 pub struct ValidatorRotationPayload {
-    pub chain_id: u32, // 🟢 Added (0 for all chains, or specific chain_id)
-    pub nonce: u64,
     pub pubkey: Vec<u8>,
     pub is_removal: bool,
+    pub nonce: u64,
+    pub chain_id: u32,
+}
+
+#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+pub struct UpdateTokensPayload {
+    pub is_add: bool,
+    pub provider: String,
+    pub tokens: Vec<String>,
+    pub nonce: u64,
+    pub chain_id: u32,
+}
+
+#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+pub struct UpdateTokenAddressPayload {
+    pub token: String,
+    pub token_address: String,
+    pub nonce: u64,
+    pub chain_id: u32,
 }
 
 #[derive(Clone, Debug)]

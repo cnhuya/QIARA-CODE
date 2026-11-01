@@ -32,7 +32,7 @@
     rev = 'main'
     subdir = 'Aptos/Event'
 
-    [dependencies.QiaraStorageV24]
+    [dependencies.QiaraStorageV25]
     git = 'https://github.com/cnhuya/QIARA-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Storage'

@@ -17,8 +17,8 @@ module dev::QiaraTokensQiaraV87 {
     use aptos_std::bcs_stream;
 
     use event::QiaraEventV1 as Event;
-    use dev::QiaraCapabilitiesV24 as capabilities;
-    use dev::QiaraStorageV24 as storage;
+    use dev::QiaraCapabilitiesV25 as capabilities;
+    use dev::QiaraStorageV25 as storage;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraNonceV4 as Nonce;
 
