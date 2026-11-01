@@ -37,16 +37,6 @@ module dev::QiaraStorageV25 {
         isCrossChain: bool
     }
 
-    struct U8 has store, key { } 
-    struct U16 has store, key { } 
-    struct U32 has store, key { } 
-    struct U64 has store, key { } 
-    struct U128 has store, key { } 
-    struct U256 has store, key { } 
-    struct Address has store, key { } 
-    struct Bool has store, key { } 
-
-    // u8 = 1 byte (LENGTH)
 
     struct Any has drop, store, copy { type: String, data: vector<u8> }
 
