@@ -1,4 +1,4 @@
-module dev::QiaraValidatorsV99 {
+module dev::QiaraValidatorsV100 {
     use std::signer;
     use std::vector;
     use std::bcs;
@@ -7,12 +7,12 @@ module dev::QiaraValidatorsV99 {
     use std::string::{String, utf8};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraMarginV87::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraMarginV88::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraStorageV25::{Self as storage};
-    use dev::QiaraTokensQiaraV87::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensCoreV87::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV88::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensCoreV88::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraOracleV15::{Self as Oracle, Access as OracleAccess};
 
     // === ERRORS === //
@@ -56,7 +56,6 @@ module dev::QiaraValidatorsV99 {
     }
 
     struct Validator has key, store, copy, drop {
-        pub_key: vector<u8>,
         pubkey_evm_address: vector<u8>,
         isActive: bool,
         last_active: u64,
@@ -108,24 +107,34 @@ module dev::QiaraValidatorsV99 {
     }
 
     // === PUBLIC FUNCTIONS === //
-    public entry fun dev_register_validator(signer: &signer, shared: String, validator: vector<u8>, pub_key: vector<u8>,pubkey_evm_address: vector<u8>) acquires PendingValidators, ActiveValidators, Validators, Permissions {
+    public entry fun dev_register_validator(
+        signer: &signer, 
+        shared: String, 
+        validator: vector<u8>, 
+        pubkey_evm_address: vector<u8>
+    ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
         Shared::assert_is_sub_owner(shared, validator);
         
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
         let pending_validators = borrow_global_mut<PendingValidators>(@dev); 
         let validators = borrow_global_mut<Validators>(@dev);
 
-        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pub_key, pubkey_evm_address);
+        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pubkey_evm_address);
     }
 
     // Interface for users/validators - Executes registration directly on-chain
-    fun reg_validator(pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators, validators: &mut Map<String, Validator>, validator: String, pub_key: vector<u8>,pubkey_evm_address: vector<u8>) acquires Permissions {
+    fun reg_validator(
+        pending_validators: &mut vector<String>, 
+        active_validators: &mut ActiveValidators, 
+        validators: &mut Map<String, Validator>, 
+        validator: String, 
+        pubkey_evm_address: vector<u8>
+    ) acquires Permissions {
         if (map::contains_key(validators, &validator)) {
             abort ERROR_VALIDATOR_ALREADY_REGISTERED
         };
 
         let validator_struct = Validator { 
-            pub_key: pub_key, 
             pubkey_evm_address: pubkey_evm_address, 
             isActive: true, 
             last_active: 0, 
@@ -137,12 +146,14 @@ module dev::QiaraValidatorsV99 {
     }
 
     // Combined entry interface for altering validator keys on-chain
-    public entry fun change_validator_keys(signer: &signer, shared: String, pub_key: vector<u8>, pubkey_evm_address: vector<u8>) acquires Validators {
+    public entry fun change_validator_keys(
+        signer: &signer, 
+        shared: String, 
+        pubkey_evm_address: vector<u8>
+    ) acquires Validators {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
 
-        let is_pub_key_empty = vector::is_empty(&pub_key);
-        let is_evm_empty = vector::is_empty(&pubkey_evm_address);
-        assert!(!is_pub_key_empty || !is_evm_empty, ERROR_KEYS_CANNOT_BE_EMPTY);
+        assert!(!vector::is_empty(&pubkey_evm_address), ERROR_KEYS_CANNOT_BE_EMPTY);
 
         let validators = borrow_global_mut<Validators>(@dev); 
         if (!map::contains_key(&validators.map, &shared)) {
@@ -150,18 +161,12 @@ module dev::QiaraValidatorsV99 {
         };
 
         let validator_struct = map::borrow_mut(&mut validators.map, &shared);
-        if (!is_pub_key_empty) {
-            validator_struct.pub_key = pub_key;
-        };
-        if (!is_evm_empty) {
-            validator_struct.pubkey_evm_address = pubkey_evm_address;
-        };
+        validator_struct.pubkey_evm_address = pubkey_evm_address;
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&pub_key)),
             Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
         ];
         Event::emit_consensus_event(utf8(b"Change Validator Keys"), data);
@@ -187,10 +192,13 @@ module dev::QiaraValidatorsV99 {
     }
 
     // === INTERNAL FUNCTIONS === //
-    fun take_validator_snapshot_internal(validator: String, validators: &mut Map<String, Validator>, pending_validators: &mut vector<String>, active_validators: &mut ActiveValidators) acquires Permissions {
+    fun take_validator_snapshot_internal(
+        validator: String, 
+        validators: &mut Map<String, Validator>, 
+        pending_validators: &mut vector<String>, 
+        active_validators: &mut ActiveValidators
+    ) acquires Permissions {
         let own_power = Margin::get_user_total_staked_qiara(validator);
-        
-        let pub_key;
         let pubkey_evm_address;
 
         // Scope the mutable borrow so it is released immediately after these updates
@@ -199,7 +207,6 @@ module dev::QiaraValidatorsV99 {
             validator_struct.power = own_power;
             validator_struct.snapshot = active_validators.epoch;
 
-            pub_key = *&validator_struct.pub_key;
             pubkey_evm_address = *&validator_struct.pubkey_evm_address;
         };
 
@@ -252,7 +259,6 @@ module dev::QiaraValidatorsV99 {
                 Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
                 Event::create_data_struct(utf8(b"new_validator"), utf8(b"string"), bcs::to_bytes(&validator)),
                 Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"string"), bcs::to_bytes(&deleted_validator)),
-                Event::create_data_struct(utf8(b"pub_key"), utf8(b"vector<u8>"), bcs::to_bytes(&pub_key)),
                 Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
             ];
             Event::emit_consensus_event(utf8(b"Register Validator"), data);
@@ -267,9 +273,9 @@ module dev::QiaraValidatorsV99 {
                 let xv = vector::borrow(pending_validators, current_pending_len - 1);
                 vector::push_back(&mut vect, *xv);
 
-                // Collect public key for each active validator
+                // Collect EVM address for each active validator
                 let val_struct = map::borrow(validators, xv);
-                vector::push_back(&mut active_keys, *&val_struct.pub_key);
+                vector::push_back(&mut active_keys, *&val_struct.pubkey_evm_address);
 
                 current_pending_len = current_pending_len - 1;
             };
@@ -350,13 +356,13 @@ module dev::QiaraValidatorsV99 {
     }
 
     #[view]
-    public fun return_validator_raw(val: String): (vector<u8>, vector<u8>, bool, u256, u64) acquires Validators {
+    public fun return_validator_raw(val: String): (vector<u8>, bool, u256, u64) acquires Validators {
         let vars = borrow_global<Validators>(@dev);
         if (!map::contains_key(&vars.map, &val)) {
             abort ERROR_VALIDATOR_DOESNT_EXISTS
         };
         let validator = map::borrow(&vars.map, &val);
-        return (validator.pubkey_evm_address, validator.pub_key, validator.isActive, validator.power, validator.snapshot)
+        return (validator.pubkey_evm_address, validator.isActive, validator.power, validator.snapshot)
     }
 
     public fun acrue_modularity_fee(shared: String, user: vector<u8>) acquires Permissions, PerEpoch {
@@ -405,7 +411,6 @@ module dev::QiaraValidatorsV99 {
         let validators = map::keys(&per_epoch.vote_weights);
         let len = vector::length(&validators);
 
-
         assert!(total_weight > 0, ERROR_ZERO_AMOUNT);
 
         while (len > 0) {
@@ -420,8 +425,6 @@ module dev::QiaraValidatorsV99 {
             let user_addr_bytes = Shared::return_shared_owner(*voter);
             let user_address = from_bcs::to_address(user_addr_bytes);
 
-            // If Margin::add_credit expects `vector<u8>`, pass `user_addr_bytes`
-            // If it expects `address`, pass `user_address`
             Margin::add_credit(
                 *voter, 
                 user_addr_bytes, 
