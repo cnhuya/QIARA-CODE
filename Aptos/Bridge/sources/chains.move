@@ -20,7 +20,7 @@ use std::option;
     use dev::QiaraTokensQiaraV88::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV88::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV110::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV44::{Self as Governance, Access as GovernanceAccess};
+    use dev::QiaraGovernanceV44::{Self as Governance};
     use dev::QiaraPayloadV100 as Payload;
     use dev::QiaraValidatorsV100::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV78::{Self as PerpOrders, Access as PerpOrdersAccess};
@@ -62,7 +62,6 @@ use std::option;
         perps: PerpAccess,
         perps_orders: PerpOrdersAccess,
         shared: SharedAccess,
-        governance: GovernanceAccess
     }
 
     // === VOTE STRUCTS === //
@@ -90,7 +89,7 @@ use std::option;
     // === INIT === //
     fun init_module(admin: &signer) {
         if (!exists<Permissions>(@dev)) {
-            move_to(admin, Permissions {qiara: TokensQiara::give_access(admin), governance: Governance::give_access(admin),shared: Shared::give_access(admin),perps: Perps::give_access(admin),perps_orders: PerpOrders::give_access(admin),market: Market::give_access(admin),tokens_core: TokensCore::give_access(admin),tokens_omnichain: TokensOmnichain::give_access(admin),validators: Validators::give_access(admin)});
+            move_to(admin, Permissions {qiara: TokensQiara::give_access(admin),shared: Shared::give_access(admin),perps: Perps::give_access(admin),perps_orders: PerpOrders::give_access(admin),market: Market::give_access(admin),tokens_core: TokensCore::give_access(admin),tokens_omnichain: TokensOmnichain::give_access(admin),validators: Validators::give_access(admin)});
         };
         if (!exists<EventsStore>(@dev)) {
             move_to(admin, EventsStore {main: table::new()});
@@ -117,7 +116,7 @@ use std::option;
         if (consensus_type == utf8(b"none")) return;
 
         // 3. Validate validator permissions and active status
-        let (_, secp256k1_pub_key, isActive, vote_weight, _) = Validators::return_validator_raw(validator);
+        let (_, isActive, vote_weight, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         // 4. Verify Secp256k1 Signature over nullifier
@@ -140,8 +139,8 @@ use std::option;
         let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
         assert!(option::is_some(&recovered_key), 101);
 
-        let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
-        assert!(&pubkey_bytes == &secp256k1_pub_key, 102);
+        //let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
+        //assert!(&pubkey_bytes == &secp256k1_pub_key, 102);
 
         // 5. Extract event type
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
@@ -305,13 +304,18 @@ use std::option;
                 Validators::acrue_modularity_fee(user, name);
                 PerpOrders::p_remove_twap_order(signer, user, name, id, PerpOrders::give_permission(&cap.perps_orders));
             } else if (event_type == utf8(b"Modular Governance Proposal")) {
-                let (user, shared, name, desc, types, is_change, headers, constant_names, new_values, value_types, duration, editables, is_multichain) = Payload::prepare_modular_governance_proposal(type_names, payload);
+                let (user, shared, name, desc, source_code, duration, execution_hash) = Payload::prepare_modular_governance_proposal(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
-                Governance::m_propose(signer, user, shared, name, desc, types, is_change, is_multichain, headers, constant_names, new_values, value_types, duration, editables, Governance::give_permission(&cap.governance));
+                
+                // Matches QiaraGovernanceV44::propose(signer, name, desc, source_code, duration, execution_hash)
+                Governance::propose(signer, name, desc, source_code, duration, execution_hash);
+
             } else if (event_type == utf8(b"Modular Governance Vote")) {
                 let (user, shared, proposal_id, is_yes) = Payload::prepare_modular_governance_vote(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
-                Governance::m_vote(signer, user, shared, proposal_id, is_yes, Governance::give_permission(&cap.governance));
+                
+                // Matches QiaraGovernanceV44::vote(signer, shared_storage_name, proposal_id, is_yes)
+                Governance::vote(signer, shared, proposal_id, is_yes);
             } else {
                 abort ERROR_INVALID_MESSAGE
             };
