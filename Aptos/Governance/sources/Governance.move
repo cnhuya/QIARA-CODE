@@ -1,6 +1,6 @@
 module dev::QiaraGovernanceV45 {
     use std::signer;
-    use std::string::{String, utf8};
+use std::string::{Self, String, utf8};
     use std::vector;
     use std::bcs;
     use aptos_framework::timestamp;
@@ -25,38 +25,50 @@ module dev::QiaraGovernanceV45 {
         name: String,
         desc: String,
         source_code: String,
-        sub_owner: vector<u8>,       // 👈 Address/sub_owner bytes (Sui/EVM/Solana/Aptos)
-        shared: String,              // 👈 Shared storage name
+        sub_owner: vector<u8>,
+        shared: String,
         duration: u64,
-        execution_hash: vector<u8>,  // SHA3-256 of the compiled script bytecode
+        execution_hash: vector<u8>,
         yes: u256,
         no: u256,
         voters: vector<String>,
         executed: bool,
     }
 
+    /// Resource holding the DAO's SignerCapability under @dev
+    struct DaoCapability has key {
+        cap: SignerCapability,
+    }
+
     struct GovernanceStorage has key {
-        dao_signer_cap: SignerCapability,
         proposals: vector<Proposal>,
     }
 
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 
-        // Resource account representing the DAO's on-chain authority
-        let (_, signer_cap) = account::create_resource_account(admin, x"01");
+        // 🟢 1. Only create the resource account if it doesn't already exist on @dev!
+        if (!exists<DaoCapability>(OWNER)) {
+            // Uses seed b"QiaraDAO" to create the permanent DAO resource account
+            let (_, signer_cap) = account::create_resource_account(admin, b"QiaraDAO");
+            move_to(admin, DaoCapability {
+                cap: signer_cap,
+            });
+        };
 
-        move_to(admin, GovernanceStorage {
-            dao_signer_cap: signer_cap,
-            proposals: vector::empty<Proposal>(),
-        });
+        // 🟢 2. Initialize GovernanceStorage if it doesn't exist
+        if (!exists<GovernanceStorage>(OWNER)) {
+            move_to(admin, GovernanceStorage {
+                proposals: vector::empty<Proposal>(),
+            });
+        };
     }
 
-    /// 1. Propose: Accepts sub_owner and shared, stores them, and emits event for Go indexer
+    /// 1. Propose
     public entry fun propose(
         user: &signer,
-        sub_owner: vector<u8>,       // 👈 Added sub_owner
-        shared: String,              // 👈 Added shared
+        sub_owner: vector<u8>,
+        shared: String,
         name: String,
         desc: String,
         source_code: String,
@@ -83,13 +95,13 @@ module dev::QiaraGovernanceV45 {
             executed: false,
         });
 
-        // 🟢 Emit "Create Proposal" event with sub_owner and shared for Supabase/Go API
+        // Emit "Create Proposal" event
         let validator_bytes = bcs::to_bytes(&signer::address_of(user));
         let data = vector[
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
-            Event::create_data_struct(utf8(b"source_code"), utf8(b"string"), bcs::to_bytes(&source_code)),
+            Event::create_data_struct(utf8(b"source_code"), utf8(b"string"), *string::bytes(&source_code)),
             Event::create_data_struct(utf8(b"execution_hash"), utf8(b"vector<u8>"), bcs::to_bytes(&execution_hash)),
             Event::create_data_struct(utf8(b"sub_owner"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
             Event::create_data_struct(utf8(b"proposer"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
@@ -104,7 +116,7 @@ module dev::QiaraGovernanceV45 {
         Event::emit_governance_event(utf8(b"Create Proposal"), data);
     }
 
-    /// 2. Vote: Records user's staked weight and emits "Vote" event
+    /// 2. Vote
     public entry fun vote(
         user: &signer, 
         shared_storage_name: String, 
@@ -128,7 +140,7 @@ module dev::QiaraGovernanceV45 {
 
         vector::push_back(&mut proposal.voters, shared_storage_name);
 
-        // 🟢 Emit "Vote" event
+        // Emit "Vote" event
         let sender_bytes = bcs::to_bytes(&signer::address_of(user));
         let data = vector[
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
@@ -141,8 +153,8 @@ module dev::QiaraGovernanceV45 {
         Event::emit_governance_event(utf8(b"Vote"), data);
     }
 
-    /// 3. Resolve: Called by the approved script at execution time
-    public fun resolve(proposal_id: u64): signer acquires GovernanceStorage {
+    /// 3. Resolve: Borrows DaoCapability and creates the DAO signer for the script
+    public fun resolve(proposal_id: u64): signer acquires GovernanceStorage, DaoCapability {
         let storage = borrow_global_mut<GovernanceStorage>(@dev);
         assert!(proposal_id < vector::length(&storage.proposals), ERROR_PROPOSAL_DOES_NOT_EXIST);
 
@@ -152,7 +164,7 @@ module dev::QiaraGovernanceV45 {
         assert!(timestamp::now_seconds() > proposal.duration, ERROR_PROPOSAL_NOT_FINISHED);
         assert!(proposal.yes > proposal.no, ERROR_PROPOSAL_NOT_PASSED);
 
-        // Verify the running script bytecode matches what was proposed
+        // Verify script hash
         let current_script_hash = transaction_context::get_script_hash();
         assert!(current_script_hash == proposal.execution_hash, ERROR_INVALID_SCRIPT_HASH);
 
@@ -161,7 +173,7 @@ module dev::QiaraGovernanceV45 {
         let yes_votes = proposal.yes;
         let no_votes = proposal.no;
 
-        // 🟢 Emit "Proposal Result" event
+        // Emit "Proposal Result" event
         let data = vector[
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
             Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&(1 as u8))),
@@ -171,8 +183,9 @@ module dev::QiaraGovernanceV45 {
         ];
         Event::emit_governance_event(utf8(b"Proposal Result"), data);
 
-        // Return the DAO's authority to the script
-        account::create_signer_with_capability(&storage.dao_signer_cap)
+        // 🟢 Borrow DaoCapability from @dev to create the DAO signer
+        let dao_cap = borrow_global<DaoCapability>(OWNER);
+        create_signer_with_capability(&dao_cap.cap)
     }
 
     // ==========================================
