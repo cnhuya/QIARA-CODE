@@ -12,7 +12,7 @@ module dev::QiaraHelperV28 {
 
     use dev::QiaraMathV9::{Self as QiaraMath};
 
-    use dev::QiaraVerifiedTokensV44::{Self as VerifiedTokens, VMetadata, Tier};
+    use dev::QiaraVerifiedTokensV45::{Self as VerifiedTokens, VMetadata, Tier};
 
     struct Governance has copy, drop{
         minimum_tokens_to_propose: u64,

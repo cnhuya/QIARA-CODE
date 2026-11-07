@@ -20,7 +20,7 @@ use std::option;
     use dev::QiaraTokensQiaraV88::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV88::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV110::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV44::{Self as Governance};
+    use dev::QiaraGovernanceV45::{Self as Governance};
     use dev::QiaraPayloadV100 as Payload;
     use dev::QiaraValidatorsV100::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV78::{Self as PerpOrders, Access as PerpOrdersAccess};
@@ -307,14 +307,13 @@ use std::option;
                 let (user, shared, name, desc, source_code, duration, execution_hash) = Payload::prepare_modular_governance_proposal(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 
-                // Matches QiaraGovernanceV44::propose(signer, name, desc, source_code, duration, execution_hash)
-                Governance::propose(signer, name, desc, source_code, duration, execution_hash);
+                // 🟢 Now passes `user` (sub_owner) and `shared`
+                Governance::propose(signer, user, shared, name, desc, source_code, duration, execution_hash);
 
             } else if (event_type == utf8(b"Modular Governance Vote")) {
                 let (user, shared, proposal_id, is_yes) = Payload::prepare_modular_governance_vote(type_names, payload);
                 Validators::acrue_modularity_fee(shared, user);
                 
-                // Matches QiaraGovernanceV44::vote(signer, shared_storage_name, proposal_id, is_yes)
                 Governance::vote(signer, shared, proposal_id, is_yes);
             } else {
                 abort ERROR_INVALID_MESSAGE

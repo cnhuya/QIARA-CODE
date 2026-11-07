@@ -1,12 +1,14 @@
-module dev::QiaraGovernanceV44 {
+module dev::QiaraGovernanceV45 {
     use std::signer;
-    use std::string::String;
+    use std::string::{String, utf8};
     use std::vector;
+    use std::bcs;
     use aptos_framework::timestamp;
     use aptos_framework::transaction_context;
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
 
     use dev::QiaraMarginV88 as Margin;
+    use event::QiaraEventV1 as Event;
 
     const OWNER: address = @dev;
 
@@ -22,11 +24,11 @@ module dev::QiaraGovernanceV44 {
         id: u64,
         name: String,
         desc: String,
-        /// The exact Move script code stored directly on-chain for 100% transparency!
         source_code: String,
-        proposer: address,
+        sub_owner: vector<u8>,       // 👈 Address/sub_owner bytes (Sui/EVM/Solana/Aptos)
+        shared: String,              // 👈 Shared storage name
         duration: u64,
-        execution_hash: vector<u8>, // SHA3-256 of the compiled script bytecode
+        execution_hash: vector<u8>,  // SHA3-256 of the compiled script bytecode
         yes: u256,
         no: u256,
         voters: vector<String>,
@@ -50,34 +52,59 @@ module dev::QiaraGovernanceV44 {
         });
     }
 
-    /// 1. Propose: Stores the source code and the execution hash on-chain
+    /// 1. Propose: Accepts sub_owner and shared, stores them, and emits event for Go indexer
     public entry fun propose(
         user: &signer,
+        sub_owner: vector<u8>,       // 👈 Added sub_owner
+        shared: String,              // 👈 Added shared
         name: String,
         desc: String,
-        source_code: String,        // 👈 Passed here!
+        source_code: String,
         duration_seconds: u64,
         execution_hash: vector<u8>
     ) acquires GovernanceStorage {
         let storage = borrow_global_mut<GovernanceStorage>(@dev);
         let id = vector::length(&storage.proposals);
+        let created_at = timestamp::now_seconds();
+        let end_duration = created_at + duration_seconds;
 
         vector::push_back(&mut storage.proposals, Proposal {
             id,
             name,
             desc,
             source_code,
-            proposer: signer::address_of(user),
-            duration: timestamp::now_seconds() + duration_seconds,
+            sub_owner,
+            shared,
+            duration: end_duration,
             execution_hash,
             yes: 0,
             no: 0,
             voters: vector::empty<String>(),
             executed: false,
         });
+
+        // 🟢 Emit "Create Proposal" event with sub_owner and shared for Supabase/Go API
+        let validator_bytes = bcs::to_bytes(&signer::address_of(user));
+        let data = vector[
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
+            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+            Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
+            Event::create_data_struct(utf8(b"source_code"), utf8(b"string"), bcs::to_bytes(&source_code)),
+            Event::create_data_struct(utf8(b"execution_hash"), utf8(b"vector<u8>"), bcs::to_bytes(&execution_hash)),
+            Event::create_data_struct(utf8(b"sub_owner"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
+            Event::create_data_struct(utf8(b"proposer"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), validator_bytes),
+            Event::create_data_struct(utf8(b"duration"), utf8(b"u64"), bcs::to_bytes(&end_duration)),
+            Event::create_data_struct(utf8(b"created"), utf8(b"u64"), bcs::to_bytes(&created_at)),
+            Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&(0 as u8))),
+            Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&(0 as u8))),
+        ];
+        Event::emit_governance_event(utf8(b"Create Proposal"), data);
     }
 
-    /// 2. Vote
+    /// 2. Vote: Records user's staked weight and emits "Vote" event
     public entry fun vote(
         user: &signer, 
         shared_storage_name: String, 
@@ -100,6 +127,18 @@ module dev::QiaraGovernanceV44 {
         };
 
         vector::push_back(&mut proposal.voters, shared_storage_name);
+
+        // 🟢 Emit "Vote" event
+        let sender_bytes = bcs::to_bytes(&signer::address_of(user));
+        let data = vector[
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"vector<u8>"), sender_bytes),
+            Event::create_data_struct(utf8(b"sub_owner"), utf8(b"vector<u8>"), sender_bytes),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared_storage_name)),
+            Event::create_data_struct(utf8(b"vote_weight"), utf8(b"u256"), bcs::to_bytes(&vote_weight)),
+            Event::create_data_struct(utf8(b"isYes"), utf8(b"bool"), bcs::to_bytes(&is_yes)),
+        ];
+        Event::emit_governance_event(utf8(b"Vote"), data);
     }
 
     /// 3. Resolve: Called by the approved script at execution time
@@ -119,15 +158,27 @@ module dev::QiaraGovernanceV44 {
 
         proposal.executed = true;
 
+        let yes_votes = proposal.yes;
+        let no_votes = proposal.no;
+
+        // 🟢 Emit "Proposal Result" event
+        let data = vector[
+            Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&proposal_id)),
+            Event::create_data_struct(utf8(b"status"), utf8(b"u8"), bcs::to_bytes(&(1 as u8))),
+            Event::create_data_struct(utf8(b"result"), utf8(b"u8"), bcs::to_bytes(&(1 as u8))),
+            Event::create_data_struct(utf8(b"yes"), utf8(b"u256"), bcs::to_bytes(&yes_votes)),
+            Event::create_data_struct(utf8(b"no"), utf8(b"u256"), bcs::to_bytes(&no_votes)),
+        ];
+        Event::emit_governance_event(utf8(b"Proposal Result"), data);
+
         // Return the DAO's authority to the script
         account::create_signer_with_capability(&storage.dao_signer_cap)
     }
 
     // ==========================================
-    // VIEW FUNCTIONS (For Web Frontend & API)
+    // VIEW FUNCTIONS
     // ==========================================
 
-    /// View the exact source code for a specific proposal
     #[view]
     public fun view_proposal_source_code(proposal_id: u64): String acquires GovernanceStorage {
         let storage = borrow_global<GovernanceStorage>(@dev);
@@ -136,7 +187,6 @@ module dev::QiaraGovernanceV44 {
         proposal.source_code
     }
 
-    /// View all proposals with their details
     #[view]
     public fun view_proposals(): vector<Proposal> acquires GovernanceStorage {
         borrow_global<GovernanceStorage>(@dev).proposals
