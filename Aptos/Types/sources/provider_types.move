@@ -14,7 +14,7 @@ module dev::QiaraProviderTypesV89 {
 
     const ADMIN: address = @dev;
     fun is_admin(caller: address): bool {
-        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");
         caller == ADMIN || caller == dao_address
     }
 

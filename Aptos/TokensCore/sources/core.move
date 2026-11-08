@@ -43,7 +43,7 @@ module dev::QiaraTokensCoreV89{
     const ERROR_NOT_AUTHORIZED: u64 = 5;
 
     fun is_admin(caller: address): bool {
-        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");
         caller == ADMIN || caller == dao_address
     }
 
