@@ -246,7 +246,7 @@ module dev::QiaraTokensCoreV89{
 
 
     public fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: String, deflation_tier: u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable: u8) {
-        assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+        assert!(is_admin(signer::address_of(admin)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let constructor_ref = &object::create_named_object(admin, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name)));
         
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
