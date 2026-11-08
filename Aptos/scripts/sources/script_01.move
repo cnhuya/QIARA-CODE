@@ -1,12 +1,12 @@
 script {
-    use dev::QiaraGovernanceV46;
+    use dev::QiaraGovernanceV45;
     use dev::QiaraStorageV25 as storage;
     use std::string::utf8;
     use std::bcs;
 
     fun main(proposal_id: u64) {
         // 1. Resolve governance to obtain the DAO signer
-        let dao_signer = QiaraGovernanceV46::resolve(proposal_id);
+        let dao_signer = QiaraGovernanceV45::resolve(proposal_id);
 
         // 2. Execute desired actions with the DAO authority
         storage::change_constant(

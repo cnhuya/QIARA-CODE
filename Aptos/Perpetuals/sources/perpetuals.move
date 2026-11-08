@@ -6,6 +6,7 @@ module dev::QiaraPerpsV79 {
     use std::timestamp;
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
+    use aptos_framework::account;
 
     use dev::QiaraMarginV89::{Self as Margin, Access as MarginAccess};
     use dev::QiaraRIV89::{Self as RI};

@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV46 {
+module dev::QiaraGovernanceV45 {
     use std::signer;
 use std::string::{Self, String, utf8};
     use std::vector;
