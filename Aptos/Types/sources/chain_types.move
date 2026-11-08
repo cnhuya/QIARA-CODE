@@ -1,4 +1,4 @@
-module dev::QiaraChainTypesV88 {
+module dev::QiaraChainTypesV89 {
     use std::string::{Self as string, String, utf8};
     use std::vector;
     use std::signer;
@@ -12,9 +12,10 @@ module dev::QiaraChainTypesV88 {
     const ERROR_CHAIN_ID_ALREADY_REGISTERED: u64 = 3;
     const ERROR_NOT_AUTHORIZED: u64 = 4;
 
+    const ADMIN: address = @dev;
     fun is_admin(caller: address): bool {
-        let dao_address = account::create_resource_address(&@dev, x"01");
-        caller == dao_address
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        caller == ADMIN || caller == dao_address
     }
 
 // === STRUCTS === //

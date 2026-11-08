@@ -1,4 +1,4 @@
-module dev::QiaraProviderTypesV88 {
+module dev::QiaraProviderTypesV89 {
     use std::string::{String, utf8};
     use std::vector;
     use std::signer;
@@ -12,9 +12,10 @@ module dev::QiaraProviderTypesV88 {
     const ERROR_INVALID_PROVIDER: u64 = 1;
     const ERROR_NOT_AUTHORIZED: u64 = 2;
 
+    const ADMIN: address = @dev;
     fun is_admin(caller: address): bool {
-        let dao_address = account::create_resource_address(&@dev, x"01");
-        caller == dao_address
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        caller == ADMIN || caller == dao_address
     }
 
     // === STRUCTS === //

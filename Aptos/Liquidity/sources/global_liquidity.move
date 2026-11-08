@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV108 {
+module dev::QiaraLiquidityV109 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -15,17 +15,17 @@ module dev::QiaraLiquidityV108 {
     use aptos_framework::from_bcs;
 
 
-    use dev::QiaraTokensMetadataV88::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV88::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV88::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV89::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV89::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV89::{Self as TokensTiers};
 
-    use dev::QiaraMarginV88::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV88::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV88::{Self as BurnedQiara};
+    use dev::QiaraMarginV89::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV89::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV89::{Self as BurnedQiara};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraChainTypesV88::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV88::{Self as TokensType};
-    use dev::QiaraProviderTypesV88::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV89::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV89::{Self as TokensType};
+    use dev::QiaraProviderTypesV89::{Self as ProviderTypes};
     use dev::QiaraGenesisV4::{Self as Genesis};
 
 // === ERRORS === //
@@ -37,9 +37,17 @@ module dev::QiaraLiquidityV108 {
     const ERROR_INSUFFICIENT_BALANCE: u64 = 6;
     const ERROR_INVALID_LP_TOKEN: u64 = 7;
     const ERROR_WEIGHTS_MUST_ADD_TO_100: u64 = 8;
+    const ERROR_VAULT_ALREADY_EXISTS: u64 = 9;
 
-const ERROR_USER_INSUFFICIENT_LP_SHARES: u64 = 1001;
-const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
+    const ERROR_USER_INSUFFICIENT_LP_SHARES: u64 = 1001;
+    const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
+
+    const ADMIN: address = @dev;
+
+    fun is_admin(caller: address): bool {
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        caller == ADMIN || caller == dao_address
+    }
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -156,6 +164,35 @@ const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
             };
         return (storage_address_bytes)
     }
+
+
+/// 🟢 Initialize a single vault on-demand (Callable by @dev or via Governance Proposal)
+public entry fun initialize_vault(
+    admin: &signer,
+    token: String,
+    chain: String,
+    provider: String
+) acquires GlobalVault, GlobalLPCapabilities {
+    // Allows @dev or the DAO Resource Account (seed b"QiaraDAO")
+    assert!(is_admin(signer::address_of(admin)), ERROR_NOT_ADMIN);
+
+    // Verify provider, chain, and token exist in your types registry
+    ProviderTypes::ensure_valid_provider(provider, chain);
+
+    let vaults = borrow_global_mut<GlobalVault>(@dev);
+    
+    // Check if vault already exists so we don't accidentally re-initialize
+    if (table::contains(&vaults.balances, token)) {
+        let token_table = table::borrow(&vaults.balances, token);
+        if (map::contains_key(token_table, &chain)) {
+            let chain_map = map::borrow(token_table, &chain);
+            assert!(!map::contains_key(chain_map, &provider), ERROR_VAULT_ALREADY_EXISTS);
+        };
+    };
+
+    // Creates the LP token, the two stores, and records the Vault in state
+    find_vault(admin, vaults, token, chain, provider);
+}
 
     public entry fun initialize_all_registered_vaults(admin: &signer) acquires GlobalVault, GlobalLPCapabilities {
         assert!(std::signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -1054,7 +1091,13 @@ public fun deposit_token(
     }
 
 // === MUT RETURNS === //
-fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider: String): &mut Vault acquires GlobalLPCapabilities {
+fun find_vault(
+    admin: &signer,
+    vaults: &mut GlobalVault, 
+    token: String, 
+    chain: String, 
+    provider: String
+): &mut Vault acquires GlobalLPCapabilities {
     ChainTypes::ensure_valid_chain_name(chain);
     
     // 1. Synthetic metadata (from TokensCore)
@@ -1091,8 +1134,9 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
         vector::append(&mut lp_seed, *String::bytes(&provider));
         vector::append(&mut lp_seed, b"-LP");
 
-        let lp_random_address = account::create_resource_address(&@dev, lp_seed);
-        let lp_constructor_ref = object::create_sticky_object(lp_random_address); 
+        // 🟢 Create named sticky object using the admin signer!
+        let lp_constructor_ref = object::create_named_object(admin, lp_seed);
+        let lp_object_signer = object::generate_signer(&lp_constructor_ref);
 
         let name_bytes = b"Qiara LP ";
         vector::append(&mut name_bytes, *String::bytes(&token));
@@ -1115,31 +1159,30 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
             utf8(b"")
         );
 
-        // Generate capabilities & extend ref for vault owner signing
         let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
         let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
         let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
         let vault_extend_ref = object::generate_extend_ref(&lp_constructor_ref);
 
         // ==========================================
-        // 2. Create Both Stores Owned by LP Object
+        // 2. Create Stores Owned by the LP Object
         // ==========================================
-        // A. Synthetic store for TokensCore deposits (stake / deposit)
-        let constructor_ref = object::create_object(lp_random_address);
-        let vault_store = fungible_asset::create_store(&constructor_ref, synthetic_metadata);
+        // A. Synthetic store
+        let store_constructor_ref = object::create_object_from_account(&lp_object_signer);
+        let vault_store = fungible_asset::create_store(&store_constructor_ref, synthetic_metadata);
 
-        // B. Real store for native FA deposits (stake_raw / deposit_raw)
-        let raw_constructor_ref = object::create_object(lp_random_address);
+        // B. Real store
+        let raw_constructor_ref = object::create_object_from_account(&lp_object_signer);
         let raw_vault_store = fungible_asset::create_store(&raw_constructor_ref, raw_metadata);
 
         // Store LP caps & vault extend_ref
         let vault_seed = *String::bytes(&token);
         vector::append(&mut vault_seed, *String::bytes(&chain));
         vector::append(&mut vault_seed, *String::bytes(&provider));
-        let random_address = account::create_resource_address(&@dev, vault_seed);
+        let vault_address = account::create_resource_address(&@dev, vault_seed);
 
         let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
-        table::add(&mut lp_caps.caps, random_address, LPCapabilities {
+        table::add(&mut lp_caps.caps, vault_address, LPCapabilities {
             mint_ref,
             burn_ref,
             lp_metadata,
@@ -1147,7 +1190,7 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
         });
 
         // ==========================================
-        // 3. Register Vault with Both Stores
+        // 3. Register Vault
         // ==========================================
         map::add(chain_map, provider, Vault {
             last_update: timestamp::now_seconds(),
@@ -1163,8 +1206,8 @@ fun find_vault(vaults: &mut GlobalVault, token: String, chain: String, provider:
             total_deposited: 0,
             total_staked_locked_fee: 0,
             w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
-            storage: vault_store,         // Synthetic store
-            raw_storage: raw_vault_store, // Real FA store
+            storage: vault_store,         
+            raw_storage: raw_vault_store, 
             incentive: Incentive {
                 deployer: @0x0,
                 total_amount: 0,

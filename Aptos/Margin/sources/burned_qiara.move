@@ -1,4 +1,4 @@
-module dev::QiaraBurnedQiaraV88 {
+module dev::QiaraBurnedQiaraV89 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -16,10 +16,10 @@ module dev::QiaraBurnedQiaraV88 {
     use aptos_std::smart_table::{Self, SmartTable};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV88::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV88::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensCoreV89::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV89::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraStorageV25::{Self as storage};
-    use dev::QiaraRanksV88::{Self as Ranks};
+    use dev::QiaraRanksV89::{Self as Ranks};
 
     use event::QiaraEventV1::{Self as Event};
 
@@ -92,11 +92,7 @@ module dev::QiaraBurnedQiaraV88 {
 
     /// Burns canonical QIARA directly from the user's primary store, credits their 'shared' identity,
     /// and mints internal 'Burned Qiara' receipt tokens to the shared wallet storage.
-    public entry fun deposit_and_burn_qiara(
-        sender: &signer, 
-        shared: String, 
-        amount: u64
-    ) acquires BurnedQiara, Permissions {
+    public entry fun deposit_and_burn_qiara(sender: &signer, shared: String, amount: u64) acquires BurnedQiara, Permissions {
         assert!(amount > 0, ERROR_ZERO_AMOUNT);
         let sender_addr = signer::address_of(sender);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&sender_addr));
@@ -138,10 +134,7 @@ module dev::QiaraBurnedQiaraV88 {
 
     /// Claims accumulated rewards based on burned amount and time elapsed,
     /// minting canonical QIARA directly to the user's primary fungible store.
-    public entry fun claim_rewards(
-        sender: &signer, 
-        shared: String
-    ) acquires BurnedQiara, Permissions {
+    public entry fun claim_rewards(sender: &signer, shared: String) acquires BurnedQiara, Permissions {
         let sender_addr = signer::address_of(sender);
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&sender_addr));
         

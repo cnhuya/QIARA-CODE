@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV78 {
+module dev::QiaraPerpsV79 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -7,28 +7,28 @@ module dev::QiaraPerpsV78 {
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
-    use dev::QiaraMarginV88::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV88::{Self as RI};
-    use dev::QiaraRanksV88::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV89::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV89::{Self as RI};
+    use dev::QiaraRanksV89::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV88::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV89::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV110::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV111::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV108::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV108::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV109::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV109::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV25::{Self as storage};
     use dev::QiaraCapabilitiesV25::{Self as capabilities};
 
-    use dev::QiaraChainTypesV88::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV88::{Self as TokensTypes};
+    use dev::QiaraChainTypesV89::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV89::{Self as TokensTypes};
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV78::{Self as Orders};
+    use dev::QiaraPerpsOrdersV79::{Self as Orders};
 
 
 // === ERRORS === //
@@ -42,6 +42,7 @@ module dev::QiaraPerpsV78 {
     const ERROR_USD_SIZE_TOO_SMALL: u64 = 9;
     const ERROR_NOT_AUTHORIZED_FOR_ORDER_EXECUTION: u64 = 10;
     const ERROR_PRICE_NOT_SETTLED: u64 = 11;
+    const ERROR_NOT_AUTHORIZED: u64 = 12;
 
 // === ACCESS === //
     struct Access has store, key, drop {}
@@ -155,6 +156,14 @@ module dev::QiaraPerpsV78 {
         list: vector<String>,
     }
 
+    const ADMIN: address = @dev;
+
+    fun is_admin(caller: address): bool {
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        caller == ADMIN || caller == dao_address
+    }
+
+
 /// === INIT ===
     fun init_module(admin: &signer) {
         if (!exists<Markets>(@dev)) { move_to(admin, Markets { list: vector::empty<String>() }); };
@@ -203,6 +212,7 @@ module dev::QiaraPerpsV78 {
 
 /// === ENTRY FUNCTIONS ===
     public entry fun create_market(_admin: &signer, name: String) acquires Markets, AssetBook {
+        assert!(is_admin(signer::address_of(_admin)), ERROR_NOT_ADMIN);
         TokensTypes::ensure_valid_token_nick_name(name);
 
         let asset_book = borrow_global_mut<AssetBook>(@dev);

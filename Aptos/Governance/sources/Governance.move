@@ -1,4 +1,4 @@
-module dev::QiaraGovernanceV45 {
+module dev::QiaraGovernanceV46 {
     use std::signer;
 use std::string::{Self, String, utf8};
     use std::vector;
@@ -7,7 +7,7 @@ use std::string::{Self, String, utf8};
     use aptos_framework::transaction_context;
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
 
-    use dev::QiaraMarginV88 as Margin;
+    use dev::QiaraMarginV89 as Margin;
     use event::QiaraEventV1 as Event;
 
     const OWNER: address = @dev;

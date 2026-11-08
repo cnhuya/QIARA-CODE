@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV88 {
+module dev::QiaraTokensQiaraV89 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -126,12 +126,12 @@ module dev::QiaraTokensQiaraV88 {
             // Register native dispatch hooks to ensure dynamic burn fees on all transfers
             let withdraw_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV88"),
+                utf8(b"QiaraTokensQiaraV89"),
                 utf8(b"withdraw"),
             );
             let deposit_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV88"),
+                utf8(b"QiaraTokensQiaraV89"),
                 utf8(b"deposit"),
             );
             dispatchable_fungible_asset::register_dispatch_functions(

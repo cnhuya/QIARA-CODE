@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV88{
+module dev::QiaraTokensMetadataV89{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV88{
     use dev::QiaraStorageV25::{Self as storage};
     use dev::QiaraMathV4::{Self as Math};
 
-    use dev::QiaraTokensTiersV88::{Self as tier};
-    use dev::QiaraTokenTypesV88::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokensTiersV89::{Self as tier};
+    use dev::QiaraTokenTypesV89::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV15::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -270,7 +270,7 @@ public entry fun create_metadata(
     }
 
 // === SINGLE UPDATE WITH EVENT EMISSION === //
-public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: String) acquires Tokens {
+    public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: String) acquires Tokens {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
 
         let vault_list = borrow_global_mut<Tokens>(@dev);
@@ -311,9 +311,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
         abort(ERROR_COIN_RESOURCE_NOT_FOUND_IN_LIST)
     }
 
-    // === GAS-OPTIMIZED BATCH UPDATE === //
-
-
+// === GAS-OPTIMIZED BATCH UPDATE === //
     public entry fun update_all_tokenomics(admin: &signer) acquires Tokens {
         update_tokenomics(admin, utf8(b"Ethereum"), 120_698_129, 120_698_129, 120_698_129);
         update_tokenomics(admin, utf8(b"Bitcoin"), 21_000_000, 19_941_253, 19_941_253);
@@ -825,7 +823,7 @@ public entry fun update_oracleID(admin: &signer, symbol: String, oracleID: Strin
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    // In QiaraTokensMetadataV88::get_coin_metadata_by_symbol:
+                    // In QiaraTokensMetadataV89::get_coin_metadata_by_symbol:
                     let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                     price = (oracle::viewPrice(metadat.symbol) as u64);
                     denom = Math::pow10_u256((price_decimals as u8));

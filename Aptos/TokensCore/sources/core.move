@@ -1,4 +1,4 @@
-module dev::QiaraTokensCoreV88{
+module dev::QiaraTokensCoreV89{
     use std::signer;
     use std::option;
     use std::vector;
@@ -19,20 +19,20 @@ module dev::QiaraTokensCoreV88{
 
 
     use dev::QiaraMathV4::{Self as Math};
-    use dev::QiaraTokensMetadataV88::{Self as TokensMetadata};
-    use dev::QiaraTokensOmnichainV88::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraTokensTiersV88::{Self as TokensTiers};
-    use dev::QiaraTokensQiaraV88::{Self as TokensQiara,  Access as TokensQiaraAccess};
+    use dev::QiaraTokensMetadataV89::{Self as TokensMetadata};
+    use dev::QiaraTokensOmnichainV89::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensTiersV89::{Self as TokensTiers};
+    use dev::QiaraTokensQiaraV89::{Self as TokensQiara,  Access as TokensQiaraAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStoragesV88::{Self as Storages};
+    use dev::QiaraStoragesV89::{Self as Storages};
 
-    use dev::QiaraChainTypesV88::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV88::{Self as TokensType};
-    use dev::QiaraProviderTypesV88::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV89::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV89::{Self as TokensType};
+    use dev::QiaraProviderTypesV89::{Self as ProviderTypes};
 
     const ADMIN: address = @dev;
 
@@ -40,7 +40,12 @@ module dev::QiaraTokensCoreV88{
     const ERROR_BLACKLISTED: u64 = 2;
     const ERROR_ACCOUNT_DOES_NOT_EXISTS: u64 = 3;
     const ERROR_SUFFICIENT_BALANCE: u64 = 4;
+    const ERROR_NOT_AUTHORIZED: u64 = 5;
 
+    fun is_admin(caller: address): bool {
+        let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
+        caller == ADMIN || caller == dao_address
+    }
 
     const INIT_SUPPLY: u64 = 1_000_000_000_000_000; // i.e 1 mil. init. supply
     const DECIMALS_N: u64 = 1_000_000_000;    
@@ -240,7 +245,8 @@ module dev::QiaraTokensCoreV88{
 
 
 
-    fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: String, deflation_tier: u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable: u8) {
+    public fun init_token(admin: &signer, name: String, symbol: String, icon: String,  creation: u64,oracleID: String, deflation_tier: u8, max_supply: u128, circulating_supply: u128, total_supply: u128, stable: u8) {
+        assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let constructor_ref = &object::create_named_object(admin, bcs::to_bytes(&TokensType::convert_token_nickName_to_name(name)));
         
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
@@ -268,12 +274,12 @@ module dev::QiaraTokensCoreV88{
 
         let deposit = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV88"),
+            string::utf8(b"QiaraTokensCoreV89"),
             string::utf8(b"c_deposit"),
         );
         let withdraw = function_info::new_function_info(
             admin,
-            string::utf8(b"QiaraTokensCoreV88"),
+            string::utf8(b"QiaraTokensCoreV89"),
             string::utf8(b"c_withdraw"),
         );
    
@@ -354,12 +360,6 @@ module dev::QiaraTokensCoreV88{
 
 // === TOKENOMICS FUNCTIONS === //
     
-// 1. Wrapper to create a vault (calls the Shared module)
-   /* public entry fun create_token_vault(user: &signer, shared: String, symbol: String) acquires Permissions {
-        TokensType::ensure_valid_token_nick_name(symbol);
-        let asset = get_metadata(symbol);
-        Shared::create_shared_vault(user, shared, asset, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-    }*/
 
     /// Anyone can call this to burn their own tokens.
     public entry fun burn(signer: &signer, shared: String, symbol: String, chain: String, amount: u64) acquires Permissions, ManagedFungibleAsset {
@@ -452,69 +452,8 @@ module dev::QiaraTokensCoreV88{
         internal_deposit(to_shared, to, fa, chain, managed);
 
     }
-    // USELESS, REMOVE IN FUTURE
-    public fun p_request_bridge(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, receiver: vector<u8>,perm: Permission) {
-        
-        Shared::assert_is_sub_owner(shared, user);
-        ensure_safety(symbol, chain);
-                                     //   tttta(110);
-        //assert!(provider == utf8(b"Bluefin"), 100);;
-        ProviderTypes::ensure_valid_provider(provider, chain);
-        //let legit_amount = (TokensOmnichain::return_address_balance_by_chain_for_token(shared, chain, symbol) as u64);
-        //assert!(legit_amount >= amount, ERROR_SUFFICIENT_BALANCE);
-        let total_outflow = (TokensOmnichain::return_specified_outflow_path(receiver, chain, symbol) as u64);
-        
-        let nonce = Nonce::return_user_nonce_by_type(receiver, utf8(b"zk"));
-        //TokensOmnichain::increment_UserOutflow(symbol, chain, shared, receiver, amount, true, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access)); 
 
-        //let identifier = Event::create_identifier(bcs::to_bytes(&receiver), utf8(b"zk"), bcs::to_bytes(&nonce));
-        let data = vector[
-            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"addr"), utf8(b"vector<u8>"), receiver),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"provider"), utf8(b"string"), bcs::to_bytes(&provider)),
-            Event::create_data_struct(utf8(b"nonce"), utf8(b"u256"), bcs::to_bytes(&nonce)),
-            Event::create_data_struct(utf8(b"total_outflow"), utf8(b"u64"), bcs::to_bytes(&total_outflow)),
-            Event::create_data_struct(utf8(b"additional_outflow"), utf8(b"u64"), bcs::to_bytes(&amount)),
-          //  Event::create_data_struct(utf8(b"identifier"), utf8(b"vector<u8>"), identifier),
-            
-        ];
-        Event::emit_consensus_event(utf8(b"Request Bridge"), data);
-
-    }
 // === CONSENSUS FUNCTIONS === //
-// remove in future, useless
-    public fun c_finalize_bridge(validator: &signer, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
-        ensure_safety(symbol, chain);
-    
-        let managed = authorized_borrow_refs(symbol);
-
-        let storage = Storages::return_lock_storage(symbol, chain);
-
-        let storage_address_bytes = string_utils::to_string(&object::object_address(&storage));
-
-        if(!Shared::assert_shared_storage((storage_address_bytes))){
-            Shared::create_non_user_shared_storage(validator, (storage_address_bytes));
-        };
-
-        let fa = internal_withdraw((storage_address_bytes),storage, amount, chain, managed);
-
-        TokensOmnichain::change_TokenSupply(symbol, chain, fungible_asset::amount(&fa), false, TokensOmnichain::give_permission(&borrow_global<Permissions>(@dev).tokens_omnichain_access));
-        fungible_asset::burn(&managed.burn_ref, fa);
-    
-        let data = vector[
-            Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(validator))),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"amount"), utf8(b"string"), bcs::to_bytes(&amount)),
-        ];
-        Event::emit_bridge_event(utf8(b"Finalized Bridge from Aptos"), data);    
-
-    }
-
     public fun c_bridge_to_supra(validator: &signer, shared: String, user: vector<u8>, symbol: String, chain: String, provider: String, amount: u64, rate: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
        // Shared::assert_is_sub_owner(shared, user);
         ensure_safety(symbol, chain);
@@ -535,30 +474,6 @@ module dev::QiaraTokensCoreV88{
         Event::emit_bridge_event(utf8(b"Finalized Bridge to Aptos"), data);    
 
     }
-// remove in future, useless
-    public fun c_finalize_failed_bridge(validator: &signer, shared: String, user: address, symbol: String, chain: String, amount: u64, perm: Permission) acquires Permissions, ManagedFungibleAsset{
-        Shared::assert_is_sub_owner(shared, bcs::to_bytes(&user));
-        ensure_safety(symbol, chain);
-        let managed = authorized_borrow_refs(symbol);
-
-        let data = vector[
-            Event::create_data_struct(utf8(b"user"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"token"), utf8(b"string"), bcs::to_bytes(&symbol)),
-            Event::create_data_struct(utf8(b"chain"), utf8(b"string"), bcs::to_bytes(&chain)),
-            Event::create_data_struct(utf8(b"amount"), utf8(b"string"), bcs::to_bytes(&amount)),
-        ];
-        Event::emit_bridge_event(utf8(b"Finalized Failed Bridge"), data);   
-
-     
-        let asset = get_metadata(symbol);
-        let fa = internal_mint(symbol, chain, amount, managed);
-        let store = Shared::ensure_shared_fungible_storage(shared, get_metadata(symbol), Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
-        internal_deposit(shared, store, fa, chain, managed);
-    
-    
-    }
-
     
     public entry fun claim_inflation(claimer: &signer,shared: String) acquires Permissions, ManagedFungibleAsset  {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(claimer)));

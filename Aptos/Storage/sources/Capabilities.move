@@ -12,7 +12,7 @@ module dev::QiaraCapabilitiesV25 {
 
 
   fun is_admin(caller: address): bool {
-    let dao_address = account::create_resource_address(&@dev, x"01");
+    let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");;
     caller == OWNER || caller == dao_address
     }
 
