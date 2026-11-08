@@ -10,10 +10,11 @@ module dev::QiaraChainTypesV88 {
     const ERROR_INVALID_CHAIN: u64 = 1;
     const ERROR_CHAIN_NAME_ALREADY_REGISTERED: u64 = 2;
     const ERROR_CHAIN_ID_ALREADY_REGISTERED: u64 = 3;
+    const ERROR_NOT_AUTHORIZED: u64 = 4;
 
     fun is_admin(caller: address): bool {
         let dao_address = account::create_resource_address(&@dev, x"01");
-        caller == OWNER || caller == dao_address
+        caller == dao_address
     }
 
 // === STRUCTS === //
@@ -44,7 +45,7 @@ module dev::QiaraChainTypesV88 {
 
 // === FUNCTIONS === //
     public entry fun register_chain(signer: &signer, chain_name: String, chain_id: u32) acquires Chains {
-        assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+        assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let chains = borrow_global_mut<Chains>(@dev);
         let keys = map::keys(&chains.map);
         let values = map::values(&chains.map);

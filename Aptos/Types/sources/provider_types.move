@@ -14,7 +14,7 @@ module dev::QiaraProviderTypesV88 {
 
     fun is_admin(caller: address): bool {
         let dao_address = account::create_resource_address(&@dev, x"01");
-        caller == OWNER || caller == dao_address
+        caller == dao_address
     }
 
     // === STRUCTS === //
@@ -60,7 +60,7 @@ module dev::QiaraProviderTypesV88 {
 
     // === ENTRY FUNCTIONS === //
     public entry fun update_tokens_for_provider(signer: &signer, is_add: bool, provider: String, chain: String, tokens: vector<String>) acquires Providers {
-         assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+         assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
 
         let providers = borrow_global_mut<Providers>(@dev);
         if (!map::contains_key(&providers.table, &provider)) {
@@ -105,8 +105,8 @@ module dev::QiaraProviderTypesV88 {
         };
     }
 
-    public entry fun test_emit_provider_tokens_event(is_add: bool, action: String, chain: String, provider: String, nonce: u256, tokens: vector<String>) {
-         assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+    public entry fun test_emit_provider_tokens_event(signer: &signer,is_add: bool, action: String, chain: String, provider: String, nonce: u256, tokens: vector<String>) {
+         assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let event_data = vector[
             Event::create_data_struct(utf8(b"action"), utf8(b"string"), bcs::to_bytes(&action)),
             Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&1u256)),

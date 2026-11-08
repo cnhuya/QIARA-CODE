@@ -37,7 +37,7 @@ module dev::QiaraTokenTypesV88 {
 
     fun is_admin(caller: address): bool {
         let dao_address = account::create_resource_address(&@dev, x"01");
-        caller == OWNER || caller == dao_address
+        caller == dao_address
     }
 
     // === INIT === //
@@ -175,7 +175,7 @@ module dev::QiaraTokenTypesV88 {
     // === ADMIN / UPDATE FUNCTIONS === //
 
     public entry fun update_token_chain(admin: &signer,is_add: bool,token_name_or_nickname: String,nick_name: String,token_address: String,chain: String,decimals: u8) acquires Tokens {
-        assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+        assert!(is_admin(signer::address_of(admin)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         ChainTypes::ensure_valid_chain_name(chain);
 
         let tokens = borrow_global_mut<Tokens>(@dev);
@@ -246,7 +246,7 @@ module dev::QiaraTokenTypesV88 {
     }
 
     public entry fun register_token_with_chains(signer: &signer,token: String,nick_name: String,token_addresses: vector<String>,chains: vector<String>,decimals: vector<u8>) acquires Tokens {
-        assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+        assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         
         let len = vector::length(&chains);
         assert!(len == vector::length(&token_addresses) && len == vector::length(&decimals), ERORR_ARGUMENT_LENGHT_MISSMATCH);
@@ -289,8 +289,8 @@ module dev::QiaraTokenTypesV88 {
         map::upsert(&mut tokens.nick_names, token, nick_name);
     }
     
-    public entry fun test_emit_token_chain_event(is_add: bool,action: String,chain: String,token: String,nonce: u256,token_address: String,) {
-        assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
+    public entry fun test_emit_token_chain_event(signer: &signer,is_add: bool,action: String,chain: String,token: String,nonce: u256,token_address: String,) {
+        assert!(is_admin(signer::address_of(signer)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let event_data = vector[
             Event::create_data_struct(utf8(b"action"), utf8(b"string"), bcs::to_bytes(&action)),
             Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&2u256)),
