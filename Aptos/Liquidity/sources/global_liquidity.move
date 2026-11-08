@@ -38,7 +38,7 @@ module dev::QiaraLiquidityV109 {
     const ERROR_INVALID_LP_TOKEN: u64 = 7;
     const ERROR_WEIGHTS_MUST_ADD_TO_100: u64 = 8;
     const ERROR_VAULT_ALREADY_EXISTS: u64 = 9;
-
+    const ERROR_VAULT_DOES_NOT_EXIST: u64 = 10;
     const ERROR_USER_INSUFFICIENT_LP_SHARES: u64 = 1001;
     const ERROR_VAULT_INSUFFICIENT_LIQUIDITY: u64 = 1002;
 
@@ -165,34 +165,29 @@ module dev::QiaraLiquidityV109 {
         return (storage_address_bytes)
     }
 
-
 /// 🟢 Initialize a single vault on-demand (Callable by @dev or via Governance Proposal)
-public entry fun initialize_vault(
-    admin: &signer,
-    token: String,
-    chain: String,
-    provider: String
-) acquires GlobalVault, GlobalLPCapabilities {
-    // Allows @dev or the DAO Resource Account (seed b"QiaraDAO")
-    assert!(is_admin(signer::address_of(admin)), ERROR_NOT_ADMIN);
+    public entry fun initialize_vault(
+        admin: &signer,
+        token: String,
+        chain: String,
+        provider: String
+    ) acquires GlobalVault, GlobalLPCapabilities {
+        assert!(is_admin(signer::address_of(admin)), ERROR_NOT_ADMIN);
+        ProviderTypes::ensure_valid_provider(provider, chain);
 
-    // Verify provider, chain, and token exist in your types registry
-    ProviderTypes::ensure_valid_provider(provider, chain);
-
-    let vaults = borrow_global_mut<GlobalVault>(@dev);
-    
-    // Check if vault already exists so we don't accidentally re-initialize
-    if (table::contains(&vaults.balances, token)) {
-        let token_table = table::borrow(&vaults.balances, token);
-        if (map::contains_key(token_table, &chain)) {
-            let chain_map = map::borrow(token_table, &chain);
-            assert!(!map::contains_key(chain_map, &provider), ERROR_VAULT_ALREADY_EXISTS);
+        let vaults = borrow_global_mut<GlobalVault>(@dev);
+        
+        if (table::contains(&vaults.balances, token)) {
+            let token_table = table::borrow(&vaults.balances, token);
+            if (map::contains_key(token_table, &chain)) {
+                let chain_map = map::borrow(token_table, &chain);
+                assert!(!map::contains_key(chain_map, &provider), ERROR_VAULT_ALREADY_EXISTS);
+            };
         };
-    };
 
-    // Creates the LP token, the two stores, and records the Vault in state
-    find_vault(admin, vaults, token, chain, provider);
-}
+        // 🟢 Calls create_vault_internal with admin: &signer
+        create_vault_internal(admin, vaults, token, chain, provider);
+    }
 
     public entry fun initialize_all_registered_vaults(admin: &signer) acquires GlobalVault, GlobalLPCapabilities {
         assert!(std::signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -221,7 +216,8 @@ public entry fun initialize_vault(
                 
                 while (k < num_tokens) {
                     let token = *std::vector::borrow(tokens, k);
-                    find_vault(vaults, token, chain, provider);
+                    // 🟢 Calls create_vault_internal with admin: &signer
+                    create_vault_internal(admin, vaults, token, chain, provider);
                     k = k + 1;
                 };
                 j = j + 1;
@@ -230,7 +226,7 @@ public entry fun initialize_vault(
         };
     }
 
-    public entry fun add_incentive(signer: &signer, shared: String, amount: u256,token: String, chain: String, provider: String, credits: u256, duration_seconds: u64,deposit_weight: u256,borrow_weight: u256) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public entry fun add_incentive(signer: &signer, shared: String, amount: u256,token: String, chain: String, provider: String, credits: u256, duration_seconds: u64,deposit_weight: u256,borrow_weight: u256) acquires GlobalVault, Permissions {
         Shared::assert_is_sub_owner(shared, bcs::to_bytes(&signer::address_of(signer)));
         assert!(duration_seconds > 0, ERROR_DURATION_MUST_BE_GREATER_THAN_ZERO);
         assert!(deposit_weight + borrow_weight == 100000000, ERROR_WEIGHTS_MUST_ADD_TO_100); // 1e8 = 100%
@@ -306,7 +302,7 @@ public fun admin_accrue_rewards_from_lz(
     provider: String, 
     yield: u64, 
     _cap: Permission
-) acquires Permissions, GlobalVault, GlobalLPCapabilities {
+) acquires Permissions, GlobalVault {
     let vaults = borrow_global_mut<GlobalVault>(@dev);
     let vault = find_vault(vaults, token, chain, provider);
     let storage_address_string = non_user_storage_helper(signer, &vault.storage);
@@ -329,7 +325,7 @@ public fun claim_accumulated_fee_rewards(
         user_shares: u256, 
         user_last_fee_index: u128, 
         _cap: Permission
-    ): u128 acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    ): u128 acquires GlobalVault, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let current_global_index = vault.accumulated_rewards_index;
@@ -653,13 +649,13 @@ public fun deposit_token(
         token: String, 
         chain: String, 
         provider: String
-    ): (u64, u64) acquires GlobalLPCapabilities {
+    ): (u64, u64) {
         let lp_balance = get_shared_lp_balance(shared, token, chain, provider);
         let underlying_balance = get_shared_underlying_balance(shared, token);
         (lp_balance, underlying_balance)
     }
 
-    public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun borrow_token(signer: &signer, shared: String, token: String, chain: String,provider: String, amount: u256,_cap: Permission) acquires GlobalVault, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
@@ -671,14 +667,14 @@ public fun deposit_token(
         TokensCore::deposit(shared, user_shared_store_underlying, underlying_fa, chain);
     }
 
-    public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_deposited = vault.total_deposited + value;
         };
     }
 
-    public fun remove_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             if(value > vault.total_deposited){
@@ -689,14 +685,14 @@ public fun deposit_token(
         };
     }
 
-    public fun add_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_borrowed = vault.total_borrowed + value;
         };
     }
 
-    public fun remove_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             if(value > vault.total_borrowed){
@@ -707,14 +703,14 @@ public fun deposit_token(
         };
     }
 
-    public fun add_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.virtual_borrowed = vault.virtual_borrowed + value;
         };
     }
 
-    public fun remove_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_virtual_borrow(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             if(value > vault.virtual_borrowed){
@@ -725,14 +721,14 @@ public fun deposit_token(
         };
     }
 
-    public fun add_virtual_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_virtual_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.virtual_deposited = vault.virtual_deposited + value;
         };
     }
 
-    public fun remove_virtual_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_virtual_deposit(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             if(value > vault.virtual_deposited){
@@ -743,14 +739,14 @@ public fun deposit_token(
         };
     }
 
-    public fun add_stake(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_stake(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_staked = vault.total_staked + value;
         };
     }
 
-    public fun remove_stake(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_stake(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             if(value > vault.total_staked){
@@ -761,27 +757,27 @@ public fun deposit_token(
         };
     }
 
-    public fun add_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_staked_locked_fee = vault.total_staked_locked_fee + value;
         };
     }
 
-    public fun remove_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun remove_staked_locked_fee(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_staked_locked_fee = vault.total_staked_locked_fee - value;
         };
     }
 
-    public fun add_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun add_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
         {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
             vault.total_accumulated_rewards = vault.total_accumulated_rewards + value;
         };
     }
-    public fun add_accumulated_interest(signer: &signer, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    public fun add_accumulated_interest(signer: &signer, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let storage_address_string = non_user_storage_helper(signer, &vault.storage);
@@ -796,7 +792,7 @@ public fun deposit_token(
 
     }
 
-    public fun update_incentive_index(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun update_incentive_index(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         
@@ -846,7 +842,7 @@ public fun deposit_token(
         user_last_deposit_index: u128, 
         user_last_borrow_index: u128,
         _cap: Permission
-    ): (u128, u128) acquires GlobalVault, GlobalLPCapabilities, Permissions {
+    ): (u128, u128) acquires GlobalVault, Permissions {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
         if (vault.incentive.period_finish == 0) {
@@ -877,7 +873,7 @@ public fun deposit_token(
         (vault.incentive.deposit_index, vault.incentive.borrow_index)
     }
 
-    public fun update(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault, GlobalLPCapabilities {
+    public fun update(token: String, chain: String, provider: String, _cap: Permission) acquires GlobalVault {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         
@@ -922,14 +918,14 @@ public fun deposit_token(
 
 // === PUBLIC VIEWS === //
     #[view]
-    public fun return_raw_data_vault(token: String, chain: String,provider: String): (u256,u256,u256,u256) acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_raw_data_vault(token: String, chain: String,provider: String): (u256,u256,u256,u256) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         let data = get_vault_data(token, chain, provider, vault);
         return (data.utilization,  data.qiara_native_apr, data.final_lend_rate, data.final_borrow_rate)
     }
 
     #[view]
-    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256,u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256,u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
         return (
@@ -949,14 +945,14 @@ public fun deposit_token(
     }
 
     #[view]
-    public fun return_raw_vault_incentive(token: String, chain: String,provider: String): (u64, u64, u256) acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_raw_vault_incentive(token: String, chain: String,provider: String): (u64, u64, u256) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         
         return (vault.incentive.period_finish, vault.incentive.last_update_time, vault.incentive.reward_rate)
     }
 
     #[view]
-    public fun return_storage(token: String, chain: String,provider: String): Object<FungibleStore> acquires GlobalVault, GlobalLPCapabilities {
+    public fun return_storage(token: String, chain: String,provider: String): Object<FungibleStore> acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
         return vault.storage
     }
@@ -1091,139 +1087,141 @@ public fun deposit_token(
     }
 
 // === MUT RETURNS === //
-fun find_vault(
-    admin: &signer,
-    vaults: &mut GlobalVault, 
-    token: String, 
-    chain: String, 
-    provider: String
-): &mut Vault acquires GlobalLPCapabilities {
-    ChainTypes::ensure_valid_chain_name(chain);
-    
-    // 1. Synthetic metadata (from TokensCore)
-    let synthetic_metadata = TokensCore::get_metadata(token);
 
-    // 2. Real native metadata (from TokensType when chain == "Aptos")
-    let raw_metadata = if (chain == utf8(b"Aptos")) {
-        let addr_str = TokensType::get_token_address_from_name(chain, token);
-        let token_addr = string_to_address(&addr_str);
-        if (object::object_exists<Metadata>(token_addr)) {
-            object::address_to_object<Metadata>(token_addr)
+
+    /// 🟢 1. Helper to borrow an existing vault (Takes 4 arguments - No &signer needed!)
+    fun find_vault(
+        vaults: &mut GlobalVault, 
+        token: String, 
+        chain: String, 
+        provider: String
+    ): &mut Vault {
+        assert!(table::contains(&vaults.balances, token), ERROR_VAULT_DOES_NOT_EXIST);
+        let token_table = table::borrow_mut(&mut vaults.balances, token);
+        assert!(map::contains_key(token_table, &chain), ERROR_VAULT_DOES_NOT_EXIST);
+        let chain_map = map::borrow_mut(token_table, &chain);
+        assert!(map::contains_key(chain_map, &provider), ERROR_VAULT_DOES_NOT_EXIST);
+        map::borrow_mut(chain_map, &provider)
+    }
+
+    /// 🟢 2. Creation helper called ONLY by initialization functions (Takes 5 arguments with admin: &signer)
+    fun create_vault_internal(
+        admin: &signer,
+        vaults: &mut GlobalVault, 
+        token: String, 
+        chain: String, 
+        provider: String
+    ) acquires GlobalLPCapabilities {
+        ChainTypes::ensure_valid_chain_name(chain);
+        
+        let synthetic_metadata = TokensCore::get_metadata(token);
+        let raw_metadata = if (chain == utf8(b"Aptos")) {
+            let addr_str = TokensType::get_token_address_from_name(chain, token);
+            let token_addr = string_to_address(&addr_str);
+            if (object::object_exists<Metadata>(token_addr)) {
+                object::address_to_object<Metadata>(token_addr)
+            } else {
+                synthetic_metadata
+            }
         } else {
             synthetic_metadata
-        }
-    } else {
-        synthetic_metadata
-    };
+        };
 
-    if (!table::contains(&vaults.balances, token)) {
-        table::add(&mut vaults.balances, token, map::new<String, Map<String, Vault>>());
-    };
-    let token_table = table::borrow_mut(&mut vaults.balances, token);
-    if (!map::contains_key(token_table, &chain)) {
-        map::add(token_table, chain, map::new<String, Vault>());
-    };
+        if (!table::contains(&vaults.balances, token)) {
+            table::add(&mut vaults.balances, token, map::new<String, Map<String, Vault>>());
+        };
+        let token_table = table::borrow_mut(&mut vaults.balances, token);
+        if (!map::contains_key(token_table, &chain)) {
+            map::add(token_table, chain, map::new<String, Vault>());
+        };
 
-    let chain_map = map::borrow_mut(token_table, &chain);
-    if (!map::contains_key(chain_map, &provider)) {
-        // ==========================================
-        // 1. Initialize LP Token Object
-        // ==========================================
-        let lp_seed = *String::bytes(&token);
-        vector::append(&mut lp_seed, *String::bytes(&chain));
-        vector::append(&mut lp_seed, *String::bytes(&provider));
-        vector::append(&mut lp_seed, b"-LP");
+        let chain_map = map::borrow_mut(token_table, &chain);
+        if (!map::contains_key(chain_map, &provider)) {
+            // 1. Initialize LP Token Object
+            let lp_seed = *String::bytes(&token);
+            vector::append(&mut lp_seed, *String::bytes(&chain));
+            vector::append(&mut lp_seed, *String::bytes(&provider));
+            vector::append(&mut lp_seed, b"-LP");
 
-        // 🟢 Create named sticky object using the admin signer!
-        let lp_constructor_ref = object::create_named_object(admin, lp_seed);
-        let lp_object_signer = object::generate_signer(&lp_constructor_ref);
+            let lp_constructor_ref = object::create_named_object(admin, lp_seed);
+            let lp_object_signer = object::generate_signer(&lp_constructor_ref);
 
-        let name_bytes = b"Qiara LP ";
-        vector::append(&mut name_bytes, *String::bytes(&token));
-        let lp_name = utf8(name_bytes);
+            let name_bytes = b"Qiara LP ";
+            vector::append(&mut name_bytes, *String::bytes(&token));
+            let lp_name = utf8(name_bytes);
 
-        let symbol_bytes = b"LP_";
-        vector::append(&mut symbol_bytes, *String::bytes(&token));
-        let lp_symbol = utf8(symbol_bytes);
+            let symbol_bytes = b"LP_";
+            vector::append(&mut symbol_bytes, *String::bytes(&token));
+            let lp_symbol = utf8(symbol_bytes);
 
-        let decimals = fungible_asset::decimals(raw_metadata);
+            let decimals = fungible_asset::decimals(raw_metadata);
 
-        // Create the LP Fungible Asset
-        primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            &lp_constructor_ref,
-            std::option::none(),
-            lp_name,
-            lp_symbol,
-            decimals,
-            utf8(b""),
-            utf8(b"")
-        );
+            primary_fungible_store::create_primary_store_enabled_fungible_asset(
+                &lp_constructor_ref,
+                std::option::none(),
+                lp_name,
+                lp_symbol,
+                decimals,
+                utf8(b""),
+                utf8(b"")
+            );
 
-        let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
-        let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
-        let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
-        let vault_extend_ref = object::generate_extend_ref(&lp_constructor_ref);
+            let mint_ref = fungible_asset::generate_mint_ref(&lp_constructor_ref);
+            let burn_ref = fungible_asset::generate_burn_ref(&lp_constructor_ref);
+            let lp_metadata = object::object_from_constructor_ref<Metadata>(&lp_constructor_ref);
+            let vault_extend_ref = object::generate_extend_ref(&lp_constructor_ref);
 
-        // ==========================================
-        // 2. Create Stores Owned by the LP Object
-        // ==========================================
-        // A. Synthetic store
-        let store_constructor_ref = object::create_object_from_account(&lp_object_signer);
-        let vault_store = fungible_asset::create_store(&store_constructor_ref, synthetic_metadata);
+            // 2. Create Stores Owned by the LP Object
+            let store_constructor_ref = object::create_object_from_account(&lp_object_signer);
+            let vault_store = fungible_asset::create_store(&store_constructor_ref, synthetic_metadata);
 
-        // B. Real store
-        let raw_constructor_ref = object::create_object_from_account(&lp_object_signer);
-        let raw_vault_store = fungible_asset::create_store(&raw_constructor_ref, raw_metadata);
+            let raw_constructor_ref = object::create_object_from_account(&lp_object_signer);
+            let raw_vault_store = fungible_asset::create_store(&raw_constructor_ref, raw_metadata);
 
-        // Store LP caps & vault extend_ref
-        let vault_seed = *String::bytes(&token);
-        vector::append(&mut vault_seed, *String::bytes(&chain));
-        vector::append(&mut vault_seed, *String::bytes(&provider));
-        let vault_address = account::create_resource_address(&@dev, vault_seed);
+            let vault_seed = *String::bytes(&token);
+            vector::append(&mut vault_seed, *String::bytes(&chain));
+            vector::append(&mut vault_seed, *String::bytes(&provider));
+            let vault_address = account::create_resource_address(&@dev, vault_seed);
 
-        let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
-        table::add(&mut lp_caps.caps, vault_address, LPCapabilities {
-            mint_ref,
-            burn_ref,
-            lp_metadata,
-            vault_extend_ref,
-        });
+            let lp_caps = borrow_global_mut<GlobalLPCapabilities>(@dev);
+            table::add(&mut lp_caps.caps, vault_address, LPCapabilities {
+                mint_ref,
+                burn_ref,
+                lp_metadata,
+                vault_extend_ref,
+            });
 
-        // ==========================================
-        // 3. Register Vault
-        // ==========================================
-        map::add(chain_map, provider, Vault {
-            last_update: timestamp::now_seconds(),
-            total_shares: 0,
-            total_staked: 0,
-            total_native_accumulated_rewards: 0,
-            total_accumulated_interest: 0,
-            total_accumulated_rewards: 0,
-            virtual_deposited: 0,
-            accumulated_rewards_index: 0,
-            virtual_borrowed: 0,
-            total_borrowed: 0,
-            total_deposited: 0,
-            total_staked_locked_fee: 0,
-            w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
-            storage: vault_store,         
-            raw_storage: raw_vault_store, 
-            incentive: Incentive {
-                deployer: @0x0,
-                total_amount: 0,
-                reward_rate: 0,
-                deposit_weight: 0,
-                borrow_weight: 0,
-                period_finish: 0,
-                last_update_time: 0,
-                deposit_index: 0,
-                borrow_index: 0,
-            }
-        });
-    };
-
-    map::borrow_mut(chain_map, &provider)
-}
+            // 3. Register Vault
+            map::add(chain_map, provider, Vault {
+                last_update: timestamp::now_seconds(),
+                total_shares: 0,
+                total_staked: 0,
+                total_native_accumulated_rewards: 0,
+                total_accumulated_interest: 0,
+                total_accumulated_rewards: 0,
+                virtual_deposited: 0,
+                accumulated_rewards_index: 0,
+                virtual_borrowed: 0,
+                total_borrowed: 0,
+                total_deposited: 0,
+                total_staked_locked_fee: 0,
+                w_tracker: WithdrawTracker { day: ((timestamp::now_seconds() / 86400) as u16), amount: 0, limit: 0 },
+                storage: vault_store,         
+                raw_storage: raw_vault_store, 
+                incentive: Incentive {
+                    deployer: @0x0,
+                    total_amount: 0,
+                    reward_rate: 0,
+                    deposit_weight: 0,
+                    borrow_weight: 0,
+                    period_finish: 0,
+                    last_update_time: 0,
+                    deposit_index: 0,
+                    borrow_index: 0,
+                }
+            });
+        };
+    }
 
     // Dynamic calculator helper for Data metrics
     fun get_vault_data(token: String, chain: String, provider: String, vault: &Vault): Data {
