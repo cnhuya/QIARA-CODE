@@ -4,12 +4,18 @@ module dev::QiaraProviderTypesV88 {
     use std::signer;
     use std::bcs;
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
+    use aptos_framework::account; // 👈 Add this import
     use dev::QiaraNonceV4::{Self as Nonce};
     use event::QiaraEventV1::{Self as Event};
 
     // === ERRORS === //
     const ERROR_INVALID_PROVIDER: u64 = 1;
     const ERROR_NOT_AUTHORIZED: u64 = 2;
+
+    fun is_admin(caller: address): bool {
+        let dao_address = account::create_resource_address(&@dev, x"01");
+        caller == OWNER || caller == dao_address
+    }
 
     // === STRUCTS === //
     struct Providers has key {
@@ -54,7 +60,7 @@ module dev::QiaraProviderTypesV88 {
 
     // === ENTRY FUNCTIONS === //
     public entry fun update_tokens_for_provider(signer: &signer, is_add: bool, provider: String, chain: String, tokens: vector<String>) acquires Providers {
-        assert!(signer::address_of(signer) == @dev, ERROR_NOT_AUTHORIZED);
+         assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
 
         let providers = borrow_global_mut<Providers>(@dev);
         if (!map::contains_key(&providers.table, &provider)) {
@@ -100,6 +106,7 @@ module dev::QiaraProviderTypesV88 {
     }
 
     public entry fun test_emit_provider_tokens_event(is_add: bool, action: String, chain: String, provider: String, nonce: u256, tokens: vector<String>) {
+         assert!(is_admin(signer::address_of(address)), ERROR_NOT_AUTHORIZED); // 👈 Updated check
         let event_data = vector[
             Event::create_data_struct(utf8(b"action"), utf8(b"string"), bcs::to_bytes(&action)),
             Event::create_data_struct(utf8(b"action_id"), utf8(b"u256"), bcs::to_bytes(&1u256)),

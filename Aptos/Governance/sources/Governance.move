@@ -101,7 +101,7 @@ use std::string::{Self, String, utf8};
             Event::create_data_struct(utf8(b"proposal_id"), utf8(b"u64"), bcs::to_bytes(&id)),
             Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
             Event::create_data_struct(utf8(b"desc"), utf8(b"string"), bcs::to_bytes(&desc)),
-            Event::create_data_struct(utf8(b"source_code"), utf8(b"string"), *string::bytes(&source_code)),
+            Event::create_data_struct(utf8(b"source_code"), utf8(b"string"), bcs::to_bytes(&source_code)),
             Event::create_data_struct(utf8(b"execution_hash"), utf8(b"vector<u8>"), bcs::to_bytes(&execution_hash)),
             Event::create_data_struct(utf8(b"sub_owner"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
             Event::create_data_struct(utf8(b"proposer"), utf8(b"vector<u8>"), bcs::to_bytes(&sub_owner)),
