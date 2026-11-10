@@ -25,7 +25,7 @@ use std::option;
     use dev::QiaraValidatorsV104::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV81::{Self as PerpOrders, Access as PerpOrdersAccess};
     use dev::QiaraPerpsV81::{Self as Perps, Access as PerpAccess};
-
+    use dev::QiaraRanksV92::{Self as Ranks};
     const STORAGE: address = @dev;
 
     // === ERRORS === //
