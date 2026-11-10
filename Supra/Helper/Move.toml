@@ -33,7 +33,7 @@ git = 'https://github.com/cnhuya/AEXIS-CODE.git'
 rev = 'main'
 subdir = 'Supra/Market'
 
-[dependencies.QiaraVerifiedTokensV46]
+[dependencies.QiaraVerifiedTokensV45]
 git = 'https://github.com/cnhuya/AEXIS-CODE.git'
 rev = 'main'
 subdir = 'Supra/VerifiedTokens'

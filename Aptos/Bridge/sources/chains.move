@@ -20,7 +20,7 @@ use std::option;
     use dev::QiaraTokensQiaraV90::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV90::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV112::{Self as Market, Access as MarketAccess};
-    use dev::QiaraGovernanceV46::{Self as Governance};
+    use dev::QiaraGovernanceV45::{Self as Governance};
     use dev::QiaraPayloadV103 as Payload;
     use dev::QiaraValidatorsV103::{Self as Validators, Access as ValidatorsAccess};
     use dev::QiaraPerpsOrdersV80::{Self as PerpOrders, Access as PerpOrdersAccess};
