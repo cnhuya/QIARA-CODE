@@ -422,16 +422,8 @@ public entry fun claim_free_xp(shared: String) acquires UsersProfile {
         (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"INCREASED_QBURNED_REWARD_RATE_PER_POWER"))) as u256)
     }
     #[view]
-    public fun return_base_xp_multi_per_day(): u128{
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"))) as u128)
-    }
-    #[view]
-    public fun return_scaler_xp_multi_per_day(): u128{
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"))) as u128)
-    }
-    #[view]
-    public fun return_exponent_xp_multi_per_day(): u128{
-        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"))) as u128)
+    public fun return_xp_multi_per_month(): u256 {
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraRanks"), utf8(b"XP_MULTI_PER_MONTH"))) as u256)
     }
 
 
@@ -539,34 +531,28 @@ public entry fun claim_free_xp(shared: String) acquires UsersProfile {
 
 //317999682000000000000000000
 //72590400000000000000000000
-    #[view]
-    public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
-        let days = (((timestamp::now_seconds() - first_interaction) / 86400) as u256);
-        let base = (return_base_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
-        let exponent = (return_exponent_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
-        let scaler = (return_scaler_xp_multi_per_day() as u256); // Raw value: 10_000 (0.01% on a 10^8 scale)
-        let result: u256 = 0;
-        let multiplier_scaled: u256 = 0;
-        if (days > 0) {
-            // 1. Correctly scale the days up by 1,000,000 and assign to a variable
-            let days_scaled = days * 1_000_000; 
-            
-            // 2. Perform the calculation: Days * (Days_scaled + W45_scaled) / W44
-            // W45 = 1,000 -> scaled by 1,000,000 is 1,000,000,000
-            // W44 = 25,000
-            // 14 * (14,000,000 + 1,000,000,000) / 25,000
-            multiplier_scaled = (days * (days_scaled + exponent)) / scaler; 
-            
-            // 3. Multiply by your base rate
-            result = multiplier_scaled * base; 
-        };
+#[view]
+public fun calculate_xp_multiplier(first_interaction: u64): (u256, u256, u256) {
+    let now = timestamp::now_seconds();
+    if (first_interaction == 0 || now < first_interaction) {
+        return (0, 0, 0)
+    };
 
-        return (
-            result , 
-            days, 
-            multiplier_scaled
-        )
-    }
+    let seconds_elapsed = now - first_interaction;
+    let days = ((seconds_elapsed / 86400) as u256);
+    
+    // 30 days per month = 2,592,000 seconds
+    let months = ((seconds_elapsed / 2_592_000) as u256);
+    
+    let rate_per_month = return_xp_multi_per_month(); // 10_000_000 (10%)
+    let result = months * rate_per_month;
+
+    // Optional: cap at max +100% (10 months) if desired
+    // if (result > 100_000_000) { result = 100_000_000; };
+
+    // Returns: (xp_multiplier, days_active, months_active)
+    (result, days, months)
+}
 
     fun convert_level_to_rank(level: u256): String {
         if (level < 10) {

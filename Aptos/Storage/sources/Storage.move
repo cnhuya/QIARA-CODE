@@ -203,9 +203,8 @@ module dev::QiaraStorageV26{
         register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM_INCREASE_PER_SLASHER"), 10_000_000, true, false, ); // 10
 
 
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"XP_MULTI_PER_MONTH"), 10_000_000, true, false); // 10%
 
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), 1_000_000_000, true, false, ); // 1,25X   
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), 1_000_000, true, false, ); // 0.1%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"INCREASED_QBURNED_REWARD_RATE_PER_POWER"), 5_000_000, true, false, ); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"FEE_DEDUCTION_PER_POWER"), 5_000_000, true, false, ); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"LTVP_INCREASE_PER_POWER"), 2_500_000, true, false, ); // 2,5%
@@ -215,7 +214,6 @@ module dev::QiaraStorageV26{
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"PERPS_VOLUME_CONVERSION"), 100_000, true, false, ); // 0.1x
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 10_000, true, false, ); // 0.05/s/$
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"DAILY_CLAIM"), 100_000_000, true, false, ); // 100*level
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"SCALER_XP_MULTI_PER_DAY"), 25_000, true, false, ); // 25%  
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"POINTS_PER_PERP_ACTION"), 100, true, false, ); // 0.001%  
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"TIME_PERIOD"), 86400, true, false, ); // 1x
         register_constant<u64>(admin, utf8(b"QiaraFaucet"), utf8(b"USD_VALUE"), 100_000_000, true, false, ); // 0.1x
@@ -244,7 +242,7 @@ module dev::QiaraStorageV26{
     public entry fun more3(admin: &signer) acquires ConstantDatabase {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
 //register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 10_000, true, false, ); // 0.01$  
-        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), bc::to_bytes(&30_000), ); // 0.1%  
+        change_constant(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), bc::to_bytes(&3000), ); // 0.1%  
      //  change_constant(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), bc::to_bytes(&10_000_000), ); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), ); // 0.001%  
 

@@ -1141,7 +1141,7 @@ public fun deposit_token(
             let lp_seed = *String::bytes(&token);
             vector::append(&mut lp_seed, *String::bytes(&chain));
             vector::append(&mut lp_seed, *String::bytes(&provider));
-            vector::append(&mut lp_seed, b"-LP");
+            vector::append(&mut lp_seed, b"-V110-LP"); // 🟢 Unique seed for V110
 
             let lp_constructor_ref = object::create_named_object(admin, lp_seed);
             let lp_object_signer = object::generate_signer(&lp_constructor_ref);
