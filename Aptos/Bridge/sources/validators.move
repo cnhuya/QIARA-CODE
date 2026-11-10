@@ -10,10 +10,10 @@ module dev::QiaraValidatorsV103 {
     use dev::QiaraMarginV90::{Self as Margin, Access as MarginAccess};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraGenesisV4::{Self as Genesis};
-    use dev::QiaraStorageV25::{Self as storage};
+    use dev::QiaraStorageV26::{Self as storage};
     use dev::QiaraTokensQiaraV90::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensCoreV90::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraOracleV15::{Self as Oracle, Access as OracleAccess};
+    use dev::QiaraOracleV17::{Self as Oracle, Access as OracleAccess};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;

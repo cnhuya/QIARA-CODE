@@ -22,7 +22,7 @@ module dev::QiaraVaultsV3 {
     use dev::QiaraMath::{Self as QiaraMath};
 
 
-    use dev::QiaraStorageV25::{Self as storage, Access as StorageAccess};
+    use dev::QiaraStorageV26::{Self as storage, Access as StorageAccess};
     use dev::QiaraCapabilitiesV25::{Self as capabilities, Access as CapabilitiesAccess};
 
 

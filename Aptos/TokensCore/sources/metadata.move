@@ -9,12 +9,12 @@ module dev::QiaraTokensMetadataV90{
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
 
 
-    use dev::QiaraStorageV25::{Self as storage};
+    use dev::QiaraStorageV26::{Self as storage};
     use dev::QiaraMathV4::{Self as Math};
 
     use dev::QiaraTokensTiersV90::{Self as tier};
     use dev::QiaraTokenTypesV90::{Self as TokensType, TokenChainData};
-    use dev::QiaraOracleV15::{Self as oracle, Access as OracleAccess};
+    use dev::QiaraOracleV17::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 1;

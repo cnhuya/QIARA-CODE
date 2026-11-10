@@ -1,4 +1,4 @@
-module dev::QiaraOracleV15 {
+module dev::QiaraOracleV17 {
     use std::string::{String, utf8};
     use std::vector;
     use std::bcs;
@@ -7,7 +7,7 @@ module dev::QiaraOracleV15 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraStorageV25::{Self as storage};
+    use dev::QiaraStorageV26::{Self as storage};
 
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;

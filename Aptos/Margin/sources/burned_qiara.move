@@ -18,7 +18,7 @@ module dev::QiaraBurnedQiaraV90 {
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraTokensCoreV90::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV90::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraStorageV25::{Self as storage};
+    use dev::QiaraStorageV26::{Self as storage};
     use dev::QiaraRanksV90::{Self as Ranks};
 
     use event::QiaraEventV1::{Self as Event};
