@@ -22,7 +22,7 @@ module dev::QiaraPerpsV80 {
     use dev::QiaraTokenVaultsV110::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV26::{Self as storage};
-    use dev::QiaraCapabilitiesV25::{Self as capabilities};
+    use dev::QiaraCapabilitiesV26::{Self as capabilities};
 
     use dev::QiaraChainTypesV90::{Self as ChainTypes};
     use dev::QiaraTokenTypesV90::{Self as TokensTypes};

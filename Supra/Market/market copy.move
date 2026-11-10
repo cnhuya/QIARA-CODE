@@ -23,7 +23,7 @@ module dev::QiaraVaultsV3 {
 
 
     use dev::QiaraStorageV26::{Self as storage, Access as StorageAccess};
-    use dev::QiaraCapabilitiesV25::{Self as capabilities, Access as CapabilitiesAccess};
+    use dev::QiaraCapabilitiesV26::{Self as capabilities, Access as CapabilitiesAccess};
 
 
 // === ERRORS === //
