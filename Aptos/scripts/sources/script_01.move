@@ -1,6 +1,6 @@
 script {
     use dev::QiaraGovernanceV45;
-    use dev::QiaraStorageV25 as storage;
+    use dev::QiaraStorageV26as storage;
     use std::string::utf8;
     use std::bcs;
 

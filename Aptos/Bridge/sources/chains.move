@@ -14,11 +14,11 @@ use aptos_std::aptos_hash::keccak256;
 use std::option;
 
     use event::QiaraEventV1 as Event;
-    use dev::QiaraStorageV25 as storage;
+    use dev::QiaraStorageV26as storage;
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV89::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV89::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV89::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraTokensCoreV90::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV90::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV90::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
     use dev::QiaraVaultsV111::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV45::{Self as Governance};
     use dev::QiaraPayloadV102 as Payload;

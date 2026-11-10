@@ -1,4 +1,4 @@
-module dev::QiaraFunctionsV25 {
+module dev::QiaraFunctionsV26{
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;

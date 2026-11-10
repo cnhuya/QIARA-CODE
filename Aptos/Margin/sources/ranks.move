@@ -1,12 +1,12 @@
-module dev::QiaraRanksV89{
+module dev::QiaraRanksV90{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV89::{Self as TokensType};
-    use dev::QiaraChainTypesV89::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV90::{Self as TokensType};
+    use dev::QiaraChainTypesV90::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraStorageV25::{Self as storage};
 
@@ -17,7 +17,7 @@ module dev::QiaraRanksV89{
     const ERROR_NOT_REGISTERED: u64 = 2;
     const ERROR_SOME_OF_REWARD_STRUCT_IS_NONE: u64 = 3;
     const ERROR_SOME_OF_INTEREST_STRUCT_IS_NONE: u64 = 4;
-
+    const ERROR_CLAIM_TOO_SOON: u64 = 5;
 
 
 // === ACCESS === //
@@ -42,6 +42,8 @@ module dev::QiaraRanksV89{
         first_interaction: u64,
         experience: u256,
         custom_rank: String,
+        daily_claim_streak: u256,
+        last_claimed_timestamp: u256,
     }
 
     struct ViewUser has copy, drop, store{
@@ -59,6 +61,8 @@ module dev::QiaraRanksV89{
         withdraval_over_limit: u256,
         increased_qburned_reward_rate: u256,
         xp_multiplier: u256,
+        daily_claim_streak: u256,
+        last_claimed_timestamp: u256,
     }
 
     struct ViewRank has copy, drop, store{
@@ -79,12 +83,51 @@ module dev::QiaraRanksV89{
 
 // === ENTRY FUN === //
 
-    public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
+public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
         Shared::assert_shared_storage(shared);
         if (!table::contains(&table.table, shared)) {
-            table::add(&mut table.table, shared, User {first_interaction: timestamp::now_seconds(), experience: 0, custom_rank: utf8(b"None")});
+            table::add(&mut table.table, shared, User {
+                first_interaction: timestamp::now_seconds(),
+                experience: 0,
+                custom_rank: utf8(b"None"),
+                daily_claim_streak: 0,
+                last_claimed_timestamp: 0,
+            });
         };
         return table::borrow_mut(&mut table.table, shared)
+    }
+public entry fun claim_free_xp(shared: String) acquires UsersProfile {
+        let profile = borrow_global_mut<UsersProfile>(@dev);
+        let user = ensure_user(profile, shared);
+
+        let now = (timestamp::now_seconds() as u256);
+        let day_seconds: u256 = 86400;
+
+        // 1. Check if user is eligible (at least 24h passed)
+        if (user.last_claimed_timestamp > 0) {
+            assert!(now >= user.last_claimed_timestamp + day_seconds, ERROR_CLAIM_TOO_SOON);
+        };
+
+        // 2. Calculate streak:
+        // - First claim ever -> streak = 1
+        // - Claimed within 24h to 48h -> streak continues (+1)
+        // - Missed > 48h -> streak resets to 1
+        let new_streak: u256 = 1;
+        if (user.last_claimed_timestamp == 0) {
+            new_streak = 1;
+        } else if (now < user.last_claimed_timestamp + (day_seconds * 2)) {
+            new_streak = user.daily_claim_streak + 1;
+        } else {
+            new_streak = 1;
+        };
+
+        // 3. Calculate claim amount (base + streak bonus)
+        let total_claim_xp = calculate_daily_claim_xp(new_streak);
+
+        // 4. Update user state
+        user.daily_claim_streak = new_streak;
+        user.last_claimed_timestamp = now;
+        user.experience = user.experience + total_claim_xp;
     }
 
     public entry fun set_custom_rank(shared: String, custom_rank: String) acquires UsersProfile{
@@ -109,6 +152,99 @@ module dev::QiaraRanksV89{
 
 
 // === PUBLIC VIEWS === //
+
+    #[view]
+    public fun return_daily_claim_increase_per_day(): u256 {
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM_INCREASE_PER_DAY"))) as u256)
+    }
+
+    #[view]
+    public fun return_daily_claim_increase_per_slasher(): u256 {
+        (storage::expect_u64(storage::viewConstant(utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM_INCREASE_PER_SLASHER"))) as u256)
+    }
+
+    /// Calculates the streak bonus based on formula: days_streak * 2 * (days_streak / 10)
+    /// Precision scaled by 1_000_000 to match QiaraPoints 6-decimal scaling.
+    #[view]
+    public fun calculate_streak_bonus(days_streak: u256): u256 {
+        let per_day = return_daily_claim_increase_per_day();         // 2_000_000
+        let slasher = return_daily_claim_increase_per_slasher();     // 10_000_000
+        let scale = 1_000_000;
+
+        if (slasher == 0 || days_streak == 0) {
+            return 0
+        };
+
+        // (streak * streak * per_day * scale) / slasher
+        (days_streak * days_streak * per_day * scale) / slasher
+    }
+
+    /// Total daily XP awarded for a given streak: base claim + streak bonus
+    #[view]
+    public fun calculate_daily_claim_xp(days_streak: u256): u256 {
+        let base_claim = return_free_daily_claim_points();
+        let bonus = calculate_streak_bonus(days_streak);
+        base_claim + bonus
+    }
+
+    /// Tester view function: pass any arbitrary streak to inspect projected payout
+    /// Returns: (total_claim_xp, base_claim, streak_bonus)
+    #[view]
+    public fun test_estimate_daily_claim(days_streak: u256): (u256, u256, u256) {
+        let base_claim = return_free_daily_claim_points();
+        let bonus = calculate_streak_bonus(days_streak);
+        (base_claim + bonus, base_claim, bonus)
+    }
+
+    /// Live view function for frontend/user:
+    /// Returns:
+    /// - can_claim: bool (true if >= 24h passed)
+    /// - projected_streak: u256 (streak value user will get if claimed now)
+    /// - total_xp: u256 (total XP to be awarded)
+    /// - streak_bonus: u256 (bonus portion)
+    /// - seconds_remaining: u64 (countdown seconds until next claim, 0 if ready)
+    #[view]
+    public fun estimate_user_daily_claim(shared: String): (bool, u256, u256, u256, u64) acquires UsersProfile {
+        let profile = borrow_global<UsersProfile>(@dev);
+        let now = (timestamp::now_seconds() as u256);
+        let day_seconds: u256 = 86400;
+
+        if (!table::contains(&profile.table, shared)) {
+            let total_xp = calculate_daily_claim_xp(1);
+            let bonus = calculate_streak_bonus(1);
+            return (true, 1, total_xp, bonus, 0)
+        };
+
+        let user = table::borrow(&profile.table, shared);
+
+        if (user.last_claimed_timestamp == 0) {
+            let total_xp = calculate_daily_claim_xp(1);
+            let bonus = calculate_streak_bonus(1);
+            return (true, 1, total_xp, bonus, 0)
+        };
+
+        let next_eligible_timestamp = user.last_claimed_timestamp + day_seconds;
+        let can_claim = now >= next_eligible_timestamp;
+
+        let seconds_remaining: u64 = 0;
+        if (!can_claim) {
+            seconds_remaining = ((next_eligible_timestamp - now) as u64);
+        };
+
+        // Determine projected streak if claimed now:
+        let projected_streak: u256 = 1;
+        if (now < user.last_claimed_timestamp + (day_seconds * 2)) {
+            projected_streak = user.daily_claim_streak + 1;
+        } else {
+            projected_streak = 1; // Streak broken
+        };
+
+        let total_xp = calculate_daily_claim_xp(projected_streak);
+        let bonus = calculate_streak_bonus(projected_streak);
+
+        (can_claim, projected_streak, total_xp, bonus, seconds_remaining)
+    }
+
     #[view]
     public fun return_shared_rank(shared: String): ViewUser acquires UsersProfile{
         let points_table = borrow_global<UsersProfile>(@dev);

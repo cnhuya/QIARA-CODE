@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV89 {
+module dev::QiaraTokensQiaraV90 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -17,8 +17,8 @@ module dev::QiaraTokensQiaraV89 {
     use aptos_std::bcs_stream;
 
     use event::QiaraEventV1 as Event;
-    use dev::QiaraCapabilitiesV25 as capabilities;
-    use dev::QiaraStorageV25 as storage;
+    use dev::QiaraCapabilitiesV26as capabilities;
+    use dev::QiaraStorageV26as storage;
     use dev::QiaraGenesisV4 as Genesis;
     use dev::QiaraNonceV4 as Nonce;
 
@@ -111,7 +111,7 @@ module dev::QiaraTokensQiaraV89 {
 
         // Create the official, non-prefixed standard Fungible Asset directly
         if (!exists<AssetRefs>(ADMIN)) {
-            let constructor_ref = &object::create_named_object(admin, b"QIARA5");
+            let constructor_ref = &object::create_named_object(admin, b"QIARA6");
 
             primary_fungible_store::create_primary_store_enabled_fungible_asset(
                 constructor_ref,
@@ -126,12 +126,12 @@ module dev::QiaraTokensQiaraV89 {
             // Register native dispatch hooks to ensure dynamic burn fees on all transfers
             let withdraw_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV89"),
+                utf8(b"QiaraTokensQiaraV90"),
                 utf8(b"withdraw"),
             );
             let deposit_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV89"),
+                utf8(b"QiaraTokensQiaraV90"),
                 utf8(b"deposit"),
             );
             dispatchable_fungible_asset::register_dispatch_functions(

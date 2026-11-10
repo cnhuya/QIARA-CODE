@@ -1,4 +1,4 @@
-module dev::QiaraStorageV25 {
+module dev::QiaraStorageV26{
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
@@ -195,11 +195,14 @@ module dev::QiaraStorageV25 {
         register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE"), 5_000_000, true, false, ); // 1x
         //register_constant<u64>(admin, utf8(b"QiaraPerps"), utf8(b"MAX_LEVERAGE_SLASHING"), 2_000_000, true, false, ); // 25x
         //register_constant<u64>(admin, utf8(b"QiaraValidator"), utf8(b"VALIDATOR_COMPUTATION_FEE"), 1_000, true, false, ); // 0.001%
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"ANY_FEE_CONVERSION"), 1_000_000, true, false, ); // 1x
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"PERPS_VOLUME_CONVERSION"), 100_000, true, false, ); // 0.1x
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 10_000, true, false, ); // 0.05/s/$
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"), 100_000_000, true, false, ); // 100*level
-        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"XP_PER_0001_PRICE_SHIFT"), 100_000_000, true, false, ); // 100 XP PER 0,0001%
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"ANY_FEE_CONVERSION"), 100_000_000, true, false, ); // 100x (1$ fee = 100 points)
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"PERPS_VOLUME_CONVERSION"), 1_000, true, false, ); // 0.00001x (1m$ volume  = 1000 points)
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 100, true, false, ); // 0,0001/s/$
+       
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM_INCREASE_PER_DAY"), 2_000_000, true, false, ); // 2
+        register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM_INCREASE_PER_SLASHER"), 10_000_000, true, false, ); // 10
+
+
 
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"EXPONENT_XP_MULTI_PER_DAY"), 1_000_000_000, true, false, ); // 1,25X   
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP_MULTI_PER_DAY"), 1_000_000, true, false, ); // 0.1%
@@ -207,7 +210,7 @@ module dev::QiaraStorageV25 {
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"FEE_DEDUCTION_PER_POWER"), 5_000_000, true, false, ); // 5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"LTVP_INCREASE_PER_POWER"), 2_500_000, true, false, ); // 2,5%
         register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"WITHDRAWAL_OVER_LIMIT_PER_POWER"), 2_500_000, true, false, ); // 2,5%
-        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP"), 100_000_000, true, false, ); // 100
+        register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"BASE_XP"), 100_000_000, true, false, ); // 100 (LEVEL 1)
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"ANY_FEE_CONVERSION"), 1_000_000, true, false, ); // 1x
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"PERPS_VOLUME_CONVERSION"), 100_000, true, false, ); // 0.1x
         //register_constant<u64>(admin, utf8(b"QiaraRanks"), utf8(b"MARKET_LIQUIDITY_PROVISION_CONVERSION"), 10_000, true, false, ); // 0.05/s/$

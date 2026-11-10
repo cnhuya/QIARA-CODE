@@ -1,4 +1,4 @@
-module dev::genesisV25 {
+module dev::genesisV26{
     use std::vector;
     use std::signer;
     use std::timestamp;
