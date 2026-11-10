@@ -7,7 +7,7 @@ use std::string::{Self, String, utf8};
     use aptos_framework::transaction_context;
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
 
-    use dev::QiaraMarginV90 as Margin;
+    use dev::QiaraMarginV92 as Margin;
     use event::QiaraEventV1 as Event;
 
     const OWNER: address = @dev;

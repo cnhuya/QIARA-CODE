@@ -1,4 +1,4 @@
-module dev::QiaraTokensQiaraV90 {
+module dev::QiaraTokensQiaraV92 {
     use std::signer;
     use std::option;
     use std::vector;
@@ -111,7 +111,7 @@ module dev::QiaraTokensQiaraV90 {
 
         // Create the official, non-prefixed standard Fungible Asset directly
         if (!exists<AssetRefs>(ADMIN)) {
-            let constructor_ref = &object::create_named_object(admin, b"QIARA6");
+            let constructor_ref = &object::create_named_object(admin, b"QIARA7");
 
             primary_fungible_store::create_primary_store_enabled_fungible_asset(
                 constructor_ref,
@@ -126,12 +126,12 @@ module dev::QiaraTokensQiaraV90 {
             // Register native dispatch hooks to ensure dynamic burn fees on all transfers
             let withdraw_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV90"),
+                utf8(b"QiaraTokensQiaraV92"),
                 utf8(b"withdraw"),
             );
             let deposit_hook = function_info::new_function_info(
                 admin,
-                utf8(b"QiaraTokensQiaraV90"),
+                utf8(b"QiaraTokensQiaraV92"),
                 utf8(b"deposit"),
             );
             dispatchable_fungible_asset::register_dispatch_functions(

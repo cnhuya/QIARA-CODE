@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV103 {
+module dev::QiaraBridgeV104 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -16,15 +16,15 @@ use std::option;
     use event::QiaraEventV1 as Event;
     use dev::QiaraStorageV26 as storage;
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraTokensCoreV90::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensQiaraV90::{Self as TokensQiara, Access as TokensQiaraAccess};
-    use dev::QiaraTokensOmnichainV90::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV112::{Self as Market, Access as MarketAccess};
+    use dev::QiaraTokensCoreV92::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensQiaraV92::{Self as TokensQiara, Access as TokensQiaraAccess};
+    use dev::QiaraTokensOmnichainV92::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
+    use dev::QiaraVaultsV113::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV45::{Self as Governance};
-    use dev::QiaraPayloadV103 as Payload;
-    use dev::QiaraValidatorsV103::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV80::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV80::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPayloadV104 as Payload;
+    use dev::QiaraValidatorsV104::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPerpsOrdersV81::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV81::{Self as Perps, Access as PerpAccess};
 
     const STORAGE: address = @dev;
 
@@ -275,6 +275,10 @@ use std::option;
                 let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
                 Validators::acrue_modularity_fee(name, user);
                 Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code, Shared::give_permission(&cap.shared));
+            } else if (event_type == utf8(b"Modular Storage Used Ref Code Updated")) {
+                let (name, user) = Payload::prepare_p_claim_free_xp(type_names, payload);
+                Validators::acrue_modularity_fee(name, user);
+                Ranks::claim_free_xp(name, user);
             } else if (event_type == utf8(b"Modular Interest Accrue")) {
                 let (name, user, asset) = Payload::prepare_p_accrue_interest(type_names, payload);
                 Validators::acrue_modularity_fee(user, name);

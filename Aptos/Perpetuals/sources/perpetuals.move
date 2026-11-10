@@ -1,4 +1,4 @@
-module dev::QiaraPerpsV80 {
+module dev::QiaraPerpsV81 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -8,28 +8,28 @@ module dev::QiaraPerpsV80 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use aptos_framework::account;
 
-    use dev::QiaraMarginV90::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRIV90::{Self as RI};
-    use dev::QiaraRanksV90::{Self as Ranks, Access as RanksAccess};
+    use dev::QiaraMarginV92::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRIV92::{Self as RI};
+    use dev::QiaraRanksV92::{Self as Ranks, Access as RanksAccess};
     use event::QiaraEventV1::{Self as Event};
-    use dev::QiaraTokensMetadataV90::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensMetadataV92::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV112::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV113::{Self as Market, Access as MarketAccess};
 
-    use dev::QiaraLiquidityV110::{Self as Liquidity};
-    use dev::QiaraTokenVaultsV110::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV111::{Self as Liquidity};
+    use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraStorageV26::{Self as storage};
-    use dev::QiaraCapabilitiesV26::{Self as capabilities};
+    use dev::QiaraCapabilitiesV25::{Self as capabilities};
 
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV90::{Self as TokensTypes};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokensTypes};
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraPerpsOrdersV80::{Self as Orders};
+    use dev::QiaraPerpsOrdersV81::{Self as Orders};
 
 
 // === ERRORS === //

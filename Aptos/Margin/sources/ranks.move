@@ -1,12 +1,12 @@
-module dev::QiaraRanksV90{
+module dev::QiaraRanksV92{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
     use std::timestamp;
     use std::table::{Self, Table};
     use aptos_std::math128::{Self as math128};
-    use dev::QiaraTokenTypesV90::{Self as TokensType};
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokensType};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use dev::QiaraStorageV26::{Self as storage};
 
@@ -83,7 +83,7 @@ module dev::QiaraRanksV90{
 
 // === ENTRY FUN === //
 
-public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
+    public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
         Shared::assert_shared_storage(shared);
         if (!table::contains(&table.table, shared)) {
             table::add(&mut table.table, shared, User {
@@ -96,7 +96,9 @@ public fun ensure_user(table: &mut UsersProfile, shared: String): &mut User{
         };
         return table::borrow_mut(&mut table.table, shared)
     }
-public entry fun claim_free_xp(shared: String) acquires UsersProfile {
+
+    public entry fun claim_free_xp(shared: String, user: vector<u8>) acquires UsersProfile {
+        Shared::assert_is_sub_owner(shared, user);
         let profile = borrow_global_mut<UsersProfile>(@dev);
         let user = ensure_user(profile, shared);
 
@@ -184,16 +186,7 @@ public entry fun claim_free_xp(shared: String) acquires UsersProfile {
     public fun calculate_daily_claim_xp(days_streak: u256): u256 {
         let base_claim = return_free_daily_claim_points();
         let bonus = calculate_streak_bonus(days_streak);
-        base_claim + bonus
-    }
-
-    /// Tester view function: pass any arbitrary streak to inspect projected payout
-    /// Returns: (total_claim_xp, base_claim, streak_bonus)
-    #[view]
-    public fun test_estimate_daily_claim(days_streak: u256): (u256, u256, u256) {
-        let base_claim = return_free_daily_claim_points();
-        let bonus = calculate_streak_bonus(days_streak);
-        (base_claim + bonus, base_claim, bonus)
+        (base_claim + bonus)*100000000000000000000/1_000_000/100
     }
 
     /// Live view function for frontend/user:

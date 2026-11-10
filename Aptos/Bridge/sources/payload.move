@@ -1,4 +1,4 @@
-module dev::QiaraPayloadV103
+module dev::QiaraPayloadV104
 
 {
     use std::signer;
@@ -9,8 +9,8 @@ module dev::QiaraPayloadV103
     use std::hash;
     use std::bcs;
     use aptos_std::bcs_stream::{Self};
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV90::{Self as TokenTypes};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokenTypes};
     use event::QiaraEventV1::{Self as Event};
 
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
@@ -255,6 +255,21 @@ module dev::QiaraPayloadV103
         let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
 
         return (name, user_bytes, new_used_ref_code)
+    }
+
+    public fun prepare_p_claim_free_xp(type_names: vector<String>, payload: vector<vector<u8>>): (String, vector<u8> )  acquires Permissions {
+        let (_, name_raw) = find_payload_value(utf8(b"shared"), type_names, payload); 
+        let (_, user_raw) = find_payload_value(utf8(b"addr"), type_names, payload);
+
+        let user_stream = &mut bcs_stream::new(user_raw);
+        let user_bytes = bcs_stream::deserialize_vector(user_stream, |s| bcs_stream::deserialize_u8(s));
+
+        let (_, consensus_type) = find_payload_value(utf8(b"consensus_type"), type_names, payload);
+        let consensus = bcs_stream::deserialize_string(&mut bcs_stream::new(consensus_type));
+        Nonce::increment_nonce(user_bytes, consensus, Nonce::give_permission(&borrow_global<Permissions>(@dev).nonce));
+        let name = bcs_stream::deserialize_string(&mut bcs_stream::new(name_raw));
+
+        return (name, user_bytes)
     }
 
 public fun prepare_p_accrue_interest(type_names: vector<String>, payload: vector<vector<u8>>): (vector<u8>, String, String) acquires Permissions {

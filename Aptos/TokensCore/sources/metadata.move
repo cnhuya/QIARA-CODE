@@ -1,4 +1,4 @@
-module dev::QiaraTokensMetadataV90{
+module dev::QiaraTokensMetadataV92{
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -12,8 +12,8 @@ module dev::QiaraTokensMetadataV90{
     use dev::QiaraStorageV26::{Self as storage};
     use dev::QiaraMathV4::{Self as Math};
 
-    use dev::QiaraTokensTiersV90::{Self as tier};
-    use dev::QiaraTokenTypesV90::{Self as TokensType, TokenChainData};
+    use dev::QiaraTokensTiersV92::{Self as tier};
+    use dev::QiaraTokenTypesV92::{Self as TokensType, TokenChainData};
     use dev::QiaraOracleV17::{Self as oracle, Access as OracleAccess};
 
 // === ERRORS === //
@@ -823,7 +823,7 @@ public entry fun create_metadata(
             while (len > 0) {
                 let metadat = vector::borrow(&vault_list.list, len - 1);
                 if (metadat.symbol == res) {
-                    // In QiaraTokensMetadataV90::get_coin_metadata_by_symbol:
+                    // In QiaraTokensMetadataV92::get_coin_metadata_by_symbol:
                     let (_, price_decimals) = oracle::get_raw_price(metadat.oracleID);
                     price = (oracle::viewPrice(metadat.symbol) as u64);
                     denom = Math::pow10_u256((price_decimals as u8));

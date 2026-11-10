@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV112 {
+module dev::QiaraVaultsV113 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -18,20 +18,20 @@ module dev::QiaraVaultsV112 {
     use aptos_framework::coin;
     use aptos_framework::aptos_coin::AptosCoin;
 
-    use dev::QiaraTokensCoreV90::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensOmnichainV90::{Self as TokensOmnichain};
-    use dev::QiaraTokensMetadataV90::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
-    use dev::QiaraTokensTiersV90::{Self as TokensTiers};
-    use dev::QiaraWrapperGateV90::{Self as WrapperGate};
+    use dev::QiaraTokensCoreV92::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensOmnichainV92::{Self as TokensOmnichain};
+    use dev::QiaraTokensMetadataV92::{Self as TokensMetadata, VMetadata, Access as TokensMetadataAccess};
+    use dev::QiaraTokensTiersV92::{Self as TokensTiers};
+    use dev::QiaraWrapperGateV92::{Self as WrapperGate};
 
-    use dev::QiaraMarginV90::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV90::{Self as Points, Access as PointsAccess};
-    use dev::QiaraRIV90::{Self as RI};
-    use dev::QiaraBurnedQiaraV90::{Self as BurnedQiara};
+    use dev::QiaraMarginV92::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV92::{Self as Points, Access as PointsAccess};
+    use dev::QiaraRIV92::{Self as RI};
+    use dev::QiaraBurnedQiaraV92::{Self as BurnedQiara};
 
-    use dev::QiaraTokenTypesV90::{Self as TokensTypes};
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
-    use dev::QiaraProviderTypesV90::{Self as ProviderTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokensTypes};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
+    use dev::QiaraProviderTypesV92::{Self as ProviderTypes};
 
     use dev::QiaraStorageV26::{Self as storage};
     use dev::QiaraCapabilitiesV26::{Self as capabilities};
@@ -40,8 +40,8 @@ module dev::QiaraVaultsV112 {
 
     use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV110::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV110::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV111::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
@@ -1947,7 +1947,7 @@ public entry fun stake_raw(
         let last = (last_update as u256);
         
         let time = now - last;
-        let incentive_points_reward = (user_deposited * time * base_points) / precision_factor / precision_factor;
+        let incentive_points_reward = (user_deposited * time * base_points)  / precision_factor;
 
         return incentive_points_reward 
     }

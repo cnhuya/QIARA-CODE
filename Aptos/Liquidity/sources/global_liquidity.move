@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV110 {
+module dev::QiaraLiquidityV111 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -15,17 +15,17 @@ module dev::QiaraLiquidityV110 {
     use aptos_framework::from_bcs;
 
 
-    use dev::QiaraTokensMetadataV90::{Self as TokensMetadata};
-    use dev::QiaraTokensCoreV90::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
-    use dev::QiaraTokensTiersV90::{Self as TokensTiers};
+    use dev::QiaraTokensMetadataV92::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV92::{Self as TokensCore, CoinMetadata, Access as TokensCoreAccess};
+    use dev::QiaraTokensTiersV92::{Self as TokensTiers};
 
-    use dev::QiaraMarginV90::{Self as Margin, Access as MarginAccess};
-    use dev::QiaraRanksV90::{Self as Points, Access as PointsAccess};
-    use dev::QiaraBurnedQiaraV90::{Self as BurnedQiara};
+    use dev::QiaraMarginV92::{Self as Margin, Access as MarginAccess};
+    use dev::QiaraRanksV92::{Self as Points, Access as PointsAccess};
+    use dev::QiaraBurnedQiaraV92::{Self as BurnedQiara};
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV90::{Self as TokensType};
-    use dev::QiaraProviderTypesV90::{Self as ProviderTypes};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokensType};
+    use dev::QiaraProviderTypesV92::{Self as ProviderTypes};
     use dev::QiaraGenesisV4::{Self as Genesis};
 
 // === ERRORS === //
@@ -1141,7 +1141,7 @@ public fun deposit_token(
             let lp_seed = *String::bytes(&token);
             vector::append(&mut lp_seed, *String::bytes(&chain));
             vector::append(&mut lp_seed, *String::bytes(&provider));
-            vector::append(&mut lp_seed, b"-V110-LP"); // 🟢 Unique seed for V110
+            vector::append(&mut lp_seed, b"-V111-LP"); // 🟢 Unique seed for V111
 
             let lp_constructor_ref = object::create_named_object(admin, lp_seed);
             let lp_object_signer = object::generate_signer(&lp_constructor_ref);

@@ -1,4 +1,4 @@
-module dev::QiaraTokensFaucetV90 {
+module dev::QiaraTokensFaucetV92 {
     use std::string::{Self as string, String, utf8};
     use std::type_info::{Self, TypeInfo};
     use std::signer;
@@ -6,13 +6,13 @@ module dev::QiaraTokensFaucetV90 {
     use std::timestamp;
     use std::bcs;
     use std::vector;
-    use dev::QiaraChainTypesV90::{Self as ChainTypes};
-    use dev::QiaraTokenTypesV90::{Self as TokensType};
+    use dev::QiaraChainTypesV92::{Self as ChainTypes};
+    use dev::QiaraTokenTypesV92::{Self as TokensType};
     use aptos_std::simple_map::{Self as simple_map, SimpleMap as Map};
-    use dev::QiaraProviderTypesV90::{Self as ProviderTypes};
+    use dev::QiaraProviderTypesV92::{Self as ProviderTypes};
 
-    use dev::QiaraTokensCoreV90::{Self as TokensCore, Access as TokensCoreAccess};
-    use dev::QiaraTokensMetadataV90::{Self as TokensMetadata};
+    use dev::QiaraTokensCoreV92::{Self as TokensCore, Access as TokensCoreAccess};
+    use dev::QiaraTokensMetadataV92::{Self as TokensMetadata};
     use dev::QiaraSharedV18::{Self as Shared};
     use dev::QiaraStorageV26::{Self as storage};
 

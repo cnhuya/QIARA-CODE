@@ -97,6 +97,24 @@ pub mod shared {
         events::emit_event("Modular Storage Used Ref Code Updated".to_string(), data)?;
         Ok(())
     }
+
+   pub fn p_claim_free_xp(
+        ctx: Context<StatelessEvent>,
+        name: String,
+        sub_owner: Vec<u8>,
+    ) -> Result<()> {
+        safety_check(&name, &sub_owner)?;
+
+        let sender = ctx.accounts.sender.key();
+        let data = vec![
+            events::create_data_struct("sender".to_string(), "address".to_string(), sender.to_bytes().to_vec()),
+            events::create_data_struct("sub_owner".to_string(), "vector<u8>".to_string(), sub_owner),
+            events::create_data_struct("name".to_string(), "string".to_string(), name.as_bytes().to_vec()),
+        ];
+
+        events::emit_event("Modular Free XP Claimed".to_string(), data)?;
+        Ok(())
+    }
 }
 
 // --- Accounts Contexts ---
