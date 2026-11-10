@@ -270,6 +270,8 @@ public entry fun claim_free_xp(shared: String) acquires UsersProfile {
                 withdraval_over_limit: 0,
                 increased_qburned_reward_rate: 0,
                 xp_multiplier: 0 + (xp_increased as u256),
+                daily_claim_streak: 0,
+                last_claimed_timestamp: 0
 
             }
         };
@@ -298,6 +300,8 @@ public entry fun claim_free_xp(shared: String) acquires UsersProfile {
             withdraval_over_limit: calculate_withdrawal_over_limit(convert_rank_to_power(rank)),
             increased_qburned_reward_rate: calculate_increased_qburned_reward_rate(convert_rank_to_power(rank)),
             xp_multiplier: xp_multiplier + (xp_increased as u256),
+            daily_claim_streak: user.daily_claim_streak,
+            last_claimed_timestamp: user.last_claimed_timestamp
         }
     }
 
