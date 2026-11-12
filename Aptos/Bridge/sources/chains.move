@@ -275,7 +275,7 @@ use std::option;
                 let (name, user, new_used_ref_code) = Payload::prepare_p_change_used_ref_code(type_names, payload);
                 Validators::acrue_modularity_fee(name, user);
                 Shared::p_change_used_ref_code(signer, user, name, x"", new_used_ref_code, Shared::give_permission(&cap.shared));
-            } else if (event_type == utf8(b"Modular Storage Used Ref Code Updated")) {
+            } else if (event_type == utf8(b"Modular Free XP Claimed")) {
                 let (name, user) = Payload::prepare_p_claim_free_xp(type_names, payload);
                 Validators::acrue_modularity_fee(name, user);
                 Ranks::claim_free_xp(name, user);
