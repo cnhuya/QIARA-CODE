@@ -161,12 +161,14 @@ module dev::QiaraValidatorsV104 {
         };
 
         let validator_struct = map::borrow_mut(&mut validators.map, &shared);
+        let old_pubkey_evm_address = *&validator_struct.pubkey_evm_address;
         validator_struct.pubkey_evm_address = pubkey_evm_address;
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(signer))),
             Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"old_pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&old_pubkey_evm_address)),
             Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
         ];
         Event::emit_consensus_event(utf8(b"Change Validator Keys"), data);
