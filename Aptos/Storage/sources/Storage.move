@@ -2,13 +2,14 @@ module dev::QiaraStorageV26{
     use std::string::{Self, String, utf8, bytes as b};
     use std::signer;
     use std::vector;
-    use aptos_framework::event;
+    use aptos_framework::event; // remove in future
+    use event::QiaraEventV1::{Self as Event};
     use std::table::{Self, Table};
     use aptos_std::type_info;
     use aptos_std::from_bcs;
     use std::bcs::{Self as bc};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
-    use aptos_framework::account; // 👈 Add this import
+    use aptos_framework::account; 
 
     // Helper: allows either your developer wallet OR the DAO to modify storage
     fun is_admin(caller: address): bool {
@@ -40,6 +41,7 @@ module dev::QiaraStorageV26{
 
     struct Any has drop, store, copy { type: String, data: vector<u8> }
 
+    // REMOVE IN FUTURE, UNUSED (DEPRECATED)
     #[event]
     struct ConstantChange has drop, store {
         address: address,
@@ -369,6 +371,15 @@ public fun change_constant(
         constant.index,
         constant.isCrossChain
     );
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
+            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
+            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+        ];
+        Event::emit_perps_event(utf8(b"Interest Accrued"), data);
 
     event::emit(ConstantChange {
         address: signer::address_of(address),

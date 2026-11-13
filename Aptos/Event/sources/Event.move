@@ -137,6 +137,11 @@ module event::QiaraEventV1 {
     struct OmniProofEvent has copy, drop, store {
         aux: vector<Data>,
     }
+    #[event]
+    struct ConstantEvent has copy, drop, store {
+        name: String,
+        aux: vector<Data>,
+    }
 // === INIT === //
     fun init_module(admin: &signer) {
         assert!(signer::address_of(admin) == @event, 1);
@@ -337,6 +342,13 @@ public fun safe_create_identifier(type_names: vector<String>, payload: vector<ve
     public fun emit_oracle_event(type: String, data: vector<Data>) {
         vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
          event::emit(OracleEvent {
+            name: type,
+            aux: data,
+        });
+    }
+    public fun emit_constant_event(type: String, data: vector<Data>) {
+        vector::push_back(&mut data, Data {name: utf8(b"timestamp"), type: utf8(b"u64"), value: bcs::to_bytes(&timestamp::now_seconds())});   
+         event::emit(ConstantEvent {
             name: type,
             aux: data,
         });
