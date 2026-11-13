@@ -252,6 +252,10 @@ use std::option;
                 let (name, _, shared, symbol, chain, provider, amount, _) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
+            } else if (event_type == utf8(b"Constant Register")) {
+
+            } else if (event_type == utf8(b"Constant Change")) {
+
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
                 //let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
                 //TokensQiara::p_request_qiara_bridge(signer, user, chain, amount, recepient, TokensQiara::give_permission(&cap.qiara));

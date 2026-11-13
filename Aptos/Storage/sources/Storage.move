@@ -10,7 +10,7 @@ module dev::QiaraStorageV26{
     use std::bcs::{Self as bc};
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use aptos_framework::account; 
-
+    use std::bcs;
     // Helper: allows either your developer wallet OR the DAO to modify storage
     fun is_admin(caller: address): bool {
         let dao_address = account::create_resource_address(&@dev, b"QiaraDAO");
@@ -284,14 +284,16 @@ public fun register_constant<T: drop>(
     editable: bool, 
     isCrossChain: bool
 ) acquires ConstantCounter, ConstantDatabase, KeyRegistry {
-    assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN); // 👈 Updated check
+    assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN);
     let db = borrow_global_mut<ConstantDatabase>(OWNER);
     let counter = borrow_global_mut<ConstantCounter>(OWNER);
     let key_registry = borrow_global_mut<KeyRegistry>(OWNER);
-    let any = make_any<T>(bc::to_bytes(&value));
+    let any = make_any<T>(bcs::to_bytes(&value)); // Note: changed `bc::` to `bcs::` if not aliased
     let new_constant = make_constant(constant_name, any, editable, counter.count, isCrossChain);
+    let new_constant_bytes = bcs::to_bytes(&new_constant);
+
     counter.count = counter.count + 1;
-    if(!vector::contains(&key_registry.keys, &header)){
+    if (!vector::contains(&key_registry.keys, &header)) {
         vector::push_back(&mut key_registry.keys, header);
     };
     if (table::contains(&db.database, header)) {
@@ -310,7 +312,16 @@ public fun register_constant<T: drop>(
         let vec = vector::empty<Constant>();
         vector::push_back(&mut vec, new_constant);
         table::add(&mut db.database, header, vec);
-    }
+    };
+
+    let data = vector[
+        Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
+        Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(address))),
+        Event::create_data_struct(utf8(b"header"), utf8(b"string"), bcs::to_bytes(&header)),
+        Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&constant_name)),
+        Event::create_data_struct(utf8(b"new_constant"), utf8(b"Constant"), new_constant_bytes),
+    ];
+    Event::emit_constant_event(utf8(b"Constant Register"), data);
 }
 
 
@@ -339,9 +350,8 @@ public fun change_constant(
     header: String,
     name: String,
     new_value: vector<u8>
-    // 👈 Removed permission: &Permission
 ) acquires ConstantDatabase {
-    assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN); // 👈 Updated check
+    assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN);
     let db = borrow_global_mut<ConstantDatabase>(OWNER);
 
     if (!table::contains(&db.database, header)) {
@@ -374,18 +384,13 @@ public fun change_constant(
 
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
-            Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
-            Event::create_data_struct(utf8(b"sender"), utf8(b"address"), bcs::to_bytes(&user)),
-            Event::create_data_struct(utf8(b"shared_storage"), utf8(b"string"), bcs::to_bytes(&shared)),
-            Event::create_data_struct(utf8(b"asset"), utf8(b"string"), bcs::to_bytes(&asset)),
+            Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(address))),
+            Event::create_data_struct(utf8(b"header"), utf8(b"string"), bcs::to_bytes(&header)),
+            Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+            Event::create_data_struct(utf8(b"old_constant"), utf8(b"Constant"), bcs::to_bytes(&old_constant)),
+            Event::create_data_struct(utf8(b"new_constant"), utf8(b"Constant"), bcs::to_bytes(&new_constant)),
         ];
-        Event::emit_perps_event(utf8(b"Interest Accrued"), data);
-
-    event::emit(ConstantChange {
-        address: signer::address_of(address),
-        old_constant,
-        new_constant
-    });
+        Event::emit_constant_event(utf8(b"Constant Change"), data);
 }
 
 
