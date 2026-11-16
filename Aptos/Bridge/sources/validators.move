@@ -23,7 +23,10 @@ module dev::QiaraValidatorsV104 {
     const ERROR_NOT_REGISTERED_VALIDATOR: u64 = 4;
     const ERROR_KEYS_CANNOT_BE_EMPTY: u64 = 6;
     const ERROR_ZERO_AMOUNT: u64 = 7;
-
+    const ERROR_INVALID_ADDRESS_LENGTH: u64 = 8;
+    const ERROR_ZERO_ADDRESS: u64 = 9;
+    const ERROR_EVM_ADDRESS_ALREADY_REGISTERED: u64 = 10;
+    const ERROR_INSUFFICIENT_VOTING_POWER: u64 = 11;
     // === ACCESS === //
     struct Access has store, key, drop {}
     struct Permission has store, key, drop, copy {}
