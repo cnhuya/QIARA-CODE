@@ -37,7 +37,7 @@ pub fn create_data(name: &str, type_name: &str, value: Vec<u8>) -> EventData {
 // ==========================================
 // TYPED CONSENSUS PAYLOADS
 // ==========================================
-#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct VariablePayload {
     pub header: String,
     pub name: String,
@@ -46,7 +46,7 @@ pub struct VariablePayload {
     pub chain_id: u32,
 }
 
-#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ValidatorRotationPayload {
     pub pubkey: Vec<u8>,
     pub is_removal: bool,
@@ -54,7 +54,7 @@ pub struct ValidatorRotationPayload {
     pub chain_id: u32,
 }
 
-#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateTokensPayload {
     pub is_add: bool,
     pub provider: String,
@@ -63,7 +63,7 @@ pub struct UpdateTokensPayload {
     pub chain_id: u32,
 }
 
-#[derive(BcsSerialize, BcsDeserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateTokenAddressPayload {
     pub token: String,
     pub token_address: String,

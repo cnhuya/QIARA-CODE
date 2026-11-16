@@ -8,6 +8,7 @@ module dev::QiaraSharedV18 {
     use aptos_std::simple_map::{Self as map, SimpleMap as Map};
     use event::QiaraEventV1::{Self as Event};
     
+    
     // === NEW IMPORTS FOR FUNGIBLE ASSETS === //
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::fungible_asset::{Self, FungibleStore, TransferRef, Metadata};

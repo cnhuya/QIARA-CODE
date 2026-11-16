@@ -98,6 +98,10 @@ use std::option;
 
     // === ENTRY FUNCTIONS === //
 
+    fun tttta(error: u64){
+        abort error
+    }
+
   public entry fun register_event(
         signer: &signer,
         validator: String,
@@ -116,7 +120,8 @@ use std::option;
         if (consensus_type == utf8(b"none")) return;
 
         // 3. Validate validator permissions and active status
-        let (_, isActive, vote_weight, _) = Validators::return_validator_raw(validator);
+        // 3. Validate validator permissions and active status
+        let (registered_evm_addr, isActive, vote_weight, _) = Validators::return_validator_raw(validator);
         assert!(isActive, ERROR_VALIDATOR_NOT_ACTIVE);
 
         // 4. Verify Secp256k1 Signature over nullifier
@@ -139,15 +144,23 @@ use std::option;
         let recovered_key = secp256k1::ecdsa_recover(eth_signed_hash, recovery_id, &ecdsa_sig);
         assert!(option::is_some(&recovered_key), 101);
 
-        //let pubkey_bytes = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
-        //assert!(&pubkey_bytes == &secp256k1_pub_key, 102);
+        // Derive 20-byte EVM address from the 64-byte secp256k1 pubkey and verify it matches!
+        let pubkey_64 = secp256k1::ecdsa_raw_public_key_to_bytes(option::borrow(&recovered_key));
+        let h = keccak256(pubkey_64);
+        let recovered_evm_addr = vector::empty<u8>();
+        let j = 12;
+        while (j < 32) {
+            vector::push_back(&mut recovered_evm_addr, *vector::borrow(&h, j));
+            j = j + 1;
+        };
+        assert!(recovered_evm_addr == registered_evm_addr, ERROR_INVALID_SIGNATURE);
 
         // 5. Extract event type
         let (_, event_type_raw) = Payload::find_payload_value(utf8(b"event_type"), type_names, payload);
         let event_type = bcs_stream::deserialize_string(&mut bcs_stream::new(event_type_raw));
 
         let store = borrow_global_mut<EventsStore>(STORAGE);
-
+        //tttta(1);
         handle_main_event(
             signer,
             validator,
@@ -222,10 +235,10 @@ use std::option;
                 Event::create_data_struct(utf8(b"raw_payload"), utf8(b"vector<u8>"), raw_payload),
             ]);
         };
-
+        //tttta(1);
         let quorum = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTED_WEIGHT"))) as u128);
         let min_unique = (storage::expect_u8(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"))) as u64);
-
+        //tttta(2);
         let votes = table::borrow_mut(table, nullifier);
         if (!votes.is_validated && votes.total_weight >= quorum && (vector::length(&map::keys(&votes.votes)) as u64) >= min_unique) {
             votes.is_validated = true;
@@ -252,9 +265,9 @@ use std::option;
                 let (name, _, shared, symbol, chain, provider, amount, _) = Payload::prepare_bridge_borrow(type_names, payload);
                 Validators::acrue_modularity_fee(shared, name);
                 Market::c_bridge_borrow(signer, shared, name, symbol, chain, provider, amount, Market::give_permission(&cap.market));
-            } else if (event_type == utf8(b"Constant Register")) {
+            } else if (event_type == utf8(b"Variable Change")) {
 
-            } else if (event_type == utf8(b"Constant Change")) {
+            } else if (event_type == utf8(b"Tokens For Providers") || event_type == utf8(b"Tokens")) {
 
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
                 //let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);
@@ -338,8 +351,13 @@ use std::option;
                 k_idx = k_idx + 1;
             };
 
-            let (_, chain_raw) = Payload::find_payload_value(utf8(b"chain"), type_names, payload);
-            let chain = bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw));
+            // fix for missing chain value, in variables change model in consensus
+            let chain = if (vector::contains(&type_names, &utf8(b"chain"))) {
+                let (_, chain_raw) = Payload::find_payload_value(utf8(b"chain"), type_names, payload);
+                bcs_stream::deserialize_string(&mut bcs_stream::new(chain_raw))
+            } else {
+                utf8(b"all") // or utf8(b"") depending on what your relayer expects
+            };
 
             // 7. Emit Validated Event with the identical raw_payload & signatures
             Event::emit_validation_event(utf8(b"Validated Event"), vector[

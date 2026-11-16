@@ -8,9 +8,10 @@ module dev::QiaraOracleV17 {
     
     use event::QiaraEventV1::{Self as Event};
     use dev::QiaraStorageV26::{Self as storage};
-
+    use dev::QiaraSharedV18::{Self as Shared};
     // === ERRORS === //
     const ERROR_NOT_ADMIN: u64 = 0;
+    const ERROR_NOT_AUTHORIZED: u64 = 1;
 
     // === CONSTANTS === //
     const ORACLE_DECIMALS: u8 = 8;
@@ -161,13 +162,28 @@ module dev::QiaraOracleV17 {
         };
     }
 
-    fun submit_round_price_internal(caller: &signer,validator_shared: String,symbol: String,price: u128,round_id: u64,): (bool, bool) acquires Prices {
+fun submit_round_price_internal(
+        caller: &signer,
+        validator_shared: String,
+        symbol: String,
+        price: u128,
+        round_id: u64,
+    ): (bool, bool) acquires Prices {
         if (!exists<Prices>(@dev)) {
             emit_oracle_error(&symbol, round_id, utf8(b"Not Initialized"));
             return (false, true)
         };
 
+        if (price == 0) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Price Cannot Be Zero"));
+            return (false, true)
+        };
+
         let caller_addr = signer::address_of(caller);
+        // Use assert_is_owner (single owner per shared storage) so one validator can't submit twice via multiple sub-owners.
+        // (If you want sub-owners to submit, change RoundSubmission.validator to String and check validator_shared instead of caller_addr.)
+        Shared::assert_is_owner(bcs::to_bytes(&caller_addr), validator_shared);
+
         let round_duration = get_round_duration_secs();
         let committee_size = get_committee_pool_size();
         let required_quorum = get_required_quorum();
@@ -176,7 +192,7 @@ module dev::QiaraOracleV17 {
 
         // 1. Verify round freshness
         let current_round = timestamp::now_seconds() / round_duration;
-        if (round_id != current_round && round_id != current_round - 1) {
+        if (round_id != current_round && (current_round == 0 || round_id != current_round - 1)) {
             emit_oracle_error(&symbol, round_id, utf8(b"Stale Round"));
             return (false, true)
         };
@@ -218,6 +234,12 @@ module dev::QiaraOracleV17 {
 
         let store = map::borrow_mut(&mut prices.prices, &symbol);
 
+        // Reject submissions targeting an older round than store.round_id
+        if (round_id < store.round_id) {
+            emit_oracle_error(&symbol, round_id, utf8(b"Stale Round"));
+            return (false, true)
+        };
+
         // Advance round in-place
         if (store.round_id < round_id) {
             store.round_id = round_id;
@@ -226,7 +248,6 @@ module dev::QiaraOracleV17 {
         };
 
         if (store.settled) {
-            //emit_oracle_error(&symbol, round_id, utf8(b"Round Already Settled"));
             return (false, false)
         };
 
@@ -266,11 +287,11 @@ module dev::QiaraOracleV17 {
 
             let old_price = store.price;
             let final_settled_price = clamp_price_step(median, old_price, max_clamp_step);
-            
+
             store.price = final_settled_price;
             store.publish_time = timestamp::now_seconds();
             store.settled = true;
-            store.submissions = vector::empty(); // Free vector memory immediately
+            store.submissions = vector::empty();
 
             if (!map::contains_key(&prices.map, &symbol)) {
                 map::upsert(&mut prices.map, symbol, Integer { oracleID: symbol, value: 0, isPositive: true });

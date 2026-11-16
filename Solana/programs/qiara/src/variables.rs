@@ -78,7 +78,7 @@ pub fn handle_friend_add_variable(
 
     let current_epoch = ctx.accounts.epoch_config.get_current_epoch()?;
     let registry_acc = &mut ctx.accounts.registry;
-    require!(!registry_acc.is_locked, QiaraError::RegistryLocked);
+    //require!(!registry_acc.is_locked, QiaraError::RegistryLocked);
 
     // 2. Verify validator signatures against current epoch validator set
     let signatures = &ctx.accounts.sig_buffer.signatures;

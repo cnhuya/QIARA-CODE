@@ -107,12 +107,40 @@ module dev::QiaraValidatorsV104 {
     }
 
     // === PUBLIC FUNCTIONS === //
+    public entry fun register_validator(
+        signer: &signer,
+        shared: String,
+        pubkey_evm_address: vector<u8>
+    ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
+        let signer_bytes = bcs::to_bytes(&signer::address_of(signer));
+        Shared::assert_is_owner(signer_bytes, shared);
+
+        assert!(vector::length(&pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+        assert!(pubkey_evm_address != x"0000000000000000000000000000000000000000", ERROR_ZERO_ADDRESS);
+
+        let min_power = (storage::expect_u64(storage::viewConstant(utf8(b"QiaraBridge"), utf8(b"MINIMUM_REQUIRED_VOTING_POWER"))) as u256);
+        let own_power = Margin::get_user_total_staked_qiara(shared);
+        assert!(own_power >= min_power, ERROR_INSUFFICIENT_VOTING_POWER);
+
+        let active_validators = borrow_global_mut<ActiveValidators>(@dev);
+        let pending_validators = borrow_global_mut<PendingValidators>(@dev);
+        let validators = borrow_global_mut<Validators>(@dev);
+
+        reg_validator(&mut pending_validators.list, active_validators, &mut validators.map, shared, pubkey_evm_address);
+    }
+
     public entry fun dev_register_validator(
         signer: &signer, 
         shared: String, 
-        validator: vector<u8>, 
+        validator: vector<u8>, // 32-byte BCS Aptos address of validator
         pubkey_evm_address: vector<u8>
     ) acquires PendingValidators, ActiveValidators, Validators, Permissions {
+        assert!(signer::address_of(signer) == @dev, ERROR_NOT_ADMIN);
+        assert!(vector::length(&validator) == 32, ERROR_INVALID_ADDRESS_LENGTH);
+        assert!(vector::length(&pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+        assert!(pubkey_evm_address != x"0000000000000000000000000000000000000000", ERROR_ZERO_ADDRESS);
+
+        // Ensures `validator` is a real 32-byte Aptos owner/sub-owner of `shared`
         Shared::assert_is_sub_owner(shared, validator);
         
         let active_validators = borrow_global_mut<ActiveValidators>(@dev); 
@@ -132,6 +160,14 @@ module dev::QiaraValidatorsV104 {
     ) acquires Permissions {
         if (map::contains_key(validators, &validator)) {
             abort ERROR_VALIDATOR_ALREADY_REGISTERED
+        };
+
+    let existing_names = map::keys(validators);
+        let k = vector::length(&existing_names);
+        while (k > 0) {
+            k = k - 1;
+            let existing_val = map::borrow(validators, vector::borrow(&existing_names, k));
+            assert!(existing_val.pubkey_evm_address != pubkey_evm_address, ERROR_EVM_ADDRESS_ALREADY_REGISTERED);
         };
 
         let validator_struct = Validator { 

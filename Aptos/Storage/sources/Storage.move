@@ -240,10 +240,12 @@ module dev::QiaraStorageV26{
 
     }
 
-    public entry fun more3(admin: &signer) acquires ConstantDatabase,KeyRegistry, ConstantCounter {
+    public entry fun more3(admin: &signer) acquires ConstantDatabase, {
         assert!(signer::address_of(admin) == OWNER, ERROR_NOT_ADMIN);
-                register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"), 1_000_000, true, false, ); // 100*level
+          //      register_constant<u64>(admin, utf8(b"QiaraPoints"), utf8(b"DAILY_CLAIM"), 1_000_000, true, false, ); // 100*level
 //register_constant<u64>(admin, utf8(b"QiaraBridge"), utf8(b"FLAT_USD_FEE"), 10_000, true, false, ); // 0.01$  
+ //register_constant<u8>(admin, utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"), 3, true,  true, ); // 3
+ change_constant_safe<u8>(admin, utf8(b"QiaraBridge"), utf8(b"MINIMUM_UNIQUE_VALIDATORS"), 3 ); // 0.1%  
         //change_constant(admin, utf8(b"QiaraOracle"), utf8(b"ROUND_DURATION_MILISECONDS"), bc::to_bytes(&3000), ); // 0.1%  
      //  change_constant(admin, utf8(b"QiaraMarket"), utf8(b"NEW_MULTIPLIER_HANDICAP"), bc::to_bytes(&10_000_000), ); // 0.0001%  
       //  change_constant(admin, utf8(b"QiaraOracle"), utf8(b"REQUIRED_QUORUM"), bc::to_bytes(&2), ); // 0.001%  
@@ -345,6 +347,39 @@ public fun register_constant<T: drop>(
     }
 
 
+public fun change_constant_safe<T: drop>(
+    address: &signer,
+    header: String,
+    name: String,
+    new_value: T
+) acquires ConstantDatabase {
+    assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN);
+    let db = borrow_global_mut<ConstantDatabase>(OWNER);
+
+    if (!table::contains(&db.database, header)) {
+        abort ERROR_HEADER_DOESNT_EXISTS
+    };
+
+    let constant = get_constant(db, header, name);
+    assert!(constant.editable, ERROR_CONSTANT_CANT_BE_EDITED);
+    assert!(constant.value.type == type_info::type_name<T>(), ERROR_INVALID_VALUE_TYPE);
+
+    let old_constant = *constant;
+    constant.value.data = bcs::to_bytes(&new_value);
+    let new_constant = *constant;
+
+    let data = vector[
+        Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"main"))),
+        Event::create_data_struct(utf8(b"validator"), utf8(b"address"), bcs::to_bytes(&signer::address_of(address))),
+        Event::create_data_struct(utf8(b"header"), utf8(b"string"), bcs::to_bytes(&header)),
+        Event::create_data_struct(utf8(b"name"), utf8(b"string"), bcs::to_bytes(&name)),
+        Event::create_data_struct(utf8(b"old_constant"), utf8(b"Constant"), bcs::to_bytes(&old_constant)),
+        Event::create_data_struct(utf8(b"new_constant"), utf8(b"Constant"), bcs::to_bytes(&new_constant)),
+    ];
+    Event::emit_constant_event(utf8(b"Constant Change"), data);
+}
+
+// remove in future
 public fun change_constant(
     address: &signer,
     header: String,
@@ -352,6 +387,7 @@ public fun change_constant(
     new_value: vector<u8>
 ) acquires ConstantDatabase {
     assert!(is_admin(signer::address_of(address)), ERROR_NOT_ADMIN);
+    //validate_bcs_for_type(&constant.value.type, &new_value);
     let db = borrow_global_mut<ConstantDatabase>(OWNER);
 
     if (!table::contains(&db.database, header)) {
@@ -534,6 +570,34 @@ public fun expect_address_padded(data: vector<u8>): address {
     vector::append(&mut padded, bytes);            // zeros first, then the bytes
     from_bcs::to_address(padded)
 }
+
+// remove in future
+fun validate_bcs_for_type(type_name: &String, data: &vector<u8>) {
+    if (*type_name == type_info::type_name<u8>()) {
+        let _ = from_bcs::to_u8(*data);
+    } else if (*type_name == type_info::type_name<u16>()) {
+        let _ = from_bcs::to_u16(*data);
+    } else if (*type_name == type_info::type_name<u32>()) {
+        let _ = from_bcs::to_u32(*data);
+    } else if (*type_name == type_info::type_name<u64>()) {
+        let _ = from_bcs::to_u64(*data);
+    } else if (*type_name == type_info::type_name<u128>()) {
+        let _ = from_bcs::to_u128(*data);
+    } else if (*type_name == type_info::type_name<u256>()) {
+        let _ = from_bcs::to_u256(*data);
+    } else if (*type_name == type_info::type_name<bool>()) {
+        let _ = from_bcs::to_bool(*data);
+    } else if (*type_name == type_info::type_name<address>()) {
+        let _ = from_bcs::to_address(*data);
+    } else if (*type_name == type_info::type_name<vector<u8>>()) {
+        let _ = from_bcs::to_bytes(*data);
+    } else if (*type_name == type_info::type_name<String>()) {
+        let _ = from_bcs::to_string(*data);
+    } else {
+        abort ERROR_INVALID_VALUE_TYPE
+    };
+}
+
  #[view]
     public fun expect_string(data: vector<u8>): string::String {
         from_bcs::to_string(data)
