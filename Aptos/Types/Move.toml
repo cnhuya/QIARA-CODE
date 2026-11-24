@@ -13,7 +13,8 @@
 
     [dependencies.AptosStdlib]
     git = "https://github.com/aptos-labs/aptos-core.git"
-    rev = "testnet"
+ rev = "aa72cce3ac7b5544e0d10823bbdfc3b4331cfb53"
+
     subdir = "aptos-move/framework/aptos-stdlib"
 
     [dependencies.QiaraEventV1]

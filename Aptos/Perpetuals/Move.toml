@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV81"
+    name = "QiaraPerpsV82"
     version = "2.1.1"
     authors = []
 
@@ -14,16 +14,11 @@
     Extensions = "0x1"
     [dev-addresses]
 
-    [dependencies.AptosStdlib]
-    git = "https://github.com/aptos-labs/aptos-core.git"
-    rev = "testnet"
-    subdir = "aptos-move/framework/aptos-stdlib"
+[dependencies.AptosStdlib]
+local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-stdlib"
 
-    [dependencies.AptosFramework]
-    git = "https://github.com/aptos-labs/aptos-core.git"
-    rev = "testnet"
-    subdir = "aptos-move/framework/aptos-framework"
-
+[dependencies.AptosFramework]
+local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-framework"
     [dependencies.QiaraUtilV4]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'

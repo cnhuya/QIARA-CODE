@@ -11,15 +11,11 @@
     aptos_std = "0x1"
     Extensions = "0x1"
     [dev-addresses]
+[dependencies.AptosStdlib]
+local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-stdlib"
 
-    [dependencies.AptosStdlib]
-    git = "https://github.com/aptos-labs/aptos-core.git"
-    rev = "testnet"
-    subdir = "aptos-move/framework/aptos-stdlib"
-
-    [dependencies.AptosFramework]
-    git = "https://github.com/aptos-labs/aptos-core.git"
-    rev = "testnet"
+[dependencies.AptosFramework]
+local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-framework"
     subdir = "aptos-move/framework/aptos-framework"
 
     [dependencies.QiaraUtilV4]
