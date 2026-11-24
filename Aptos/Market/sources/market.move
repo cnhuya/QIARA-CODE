@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV113 {
+module dev::QiaraVaultsV114 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -38,7 +38,7 @@ module dev::QiaraVaultsV113 {
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV13::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraLiquidityV111::{Self as Liquidity, Access as LiquidityAccess};
     use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -1799,7 +1799,10 @@ public entry fun stake_raw(
 
         let (total_user_usd, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
-        let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
+        
+        //let (gas_obj) = Gas::return_gas();
+        //public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256):
+        //let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
 
         Shared::update_gas_index(shared, gas_index, Shared::give_permission(&borrow_global<Permissions>(@dev).shared_access));
         

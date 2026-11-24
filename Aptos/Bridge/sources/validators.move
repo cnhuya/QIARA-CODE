@@ -109,6 +109,54 @@ module dev::QiaraValidatorsV104 {
         };
     }
 
+// === PLACEBO / TEST EVENT EMITTERS (NO STATE MUTATION) === //
+
+    /// Emits a fake "Register Validator" event without modifying validator state.
+    /// Pass `deleted_validator = ""` and `deleted_pubkey_evm_address = x""` to test pure addition.
+    public entry fun test_emit_register_validator(
+        signer: &signer,
+        new_validator: String,
+        deleted_validator: String,
+        pubkey_evm_address: vector<u8>,
+        deleted_pubkey_evm_address: vector<u8>
+    ) {
+        assert!(signer::address_of(signer) == @dev, ERROR_NOT_ADMIN);
+        assert!(vector::length(&pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+        if (!vector::is_empty(&deleted_pubkey_evm_address)) {
+            assert!(vector::length(&deleted_pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+        };
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"new_validator"), utf8(b"string"), bcs::to_bytes(&new_validator)),
+            Event::create_data_struct(utf8(b"deleted_validator"), utf8(b"string"), bcs::to_bytes(&deleted_validator)),
+            Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
+            Event::create_data_struct(utf8(b"deleted_pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&deleted_pubkey_evm_address)),
+        ];
+        Event::emit_validators_event(utf8(b"Register Validator"), data);
+    }
+
+    /// Emits a fake "Change Validator Keys" event without modifying validator state.
+    public entry fun test_emit_change_validator_keys(
+        signer: &signer,
+        shared: String,
+        old_pubkey_evm_address: vector<u8>,
+        pubkey_evm_address: vector<u8>
+    ) {
+        assert!(signer::address_of(signer) == @dev, ERROR_NOT_ADMIN);
+        assert!(vector::length(&old_pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+        assert!(vector::length(&pubkey_evm_address) == 20, ERROR_INVALID_ADDRESS_LENGTH);
+
+        let data = vector[
+            Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
+            Event::create_data_struct(utf8(b"user"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(signer))),
+            Event::create_data_struct(utf8(b"shared"), utf8(b"string"), bcs::to_bytes(&shared)),
+            Event::create_data_struct(utf8(b"old_pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&old_pubkey_evm_address)),
+            Event::create_data_struct(utf8(b"pubkey_evm_address"), utf8(b"vector<u8>"), bcs::to_bytes(&pubkey_evm_address)),
+        ];
+        Event::emit_validators_event(utf8(b"Change Validator Keys"), data);
+    }
+
     // === PUBLIC FUNCTIONS === //
     public entry fun register_validator(
         signer: &signer,

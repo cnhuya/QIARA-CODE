@@ -19,7 +19,7 @@ use std::option;
     use dev::QiaraTokensCoreV92::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV92::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV92::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV113::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV114::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV45::{Self as Governance};
     use dev::QiaraPayloadV104 as Payload;
     use dev::QiaraValidatorsV104::{Self as Validators, Access as ValidatorsAccess};
@@ -268,6 +268,9 @@ use std::option;
             } else if (event_type == utf8(b"Variable Change")) {
 
             } else if (event_type == utf8(b"Tokens For Providers") || event_type == utf8(b"Tokens")) {
+
+            } else if (event_type == utf8(b"Validator Change")) {
+
 
             } else if (event_type == utf8(b"Modular Qiara Bridge")) {
                 //let (recepient, user, chain, amount, _) = Payload::prepare_request_qiara_bridge(type_names, payload);

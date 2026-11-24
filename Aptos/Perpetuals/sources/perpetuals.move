@@ -16,7 +16,7 @@ module dev::QiaraPerpsV81 {
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
     use dev::QiaraNonceV4::{Self as Nonce, Access as NonceAccess};
-    use dev::QiaraVaultsV113::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV114::{Self as Market, Access as MarketAccess};
 
     use dev::QiaraLiquidityV111::{Self as Liquidity};
     use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -27,7 +27,7 @@ module dev::QiaraPerpsV81 {
     use dev::QiaraChainTypesV92::{Self as ChainTypes};
     use dev::QiaraTokenTypesV92::{Self as TokensTypes};
 
-    use dev::QiaraGasV12::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV13::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraPerpsOrdersV81::{Self as Orders};
 
