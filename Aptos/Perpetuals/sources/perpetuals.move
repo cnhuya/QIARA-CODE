@@ -27,7 +27,7 @@ module dev::QiaraPerpsV81 {
     use dev::QiaraChainTypesV92::{Self as ChainTypes};
     use dev::QiaraTokenTypesV92::{Self as TokensTypes};
 
-    use dev::QiaraGasV14::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV15::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraPerpsOrdersV81::{Self as Orders};
 

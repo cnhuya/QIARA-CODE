@@ -38,7 +38,7 @@ module dev::QiaraVaultsV114 {
 
     use dev::QiaraSharedV18::{Self as Shared, Access as SharedAccess};
 
-    use dev::QiaraGasV14::{Self as Gas, Access as GasAccess};
+    use dev::QiaraGasV15::{Self as Gas, Access as GasAccess};
 
     use dev::QiaraLiquidityV111::{Self as Liquidity, Access as LiquidityAccess};
     use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
@@ -121,6 +121,10 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
+        // just for args so i dont forget what it needs
+        //public fun add_borrow(token: String,borrow: u256,user_last_index: u256,user_full_balance: u256,_cap: Permission): (u256, u256) acquires Gas {
+
+
         let gas_rate = Gas::add_deposit(token, amount_u256, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
         
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);

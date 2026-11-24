@@ -1,4 +1,4 @@
-module dev::QiaraGasV14 {
+module dev::QiaraGasV15 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::vector;
@@ -60,61 +60,58 @@ module dev::QiaraGasV14 {
         };
     }
 
-    public fun add_leverage(_token: String,leverage: u64,volume: u256,user_last_index: u256,user_full_balance: u256,_cap: Permission): (u256, u256) acquires Gas {
+public fun add_leverage(_token: String, leverage: u64, volume: u256, _cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         
         if (volume == 0) {
-            let (gas_rate, _, _, _, user_fee, _) = calculateGas(gas, 0, 0, user_last_index, user_full_balance);
-            return (gas_rate, user_fee)
+            let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
+            return gas_rate
         };
 
         let old_volume = gas.usd_perps_volume;
         let new_volume = old_volume + volume;
 
-        // Calculate running weighted leverage sum (scaled to u256 to prevent overflows)
         let old_weighted_leverage = (gas.avg_leverage as u256) * old_volume;
         let new_weighted_leverage = (leverage as u256) * volume;
-
-        // Calculate new weighted average leverage
         let new_avg_leverage = (old_weighted_leverage + new_weighted_leverage) / new_volume;
 
-        // Update Gas state variables
         gas.avg_leverage = (new_avg_leverage as u64);
         gas.usd_perps_volume = new_volume;
 
-        let (gas_rate, _, _, _, user_fee, _) = calculateGas(gas, 0, 0, user_last_index, user_full_balance);
-        return (gas_rate, user_fee)
+        let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, 0);
+        return gas_rate
     }
 
-    public fun add_deposit(token: String,deposit: u256,user_last_index: u256,user_full_balance: u256,_cap: Permission): (u256, u256) acquires Gas {
+    public fun add_deposit(token: String, deposit: u256, _cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         let usd_val = Oracle::convert_to_usd(token, deposit);
 
-        let (gas_rate, _, _, _, user_fee, _) = calculateGas(gas, usd_val, 0, user_last_index, user_full_balance);
+        let (gas_rate, _, _, _, _, _) = calculateGas(gas, usd_val, 0);
         gas.usd_deposits = gas.usd_deposits + usd_val;
 
-        return (gas_rate, user_fee)
+        return gas_rate
     }
 
-    public fun add_withdraw(token: String,withdraw: u256,user_last_index: u256,user_full_balance: u256,_cap: Permission): (u256, u256) acquires Gas {
+    public fun add_withdraw(token: String, withdraw: u256, _cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         let usd_val = Oracle::convert_to_usd(token, withdraw);
 
-        let (gas_rate, _, _, _, user_fee, _) = calculateGas(gas, 0, usd_val, user_last_index, user_full_balance);
+        let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, usd_val);
         gas.usd_withdrawals = gas.usd_withdrawals + usd_val;
 
-        return (gas_rate, user_fee)
+        return gas_rate
     }
 
-    public fun add_borrow(token: String,borrow: u256,user_last_index: u256,user_full_balance: u256,_cap: Permission): (u256, u256) acquires Gas {
+    public fun add_borrow(token: String, borrow: u256, _cap: Permission): u256 acquires Gas {
         let gas = borrow_global_mut<Gas>(@dev);
         let usd_val = Oracle::convert_to_usd(token, borrow);
 
-        let (gas_rate, _, _, _, user_fee, _) = calculateGas(gas, 0, usd_val, user_last_index, user_full_balance);
+        let (gas_rate, _, _, _, _, _) = calculateGas(gas, 0, usd_val);
         gas.usd_borrows = gas.usd_borrows + usd_val;
 
-        return (gas_rate, user_fee)
+        return gas_rate
     }
+
 
     public entry fun dev_reset_gas(admin: &signer) acquires Gas {
         assert!(signer::address_of(admin) == @dev, ERROR_NOT_ADMIN);
@@ -189,7 +186,7 @@ module dev::QiaraGasV14 {
         )
     }
 
-    public fun calculateGas(gas_ref: &mut Gas,deposit: u256,withdrawal: u256,user_last_index: u256,user_full_balance: u256): (u256, u256, u256, u256, u256, u256) {
+    public fun calculateGas(gas_ref: &mut Gas, deposit: u256, withdrawal: u256): (u256, u256, u256, u256, u256, u256) {
         let base = 500_000;
         let withdrawal_weight = 1_000_000;
         let e6 = 1_000_000;
@@ -206,17 +203,7 @@ module dev::QiaraGasV14 {
         };
 
         // 1. UPDATE THE CUMULATIVE GLOBAL INDEX FIRST
-        // We accumulate using the rate that was active DURING this elapsed period (gas_ref.gas)
         gas_ref.global_gas_index = gas_ref.global_gas_index + (gas_ref.gas * last_update_sec);
-
-        // 1b. CALCULATE THE ACTUAL FEE THE USER NEEDS TO PAY
-        // gas_ref.global_gas_index is now the up-to-the-second current_index
-        let user_fee = if (gas_ref.global_gas_index > user_last_index) {
-            let index_diff = gas_ref.global_gas_index - user_last_index;
-            (user_full_balance * index_diff) / e8 / 31_536_000
-        } else {
-            0
-        };
 
         // 2. Standard decay logic with 100% scale division
         let decay_pct = if (percentage_decay * last_update_sec > max_decay) {
@@ -242,9 +229,7 @@ module dev::QiaraGasV14 {
         let new_deposits = deposit + previous_deposit_impact;
         let new_withdrawals = withdrawal + previous_withdrawal_impact;
 
-        // Corrected logic: Ensure the denominator is at least 1
         let ratio = (new_withdrawals * withdrawal_weight) / (new_deposits + 1);
-
         let total_fee = (base * ((ratio * ratio) / e6) / e6) + (gas_ref.avg_leverage as u256) + base;
 
         let data = vector[
@@ -260,13 +245,37 @@ module dev::QiaraGasV14 {
         gas_ref.last_update = now;
 
         return (
-            total_fee,                  // New global annual fee rate (APR scaled by 1e8)
+            total_fee,
             previous_deposit_impact,
             previous_withdrawal_impact,
             new_deposits,
-            user_fee,                   // Actual fee the user pays (replaced new_withdrawals)
+            new_withdrawals,
             ((ratio * ratio) / e6)
         )
+    }
+
+    // Active helper used by new_accrue (no longer deprecated!)
+    #[view]
+    public fun calculate_gas_fee_from_index(user_last_index: u256, amount: u256): (u256, u256) acquires Gas {
+        let gas_state = borrow_global<Gas>(@dev);
+        let now = timestamp::now_seconds();
+        
+        let elapsed = if (now > gas_state.last_update) {
+            ((now - gas_state.last_update) as u256)
+        } else {
+            0
+        };
+        
+        let current_index = gas_state.global_gas_index + (gas_state.gas * elapsed);
+        
+        // Return current_index (not 0) so the caller never accidentally resets user_gas_index to 0
+        if (current_index <= user_last_index) {
+            return (0, current_index)
+        };
+        
+        let index_diff = current_index - user_last_index;
+        let total_fee = (amount * index_diff) / 100_000_000 / 31_536_000;
+        return (total_fee, current_index)
     }
 
     #[view]
