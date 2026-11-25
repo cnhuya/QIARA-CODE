@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV115 {
+module dev::QiaraVaultsV116 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -40,8 +40,8 @@ module dev::QiaraVaultsV115 {
 
     use dev::QiaraGasV15::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV112::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV112::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV113::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV113::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
@@ -113,8 +113,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     }
 
 // === CONSENSUS INTERFACE === //
-
-    public fun c_bridge_deposit(
+public fun c_bridge_deposit(
         validator: &signer,
         shared: String,
         sender: vector<u8>,
@@ -129,7 +128,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         Shared::assert_is_sub_owner(shared, sender);
         let amount_u256 = (amount as u256) * 1000000000000000000;
 
-        let (_, _, total_deposited, _, _, _, _, _, _, _, _, _) = Liquidity::return_raw_vault(token, chain, provider);
+        let (_, _, total_deposited, _, _, _, _, _, _, _, _, _, _) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
         let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
@@ -154,7 +153,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
 
         Margin::add_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
 
-        // 3. Re-fetch post-deposit vault state for event metrics
+        // 3. Re-fetch post-deposit vault state (13 values)
         let (
             _,
             new_total_borrowed,
@@ -167,7 +166,8 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
             new_virtual_deposited,
             new_total_shares,
             new_total_staked_locked_fee,
-            _
+            _,
+            new_fee_index
         ) = Liquidity::return_raw_vault(token, chain, provider);
 
         let new_utilization = Liquidity::get_utilization_ratio(
@@ -206,6 +206,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
             Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&new_total_rewards)),
             Event::create_data_struct(utf8(b"total_native_rewards"), utf8(b"u256"), bcs::to_bytes(&new_total_native_rewards)),
             Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&new_total_interest)),
+            Event::create_data_struct(utf8(b"fee_index"), utf8(b"u128"), bcs::to_bytes(&new_fee_index)),
             Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&new_total_apr)),
             Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&new_borrow_apr)),
             Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&new_utilization)),
@@ -1730,6 +1731,7 @@ public entry fun stake_raw(
             user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
+// First call (Step 1 of new_accrue)
         let (
             _total_liquidity,
             total_borrowed, 
@@ -1742,7 +1744,8 @@ public entry fun stake_raw(
             virtual_deposited, 
             _total_shares,
             _total_staked_locked_fee,
-            last_update
+            last_update,
+            _fee_index
         ) = Liquidity::return_raw_vault(token, chain, provider);
 
         let utilization = Liquidity::get_utilization_ratio(
@@ -1777,6 +1780,7 @@ public entry fun stake_raw(
         };
 
         // Re-fetch vault state after Step 3 & Step 4 updates
+
         let (
             _total_liquidity,
             total_borrowed, 
@@ -1789,7 +1793,8 @@ public entry fun stake_raw(
             virtual_deposited, 
             total_shares,
             total_staked_locked_fee,
-            _last_update
+            _last_update,
+            _fee_index
         ) = Liquidity::return_raw_vault(token, chain, provider);
 
         utilization = Liquidity::get_utilization_ratio(

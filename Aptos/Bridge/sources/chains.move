@@ -1,4 +1,4 @@
-module dev::QiaraBridgeV106 {
+module dev::QiaraBridgeV107 {
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -19,12 +19,12 @@ use std::option;
     use dev::QiaraTokensCoreV92::{Self as TokensCore, Access as TokensCoreAccess};
     use dev::QiaraTokensQiaraV92::{Self as TokensQiara, Access as TokensQiaraAccess};
     use dev::QiaraTokensOmnichainV92::{Self as TokensOmnichain, Access as TokensOmnichainAccess};
-    use dev::QiaraVaultsV115::{Self as Market, Access as MarketAccess};
+    use dev::QiaraVaultsV116::{Self as Market, Access as MarketAccess};
     use dev::QiaraGovernanceV45::{Self as Governance};
-    use dev::QiaraPayloadV106 as Payload;
-    use dev::QiaraValidatorsV106::{Self as Validators, Access as ValidatorsAccess};
-    use dev::QiaraPerpsOrdersV83::{Self as PerpOrders, Access as PerpOrdersAccess};
-    use dev::QiaraPerpsV83::{Self as Perps, Access as PerpAccess};
+    use dev::QiaraPayloadV107 as Payload;
+    use dev::QiaraValidatorsV107::{Self as Validators, Access as ValidatorsAccess};
+    use dev::QiaraPerpsOrdersV84::{Self as PerpOrders, Access as PerpOrdersAccess};
+    use dev::QiaraPerpsV84::{Self as Perps, Access as PerpAccess};
     use dev::QiaraRanksV92::{Self as Ranks};
     const STORAGE: address = @dev;
 

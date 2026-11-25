@@ -1,4 +1,4 @@
-module dev::QiaraLiquidityV112 {
+module dev::QiaraLiquidityV113 {
     use std::signer;
     use std::timestamp;
     use std::vector;    
@@ -940,8 +940,12 @@ public fun deposit_token(
         return (data.utilization,  data.qiara_native_apr, data.final_lend_rate, data.final_borrow_rate)
     }
 
-    #[view]
-    public fun return_raw_vault(token: String, chain: String,provider: String): (u256, u256, u256, u256,u256,u256, u256, u256, u256, u256, u256, u64) acquires GlobalVault {
+#[view]
+    public fun return_raw_vault(
+        token: String,
+        chain: String,
+        provider: String
+    ): (u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u64, u128) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
 
         return (
@@ -954,9 +958,10 @@ public fun deposit_token(
             vault.total_accumulated_interest, 
             vault.virtual_borrowed, 
             vault.virtual_deposited, 
-            vault.total_shares,             // Return actual LP share supply
+            vault.total_shares,
             vault.total_staked_locked_fee,
-            vault.last_update
+            vault.last_update,
+            vault.accumulated_rewards_index
         )
     }
 
@@ -1157,7 +1162,7 @@ public fun deposit_token(
             let lp_seed = *String::bytes(&token);
             vector::append(&mut lp_seed, *String::bytes(&chain));
             vector::append(&mut lp_seed, *String::bytes(&provider));
-            vector::append(&mut lp_seed, b"-V112-LP"); // 🟢 Unique seed for V112
+            vector::append(&mut lp_seed, b"-V113-LP"); // 🟢 Unique seed for V113
 
             let lp_constructor_ref = object::create_named_object(admin, lp_seed);
             let lp_object_signer = object::generate_signer(&lp_constructor_ref);
