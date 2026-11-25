@@ -1,4 +1,4 @@
-module dev::QiaraVaultsV114 {
+module dev::QiaraVaultsV115 {
     use std::signer;
     use std::string::{Self as String, String, utf8};
     use std::timestamp;
@@ -40,8 +40,8 @@ module dev::QiaraVaultsV114 {
 
     use dev::QiaraGasV15::{Self as Gas, Access as GasAccess};
 
-    use dev::QiaraLiquidityV111::{Self as Liquidity, Access as LiquidityAccess};
-    use dev::QiaraTokenVaultsV111::{Self as TokenVaults, Access as TokenVaultsAccess};
+    use dev::QiaraLiquidityV112::{Self as Liquidity, Access as LiquidityAccess};
+    use dev::QiaraTokenVaultsV112::{Self as TokenVaults, Access as TokenVaultsAccess};
 
     use dev::QiaraGenesisV4::{Self as Genesis};
     use dev::QiaraNonceV4::{Self as Nonce};
@@ -1727,7 +1727,7 @@ public entry fun stake_raw(
             user_accumulated_rewards_index_snapshot,
             _user_stake_locked_fee,
             _user_stake_lock,
-            _user_last_interacted
+            user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
 
         let (

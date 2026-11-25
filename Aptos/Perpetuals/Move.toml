@@ -1,5 +1,5 @@
     [package]
-    name = "QiaraPerpsV82"
+    name = "QiaraPerpsV83"
     version = "2.1.1"
     authors = []
 
@@ -39,7 +39,7 @@ local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-framewor
     rev = 'main'
     subdir = 'Aptos/Margin'
 
-    [dependencies.QiaraLiquidityV111]
+    [dependencies.QiaraLiquidityV112]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Liquidity'
@@ -54,7 +54,7 @@ local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-framewor
     rev = 'main'
     subdir = 'Aptos/Storage'
 
-    [dependencies.QiaraVaultsV114]
+    [dependencies.QiaraVaultsV115]
     git = 'https://github.com/cnhuya/AEXIS-CODE.git'
     rev = 'main'
     subdir = 'Aptos/Market'
