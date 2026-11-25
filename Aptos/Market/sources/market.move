@@ -114,20 +114,31 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
 
 // === CONSENSUS INTERFACE === //
 
-    public fun c_bridge_deposit(validator: &signer, shared: String, sender: vector<u8>, token: String, chain: String, provider: String, amount: u64, lend_rate: u64, reward: u64, permission: Permission) acquires Permissions {
+    public fun c_bridge_deposit(
+        validator: &signer,
+        shared: String,
+        sender: vector<u8>,
+        token: String,
+        chain: String,
+        provider: String,
+        amount: u64,
+        lend_rate: u64,
+        reward: u64,
+        permission: Permission
+    ) acquires Permissions {
         Shared::assert_is_sub_owner(shared, sender);
-        let amount_u256 = (amount as u256)*1000000000000000000;
+        let amount_u256 = (amount as u256) * 1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
-        let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
+        let (_, _, total_deposited, _, _, _, _, _, _, _, _, _) = Liquidity::return_raw_vault(token, chain, provider);
+        let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
         let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
         if (amount_u256_taxed == 0) { return };
 
         // 1. Accrue user's existing balance BEFORE adding the new deposit
-        let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
+        let (_, _, user_borrow_interest, user_lend_rewards, user_points, _, _, _, price, user_gas_reducted, user_xp_increased, _) = new_accrue(validator, shared, sender, token, chain, provider);
 
-        // 2. Now update global gas rate with the new deposit
+        // 2. Update global gas rate, bridge provider rewards, and deposit tokens
         let _gas_rate = Gas::add_deposit(token, amount_u256_taxed, Gas::give_permission(&borrow_global<Permissions>(@dev).gas));
 
         Liquidity::admin_accrue_rewards_from_lz(validator, token, chain, provider, reward, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
@@ -142,7 +153,42 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
         fungible_asset::deposit(user_lp_store, shares_fa);
 
         Margin::add_deposit(shared, sender, token, chain, provider, amount_u256_taxed, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        
+
+        // 3. Re-fetch post-deposit vault state for event metrics
+        let (
+            _,
+            new_total_borrowed,
+            new_total_deposited,
+            new_total_staked,
+            new_total_rewards,
+            new_total_native_rewards,
+            new_total_interest,
+            new_virtual_borrowed,
+            new_virtual_deposited,
+            new_total_shares,
+            new_total_staked_locked_fee,
+            _
+        ) = Liquidity::return_raw_vault(token, chain, provider);
+
+        let new_utilization = Liquidity::get_utilization_ratio(
+            new_total_deposited,
+            new_virtual_deposited,
+            new_total_borrowed,
+            new_virtual_borrowed,
+            new_total_staked
+        );
+        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+        let id = (TokensMetadata::get_coin_metadata_tier(&metadata) as u8);
+        let (_, new_total_apr, new_borrow_apr) = Liquidity::calculate_minimal_apr(id, new_utilization);
+        let new_shares_ratio = calculate_redeem_ratio(
+            new_total_deposited,
+            new_total_interest,
+            new_total_native_rewards,
+            new_total_staked_locked_fee,
+            new_total_staked,
+            new_total_shares
+        );
+
         let data = vector[
             Event::create_data_struct(utf8(b"consensus_type"), utf8(b"string"), bcs::to_bytes(&utf8(b"zk"))),
             Event::create_data_struct(utf8(b"validator"), utf8(b"vector<u8>"), bcs::to_bytes(&signer::address_of(validator))),
@@ -157,26 +203,26 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
             Event::create_data_struct(utf8(b"points"), utf8(b"u256"), bcs::to_bytes(&user_points)),
             Event::create_data_struct(utf8(b"lend_rewards"), utf8(b"u256"), bcs::to_bytes(&user_lend_rewards)),
         
-            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&total_rewards)),
-            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&total_interest)),
-            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&total_apr)),
-            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&borrow_apr)),
-            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&utilization)),
+            Event::create_data_struct(utf8(b"total_rewards"), utf8(b"u256"), bcs::to_bytes(&new_total_rewards)),
+            Event::create_data_struct(utf8(b"total_native_rewards"), utf8(b"u256"), bcs::to_bytes(&new_total_native_rewards)),
+            Event::create_data_struct(utf8(b"total_interest"), utf8(b"u256"), bcs::to_bytes(&new_total_interest)),
+            Event::create_data_struct(utf8(b"total_apr"), utf8(b"u256"), bcs::to_bytes(&new_total_apr)),
+            Event::create_data_struct(utf8(b"borrow_apr"), utf8(b"u256"), bcs::to_bytes(&new_borrow_apr)),
+            Event::create_data_struct(utf8(b"utilization"), utf8(b"u256"), bcs::to_bytes(&new_utilization)),
 
             Event::create_data_struct(utf8(b"additional_xp_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_xp_increased)),
             Event::create_data_struct(utf8(b"fee_reduced_from_ref_code"), utf8(b"u256"), bcs::to_bytes(&user_gas_reducted)),
 
-            Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&shares_ratio)),
+            Event::create_data_struct(utf8(b"ratio"), utf8(b"u256"), bcs::to_bytes(&new_shares_ratio)),
 
-            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&(total_deposited + amount_u256_taxed))),
-            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&total_borrowed)),
-            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&total_staked)),
+            Event::create_data_struct(utf8(b"total_deposited"), utf8(b"u256"), bcs::to_bytes(&new_total_deposited)),
+            Event::create_data_struct(utf8(b"total_borrowed"), utf8(b"u256"), bcs::to_bytes(&new_total_borrowed)),
+            Event::create_data_struct(utf8(b"total_staked"), utf8(b"u256"), bcs::to_bytes(&new_total_staked)),
             Event::create_data_struct(utf8(b"price"), utf8(b"u256"), bcs::to_bytes(&price)),
-            
         ];
 
-        if(user_borrow_interest > 0){
-            vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)))
+        if (user_borrow_interest > 0) {
+            vector::push_back(&mut data, Event::create_data_struct(utf8(b"borrow_interest"), utf8(b"u256"), bcs::to_bytes(&user_borrow_interest)));
         };
         Event::emit_market_event(utf8(b"Bridge Deposit"), data);
     }
@@ -1655,7 +1701,14 @@ public entry fun stake_raw(
 
 // === HELPERS === //
 
-   public fun new_accrue(signer: &signer,shared: String, user: vector<u8>, token: String, chain: String, provider: String): (u256,u256, u256, u256, u256, u256, u256, u256, u256, u256,u256,u256) acquires Permissions {
+  public fun new_accrue(
+        signer: &signer,
+        shared: String,
+        user: vector<u8>,
+        token: String,
+        chain: String,
+        provider: String
+    ): (u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u256, u256) acquires Permissions {
         
         // 1. FETCH CURRENT BALANCES AND GLOBAL VAULT STATES
         let (
@@ -1664,33 +1717,34 @@ public entry fun stake_raw(
             user_virtual_deposited, 
             user_virtual_borrowed, 
             user_staked, 
-            user_rewards, 
-            user_accumulated_rewards_index, 
-            user_interest, 
+            _user_rewards, 
+            _user_accumulated_rewards_index, 
+            _user_interest, 
             user_accumulated_interest_index, 
-            user_native_accumulated_rewards_index,
-            user_incentive_deposit_index,       // <--- FIXED: Split Lender Checkpoint
-            user_incentive_borrow_index,        // <--- FIXED: Split Borrower Checkpoint
-            user_accumulated_rewards_index_snapshot, // <--- FIXED: Gated Checkpoint
-            user_stake_locked_fee,
-            user_stake_lock,
-            user_last_interacted
-
+            _user_native_accumulated_rewards_index,
+            user_incentive_deposit_index,
+            user_incentive_borrow_index,
+            user_accumulated_rewards_index_snapshot,
+            _user_stake_locked_fee,
+            _user_stake_lock,
+            _user_last_interacted
         ) = Margin::get_user_raw_balance(shared, token, chain, provider);
+
         let (
-            total_liquidity,
+            _total_liquidity,
             total_borrowed, 
             total_deposited, 
             total_staked, 
-            total_accumulated_rewards, 
-            total_native_accumulated_rewards,
-            total_accumulated_interest, 
+            _total_accumulated_rewards, 
+            _total_native_accumulated_rewards,
+            _total_accumulated_interest, 
             virtual_borrowed, 
             virtual_deposited, 
-            total_shares,                       // <--- FIXED: Return LP share supply
-            total_staked_locked_fee,
+            _total_shares,
+            _total_staked_locked_fee,
             last_update
         ) = Liquidity::return_raw_vault(token, chain, provider);
+
         let utilization = Liquidity::get_utilization_ratio(
             total_deposited, 
             virtual_deposited, 
@@ -1698,7 +1752,8 @@ public entry fun stake_raw(
             virtual_borrowed, 
             total_staked
         );
-        // 2. FETCH TOKEN METADATA - >> PRICE
+
+        // 2. FETCH TOKEN METADATA -> PRICE
         let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
         let id = (TokensMetadata::get_coin_metadata_tier(&metadata) as u8);
         let price = TokensMetadata::get_coin_metadata_price(&metadata);
@@ -1710,79 +1765,84 @@ public entry fun stake_raw(
         let current_time = timestamp::now_seconds();
         let time_diff = current_time - last_update;
 
-        // 4.  CALCULATE BORROW_APR & ACCRUE INTEREST
+        // 4. CALCULATE BORROW_APR & ACCRUE INTEREST
         let (_, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
         let global_accrued_interest = 0;
         if (total_borrowed > 0 && time_diff > 0) {
-            global_accrued_interest = calculate_global_interest(total_borrowed, borrow_apr,(time_diff as u256));
-            
+            global_accrued_interest = calculate_global_interest(total_borrowed, borrow_apr, (time_diff as u256));
         };
         if (global_accrued_interest > 0) {
             Liquidity::add_accumulated_interest(signer, token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
             Liquidity::add_borrow(token, chain, provider, global_accrued_interest, Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity));
         };
 
-        // 5. CALCULATE USER INTEREST
-        let user_total_supply = user_deposited + user_staked + user_virtual_deposited;
-        let user_total_debt = user_borrowed + user_virtual_borrowed;
-        let net_deposited = if (user_total_supply > user_total_debt) { user_total_supply - user_total_debt } else { 0 };
+        // Re-fetch vault state after Step 3 & Step 4 updates
+        let (
+            _total_liquidity,
+            total_borrowed, 
+            total_deposited, 
+            total_staked, 
+            total_accumulated_rewards, 
+            total_native_accumulated_rewards,
+            total_accumulated_interest, 
+            virtual_borrowed, 
+            virtual_deposited, 
+            total_shares,
+            total_staked_locked_fee,
+            _last_update
+        ) = Liquidity::return_raw_vault(token, chain, provider);
 
-       
+        utilization = Liquidity::get_utilization_ratio(
+            total_deposited,
+            virtual_deposited,
+            total_borrowed,
+            virtual_borrowed,
+            total_staked
+        );
+        (_, total_apr, borrow_apr) = Liquidity::calculate_minimal_apr(id, utilization);
+
+        // 5. CALCULATE USER INTEREST
+        let user_total_debt = user_borrowed + user_virtual_borrowed;
         let user_interest_accrued = 0;
         if (user_total_debt > 0) {
             user_interest_accrued = calculate_user_borrow_interest(total_accumulated_interest, user_accumulated_interest_index, user_total_debt, total_borrowed);
         };
-
         if (user_interest_accrued > 0) {
             Margin::add_borrow(shared, user, token, chain, provider, user_interest_accrued, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         };
 
-        // 6. CALCULATE USER REWARDS
-        let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, total_deposited);
-        let user_interest_reward = 0;
-        if (enoughLocked) {
-            user_interest_reward = calculate_user_burned_qiara_interest_rewards(total_accumulated_rewards, user_accumulated_rewards_index, net_deposited, total_deposited);
-            Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-        }
-
-        if (user_interest_reward > 0) {
-            Margin::add_rewards(shared, user, token, chain, provider, user_interest_reward, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));   
-        };
-
-
-        // FIXED: Gated checking for the accumulated fee rewards (for burned Qiara holders)
-        let new_user_fee_index = Liquidity::claim_accumulated_fee_rewards(
+        // 6. GATED ACCUMULATED FEE REWARDS (via accumulated_rewards_index)
+        let (new_user_fee_index, user_interest_reward) = Liquidity::claim_accumulated_fee_rewards(
             signer,
             shared,
             user,
             token,
             chain,
             provider,
-            user_deposited,                 // LP shares represent current deposits
+            user_deposited,
             (user_accumulated_rewards_index_snapshot as u128),
             Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity)
         );
 
-        // FIXED: Dual-Index virtual credit incentive distribution
+        // 7. DUAL-INDEX VIRTUAL CREDIT INCENTIVE DISTRIBUTION
         let (new_user_incentive_deposit_index, new_user_incentive_borrow_index) = Liquidity::distribute_rewards(
             shared, 
             user, 
             token, 
             chain, 
             provider, 
-            user_deposited,                 // user_shares
-            user_borrowed,                  // user_borrowed
+            user_deposited,
+            user_borrowed,
             (user_incentive_deposit_index as u128), 
             (user_incentive_borrow_index as u128), 
             Liquidity::give_permission(&borrow_global<Permissions>(@dev).liquidity)
         );
 
+        // 8. GAS & POINTS
         let (total_user_usd, _, _, _, _, _, _, _, _, _) = Margin::get_user_total_usd(shared);
         let (user_gas_index, user_last_time_interacted) = Shared::extract_raw_gas_relations(Shared::return_shared_ownership_new(shared));
 
         let (gas_fee, gas_index) = Gas::calculate_gas_fee_from_index(user_gas_index, total_user_usd);
-
-        // If user never had a gas index set yet (brand new user), don't charge historical index debt
         if (user_gas_index == 0) {
             gas_fee = 0;
         };
@@ -1796,7 +1856,7 @@ public entry fun stake_raw(
         let used_ref_code = Shared::extract_used_ref_code(ownership);
 
         let (actual_gas_reduction_for_ref_code_user, actual_xp_earned_for_ref_code_user, actual_final_gas) = if (used_ref_code != utf8(b"")) {
-            let (amount_of_gas_reduced, xp_earned, actual_taxed_gas_fees_ref_code, actual_taxed_xp_ref_code) = Points::calculate_ref_code_taxes(fee_tax, xp_tax, (gas_fee), (base_points_reward));
+            let (amount_of_gas_reduced, xp_earned, actual_taxed_gas_fees_ref_code, actual_taxed_xp_ref_code) = Points::calculate_ref_code_taxes(fee_tax, xp_tax, gas_fee, base_points_reward);
 
             let data = vector[
                 Event::create_data_struct(utf8(b"used_ref_code"), utf8(b"string"), bcs::to_bytes(&used_ref_code)),
@@ -1804,7 +1864,6 @@ public entry fun stake_raw(
                 Event::create_data_struct(utf8(b"taxed_xp"), utf8(b"u256"), bcs::to_bytes(&actual_taxed_xp_ref_code)),
             ];
             Event::emit_qiara_shared_stats(data);
-            // raw amount of gas reduced, xp earned, actual final gas (innitial gas fee - (amount of gas reduced from ref code user + ref code tax))
             (amount_of_gas_reduced, xp_earned, gas_fee - (amount_of_gas_reduced + (actual_taxed_gas_fees_ref_code as u256)))
         } else {
             (0, 0, gas_fee)
@@ -1814,15 +1873,15 @@ public entry fun stake_raw(
         TokenVaults::fast_add_accumulated_rewards(token, actual_final_gas, TokenVaults::give_permission(&borrow_global<Permissions>(@dev).token_vaults));
 
         let points_reward = actual_xp_earned_for_ref_code_user;
-
         Points::add_experience(shared, points_reward, Points::give_permission(&borrow_global<Permissions>(@dev).points));
 
+        // 9. SAVE ALL USER CHECKPOINT INDICES
+        Margin::update_accumulated_rewards_index(shared, user, token, chain, provider, (new_user_fee_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::update_reward_index(shared, user, token, chain, provider, total_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_interest_index(shared, user, token, chain, provider, total_accumulated_interest, Margin::give_permission(&borrow_global<Permissions>(@dev).margin)); 
         Margin::update_incentive_indices(shared, user, token, chain, provider, (new_user_incentive_deposit_index as u256), (new_user_incentive_borrow_index as u256), Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::update_time(shared, user, token, chain, provider, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
         Margin::update_native_reward_index(shared, user, token, chain, provider, total_native_accumulated_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
-
 
         return (
             total_accumulated_rewards, 
@@ -1839,6 +1898,7 @@ public entry fun stake_raw(
             calculate_redeem_ratio(total_deposited, total_accumulated_interest, total_native_accumulated_rewards, total_staked_locked_fee, total_staked, total_shares)
         )
     }
+
     
     fun non_user_storage_helper<T: key>(signer: &signer, obj: &Object<T>): String{
         let storage_address_bytes = string_utils::to_string(&object::object_address(obj));
@@ -1884,9 +1944,19 @@ public entry fun stake_raw(
          shares*1000000000000000000 / (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee + total_staked)
     }
 
-    #[view]
-    public fun calculate_redeem_ratio(total_deposited: u256, total_accumulated_interest: u256,  total_native_accumulated_rewards: u256, total_staked_locked_fee: u256, total_staked: u256, shares: u256): u256 {
-        (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee + total_staked)*1000000000000000000 /  shares
+#[view]
+    public fun calculate_redeem_ratio(
+        total_deposited: u256,
+        total_accumulated_interest: u256,
+        total_native_accumulated_rewards: u256,
+        total_staked_locked_fee: u256,
+        total_staked: u256,
+        shares: u256
+    ): u256 {
+        if (shares == 0) {
+            return 1000000000000000000
+        };
+        (total_deposited + total_accumulated_interest + total_native_accumulated_rewards + total_staked_locked_fee + total_staked) * 1000000000000000000 / shares
     }
 
     #[view]

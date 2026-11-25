@@ -114,10 +114,20 @@ module dev::QiaraMarginV92 {
 
 
 
-    public fun add_credit(shared: String, user: vector<u8>, value: u256, cap: Permission) acquires TokenHoldings{
+    public fun add_credit(shared: String, user: vector<u8>, value: u256, _cap: Permission) acquires TokenHoldings {
         Shared::assert_is_sub_owner(shared, user);
-        let credit = find_credit(borrow_global_mut<TokenHoldings>(@dev),shared);
-        credit.value = credit.value + value;
+        let credit = find_credit(borrow_global_mut<TokenHoldings>(@dev), shared);
+
+        if (credit.isPositive) {
+            credit.value = credit.value + value;
+        } else {
+            if (value >= credit.value) {
+                credit.value = value - credit.value;
+                credit.isPositive = true;
+            } else {
+                credit.value = credit.value - value;
+            };
+        };
     }
 
     public fun remove_credit(shared: String, user: vector<u8>, value: u256, cap: Permission) acquires TokenHoldings {
@@ -167,6 +177,7 @@ module dev::QiaraMarginV92 {
         let balance = find_balance(borrow_global_mut<TokenHoldings>(@dev),shared, token, chain, provider);
         balance.reward_index_snapshot = index;
     }
+
 
     public fun update_native_reward_index(shared: String, user: vector<u8>, token: String, chain: String,provider: String, index: u256, cap: Permission) acquires TokenHoldings{
         Shared::assert_is_sub_owner(shared, user);

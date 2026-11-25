@@ -322,32 +322,35 @@ public fun claim_accumulated_fee_rewards(
         token: String, 
         chain: String, 
         provider: String, 
-        user_shares: u256, 
+        user_deposited_balance: u256, 
         user_last_fee_index: u128, 
         _cap: Permission
-    ): u128 acquires GlobalVault, Permissions {
+    ): (u128, u256) acquires GlobalVault, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
         let current_global_index = vault.accumulated_rewards_index;
 
-        if (current_global_index <= user_last_fee_index || user_shares == 0) {
-            return current_global_index
+        // If index hasn't moved OR user has 0 balance (e.g. first deposit),
+        // return current_global_index so the caller checkpoints them at the current index.
+        if (current_global_index <= user_last_fee_index || user_deposited_balance == 0) {
+            return (current_global_index, 0)
         };
 
         let index_diff = current_global_index - user_last_fee_index;
-        let scale = 1000000000000000000;
-        let pending_fee_rewards = (user_shares * (index_diff as u256)) / scale;
+        let scale: u256 = 1000000000000000000;
+        let pending_fee_rewards = (user_deposited_balance * (index_diff as u256)) / scale;
+        let claimed_reward: u256 = 0;
 
         if (pending_fee_rewards > 0) {
             let (_, _, enoughLocked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, vault.total_deposited);
             if (enoughLocked) {
+                // Switch to Margin::add_rewards(...) if add_credit expects USD instead of token units
                 Margin::add_credit(shared, user, pending_fee_rewards, Margin::give_permission(&borrow_global<Permissions>(@dev).margin));
+                claimed_reward = pending_fee_rewards;
             } else {
-                // 🟢 FIX: Divide 1e18 scaled rewards down to u64 6-decimal units
-                let forfeited_u64 = (pending_fee_rewards / 1000000000000000000 as u64);
+                let forfeited_u64 = (pending_fee_rewards / scale as u64);
                 let vault_balance = fungible_asset::balance(vault.storage);
                 
-                // Clamp to available vault storage balance
                 if (forfeited_u64 > vault_balance) {
                     forfeited_u64 = vault_balance;
                 };
@@ -363,10 +366,12 @@ public fun claim_accumulated_fee_rewards(
                     };
                     primary_fungible_store::deposit(@dev, forfeited_assets);
                 };
-            }
+            };
         };
-        current_global_index
+
+        (current_global_index, claimed_reward)
     }
+    
 public fun deposit_token(
     signer: &signer, 
     token: String, 
@@ -771,12 +776,23 @@ public fun deposit_token(
         };
     }
 
-    public fun add_accumulated_rewards(token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault {
-        {
+    public fun add_accumulated_rewards(
+        token: String,
+        chain: String,
+        provider: String,
+        value: u256,
+        _cap: Permission
+    ) acquires GlobalVault {
         let vault = find_vault(borrow_global_mut<GlobalVault>(@dev), token, chain, provider);
-            vault.total_accumulated_rewards = vault.total_accumulated_rewards + value;
+        vault.total_accumulated_rewards = vault.total_accumulated_rewards + value;
+
+        if (vault.total_deposited > 0 && value > 0) {
+            let scale: u256 = 1000000000000000000;
+            let delta_index = (value * scale) / vault.total_deposited;
+            vault.accumulated_rewards_index = vault.accumulated_rewards_index + (delta_index as u128);
         };
     }
+
     public fun add_accumulated_interest(signer: &signer, token: String, chain: String,provider: String, value: u256, cap: Permission) acquires GlobalVault, Permissions {
         let vaults = borrow_global_mut<GlobalVault>(@dev);
         let vault = find_vault(vaults, token, chain, provider);
