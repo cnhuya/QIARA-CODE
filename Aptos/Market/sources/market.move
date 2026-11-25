@@ -113,7 +113,7 @@ const ERROR_SHARED_STORE_INSUFFICIENT_BALANCE: u64 = 1003;
     }
 
 // === CONSENSUS INTERFACE === //
-public fun c_bridge_deposit(
+    public fun c_bridge_deposit(
         validator: &signer,
         shared: String,
         sender: vector<u8>,
@@ -234,7 +234,7 @@ public fun c_bridge_deposit(
         Shared::assert_is_sub_owner(shared, sender);
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
     
         
@@ -366,7 +366,7 @@ public fun c_bridge_deposit(
         //let sender = bcs::to_bytes(&signer::address_of(validator));
         let amount_u256 = (amount as u256) * 1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
             
@@ -460,7 +460,7 @@ public fun c_bridge_deposit(
     amount: u64,
     permission: Permission
 ) acquires Permissions {
-    let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+    let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
     let amount_u256 = (amount as u256) * 1000000000000000000;
     
@@ -537,7 +537,7 @@ public fun c_bridge_deposit(
     public fun c_bridge_borrow(validator: &signer, shared: String, sender: vector<u8>,token: String, chain: String, provider: String, amount: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
       
@@ -605,7 +605,7 @@ public fun c_bridge_deposit(
 
     public fun c_bridge_repay(validator: &signer, shared: String, sender: vector<u8>,token: String, chain: String, provider: String, amount: u64, lend_rate: u64, permission: Permission) acquires Permissions {
         let amount_u256 = (amount as u256)*1000000000000000000;
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, fee) = TokensMetadata::impact(token, amount_u256, total_deposited, false, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(validator, shared, sender, token, chain, provider);
@@ -663,7 +663,7 @@ public fun c_bridge_deposit(
 
     public entry fun c_bridge_claim_rewards(validator: &signer,  shared: String, sender: vector<u8>,  token: String, chain: String, provider: String) acquires Permissions {
         let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let reward_amount = user_rewards;
         let interest_amount = user_interest;
@@ -761,7 +761,8 @@ public entry fun deposit_raw(
         virtual_deposited,
         total_shares,
         total_staked_locked_fee,
-        last_update
+        last_update,
+        new_fee_index
     ) = Liquidity::return_raw_vault(token, chain, provider);
 
     let (_, _fee) = TokensMetadata::impact(
@@ -855,7 +856,8 @@ public entry fun stake_raw(
         virtual_deposited,
         total_shares,
         total_staked_locked_fee,
-        last_update
+        last_update,
+        new_fee_index
     ) = Liquidity::return_raw_vault(token, chain, provider);
 
     let (_, _fee) = TokensMetadata::impact(
@@ -961,7 +963,7 @@ public entry fun stake_raw(
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256) * 1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
 
         let (amount_u256_taxed, fee) = assert_minimal_fee(token, chain, provider, amount_u256, _fee);
@@ -1057,7 +1059,7 @@ public entry fun stake_raw(
         let amount_u256 = (amount as u256) * 1000000000000000000;
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (_, _fee) = TokensMetadata::impact(token, amount_u256 / 1000000000000000000, total_deposited / 1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
         if (amount_u256_taxed == 0) { return };
@@ -1146,7 +1148,7 @@ public entry fun stake_raw(
         let amount_u256 = (amount as u256)*1000000000000000000;
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let (amount_u256_taxed,fee) = assert_minimal_fee(token, chain, provider,  amount_u256, _fee);
@@ -1210,7 +1212,7 @@ public entry fun stake_raw(
         let amount_u256 = (amount as u256)*1000000000000000000;
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let (amount_u256_taxed, fee) = handle_withdrawal_fee(token, chain, provider,  amount_u256, _fee);
@@ -1285,7 +1287,7 @@ public entry fun stake_raw(
         let amount_u256 = (amount as u256) * 1000000000000000000;
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender_bytes, token, chain, provider);
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
         let (gross_after_impact, fee) = handle_withdrawal_fee(token, chain, provider, amount_u256, _fee);
@@ -1340,7 +1342,7 @@ public entry fun stake_raw(
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
@@ -1404,7 +1406,7 @@ public entry fun stake_raw(
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
@@ -1461,7 +1463,7 @@ public entry fun stake_raw(
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
@@ -1516,7 +1518,7 @@ public entry fun stake_raw(
         let sender = bcs::to_bytes(&signer::address_of(signer));
         let amount_u256 = (amount as u256)*1000000000000000000;
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
         let (_, _fee) = TokensMetadata::impact(token, amount_u256/1000000000000000000, total_deposited/1000000000000000000, true, utf8(b"spot"), TokensMetadata::give_permission(&borrow_global<Permissions>(@dev).tokens_metadata));
@@ -1575,7 +1577,7 @@ public entry fun stake_raw(
         let amount_u256 = (amount as u256)*1000000000000000000;
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards, user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, sender, token, chain, provider);
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards,total_native_accumulated_rewards,  total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares,total_staked_locked_fee, last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let fa = TokensCore::withdraw(shared, primary_fungible_store::ensure_primary_store_exists(signer::address_of(signer),TokensCore::get_metadata(token)), amount, chain);
         
@@ -1625,7 +1627,7 @@ public entry fun stake_raw(
 
     public entry fun claim_rewards(signer: &signer, shared: String, token: String, chain: String, provider: String) acquires Permissions {
 
-        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update) = Liquidity::return_raw_vault(token, chain, provider);
+        let (total_liquidity, total_borrowed, total_deposited, total_staked, total_accumulated_rewards, total_native_accumulated_rewards, total_accumulated_interest, virtual_borrowed, virtual_deposited, total_shares, total_staked_locked_fee,last_update, new_fee_index) = Liquidity::return_raw_vault(token, chain, provider);
 
         let (total_rewards, total_interest, user_borrow_interest, user_lend_rewards,  user_points, total_apr, borrow_apr, utilization, price, user_gas_reducted, user_xp_increased, shares_ratio) = new_accrue(signer, shared, bcs::to_bytes(&signer::address_of(signer)), token, chain, provider);
         let (_,_,user_deposited, user_borrowed, _, user_rewards, _, user_interest, _, _, _, _, _, _, _,_) = Margin::get_user_raw_balance(shared, token, chain, provider);
