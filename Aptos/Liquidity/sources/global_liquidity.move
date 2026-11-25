@@ -1089,21 +1089,26 @@ public fun deposit_token(
 
     #[view]
     public fun calculate_minimal_apr(id: u8, utilization: u256): (u256, u256, u256) {
-        utilization = utilization / 10000;
-        let utilx5 = (utilization * utilization * utilization * utilization);
+        let raw_utilization = utilization; // 100% = 100_000_000
+        let u = utilization / 10000;       // 100% = 10_000
+        let utilx4 = u * u * u * u;
         let qiara_base_apr = (TokensTiers::market_base_lending_apr(id) as u256);
+
         let slashing = 1_000_000_000;
         if (id == 254) {
             slashing = slashing - 100_000_000;
-        } else if (id == 255) {
-            slashing = slashing;
-        } else {
+        } else if (id != 255) {
             slashing = slashing - 100_000_000 - ((id as u256) * 100_000_000);
         };
 
-        let x = (qiara_base_apr * (utilx5)) / 1_000_000;
-        let final_apr = (x / slashing) + qiara_base_apr;
-        let borrow_apr = (final_apr * ((utilization) / 50)) / 100 + final_apr;
+        let x = (qiara_base_apr * utilx4) / 1_000_000;
+        let base_curve = (x / slashing) + qiara_base_apr;
+        let borrow_apr = (base_curve * (u / 50)) / 100 + base_curve;
+
+        // Real lender APR = borrow_apr * utilization * lender_share (e.g. 75% or 25%)
+        let lender_share_bps: u256 = 75; // change to 25 if you want lenders to get 1/4 of borrow interest
+        let final_apr = (borrow_apr * raw_utilization * lender_share_bps) / (100_000_000 * 100);
+
         return (qiara_base_apr, final_apr, borrow_apr)
     }
 
