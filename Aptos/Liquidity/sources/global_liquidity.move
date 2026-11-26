@@ -1077,37 +1077,6 @@ public fun deposit_token(
     }
 
     #[view]
-    public fun get_shared_lp_balance(
-        shared: String, 
-        token: String, 
-        chain: String, 
-        provider: String
-    ): u64 acquires GlobalLPCapabilities {
-        let vault_seed = *String::bytes(&token);
-        vector::append(&mut vault_seed, *String::bytes(&chain));
-        vector::append(&mut vault_seed, *String::bytes(&provider));
-        let vault_address = account::create_resource_address(&@dev, vault_seed);
-
-        if (!exists<GlobalLPCapabilities>(@dev)) {
-            return 0
-        };
-        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
-        if (!table::contains(&lp_caps.caps, vault_address)) {
-            return 0
-        };
-        let cap = table::borrow(&lp_caps.caps, vault_address);
-
-        let derived_address = Shared::return_shared_derived_address(shared);
-        if (derived_address == @0x0) {
-            return 0
-        };
-
-        let primary_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
-        let custom_balance = Shared::get_shared_fungible_balance(shared, cap.lp_metadata);
-        primary_balance + custom_balance
-    }
-
-    #[view]
     public fun get_utilization_ratio(deposited: u256, virtual_deposited: u256, borrowed: u256, virtual_borrowed: u256, staked: u256): u256 {
         let positive_supply = deposited + staked + virtual_deposited;
         let negative_supply = borrowed + virtual_borrowed;
