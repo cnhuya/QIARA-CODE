@@ -1087,21 +1087,19 @@ public fun deposit_token(
         }
     }
 
-// Read-only lookup helper for #[view] functions
-    fun find_vault_ref(
+fun find_vault_ref(
         vaults: &GlobalVault,
         token: String,
-        chain: String,
-        provider: String
+        chain: &String,
+        provider: &String
     ): &Vault {
         assert!(table::contains(&vaults.balances, token), ERROR_VAULT_DOES_NOT_EXIST);
         let token_table = table::borrow(&vaults.balances, token);
-        assert!(map::contains_key(token_table, &chain), ERROR_VAULT_DOES_NOT_EXIST);
-        let chain_map = map::borrow(token_table, &chain);
-        assert!(map::contains_key(chain_map, &provider), ERROR_VAULT_DOES_NOT_EXIST);
-        map::borrow(chain_map, &provider)
+        assert!(map::contains_key(token_table, chain), ERROR_VAULT_DOES_NOT_EXIST);
+        let chain_map = map::borrow(token_table, chain);
+        assert!(map::contains_key(chain_map, provider), ERROR_VAULT_DOES_NOT_EXIST);
+        map::borrow(chain_map, provider)
     }
-
 
 struct UserRewardDetail has copy, drop, store {
         token: String,
@@ -1300,7 +1298,7 @@ struct UserRewardDetail has copy, drop, store {
         provider: String
     ): (u256, u256, u256, u256, bool) acquires GlobalVault, GlobalLPCapabilities {
         let vaults = borrow_global<GlobalVault>(@dev);
-        let vault = find_vault_ref(vaults, token, chain, provider);
+        let vault = find_vault_ref(vaults, token, &chain, &provider);
         let scale: u256 = 1000000000000000000;
 
         let (
