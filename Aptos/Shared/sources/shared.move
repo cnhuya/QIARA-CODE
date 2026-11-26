@@ -690,6 +690,26 @@ module dev::QiaraSharedV18 {
     }
 
     #[view]
+    public fun get_shared_fungible_balance(shared_name: String, asset_metadata: Object<Metadata>): u64 acquires SharedStorage {
+        let shared = borrow_global<SharedStorage>(@dev);
+        if (!table::contains(&shared.storage, shared_name)) {
+            return 0
+        };
+
+        if (table::contains(&shared.fungible_stores, shared_name)) {
+            let token_map = table::borrow(&shared.fungible_stores, shared_name);
+            if (table::contains(token_map, asset_metadata)) {
+                let store = *table::borrow(token_map, asset_metadata);
+                return fungible_asset::balance(store)
+            };
+        };
+
+        let ownership = table::borrow(&shared.storage, shared_name);
+        let derived_address = object::address_from_extend_ref(&ownership.metadata.extend_ref);
+        primary_fungible_store::balance(derived_address, asset_metadata)
+    }
+
+    #[view]
     public fun return_fungible_store(shared_name: String, asset_metadata: Object<Metadata>): Object<FungibleStore> acquires SharedStorage {
         let shared = borrow_global<SharedStorage>(@dev);
         
@@ -778,6 +798,8 @@ module dev::QiaraSharedV18 {
         let ownership_record = table::borrow(&shared.storage, shared_name);
         object::generate_signer_for_extending(&ownership_record.metadata.extend_ref)
     }
+
+
 
     /// Helper to convert a stored Ownership record into a copyable view
     fun make_ownership_view(record: &Ownership): OwnershipView {

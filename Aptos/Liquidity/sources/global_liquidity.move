@@ -1077,6 +1077,37 @@ public fun deposit_token(
     }
 
     #[view]
+    public fun get_shared_lp_balance(
+        shared: String, 
+        token: String, 
+        chain: String, 
+        provider: String
+    ): u64 acquires GlobalLPCapabilities {
+        let vault_seed = *String::bytes(&token);
+        vector::append(&mut vault_seed, *String::bytes(&chain));
+        vector::append(&mut vault_seed, *String::bytes(&provider));
+        let vault_address = account::create_resource_address(&@dev, vault_seed);
+
+        if (!exists<GlobalLPCapabilities>(@dev)) {
+            return 0
+        };
+        let lp_caps = borrow_global<GlobalLPCapabilities>(@dev);
+        if (!table::contains(&lp_caps.caps, vault_address)) {
+            return 0
+        };
+        let cap = table::borrow(&lp_caps.caps, vault_address);
+
+        let derived_address = Shared::return_shared_derived_address(shared);
+        if (derived_address == @0x0) {
+            return 0
+        };
+
+        let primary_balance = primary_fungible_store::balance(derived_address, cap.lp_metadata);
+        let custom_balance = Shared::get_shared_fungible_balance(shared, cap.lp_metadata);
+        primary_balance + custom_balance
+    }
+
+    #[view]
     public fun get_utilization_ratio(deposited: u256, virtual_deposited: u256, borrowed: u256, virtual_borrowed: u256, staked: u256): u256 {
         let positive_supply = deposited + staked + virtual_deposited;
         let negative_supply = borrowed + virtual_borrowed;
@@ -1085,6 +1116,120 @@ public fun deposit_token(
         } else {
             ((negative_supply * 100_000_000) / positive_supply)
         }
+    }
+
+// Read-only lookup helper for #[view] functions
+    fun find_vault_ref(
+        vaults: &GlobalVault,
+        token: String,
+        chain: String,
+        provider: String
+    ): &Vault {
+        assert!(table::contains(&vaults.balances, token), ERROR_VAULT_DOES_NOT_EXIST);
+        let token_table = table::borrow(&vaults.balances, token);
+        assert!(map::contains_key(token_table, &chain), ERROR_VAULT_DOES_NOT_EXIST);
+        let chain_map = map::borrow(token_table, &chain);
+        assert!(map::contains_key(chain_map, &provider), ERROR_VAULT_DOES_NOT_EXIST);
+        map::borrow(chain_map, &provider)
+    }
+
+    #[view]
+    public fun preview_user_rewards(
+        shared: String,
+        token: String,
+        chain: String,
+        provider: String
+    ): (u256, u256, u256, u256, bool) acquires GlobalVault, GlobalLPCapabilities {
+        let vaults = borrow_global<GlobalVault>(@dev);
+        let vault = find_vault_ref(vaults, token, chain, provider);
+        let scale: u256 = 1000000000000000000;
+
+        let (
+            user_deposited,
+            user_borrowed,
+            _uvd,
+            _uvb,
+            _ustk,
+            stored_user_rewards,
+            _uari,
+            _ui,
+            _uaii,
+            _unari,
+            user_incentive_deposit_index,
+            user_incentive_borrow_index,
+            user_fee_index_snapshot,
+            _uslf,
+            _usl,
+            _uli
+        ) = Margin::get_user_raw_balance(shared, token, chain, provider);
+
+        // 1. Realized LP share yield (provider rewards + accrued borrow interest)
+        let user_lp_u64 = get_shared_lp_balance(shared, token, chain, provider);
+        let user_shares_scaled = (user_lp_u64 as u256) * scale;
+        let total_assets = get_total_assets(vault);
+        let redeemable_assets = if (vault.total_shares > 0) {
+            (user_shares_scaled * total_assets) / vault.total_shares
+        } else {
+            0
+        };
+        let lp_share_yield = if (redeemable_assets > user_deposited) {
+            redeemable_assets - user_deposited
+        } else {
+            0
+        };
+
+        // 2. Real pending fee rewards (withdrawal/deposit fees, gated by BurnedQiara)
+        let (_, _, enough_locked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, vault.total_deposited);
+        let global_fee_idx = vault.accumulated_rewards_index;
+        let user_fee_idx = (user_fee_index_snapshot as u128);
+        let pending_fee_rewards = if (enough_locked && global_fee_idx > user_fee_idx && user_deposited > 0) {
+            (user_deposited * ((global_fee_idx - user_fee_idx) as u256)) / scale
+        } else {
+            0
+        };
+
+        // 3. Real pending incentive credits up to current second
+        let pending_incentive_credits: u256 = 0;
+        if (vault.incentive.period_finish != 0) {
+            let current_time = timestamp::now_seconds();
+            let last_applicable = if (current_time < vault.incentive.period_finish) {
+                current_time
+            } else {
+                vault.incentive.period_finish
+            };
+            let dep_idx = vault.incentive.deposit_index;
+            let bor_idx = vault.incentive.borrow_index;
+
+            if (last_applicable > vault.incentive.last_update_time) {
+                let elapsed = last_applicable - vault.incentive.last_update_time;
+                let total_accrued = vault.incentive.reward_rate * (elapsed as u256);
+                if (vault.total_shares > 0) {
+                    let dep_rew = (total_accrued * vault.incentive.deposit_weight) / 100000000;
+                    dep_idx = dep_idx + ((dep_rew * scale / vault.total_shares) as u128);
+                };
+                if (vault.total_borrowed > 0) {
+                    let bor_rew = (total_accrued * vault.incentive.borrow_weight) / 100000000;
+                    bor_idx = bor_idx + ((bor_rew * scale / vault.total_borrowed) as u128);
+                };
+            };
+
+            if (user_deposited > 0 && dep_idx > (user_incentive_deposit_index as u128)) {
+                let diff = dep_idx - (user_incentive_deposit_index as u128);
+                pending_incentive_credits = pending_incentive_credits + ((user_deposited * (diff as u256)) / scale);
+            };
+            if (user_borrowed > 0 && bor_idx > (user_incentive_borrow_index as u128)) {
+                let diff = bor_idx - (user_incentive_borrow_index as u128);
+                pending_incentive_credits = pending_incentive_credits + ((user_borrowed * (diff as u256)) / scale);
+            };
+        };
+
+        (
+            lp_share_yield,            // 0: Token-denominated (1e18 * token decimals)
+            pending_fee_rewards,       // 1: Token-denominated (1e18 * token decimals)
+            pending_incentive_credits, // 2: Incentive credit units (1e18)
+            stored_user_rewards,       // 3: Already stored in Margin (1e18 * token decimals)
+            enough_locked              // 4: Burned Qiara eligibility
+        )
     }
 
     #[view]
