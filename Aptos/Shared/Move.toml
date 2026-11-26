@@ -12,11 +12,9 @@
     
     [dev-addresses]
 
-    [dependencies.AptosStdlib]
-    git = "https://github.com/aptos-labs/aptos-core.git"
- rev = "aa72cce3ac7b5544e0d10823bbdfc3b4331cfb53"
+[dependencies.AptosStdlib]
+local = "C:/Users/Kristian/aptos-core-pinned/aptos-move/framework/aptos-stdlib"
 
-    subdir = "aptos-move/framework/aptos-stdlib"
 
     [dependencies.QiaraEventV1]
     git = 'https://github.com/cnhuya/QIARA-CODE.git'

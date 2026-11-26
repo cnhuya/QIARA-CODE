@@ -356,6 +356,52 @@ module dev::QiaraMarginV92 {
 // === PUBLIC VIEWS === //
 
     #[view]
+    public fun return_user_position_keys(
+        shared: String
+    ): (vector<String>, vector<String>, vector<String>) acquires TokenHoldings {
+        let tokens_holdings = borrow_global<TokenHoldings>(@dev);
+        let out_tokens = vector::empty<String>();
+        let out_chains = vector::empty<String>();
+        let out_providers = vector::empty<String>();
+
+        if (!table::contains(&tokens_holdings.holdings, shared)) {
+            return (out_tokens, out_chains, out_providers)
+        };
+
+        let user_holdings_ref = table::borrow(&tokens_holdings.holdings, shared);
+        let tokens = TokensType::return_full_nick_names_list();
+        let len_tokens = vector::length(&tokens);
+        let i = 0;
+
+        while (i < len_tokens) {
+            let token = *vector::borrow(&tokens, i);
+            if (table::contains(user_holdings_ref, token)) {
+                let chain_map = table::borrow(user_holdings_ref, token);
+                let chains = map::keys(chain_map);
+                let len_chain = vector::length(&chains);
+                let y = 0;
+                while (y < len_chain) {
+                    let chain = *vector::borrow(&chains, y);
+                    let providers_map = map::borrow(chain_map, &chain);
+                    let providers = map::keys(providers_map);
+                    let len_providers = vector::length(&providers);
+                    let x = 0;
+                    while (x < len_providers) {
+                        vector::push_back(&mut out_tokens, token);
+                        vector::push_back(&mut out_chains, chain);
+                        vector::push_back(&mut out_providers, *vector::borrow(&providers, x));
+                        x = x + 1;
+                    };
+                    y = y + 1;
+                };
+            };
+            i = i + 1;
+        };
+
+        (out_tokens, out_chains, out_providers)
+    }
+
+    #[view]
     public fun get_user_total_usd(shared: String): (u256, u256, u256, u256, u256, u256, u256, u256, u256, vector<Credit>) acquires TokenHoldings {
         let tokens_holdings = borrow_global_mut<TokenHoldings>(@dev);
         let tokens = TokensType::return_full_nick_names_list();

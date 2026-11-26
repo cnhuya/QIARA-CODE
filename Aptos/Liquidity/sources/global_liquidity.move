@@ -1133,6 +1133,196 @@ public fun deposit_token(
         map::borrow(chain_map, &provider)
     }
 
+
+struct UserRewardDetail has copy, drop, store {
+        token: String,
+        chain: String,
+        provider: String,
+        lp_share_yield: u256,
+        pending_fee_rewards: u256,
+        pending_incentive_credits: u256,
+        stored_user_rewards: u256,
+        lp_share_yield_usd: u256,
+        pending_fee_rewards_usd: u256,
+        enough_locked: bool,
+    }
+
+    fun compute_user_rewards_for_vault(
+        vault: &Vault,
+        shared: String,
+        token: String,
+        chain: String,
+        provider: String
+    ): (u256, u256, u256, u256, bool) acquires GlobalLPCapabilities {
+        let scale: u256 = 1000000000000000000;
+
+        let (
+            user_deposited,
+            user_borrowed,
+            _uvd,
+            _uvb,
+            _ustk,
+            stored_user_rewards,
+            _uari,
+            _ui,
+            _uaii,
+            _unari,
+            user_incentive_deposit_index,
+            user_incentive_borrow_index,
+            user_fee_index_snapshot,
+            _uslf,
+            _usl,
+            _uli
+        ) = Margin::get_user_raw_balance(shared, token, chain, provider);
+
+        // 1. Realized LP share yield (provider rewards + accrued borrow interest)
+        let user_lp_u64 = get_shared_lp_balance(shared, token, chain, provider);
+        let user_shares_scaled = (user_lp_u64 as u256) * scale;
+        let total_assets = get_total_assets(vault);
+        let redeemable_assets = if (vault.total_shares > 0) {
+            (user_shares_scaled * total_assets) / vault.total_shares
+        } else {
+            0
+        };
+        let lp_share_yield = if (redeemable_assets > user_deposited) {
+            redeemable_assets - user_deposited
+        } else {
+            0
+        };
+
+        // 2. Real pending fee rewards (gated by BurnedQiara)
+        let (_, _, enough_locked) = BurnedQiara::calculate_required_locked_tokens_u256(shared, vault.total_deposited);
+        let global_fee_idx = vault.accumulated_rewards_index;
+        let user_fee_idx = (user_fee_index_snapshot as u128);
+        let pending_fee_rewards = if (enough_locked && global_fee_idx > user_fee_idx && user_deposited > 0) {
+            (user_deposited * ((global_fee_idx - user_fee_idx) as u256)) / scale
+        } else {
+            0
+        };
+
+        // 3. Real pending incentive credits up to current second
+        let pending_incentive_credits: u256 = 0;
+        if (vault.incentive.period_finish != 0) {
+            let current_time = timestamp::now_seconds();
+            let last_applicable = if (current_time < vault.incentive.period_finish) {
+                current_time
+            } else {
+                vault.incentive.period_finish
+            };
+            let dep_idx = vault.incentive.deposit_index;
+            let bor_idx = vault.incentive.borrow_index;
+
+            if (last_applicable > vault.incentive.last_update_time) {
+                let elapsed = last_applicable - vault.incentive.last_update_time;
+                let total_accrued = vault.incentive.reward_rate * (elapsed as u256);
+                if (vault.total_shares > 0) {
+                    let dep_rew = (total_accrued * vault.incentive.deposit_weight) / 100000000;
+                    dep_idx = dep_idx + ((dep_rew * scale / vault.total_shares) as u128);
+                };
+                if (vault.total_borrowed > 0) {
+                    let bor_rew = (total_accrued * vault.incentive.borrow_weight) / 100000000;
+                    bor_idx = bor_idx + ((bor_rew * scale / vault.total_borrowed) as u128);
+                };
+            };
+
+            if (user_deposited > 0 && dep_idx > (user_incentive_deposit_index as u128)) {
+                let diff = dep_idx - (user_incentive_deposit_index as u128);
+                pending_incentive_credits = pending_incentive_credits + ((user_deposited * (diff as u256)) / scale);
+            };
+            if (user_borrowed > 0 && bor_idx > (user_incentive_borrow_index as u128)) {
+                let diff = bor_idx - (user_incentive_borrow_index as u128);
+                pending_incentive_credits = pending_incentive_credits + ((user_borrowed * (diff as u256)) / scale);
+            };
+        };
+
+        (lp_share_yield, pending_fee_rewards, pending_incentive_credits, stored_user_rewards, enough_locked)
+    }
+
+    #[view]
+    public fun get_user_all_rewards(
+        shared: String
+    ): (u256, u256, u256, u256, u256, vector<UserRewardDetail>) acquires GlobalVault, GlobalLPCapabilities {
+        let vaults = borrow_global<GlobalVault>(@dev);
+        let (tokens, chains, providers) = Margin::return_user_position_keys(shared);
+
+        let total_lp_yield_usd: u256 = 0;
+        let total_pending_fee_usd: u256 = 0;
+        let total_pending_incentive_usd: u256 = 0;
+        let total_stored_rewards_usd: u256 = 0;
+        let details = vector::empty<UserRewardDetail>();
+
+        let len = vector::length(&tokens);
+        let i = 0;
+        while (i < len) {
+            let token = *vector::borrow(&tokens, i);
+            let chain = *vector::borrow(&chains, i);
+            let provider = *vector::borrow(&providers, i);
+
+            if (table::contains(&vaults.balances, token)) {
+                let token_table = table::borrow(&vaults.balances, token);
+                if (map::contains_key(token_table, &chain)) {
+                    let chain_map = map::borrow(token_table, &chain);
+                    if (map::contains_key(chain_map, &provider)) {
+                        let vault = map::borrow(chain_map, &provider);
+
+                        let (
+                            lp_share_yield,
+                            pending_fee_rewards,
+                            pending_incentive_credits,
+                            stored_user_rewards,
+                            enough_locked
+                        ) = compute_user_rewards_for_vault(vault, shared, token, chain, provider);
+
+                        let metadata = TokensMetadata::get_coin_metadata_by_symbol(token);
+                        let price = (TokensMetadata::get_coin_metadata_price(&metadata) as u256);
+                        let denom = (TokensMetadata::get_coin_metadata_denom(&metadata) as u256);
+
+                        let lp_yield_usd = if (denom > 0) { (lp_share_yield * price) / denom } else { 0 };
+                        let fee_usd = if (denom > 0) { (pending_fee_rewards * price) / denom } else { 0 };
+                        let stored_usd = if (denom > 0) { (stored_user_rewards * price) / denom } else { 0 };
+
+                        total_lp_yield_usd = total_lp_yield_usd + lp_yield_usd;
+                        total_pending_fee_usd = total_pending_fee_usd + fee_usd;
+                        total_pending_incentive_usd = total_pending_incentive_usd + pending_incentive_credits;
+                        total_stored_rewards_usd = total_stored_rewards_usd + stored_usd;
+
+                        if (lp_share_yield > 0 || pending_fee_rewards > 0 || pending_incentive_credits > 0 || stored_user_rewards > 0) {
+                            vector::push_back(&mut details, UserRewardDetail {
+                                token,
+                                chain,
+                                provider,
+                                lp_share_yield,
+                                pending_fee_rewards,
+                                pending_incentive_credits,
+                                stored_user_rewards,
+                                lp_share_yield_usd: lp_yield_usd,
+                                pending_fee_rewards_usd: fee_usd,
+                                enough_locked,
+                            });
+                        };
+                    };
+                };
+            };
+            i = i + 1;
+        };
+
+        let total_combined_usd =
+            total_lp_yield_usd +
+            total_pending_fee_usd +
+            total_pending_incentive_usd +
+            total_stored_rewards_usd;
+
+        (
+            total_lp_yield_usd,
+            total_pending_fee_usd,
+            total_pending_incentive_usd,
+            total_stored_rewards_usd,
+            total_combined_usd,
+            details
+        )
+    }
+
+    // DEPRECATED, REMOVE IN FUTURE
     #[view]
     public fun preview_user_rewards(
         shared: String,
